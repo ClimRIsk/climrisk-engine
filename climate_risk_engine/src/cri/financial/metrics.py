@@ -83,6 +83,30 @@ def compute_year(
         - wc_change
     )
 
+    # ── VaR decomposition ─────────────────────────────────────────────────────
+    # Split physical_loss_cost into CAPEX shock (structural damage) and OPEX
+    # shock (business interruption / lost revenue) using hazard-weighted ratios.
+    # Acute structural hazards (flood, cyclone, wildfire) are CAPEX-heavy;
+    # chronic / intensity hazards (heat, drought, water stress) are OPEX-heavy.
+    _CAPEX_WEIGHT = {
+        "flood_riverine": 0.55, "flood_coastal": 0.60, "cyclone": 0.65,
+        "landslide": 0.70, "wildfire": 0.50, "sea_level_rise": 0.45,
+        "saltwater_intrusion": 0.30, "heat_stress": 0.15,
+        "drought": 0.20, "water_stress": 0.20, "combined": 0.35,
+    }
+    total_hazard = sum(op.physical_loss_by_hazard.values()) or op.physical_loss_cost or 1.0
+    weighted_capex_frac = sum(
+        v * _CAPEX_WEIGHT.get(k, 0.35)
+        for k, v in op.physical_loss_by_hazard.items()
+    ) / total_hazard if op.physical_loss_by_hazard else 0.35
+
+    capex_shock = round(weighted_capex_frac * op.physical_loss_cost, 2)
+    opex_shock  = round((1.0 - weighted_capex_frac) * op.physical_loss_cost, 2)
+    gross_var   = round(capex_shock + opex_shock, 2)
+    # Parametric insurance covers 20% of gross VaR (deductible + seawall efficacy)
+    insurance_offset = round(0.20 * gross_var, 2)
+    net_var     = round(gross_var - insurance_offset, 2)
+
     return YearResult(
         year=op.year,
         revenue=op.revenue,
@@ -107,4 +131,9 @@ def compute_year(
         physical_loss_by_hazard=op.physical_loss_by_hazard,
         stranded_writedown=op.stranded_writedown,
         stranded_assets=op.stranded_assets,
+        capex_shock=capex_shock,
+        opex_shock=opex_shock,
+        gross_var=gross_var,
+        insurance_offset=insurance_offset,
+        net_var=net_var,
     )

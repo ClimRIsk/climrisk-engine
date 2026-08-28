@@ -19,13 +19,41 @@ class ScenarioResponse(BaseModel):
     version: str
 
 
+class AssetLocationResponse(BaseModel):
+    """Asset-level metadata including precise coordinates."""
+
+    id: str
+    name: str
+    commodity: str
+    region: str
+    lat: Optional[float] = None
+    lon: Optional[float] = None
+    equipment_type: Optional[str] = None
+    baseline_production: float
+    production_unit: str
+    carrying_value_usd_m: float
+
+
+class FinancialsResponse(BaseModel):
+    """Company-level baseline financials (USD millions)."""
+
+    revenue_usd_m: float
+    ebitda_usd_m: float
+    capex_usd_m: float
+    wacc_pct: float
+    net_debt_usd_m: float
+
+
 class CompanyResponse(BaseModel):
-    """Company metadata for GET /companies."""
+    """Company metadata for GET /companies — full profile including asset locations."""
 
     id: str
     name: str
     sector: str
     region: str
+    financials: FinancialsResponse
+    assets: List[AssetLocationResponse]
+    data_quality: str
 
 
 class CustomScenarioParams(BaseModel):

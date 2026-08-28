@@ -148,6 +148,28 @@ def run(
             return None
         return yr.ebitda / baseline_ebitda - 1.0
 
+    # ── Portfolio-level VaR aggregation ────────────────────────────────────────
+    _disc = dcf.wacc_used or 0.08
+    _base_yr = year_results[0].year if year_results else 2026
+    gross_var_npv = sum(
+        yr.gross_var / (1 + _disc) ** (yr.year - _base_yr)
+        for yr in year_results
+    )
+    net_var_npv = sum(
+        yr.net_var / (1 + _disc) ** (yr.year - _base_yr)
+        for yr in year_results
+    )
+    ev = dcf.enterprise_value or 1.0
+    portfolio_impairment_pct = net_var_npv / ev if ev > 0 else 0.0
+    peak_annual_gross_var = max((yr.gross_var for yr in year_results), default=0.0)
+
+    # Dominant hazard: hazard type with largest cumulative loss across all years
+    hazard_totals: dict[str, float] = {}
+    for yr in year_results:
+        for h, v in yr.physical_loss_by_hazard.items():
+            hazard_totals[h] = hazard_totals.get(h, 0.0) + v
+    dominant_hazard = max(hazard_totals, key=hazard_totals.get) if hazard_totals else ""
+
     return RunResults(
         run_id=str(uuid.uuid4())[:8],
         scenario_id=scenario.id,
@@ -164,6 +186,11 @@ def run(
         npv_impact_pct=npv_impact_pct,
         ebitda_compression_2030_pct=_compression(2030),
         ebitda_compression_2040_pct=_compression(2040),
+        gross_var_npv=round(gross_var_npv, 1),
+        net_var_npv=round(net_var_npv, 1),
+        portfolio_impairment_pct=round(portfolio_impairment_pct, 4),
+        peak_annual_gross_var=round(peak_annual_gross_var, 1),
+        dominant_hazard=dominant_hazard,
         input_hash=_input_hash(scenario, company),
         scenario_version=scenario.version,
     )

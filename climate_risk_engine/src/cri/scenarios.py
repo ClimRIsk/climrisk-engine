@@ -117,6 +117,9 @@ NZE_DEMAND = {
     Commodity.REAL_ESTATE: _piecewise({2026: 100, 2030: 99, 2040: 97, 2050: 95}),
     # Agriculture: precision farming and yield tech supports output under NZE.
     Commodity.AGRICULTURE: _piecewise({2026: 100, 2030: 103, 2040: 107, 2050: 110}),
+    # Cement: low-carbon construction mandates drive green-cement substitution;
+    # overall volume slightly pressured by efficiency codes (fewer m2 per MtCO2 limits).
+    Commodity.CEMENT: _piecewise({2026: 100, 2030: 97, 2040: 90, 2050: 82}),
 }
 
 DELAYED_DEMAND = {
@@ -138,6 +141,8 @@ DELAYED_DEMAND = {
     Commodity.FINANCIAL_SERVICES: _piecewise({2026: 100, 2030: 101, 2040: 103, 2050: 105}),
     Commodity.REAL_ESTATE: _piecewise({2026: 100, 2030: 101, 2040: 98, 2050: 95}),
     Commodity.AGRICULTURE: _piecewise({2026: 100, 2030: 101, 2040: 101, 2050: 102}),
+    # Cement: delayed-then-sharp decarbonization shock hits legacy kiln capacity hard.
+    Commodity.CEMENT: _piecewise({2026: 100, 2030: 102, 2040: 92, 2050: 80}),
 }
 
 CP_DEMAND = {
@@ -160,6 +165,9 @@ CP_DEMAND = {
     Commodity.FINANCIAL_SERVICES: _piecewise({2026: 100, 2030: 105, 2040: 110, 2050: 114}),
     Commodity.REAL_ESTATE: _piecewise({2026: 100, 2030: 106, 2040: 112, 2050: 116}),
     Commodity.AGRICULTURE: _piecewise({2026: 100, 2030: 103, 2040: 107, 2050: 110}),
+    # Cement: infrastructure build-out and housing demand in EM keep volumes rising
+    # under CP (no policy brake); China/India growth offsets developed-world decline.
+    Commodity.CEMENT: _piecewise({2026: 100, 2030: 106, 2040: 112, 2050: 115}),
 }
 
 
@@ -188,6 +196,10 @@ PRICE_PATHS_NZE = {
     Commodity.FINANCIAL_SERVICES: _piecewise({2026: 100, 2030: 102, 2040: 104, 2050: 106}),
     Commodity.REAL_ESTATE: _piecewise({2026: 150, 2030: 160, 2040: 168, 2050: 174}),
     Commodity.AGRICULTURE: _piecewise({2026: 300, 2030: 292, 2040: 282, 2050: 275}),
+    # Cement: green-cement premium partially offsets volume drop; carbon cost absorbed
+    # into price under strong carbon markets → slight nominal price increase near-term,
+    # then compression as low-clinker substitutes gain share. USD / Mtonnes.
+    Commodity.CEMENT: _piecewise({2026: 80, 2030: 82, 2040: 78, 2050: 74}),
 }
 
 PRICE_PATHS_DELAYED = {
@@ -210,6 +222,9 @@ PRICE_PATHS_DELAYED = {
     Commodity.FINANCIAL_SERVICES: _piecewise({2026: 100, 2030: 100, 2040: 101, 2050: 103}),
     Commodity.REAL_ESTATE: _piecewise({2026: 150, 2030: 156, 2040: 163, 2050: 170}),
     Commodity.AGRICULTURE: _piecewise({2026: 300, 2030: 308, 2040: 318, 2050: 326}),
+    # Cement (Delayed): price initially supported by EM infra demand; late carbon shock
+    # hits clinker-heavy plants. USD / Mtonnes.
+    Commodity.CEMENT: _piecewise({2026: 80, 2030: 84, 2040: 83, 2050: 78}),
 }
 
 PRICE_PATHS_CP = {
@@ -232,6 +247,9 @@ PRICE_PATHS_CP = {
     Commodity.FINANCIAL_SERVICES: _piecewise({2026: 100, 2030: 103, 2040: 107, 2050: 111}),
     Commodity.REAL_ESTATE: _piecewise({2026: 150, 2030: 163, 2040: 176, 2050: 188}),
     Commodity.AGRICULTURE: _piecewise({2026: 300, 2030: 328, 2040: 360, 2050: 395}),
+    # Cement (CP): no meaningful carbon discipline; EM infra boom + energy cost
+    # pass-through lifts nominal prices. USD / Mtonnes.
+    Commodity.CEMENT: _piecewise({2026: 80, 2030: 86, 2040: 94, 2050: 100}),
 }
 
 

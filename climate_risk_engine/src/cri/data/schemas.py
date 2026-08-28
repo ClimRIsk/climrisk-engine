@@ -373,13 +373,25 @@ class YearResult(BaseModel):
     # Breakdowns for transparency
     revenue_by_commodity: Dict[str, float] = Field(default_factory=dict)
     emissions_by_scope: Dict[str, float] = Field(default_factory=dict)
-    # Per-hazard dollar cost breakdown (USD) — populated by PhysicalHazardEngine
+    # Per-hazard dollar cost breakdown (USD M) — populated by PhysicalHazardEngine
     # Keys: heat_stress, flood_riverine, flood_coastal, sea_level_rise,
     #       saltwater_intrusion, landslide, wildfire, cyclone, drought, water_stress
     physical_loss_by_hazard: Dict[str, float] = Field(default_factory=dict)
     # Stranded asset fields — populated by operations/company.py breakeven test
     stranded_writedown: float = 0.0
     stranded_assets: List[str] = Field(default_factory=list)
+
+    # ── VaR decomposition (spec: Stage 3 financial translation) ───────────────
+    # physical_loss_cost = capex_shock + opex_shock (gross physical VaR)
+    # capex_shock: direct structural damage (fragility curve × replacement value)
+    # opex_shock:  business interruption (downtime days × daily revenue proxy)
+    # insurance_offset: parametric cover + residual risk transfer (default 20% of gross)
+    # net_var: gross_var − insurance_offset
+    capex_shock: float = 0.0          # USD M — direct structural / equipment damage
+    opex_shock: float = 0.0           # USD M — business interruption / lost revenue
+    gross_var: float = 0.0            # USD M — total pre-mitigation physical VaR
+    insurance_offset: float = 0.0     # USD M — parametric insurance + defense efficacy
+    net_var: float = 0.0              # USD M — post-mitigation physical VaR
 
 
 class RunResults(BaseModel):
@@ -412,6 +424,19 @@ class RunResults(BaseModel):
     transition_score: Optional[float] = None
     financial_score: Optional[float] = None
     adaptive_score: Optional[float] = None
+
+    # ── Portfolio-level VaR summary (spec: Stage 3 / Stage 4 deliverable) ────
+    # Aggregated over all 25 projection years, discounted at wacc_used.
+    # gross_var_npv: NPV of all pre-mitigation physical losses (capex + opex shocks)
+    # net_var_npv: NPV of losses after insurance and physical defense offsets
+    # portfolio_impairment_pct: net_var_npv / enterprise_value (EV impact fraction)
+    # peak_annual_gross_var: worst single-year gross VaR (USD M)
+    # dominant_hazard: hazard type driving the largest cumulative loss
+    gross_var_npv: float = 0.0                  # USD M NPV
+    net_var_npv: float = 0.0                    # USD M NPV
+    portfolio_impairment_pct: float = 0.0       # fraction (0.142 = 14.2%)
+    peak_annual_gross_var: float = 0.0          # USD M in worst year
+    dominant_hazard: str = ""                   # e.g. "flood_riverine"
 
     # Provenance
     input_hash: str = ""

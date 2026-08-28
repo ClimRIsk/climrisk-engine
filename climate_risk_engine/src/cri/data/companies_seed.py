@@ -413,8 +413,344 @@ RIO_TINTO = Company(
 )
 
 
+# ---------------------------------------------------------------------------
+# Heineken N.V. — Global Brewing / Beverages
+# Sources: Heineken Annual Report 2024, CDP Climate 2024, company sustainability report
+# ---------------------------------------------------------------------------
+
+HEINEKEN = Company(
+    id="heineken",
+    name="Heineken N.V.",
+    sector="Beverages",
+    hq_region="NL-NH",  # Amsterdam, Netherlands
+    financials=Financials(
+        revenue=34_500.0,          # USD millions (EUR 31.7bn @ 1.09 FX, FY2024)
+        ebitda=7_200.0,            # beia EBITDA margin ~20.9%
+        capex=2_200.0,
+        maintenance_capex_share=0.50,
+        tax_rate=0.26,
+        wacc_base=0.078,
+        net_debt=9_800.0,
+        shares_outstanding=576.0,  # millions
+        market_cap=22_000.0,
+    ),
+    assets=[
+        # Heineken Netherlands — flagship breweries (Zoeterwoude, 's-Hertogenbosch)
+        # Production units calibrated so baseline_production × beverages_price ≈ asset revenue (USD M)
+        # Beverages price base 2026 = 100 USD/unit. NL revenue target ~$8,000M → 80 units.
+        Asset(
+            id="heineken_nl_brewery",
+            name="Heineken Netherlands Breweries",
+            commodity=Commodity.BEVERAGES,
+            region="NL-ZH",
+            baseline_production=80.0,      # engine units (≈ 20M hl, scaled: 8,000 USD M / $100/unit)
+            production_unit="engine_units",
+            baseline_unit_cost=62.0,        # USD/unit (38% margin vs price=100)
+            energy_cost_share=0.18,
+            carrying_value=2_800.0,
+            remaining_life_years=35,
+            emissions=EmissionsProfile(
+                scope1_intensity=0.006,     # tCO2e/hl (thermal, same scale as Shell)
+                scope2_intensity=0.002,     # near-zero via renewable PPA
+                scope3_intensity=0.048,     # packaging + agriculture upstream
+                carbon_price_coverage=0.85, # EU ETS
+                free_allocation=0.10,
+            ),
+            lat=52.0, lon=4.4,              # Zoeterwoude brewery complex
+            equipment_type="brewery",
+        ),
+        # Heineken Vietnam — Tiger, Heineken brand; fast-growing market
+        Asset(
+            id="heineken_vn_brewery",
+            name="Heineken Vietnam Breweries",
+            commodity=Commodity.BEVERAGES,
+            region="VN-SG",
+            baseline_production=40.0,
+            production_unit="engine_units",
+            baseline_unit_cost=64.0,
+            energy_cost_share=0.22,
+            carrying_value=1_200.0,
+            remaining_life_years=30,
+            emissions=EmissionsProfile(
+                scope1_intensity=0.010,     # tCO2e/hl (thermal)
+                scope2_intensity=0.025,     # coal-heavy grid
+                scope3_intensity=0.055,
+                carbon_price_coverage=0.05,
+                free_allocation=0.0,
+            ),
+            lat=10.8, lon=106.6,            # Ho Chi Minh City region
+            equipment_type="brewery",
+        ),
+        # Heineken Nigeria — Nigerian Breweries; high growth, high heat/water exposure
+        Asset(
+            id="heineken_ng_brewery",
+            name="Heineken Nigeria (Nigerian Breweries)",
+            commodity=Commodity.BEVERAGES,
+            region="NG-LA",
+            baseline_production=20.0,
+            production_unit="engine_units",
+            baseline_unit_cost=68.0,
+            energy_cost_share=0.30,
+            carrying_value=900.0,
+            remaining_life_years=25,
+            emissions=EmissionsProfile(
+                scope1_intensity=0.018,     # tCO2e/hl (diesel + LNG backup)
+                scope2_intensity=0.022,
+                scope3_intensity=0.060,
+                carbon_price_coverage=0.0,
+                free_allocation=0.0,
+            ),
+            lat=6.5, lon=3.4,               # Lagos / Ibadan corridor
+            equipment_type="brewery",
+        ),
+        # Heineken Brasil — Devassa, Eisenbahn brands; water-intensive region
+        Asset(
+            id="heineken_br_brewery",
+            name="Heineken Brasil Breweries",
+            commodity=Commodity.BEVERAGES,
+            region="BR-SP",
+            baseline_production=55.0,
+            production_unit="engine_units",
+            baseline_unit_cost=60.0,
+            energy_cost_share=0.16,
+            carrying_value=1_600.0,
+            remaining_life_years=28,
+            emissions=EmissionsProfile(
+                scope1_intensity=0.008,     # tCO2e/hl
+                scope2_intensity=0.004,     # low-carbon hydro grid
+                scope3_intensity=0.052,
+                carbon_price_coverage=0.0,
+                free_allocation=0.0,
+            ),
+            lat=-23.5, lon=-46.6,           # São Paulo metro, major hub
+            equipment_type="brewery",
+        ),
+    ],
+    exposure_weight=0.35,    # beverage sector — water & heat are dominant hazards
+    transition_weight=0.20,  # lower direct carbon exposure vs. O&G/mining
+    data_quality="high",
+)
+
+
+# ---------------------------------------------------------------------------
+# Nouryon — Specialty Chemicals
+# Sources: Nouryon Annual Report 2024, CDP 2024, company ESG data
+# ---------------------------------------------------------------------------
+
+NOURYON = Company(
+    id="nouryon",
+    name="Nouryon",
+    sector="Chemicals",
+    hq_region="NL-NH",  # Amsterdam, Netherlands
+    financials=Financials(
+        revenue=5_900.0,           # USD millions (FY2024 estimate; private company)
+        ebitda=1_380.0,            # EBITDA margin ~23%
+        capex=420.0,
+        maintenance_capex_share=0.60,
+        tax_rate=0.27,
+        wacc_base=0.085,
+        net_debt=2_800.0,
+        shares_outstanding=0.0,    # private (Carlyle / PGGM ownership)
+        market_cap=5_500.0,        # estimated EV
+    ),
+    assets=[
+        # Delfzijl / Rotterdam — surfactants, salt electrolysis (chlorine)
+        # Chemicals price base 2026 = 1200 USD/unit. NL revenue target ~$2,500M → 2.08 units.
+        # baseline_unit_cost must be < 1200 to have positive margin.
+        Asset(
+            id="nouryon_nl_chemicals",
+            name="Nouryon Netherlands Chemical Complexes",
+            commodity=Commodity.CHEMICALS,
+            region="NL-GR",
+            baseline_production=2.08,      # engine units (≈ 1,200 ktonnes, scaled: $2,500M / $1,200/unit)
+            production_unit="engine_units",
+            baseline_unit_cost=820.0,      # USD/unit (~32% EBITDA margin vs price=1200)
+            energy_cost_share=0.38,
+            carrying_value=1_800.0,
+            remaining_life_years=25,
+            emissions=EmissionsProfile(
+                scope1_intensity=1.1,       # tCO2e/tonne product (electrolysis)
+                scope2_intensity=0.9,
+                scope3_intensity=0.4,
+                carbon_price_coverage=0.90,
+                free_allocation=0.20,
+            ),
+            lat=53.3, lon=6.9,
+            equipment_type="chemical_plant",
+        ),
+        # Sweden (Stenungsund) — ethylene oxide, surfactants
+        Asset(
+            id="nouryon_se_chemicals",
+            name="Nouryon Sweden (Stenungsund)",
+            commodity=Commodity.CHEMICALS,
+            region="SE-O",
+            baseline_production=0.71,
+            production_unit="engine_units",
+            baseline_unit_cost=780.0,
+            energy_cost_share=0.32,
+            carrying_value=600.0,
+            remaining_life_years=22,
+            emissions=EmissionsProfile(
+                scope1_intensity=0.8,
+                scope2_intensity=0.1,       # very low-carbon Nordic grid
+                scope3_intensity=0.35,
+                carbon_price_coverage=0.85,
+                free_allocation=0.15,
+            ),
+            lat=58.1, lon=11.8,
+            equipment_type="chemical_plant",
+        ),
+        # USA (Deer Park, TX) — pulp & performance chemicals
+        Asset(
+            id="nouryon_us_chemicals",
+            name="Nouryon USA (Deer Park / Marietta)",
+            commodity=Commodity.CHEMICALS,
+            region="US-TX",
+            baseline_production=1.25,
+            production_unit="engine_units",
+            baseline_unit_cost=800.0,
+            energy_cost_share=0.28,
+            carrying_value=700.0,
+            remaining_life_years=20,
+            emissions=EmissionsProfile(
+                scope1_intensity=1.3,
+                scope2_intensity=0.4,
+                scope3_intensity=0.5,
+                carbon_price_coverage=0.0,
+                free_allocation=0.0,
+            ),
+            lat=29.7, lon=-95.1,
+            equipment_type="chemical_plant",
+        ),
+    ],
+    exposure_weight=0.30,
+    transition_weight=0.35,  # electrolysis → green hydrogen; EU ETS exposure
+    data_quality="high",
+)
+
+
+# ---------------------------------------------------------------------------
+# UltraTech Cement Limited — Cement (Aditya Birla Group)
+# Sources: UltraTech Annual Report FY2024, CDP 2024
+# ---------------------------------------------------------------------------
+
+ULTRATECH = Company(
+    id="ultratech",
+    name="UltraTech Cement Limited",
+    sector="Cement",
+    hq_region="IN-MH",  # Mumbai, Maharashtra, India
+    financials=Financials(
+        revenue=8_800.0,           # USD millions (INR 73,800 Cr @ 84 INR/USD, FY2024)
+        ebitda=2_100.0,            # EBITDA margin ~24%
+        capex=1_200.0,
+        maintenance_capex_share=0.55,
+        tax_rate=0.25,
+        wacc_base=0.092,           # higher WACC for India EM
+        net_debt=2_200.0,
+        shares_outstanding=288.0,  # millions
+        market_cap=38_000.0,
+    ),
+    assets=[
+        # Cement price base 2026 = 80 USD/unit (Mtonnes). Production calibrated:
+        # target_asset_revenue_USD_M / 80 = production units.
+        # Rajasthan / Gujarat — largest integrated cement plants
+        # Revenue target ~$3,040M → 38 Mtonnes at $80/unit
+        Asset(
+            id="ultratech_raj_cement",
+            name="UltraTech Rajasthan Integrated Plants",
+            commodity=Commodity.CEMENT,
+            region="IN-RJ",
+            baseline_production=38.0,      # engine units (Mtonnes: $3,040M / $80/unit)
+            production_unit="Mtonnes",
+            baseline_unit_cost=52.0,       # USD/Mtonne; margin=35% vs price=80
+            energy_cost_share=0.40,
+            carrying_value=2_500.0,
+            remaining_life_years=30,
+            emissions=EmissionsProfile(
+                scope1_intensity=0.52,      # tCO2e/tonne cement (clinker process)
+                scope2_intensity=0.06,
+                scope3_intensity=0.02,
+                carbon_price_coverage=0.0,  # India no formal ETS yet
+                free_allocation=0.0,
+            ),
+            lat=25.5, lon=73.0,
+            equipment_type="cement_kiln",
+        ),
+        # Maharashtra / Karnataka — South & West India plants
+        Asset(
+            id="ultratech_mh_cement",
+            name="UltraTech Maharashtra & Karnataka Plants",
+            commodity=Commodity.CEMENT,
+            region="IN-MH",
+            baseline_production=28.0,
+            production_unit="Mtonnes",
+            baseline_unit_cost=54.0,
+            energy_cost_share=0.38,
+            carrying_value=1_800.0,
+            remaining_life_years=28,
+            emissions=EmissionsProfile(
+                scope1_intensity=0.54,
+                scope2_intensity=0.05,
+                scope3_intensity=0.02,
+                carbon_price_coverage=0.0,
+                free_allocation=0.0,
+            ),
+            lat=17.3, lon=76.8,
+            equipment_type="cement_kiln",
+        ),
+        # Madhya Pradesh & Chhattisgarh — coal-belt integrated plants
+        Asset(
+            id="ultratech_mp_cement",
+            name="UltraTech MP & Chhattisgarh Plants",
+            commodity=Commodity.CEMENT,
+            region="IN-MP",
+            baseline_production=22.0,
+            production_unit="Mtonnes",
+            baseline_unit_cost=50.0,
+            energy_cost_share=0.42,
+            carrying_value=1_200.0,
+            remaining_life_years=25,
+            emissions=EmissionsProfile(
+                scope1_intensity=0.56,
+                scope2_intensity=0.07,
+                scope3_intensity=0.02,
+                carbon_price_coverage=0.0,
+                free_allocation=0.0,
+            ),
+            lat=22.7, lon=81.0,
+            equipment_type="cement_kiln",
+        ),
+        # UAE / Bahrain — international operations
+        Asset(
+            id="ultratech_uae_cement",
+            name="UltraTech International (UAE / Bahrain)",
+            commodity=Commodity.CEMENT,
+            region="AE-DU",
+            baseline_production=5.0,
+            production_unit="Mtonnes",
+            baseline_unit_cost=60.0,
+            energy_cost_share=0.35,
+            carrying_value=500.0,
+            remaining_life_years=20,
+            emissions=EmissionsProfile(
+                scope1_intensity=0.50,
+                scope2_intensity=0.04,
+                scope3_intensity=0.02,
+                carbon_price_coverage=0.05,
+                free_allocation=0.0,
+            ),
+            lat=24.5, lon=54.4,
+            equipment_type="cement_kiln",
+        ),
+    ],
+    exposure_weight=0.40,    # high physical exposure — India heat + water stress
+    transition_weight=0.35,  # cement is ~8% of global CO2; stranded asset risk
+    data_quality="high",
+)
+
+
 def all_seed() -> dict[str, Company]:
-    return {c.id: c for c in [CRI_TEST_CO, SHELL, BHP, RIO_TINTO]}
+    return {c.id: c for c in [CRI_TEST_CO, SHELL, BHP, RIO_TINTO, HEINEKEN, NOURYON, ULTRATECH]}
 
 
 def get(company_id: str) -> Company:

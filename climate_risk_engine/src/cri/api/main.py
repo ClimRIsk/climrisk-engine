@@ -137,7 +137,8 @@ def list_scenarios() -> list[ScenarioResponse]:
 
 @app.get("/companies", response_model=list[CompanyResponse])
 def list_companies() -> list[CompanyResponse]:
-    """Return list of available companies."""
+    """Return full company profiles including asset locations and baseline financials."""
+    from .schemas import AssetLocationResponse, FinancialsResponse
     companies = []
     for company_id, company in COMPANY_REGISTRY.items():
         companies.append(
@@ -146,6 +147,29 @@ def list_companies() -> list[CompanyResponse]:
                 name=company.name,
                 sector=company.sector,
                 region=company.hq_region,
+                data_quality=company.data_quality,
+                financials=FinancialsResponse(
+                    revenue_usd_m=round(company.financials.revenue, 1),
+                    ebitda_usd_m=round(company.financials.ebitda, 1),
+                    capex_usd_m=round(company.financials.capex, 1),
+                    wacc_pct=round(company.financials.wacc_base * 100, 2),
+                    net_debt_usd_m=round(company.financials.net_debt, 1),
+                ),
+                assets=[
+                    AssetLocationResponse(
+                        id=a.id,
+                        name=a.name,
+                        commodity=a.commodity.value,
+                        region=a.region,
+                        lat=a.lat,
+                        lon=a.lon,
+                        equipment_type=a.equipment_type,
+                        baseline_production=a.baseline_production,
+                        production_unit=a.production_unit,
+                        carrying_value_usd_m=round(a.carrying_value, 1),
+                    )
+                    for a in company.assets
+                ],
             )
         )
     return companies
@@ -193,6 +217,181 @@ def run_simulation(request: RunRequest) -> RunResponse:
     results = run_engine(company=company, scenario=scenario)
     return RunResponse(**results.model_dump())
 
+
+@app.post("/runs/export")
+def export_run_excel(request: RunRequest):
+    """Run the engine and return results as a downloadable Excel workbook.
+
+    Same request body as POST /runs. Returns a .xlsx file with four sheets:
+      - Summary       : company profile, scenario, headline KPIs
+      - Projections   : full 25-year P&L + FCF table
+      - Hazards       : per-hazard physical loss breakdown by year
+      - Asset Locations: asset id, name, region, lat, lon, commodity, carrying value
+
+    Available for all tiers — the Excel file mirrors the JSON returned by POST /runs.
+    """
+    import io
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, numbers as xl_numbers
+    from openpyxl.utils import get_column_letter
+    from fastapi.responses import StreamingResponse
+
+    # ── resolve company + scenario (same logic as POST /runs) ─────────────────
+    company_id = request.company_id.lower()
+    if company_id not in COMPANY_REGISTRY:
+        raise HTTPException(status_code=404, detail=f"Company '{request.company_id}' not found.")
+    scenario_id = request.scenario_id.lower().replace(" ", "_")
+    if scenario_id not in SCENARIO_REGISTRY and scenario_id not in CUSTOM_SCENARIO_REGISTRY:
+        if scenario_id == "custom" and request.custom_scenario:
+            scenario = _build_custom_scenario(request.custom_scenario)
+        else:
+            raise HTTPException(status_code=404, detail=f"Scenario '{request.scenario_id}' not found.")
+    else:
+        scenario = SCENARIO_REGISTRY.get(scenario_id) or CUSTOM_SCENARIO_REGISTRY[scenario_id]
+
+    company = COMPANY_REGISTRY[company_id]
+    results = run_engine(company=company, scenario=scenario)
+
+    # ── build workbook ─────────────────────────────────────────────────────────
+    wb = openpyxl.Workbook()
+
+    # helpers
+    HDR = Font(bold=True, color="FFFFFF")
+    HDR_FILL = PatternFill("solid", fgColor="1F3864")   # dark navy
+    SUB_FILL = PatternFill("solid", fgColor="2F75B6")   # mid blue
+    MONEY = '#,##0.0'
+    PCT   = '0.00%'
+
+    def _hdr_row(ws, row, values, fill=HDR_FILL):
+        for col, v in enumerate(values, 1):
+            c = ws.cell(row=row, column=col, value=v)
+            c.font = HDR
+            c.fill = fill
+            c.alignment = Alignment(horizontal="center")
+
+    def _autofit(ws, min_w=10, max_w=40):
+        for col in ws.columns:
+            length = max((len(str(cell.value or "")) for cell in col), default=min_w)
+            ws.column_dimensions[get_column_letter(col[0].column)].width = min(max(length + 2, min_w), max_w)
+
+    # ── Sheet 1: Summary ──────────────────────────────────────────────────────
+    ws1 = wb.active
+    ws1.title = "Summary"
+    _hdr_row(ws1, 1, ["Field", "Value"])
+    summary_rows = [
+        ("Company ID",       company.id),
+        ("Company Name",     company.name),
+        ("Sector",           company.sector),
+        ("HQ Region",        company.hq_region),
+        ("Scenario",         scenario.name),
+        ("Scenario Family",  scenario.family.value),
+        ("Horizon",          f"{scenario.horizon[0]}–{scenario.horizon[1]}"),
+        ("Model Version",    results.model_version),
+        ("Run ID",           results.run_id),
+        ("",                 ""),
+        ("Revenue (USD M)",  round(company.financials.revenue, 1)),
+        ("EBITDA (USD M)",   round(company.financials.ebitda, 1)),
+        ("WACC (%)",         round(company.financials.wacc_base * 100, 2)),
+        ("Net Debt (USD M)", round(company.financials.net_debt, 1)),
+        ("",                 ""),
+        ("NPV of FCF (USD M)",       round(results.npv_fcf, 1)),
+        ("Enterprise Value (USD M)", round(results.enterprise_value, 1)),
+        ("Equity Value (USD M)",     round(results.equity_value, 1)),
+        ("WACC Used (%)",            round(results.wacc_used * 100, 2)),
+        ("EBITDA Compression 2030",  f"{round((results.ebitda_compression_2030_pct or 0)*100, 1)}%"),
+        ("EBITDA Compression 2040",  f"{round((results.ebitda_compression_2040_pct or 0)*100, 1)}%"),
+        ("",                         ""),
+        ("Gross VaR NPV (USD M)",    round(results.gross_var_npv, 1)),
+        ("Net VaR NPV (USD M)",      round(results.net_var_npv, 1)),
+        ("Portfolio Impairment",     f"{round(results.portfolio_impairment_pct * 100, 2)}%"),
+        ("Peak Annual Gross VaR (USD M)", round(results.peak_annual_gross_var, 1)),
+        ("Dominant Hazard",          results.dominant_hazard.replace("_", " ").title()),
+    ]
+    for r, (k, v) in enumerate(summary_rows, 2):
+        ws1.cell(row=r, column=1, value=k).font = Font(bold=bool(k))
+        ws1.cell(row=r, column=2, value=v)
+    _autofit(ws1)
+
+    # ── Sheet 2: 25-Year Projections ──────────────────────────────────────────
+    ws2 = wb.create_sheet("Projections")
+    proj_cols = ["Year", "Revenue (M)", "OPEX (M)", "Carbon Cost (M)",
+                 "Physical Loss (M)", "EBITDA (M)", "D&A (M)", "EBIT (M)",
+                 "NOPAT (M)", "Trans. CapEx (M)", "Adapt. CapEx (M)",
+                 "Maint. CapEx (M)", "FCF (M)",
+                 "CAPEX Shock (M)", "OPEX Shock (M)", "Gross VaR (M)",
+                 "Insurance Offset (M)", "Net VaR (M)"]
+    _hdr_row(ws2, 1, proj_cols)
+    for r, yr in enumerate(results.years, 2):
+        row_vals = [
+            yr.year,
+            round(yr.revenue, 1),
+            round(yr.opex, 1),
+            round(yr.carbon_cost, 1),
+            round(yr.physical_loss_cost, 1),
+            round(yr.ebitda, 1),
+            round(yr.da, 1),
+            round(yr.ebit, 1),
+            round(yr.nopat, 1),
+            round(yr.transition_capex, 1),
+            round(yr.adaptation_capex, 1),
+            round(yr.maintenance_capex, 1),
+            round(yr.fcf, 1),
+            round(yr.capex_shock, 2),
+            round(yr.opex_shock, 2),
+            round(yr.gross_var, 2),
+            round(yr.insurance_offset, 2),
+            round(yr.net_var, 2),
+        ]
+        for col, v in enumerate(row_vals, 1):
+            ws2.cell(row=r, column=col, value=v)
+    _autofit(ws2)
+
+    # ── Sheet 3: Hazard Breakdown ─────────────────────────────────────────────
+    ws3 = wb.create_sheet("Hazards")
+    # Collect all hazard keys from any year
+    all_hazards: list[str] = []
+    for yr in results.years:
+        for k in yr.physical_loss_by_hazard:
+            if k not in all_hazards:
+                all_hazards.append(k)
+    haz_cols = ["Year", "Total Physical Loss (M)"] + [h.replace("_", " ").title() + " (M)" for h in all_hazards]
+    _hdr_row(ws3, 1, haz_cols)
+    for r, yr in enumerate(results.years, 2):
+        row_vals = [yr.year, round(yr.physical_loss_cost, 3)]
+        for h in all_hazards:
+            row_vals.append(round(yr.physical_loss_by_hazard.get(h, 0.0), 3))
+        for col, v in enumerate(row_vals, 1):
+            ws3.cell(row=r, column=col, value=v)
+    _autofit(ws3)
+
+    # ── Sheet 4: Asset Locations ───────────────────────────────────────────────
+    ws4 = wb.create_sheet("Asset Locations")
+    asset_cols = ["Asset ID", "Name", "Commodity", "Region",
+                  "Latitude", "Longitude", "Equipment Type",
+                  "Production (units/yr)", "Unit", "Carrying Value (USD M)"]
+    _hdr_row(ws4, 1, asset_cols)
+    for r, a in enumerate(company.assets, 2):
+        row_vals = [
+            a.id, a.name, a.commodity.value, a.region,
+            a.lat, a.lon, a.equipment_type or "",
+            a.baseline_production, a.production_unit,
+            round(a.carrying_value / 1e6, 2),
+        ]
+        for col, v in enumerate(row_vals, 1):
+            ws4.cell(row=r, column=col, value=v)
+    _autofit(ws4)
+
+    # ── stream response ────────────────────────────────────────────────────────
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+
+    filename = f"CRI_{company.id}_{scenario_id}.xlsx"
+    return StreamingResponse(
+        buf,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @app.post("/scenarios", status_code=201)
@@ -679,6 +878,54 @@ def generate_csrd_report(request: DisclosureRequest) -> DisclosureResponse:
 
     report = generate_csrd(company, nze, dt, cp, reporting_year=request.reporting_year)
     return DisclosureResponse(**report.to_dict())
+
+
+@app.post("/reports/pdf")
+def generate_pdf_report(request: DisclosureRequest):
+    """Generate an institutional-grade PDF climate risk report.
+
+    Runs the full CRI pipeline under all three NGFS scenarios (NZE 2050,
+    Delayed Transition, Current Policies) and compiles results into a
+    multi-page audit-ready PDF document covering:
+
+    - Executive Summary with Gross VaR, Net VaR, EBITDA compression
+    - Physical hazard assessment (per-hazard breakdown, asset coordinates)
+    - Transition risk (carbon cost trajectory, stranded asset flags)
+    - 25-year financial projections at 5-year milestones
+    - TCFD / IFRS S2 / CSRD alignment index
+    - Methodology and audit transparency appendix
+
+    Returns a downloadable .pdf file. Available from Professional tier and above.
+    """
+    import io
+    from fastapi.responses import StreamingResponse
+    from ..outcomes.pdf_report import generate_pdf
+
+    cid = request.company_id.lower()
+    if cid not in COMPANY_REGISTRY:
+        raise HTTPException(status_code=404,
+            detail=f"Company '{request.company_id}' not found. Available: {list(COMPANY_REGISTRY)}")
+
+    company = COMPANY_REGISTRY[cid]
+
+    # Run all three scenarios
+    r_nze     = run_engine(company=company, scenario=NZE_2050)
+    r_delayed = run_engine(company=company, scenario=DELAYED_TRANSITION)
+    r_cp      = run_engine(company=company, scenario=CURRENT_POLICIES)
+
+    pdf_bytes = generate_pdf(
+        company=company,
+        results_nze=r_nze,
+        results_delayed=r_delayed,
+        results_cp=r_cp,
+    )
+
+    filename = f"ClimRisk_{company.id}_Report_{request.reporting_year}.pdf"
+    return StreamingResponse(
+        io.BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @app.post("/reports/physical", response_model=PhysicalHazardReportResponse)
