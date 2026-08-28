@@ -32,7 +32,7 @@ from ..climate.hazard_matrix import HazardMatrix
 from ..data.schemas import (
     Asset, Company, HazardPath, HazardType, RunResults, Scenario,
 )
-from ..intake.parser import parse_excel
+from ..intake.parser import auto_parse_excel as parse_excel
 from ..intake.validate import validate_company
 from .orchestrator import run as engine_run
 
