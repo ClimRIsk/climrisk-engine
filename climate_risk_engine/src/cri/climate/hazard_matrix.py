@@ -89,6 +89,15 @@ class AssetHazardProfile:
     flood_coastal_score: float = 1.5
     drought_score: float = 2.3
 
+    # Gap 6 — DEM elevation for effective-depth zero-damage check
+    # If asset_elevation_m is provided (from GLO-30 DEM or client input),
+    # flood hazard is zeroed when effective_depth = max(0, water_level - elevation) ≤ 0.
+    # Prevents false positives from spatial resolution mismatch.
+    asset_elevation_m: Optional[float] = None
+    # Assumed inundation water level (m) for the asset's modelled flood scenario.
+    # Populated by SpatialDownscaler/terrain analyzer when available.
+    modelled_flood_water_level_m: Optional[float] = None
+
 
 class HazardMatrix:
     """
@@ -395,6 +404,51 @@ def _fill_from_spatial(
         profile.hazard_probs[hazard_name][year] = round(prob, 4)
 
 
+def _effective_flood_prob(
+    profile: AssetHazardProfile,
+    hazard_name: str,
+    raw_prob: float,
+) -> float:
+    """
+    Gap 6 — DEM False-Positive Elimination.
+
+    For flood hazards (riverine, coastal, flash flood), if the asset's
+    elevation (from GLO-30 DEM) exceeds the modelled inundation water level,
+    effective depth = max(0, water_level − elevation) ≤ 0, which means
+    zero flood damage regardless of the spatial hazard score.
+
+    This prevents DEM false positives caused by grid-resolution mismatch
+    (e.g. a 250m grid cell has high flood risk but the actual asset sits on
+    a ridge 8m above the flood plain centroid).
+
+    Formula:
+        effective_depth = max(0, water_level_m − asset_elevation_m)
+        if effective_depth == 0: flood_prob = 0.0
+
+    When elevation or water_level data are unavailable, the raw probability
+    is returned unchanged (conservative — no false zero suppression).
+    """
+    _FLOOD_HAZARDS = {
+        "flood", "flood_riverine", "flood_coastal", "flash_flood", "compound_flood"
+    }
+    if hazard_name not in _FLOOD_HAZARDS:
+        return raw_prob
+
+    elev  = profile.asset_elevation_m
+    wlvl  = profile.modelled_flood_water_level_m
+
+    if elev is None or wlvl is None:
+        # No DEM data available — return raw probability (conservative)
+        return raw_prob
+
+    effective_depth = max(0.0, wlvl - elev)
+    if effective_depth <= 0.0:
+        # Asset is above modelled flood level — zero flood probability
+        return 0.0
+
+    return raw_prob
+
+
 def _aggregate_annual_losses(
     profile: AssetHazardProfile,
     horizon_years: list[int],
@@ -407,11 +461,17 @@ def _aggregate_annual_losses(
       survival = Π(1 - p_i)
       expected_loss = 1 - survival
 
+    Gap 6: Flood probabilities pass through _effective_flood_prob() first,
+    which zeroes them if the DEM elevation exceeds the flood water level
+    (effective depth ≤ 0 → no inundation damage).
+
     Caps at 1.0 (cannot lose more than 100% of production).
     """
     for year in horizon_years:
         survival = 1.0
         for hazard_name, year_probs in profile.hazard_probs.items():
-            prob = year_probs.get(year, 0.0)
+            raw_prob = year_probs.get(year, 0.0)
+            # Gap 6: apply DEM zero-damage check for flood hazards
+            prob = _effective_flood_prob(profile, hazard_name, raw_prob)
             survival *= (1.0 - min(1.0, max(0.0, prob)))
         profile.annual_loss[year] = round(min(1.0, 1.0 - survival), 4)

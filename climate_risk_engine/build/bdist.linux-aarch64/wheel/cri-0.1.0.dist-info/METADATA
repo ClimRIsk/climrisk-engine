@@ -1,0 +1,36 @@
+Metadata-Version: 2.4
+Name: cri
+Version: 0.1.0
+Summary: Climate Risk Intelligence engine — scenario-driven climate-to-finance translation
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+Requires-Dist: pydantic>=2.6
+Requires-Dist: pandas>=2.2
+Requires-Dist: numpy>=1.26
+Provides-Extra: api
+Requires-Dist: fastapi>=0.110; extra == "api"
+Requires-Dist: uvicorn>=0.29; extra == "api"
+Requires-Dist: requests>=2.31; extra == "api"
+Requires-Dist: python-multipart>=0.0.9; extra == "api"
+Requires-Dist: openpyxl>=3.1; extra == "api"
+Provides-Extra: dev
+Requires-Dist: pytest>=8.0; extra == "dev"
+Requires-Dist: ruff>=0.4; extra == "dev"
+Provides-Extra: gis
+Requires-Dist: geopandas>=0.14; extra == "gis"
+Requires-Dist: xarray>=2024.1; extra == "gis"
+Requires-Dist: rasterio>=1.3; extra == "gis"
+Requires-Dist: scipy>=1.12; extra == "gis"
+Requires-Dist: shapely>=2.0; extra == "gis"
+Requires-Dist: pyproj>=3.6; extra == "gis"
+Requires-Dist: netcdf4>=1.6; extra == "gis"
+Requires-Dist: requests>=2.31; extra == "gis"
+Provides-Extra: satellite
+Requires-Dist: rasterio>=1.3; extra == "satellite"
+Requires-Dist: rio-cogeo>=3.6; extra == "satellite"
+Requires-Dist: pystac-client>=0.7; extra == "satellite"
+Requires-Dist: planetary-computer>=1.0; extra == "satellite"
+Requires-Dist: stackstac>=0.5; extra == "satellite"
+Requires-Dist: xarray>=2024.1; extra == "satellite"
+Provides-Extra: spatial
+Requires-Dist: cri[gis,satellite]; extra == "spatial"

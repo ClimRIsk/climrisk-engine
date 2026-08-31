@@ -220,6 +220,15 @@ class AssetInput(BaseModel):
     Clients who don't have a registered company_id can submit a single asset
     directly. Financial fields (EBITDA, WACC, net_debt) are NOT required —
     the physical report only needs location, production, and carrying value.
+
+    Gap 5 — RCN vs NBV: physical damage is computed on Replacement Cost New
+    (replacement_cost_new_usd_m), NOT on Net Book Value (carrying_value).
+    These diverge materially for older assets (NBV may be 30–50% of RCN after
+    depreciation). Damage ratios from hazard intensity curves are applied to
+    RCN and then compared to carrying_value to assess insurance adequacy.
+
+    If replacement_cost_new_usd_m is not supplied it defaults to carrying_value
+    (implying a new asset, NBV = RCN), but a warning is surfaced in the report.
     """
     id: str = "custom_asset"
     name: str
@@ -229,7 +238,9 @@ class AssetInput(BaseModel):
     production_unit: str = "Mtonnes"
     baseline_unit_cost: float        # USD / tonne  (or USD / bbl)
     energy_cost_share: float = 0.30  # fraction of unit cost that is energy
-    carrying_value: float            # USD millions (replacement cost)
+    carrying_value: float            # USD millions — Net Book Value (NBV) for balance sheet
+    replacement_cost_new_usd_m: Optional[float] = None  # RCN for damage calculation (Gap 5)
+    asset_elevation_m: Optional[float] = None   # metres above sea level for DEM check (Gap 6)
     remaining_life_years: int = 25
 
 
@@ -269,6 +280,11 @@ class PhysicalHazardReportResponse(BaseModel):
 
     Returned by POST /reports/physical. Contains no transition risk,
     no carbon cost, no valuation — purely asset-level hazard assessment.
+
+    Gap 7 — Horizon decoupling: near-term (2026–2030) outputs are reported
+    separately from long-term (2030/2040/2050) to prevent institutional
+    reviewers from confusing short-term operational risk with long-term
+    strategic exposure. CSRD ESRS E1 requires this separation.
     """
     # Identifiers
     company_id: str
@@ -293,6 +309,11 @@ class PhysicalHazardReportResponse(BaseModel):
     # Dominant hazards at 2035 under Current Policies
     hazard_breakdown_2035: Dict[str, float]
 
+    # Gap 7 — Near-term block (2026–2030): separate from long-term for CSRD
+    hazard_breakdown_2028: Dict[str, float] = {}   # snapshot at 2028 under CP
+    near_term_physical_loss_nze: float = 0.0       # USD millions, 2026–2030 sum, NZE
+    near_term_physical_loss_cp:  float = 0.0       # USD millions, 2026–2030 sum, CP
+
     # TCFD-aligned narrative
     narrative: str
 
@@ -305,6 +326,9 @@ class PhysicalHazardReportResponse(BaseModel):
     data_sources: List[str]
     caveats: List[str]
     scenario_set: str = "NGFS Phase 4"
+
+    # Gap 3 — Audit trail for CSRD / IFRS S2 compliance
+    audit_trail: Dict[str, Any] = {}
 
 
 # ── Tiers ────────────────────────────────────────────────────────────────────
@@ -475,3 +499,83 @@ class ScopedRunResponse(BaseModel):
 
     # Composite rating — populated for scope: full_cri only
     rating_result: Optional[Dict[str, Any]] = None
+
+
+# ── Aladdin-style Portfolio Risk ──────────────────────────────────────────────
+
+class PortfolioPositionIn(BaseModel):
+    """One position (company / borrower) in a portfolio risk request."""
+    company_id:       str
+    company_name:     str
+    exposure_usd_m:   float           # gross exposure in USD millions
+    sector:           str
+    region:           str = "Global"
+    physical_score:   float = 50.0    # 0–100; supply from a prior CRI run if available
+    transition_score: float = 50.0
+
+class PortfolioRiskRequest(BaseModel):
+    """POST /portfolio/risk — aggregate portfolio climate VaR."""
+    positions: List[PortfolioPositionIn]
+    run_stress: bool = True           # include 1.5/2/3/4°C stress scenarios
+
+class PortfolioRiskResponse(BaseModel):
+    """Aladdin-style portfolio climate risk report."""
+    run_id:             str
+    n_positions:        int
+    total_exposure_usd_m: float
+    # Portfolio CVaR — Current Policies (worst case)
+    portfolio_eal_cp_usd_m:    float
+    portfolio_var95_cp_usd_m:  float
+    portfolio_cvar95_cp_usd_m: float
+    portfolio_var99_cp_usd_m:  float
+    portfolio_cvar99_cp_usd_m: float
+    # Portfolio CVaR — Net Zero (best case)
+    portfolio_eal_nze_usd_m:   float
+    portfolio_var99_nze_usd_m: float
+    portfolio_cvar99_nze_usd_m:float
+    # Diversification
+    diversification_benefit_usd_m: float
+    diversification_ratio:         float
+    # Concentration
+    herfindahl_index:       float
+    top3_concentration_pct: float
+    # Detailed output
+    positions:              List[Dict[str, Any]] = []
+    factor_attribution:     Dict[str, Any] = {}
+    stress_scenarios:       List[Dict[str, Any]] = []
+
+
+# ── Aladdin-style Credit Risk ─────────────────────────────────────────────────
+
+class CounterpartyIn(BaseModel):
+    """One borrower / bond issuer in a credit risk request."""
+    company_id:       str
+    company_name:     str
+    sector:           str
+    ead_usd_m:        float           # exposure at default (USD M)
+    baseline_pd:      float           # annual PD, e.g. 0.03 = 3%
+    baseline_lgd:     float = 0.45
+    physical_score:   float = 50.0
+    transition_score: float = 50.0
+    collateral_type:  str   = "unsecured"   # "real_estate"|"equipment"|"inventory"|"unsecured"
+    scenario:         str   = "cp"
+
+class PortfolioCreditRequest(BaseModel):
+    """POST /portfolio/credit — climate-adjusted PD/LGD/ECL/RWA for loan book."""
+    obligors: List[CounterpartyIn]
+
+class PortfolioCreditResponse(BaseModel):
+    """Climate-adjusted credit risk summary for a portfolio."""
+    n_obligors:                int
+    total_ead_usd_m:           float
+    scenario:                  str
+    baseline_ecl_usd_m:        float
+    climate_ecl_usd_m:         float
+    ecl_increment_usd_m:       float
+    ecl_uplift_pct:            float
+    baseline_rwa_usd_m:        float
+    climate_rwa_usd_m:         float
+    rwa_increment_usd_m:       float
+    incremental_capital_usd_m: float
+    sector_breakdown:          Dict[str, Any] = {}
+    obligors:                  List[Dict[str, Any]] = []

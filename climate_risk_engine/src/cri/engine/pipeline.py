@@ -222,6 +222,15 @@ class PipelineReport:
 
             hazard_scores_2038: dict[str, float] = {}
             data_sources: list[str] = []
+            # New: rich output fields
+            asset_locations: list[dict] = []
+            hazard_trajectory: dict[str, dict[int, float]] = {}  # haz → {year → avg_prob %}
+            critical_year: int | None = None
+            peak_loss_pct: float = 0.0
+            warming_delta_c: float = 0.0
+            has_live_data: bool = False
+
+            _TRAJECTORY_YEARS = [2026, 2028, 2030, 2032, 2035, 2038, 2040, 2045, 2050]
 
             if r.asset_hazard_profiles:
                 # ── Primary path: real CMIP6 + WRI Aqueduct data ──────────
@@ -230,10 +239,25 @@ class PipelineReport:
                 yearly_total_drag = {yr: 0.0 for yr in years}
                 yearly_elf: dict[int, float] = {}
                 hazard_acc: dict[str, list[float]] = {}  # hazard → [prob per year]
+                # For trajectory: accumulate per-year per-hazard probs across assets
+                hazard_traj_acc: dict[str, dict[int, list[float]]] = {}  # haz → {yr → [probs]}
+                annual_loss_acc: dict[int, list[float]] = {yr: [] for yr in years}
                 n_assets = len(r.asset_hazard_profiles)
 
                 for asset_id, profile in r.asset_hazard_profiles.items():
                     data_sources.extend(profile.sources.values())
+                    # Collect asset location for map plotting
+                    if getattr(profile, 'lat', None) is not None and getattr(profile, 'lon', None) is not None:
+                        asset_locations.append({
+                            "id":   asset_id,
+                            "name": getattr(profile, 'asset_name', asset_id),
+                            "lat":  profile.lat,
+                            "lon":  profile.lon,
+                        })
+                    if getattr(profile, 'has_live_data', False):
+                        has_live_data = True
+                    warming_delta_c = max(warming_delta_c, getattr(profile, 'warming_delta_c', 0.0))
+
                     # Per year, compute joint ELF for this asset
                     asset_rev = rev_usd / max(n_assets, 1)
                     for yr in years:
@@ -243,11 +267,15 @@ class PipelineReport:
                             probs_yr[haz] = p
                             if yr == 2038:
                                 hazard_acc.setdefault(haz, []).append(p)
+                            # Accumulate for trajectory
+                            if yr in _TRAJECTORY_YEARS:
+                                hazard_traj_acc.setdefault(haz, {}).setdefault(yr, []).append(p)
                         # Joint survival across hazards for this asset/year
                         survival = 1.0
                         for p in probs_yr.values():
                             survival *= (1.0 - p)
                         elf = min(0.80, 1.0 - survival)
+                        annual_loss_acc[yr].append(elf)
                         revenue_at_risk = asset_rev * phi * elf
                         discount = (1.0 + wacc) ** (yr - 2026)
                         yearly_total_drag[yr] += revenue_at_risk / discount
@@ -261,6 +289,22 @@ class PipelineReport:
                     for h, vs in hazard_acc.items()
                     if vs
                 }
+
+                # Build trajectory: average across assets, expressed as % probability
+                for haz, yr_map in hazard_traj_acc.items():
+                    hazard_trajectory[haz] = {
+                        yr: round(sum(ps) / len(ps) * 100, 1)
+                        for yr, ps in yr_map.items() if ps
+                    }
+
+                # Critical year: first year avg ELF > 5%
+                for yr in years:
+                    yr_losses = annual_loss_acc.get(yr, [])
+                    avg_elf = sum(yr_losses) / len(yr_losses) if yr_losses else 0.0
+                    if avg_elf > 0.05 and critical_year is None:
+                        critical_year = yr
+                    peak_loss_pct = max(peak_loss_pct, avg_elf * 100)
+
                 data_source_str = "CMIP6 (Open-Meteo) + WRI Aqueduct + PhysicalHazardEngine"
 
             else:
@@ -299,6 +343,13 @@ class PipelineReport:
                 "sector":                     sec_key,
                 "physical_exposure_ratio":    round(phi, 2),
                 "warnings":                   len(r.warnings),
+                # Rich temporal + spatial output
+                "asset_locations":            asset_locations,
+                "hazard_trajectory":          hazard_trajectory,
+                "critical_year":              critical_year,
+                "peak_loss_pct":              round(peak_loss_pct, 1),
+                "warming_delta_c":            round(warming_delta_c, 2),
+                "has_live_data":              has_live_data,
             })
         return rows
 

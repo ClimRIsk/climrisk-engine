@@ -63,6 +63,12 @@ from .schemas import (
     TiersResponse,
     TransitionRiskOut,
     TransitionYearOut,
+    PortfolioPositionIn,
+    PortfolioRiskRequest,
+    PortfolioRiskResponse,
+    CounterpartyIn,
+    PortfolioCreditRequest,
+    PortfolioCreditResponse,
 )
 
 
@@ -577,6 +583,13 @@ class FileRunSummaryRow(BaseModel):
     sector: str | None = None                 # normalised sector key
     physical_exposure_ratio: float | None = None  # φ — fraction of revenue exposed
     warnings: int
+    # Temporal + spatial enrichment (v0.7)
+    asset_locations: list[dict] | None = None       # [{id, name, lat, lon}] for map plotting
+    hazard_trajectory: dict | None = None           # {hazard → {year → prob %}} key years 2026-2050
+    critical_year: int | None = None                # first year ELF > 5% (actionable threshold)
+    peak_loss_pct: float | None = None              # peak annual loss % across horizon
+    warming_delta_c: float | None = None            # actual CMIP6 warming at asset (°C)
+    has_live_data: bool = False                     # True if NASA POWER / Open-Meteo responded
 
 
 class FileRunResponse(BaseModel):
@@ -1687,5 +1700,141 @@ def calibrate_against_historical(request: CalibrateRequest) -> dict:
                 "detail": str(exc),
             },
         ) from exc
+
+
+# ── Aladdin-style Portfolio Risk ──────────────────────────────────────────────
+
+@app.post("/portfolio/risk", response_model=PortfolioRiskResponse)
+def portfolio_risk(request: PortfolioRiskRequest) -> PortfolioRiskResponse:
+    """Aggregate portfolio climate VaR, MC-CVaR, and factor attribution.
+
+    Mirrors BlackRock Aladdin's portfolio risk aggregation layer:
+    - Portfolio Climate VaR at 95th and 99th percentile
+    - Marginal Contribution to CVaR (Euler decomposition) per position
+    - Factor attribution by hazard, sector, and geography
+    - Diversification benefit vs standalone sum
+    - Optional 1.5 / 2.0 / 3.0 / 4.0 °C stress scenarios
+
+    Accepts up to 500 positions. For larger portfolios contact enterprise support.
+    """
+    from ..climate.portfolio import aggregate_portfolio_risk, PortfolioPosition
+    import dataclasses
+
+    if not request.positions:
+        raise HTTPException(status_code=422, detail="At least one position required.")
+    if len(request.positions) > 500:
+        raise HTTPException(status_code=422, detail="Maximum 500 positions per request.")
+
+    positions = [
+        PortfolioPosition(
+            company_id=p.company_id,
+            company_name=p.company_name,
+            exposure_usd_m=p.exposure_usd_m,
+            sector=p.sector,
+            region=p.region,
+            physical_score=p.physical_score,
+            transition_score=p.transition_score,
+        )
+        for p in request.positions
+    ]
+
+    result = aggregate_portfolio_risk(positions, run_stress=request.run_stress)
+
+    def _dc(obj):
+        if dataclasses.is_dataclass(obj) and not isinstance(obj, type):
+            return {k: _dc(v) for k, v in dataclasses.asdict(obj).items()}
+        if isinstance(obj, list):
+            return [_dc(x) for x in obj]
+        if isinstance(obj, dict):
+            return {k: _dc(v) for k, v in obj.items()}
+        return obj
+
+    pos_dicts = [_dc(p) for p in result.positions]
+    stress_dicts = [_dc(s) for s in result.stress_scenarios]
+    fa = _dc(result.factor_attribution)
+
+    return PortfolioRiskResponse(
+        run_id=result.run_id,
+        n_positions=result.n_positions,
+        total_exposure_usd_m=result.total_exposure_usd_m,
+        portfolio_eal_cp_usd_m=result.portfolio_eal_cp_usd_m,
+        portfolio_var95_cp_usd_m=result.portfolio_var95_cp_usd_m,
+        portfolio_cvar95_cp_usd_m=result.portfolio_cvar95_cp_usd_m,
+        portfolio_var99_cp_usd_m=result.portfolio_var99_cp_usd_m,
+        portfolio_cvar99_cp_usd_m=result.portfolio_cvar99_cp_usd_m,
+        portfolio_eal_nze_usd_m=result.portfolio_eal_nze_usd_m,
+        portfolio_var99_nze_usd_m=result.portfolio_var99_nze_usd_m,
+        portfolio_cvar99_nze_usd_m=result.portfolio_cvar99_nze_usd_m,
+        diversification_benefit_usd_m=result.diversification_benefit_usd_m,
+        diversification_ratio=result.diversification_ratio,
+        herfindahl_index=result.herfindahl_index,
+        top3_concentration_pct=result.top3_concentration_pct,
+        positions=pos_dicts,
+        factor_attribution=fa,
+        stress_scenarios=stress_dicts,
+    )
+
+
+@app.post("/portfolio/credit", response_model=PortfolioCreditResponse)
+def portfolio_credit(request: PortfolioCreditRequest) -> PortfolioCreditResponse:
+    """Climate-adjusted PD, LGD, ECL, and RWA for a bank loan book.
+
+    Implements the ECB Climate Stress Test 2022 methodology for PD uplift
+    combined with NGFS Phase 4 sector-level transition shock tables:
+    - Physical PD uplift from asset exposure to hazard events
+    - Transition PD uplift from stranded-asset risk under NGFS scenarios
+    - LGD uplift from collateral degradation (sector + collateral type)
+    - IFRS 9 Expected Credit Loss: PD × LGD × EAD
+    - Basel III RWA under Standardised Approach with climate PD migration
+    - CET1 incremental capital charge (8% + 4.5% conservation buffer)
+    """
+    from ..climate.credit_risk import compute_portfolio_credit_risk, CounterpartyInput
+    import dataclasses
+
+    if not request.obligors:
+        raise HTTPException(status_code=422, detail="At least one obligor required.")
+
+    obligors = [
+        CounterpartyInput(
+            company_id=o.company_id,
+            company_name=o.company_name,
+            sector=o.sector,
+            ead_usd_m=o.ead_usd_m,
+            baseline_pd=o.baseline_pd,
+            baseline_lgd=o.baseline_lgd,
+            physical_score=o.physical_score,
+            transition_score=o.transition_score,
+            collateral_type=o.collateral_type,
+            scenario=o.scenario,
+        )
+        for o in request.obligors
+    ]
+
+    result = compute_portfolio_credit_risk(obligors)
+
+    def _dc(obj):
+        if dataclasses.is_dataclass(obj) and not isinstance(obj, type):
+            return {k: _dc(v) for k, v in dataclasses.asdict(obj).items()}
+        if isinstance(obj, list):
+            return [_dc(x) for x in obj]
+        if isinstance(obj, dict):
+            return {k: _dc(v) for k, v in obj.items()}
+        return obj
+
+    return PortfolioCreditResponse(
+        n_obligors=result.n_obligors,
+        total_ead_usd_m=result.total_ead_usd_m,
+        scenario=result.scenario,
+        baseline_ecl_usd_m=result.baseline_ecl_usd_m,
+        climate_ecl_usd_m=result.climate_ecl_usd_m,
+        ecl_increment_usd_m=result.ecl_increment_usd_m,
+        ecl_uplift_pct=result.ecl_uplift_pct,
+        baseline_rwa_usd_m=result.baseline_rwa_usd_m,
+        climate_rwa_usd_m=result.climate_rwa_usd_m,
+        rwa_increment_usd_m=result.rwa_increment_usd_m,
+        incremental_capital_usd_m=result.incremental_capital_usd_m,
+        sector_breakdown=result.sector_breakdown,
+        obligors=[_dc(o) for o in result.obligors],
+    )
 
     return calibration_report_to_dict(report)
