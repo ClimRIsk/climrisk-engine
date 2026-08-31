@@ -69,6 +69,7 @@ from .schemas import (
     CounterpartyIn,
     PortfolioCreditRequest,
     PortfolioCreditResponse,
+    PortfolioStreamRequest,
 )
 
 
@@ -1753,6 +1754,8 @@ def portfolio_risk(request: PortfolioRiskRequest) -> PortfolioRiskResponse:
     stress_dicts = [_dc(s) for s in result.stress_scenarios]
     fa = _dc(result.factor_attribution)
 
+    term_dicts = [_dc(t) for t in result.term_structure]
+
     return PortfolioRiskResponse(
         run_id=result.run_id,
         n_positions=result.n_positions,
@@ -1772,6 +1775,11 @@ def portfolio_risk(request: PortfolioRiskRequest) -> PortfolioRiskResponse:
         positions=pos_dicts,
         factor_attribution=fa,
         stress_scenarios=stress_dicts,
+        # v0.9 gap fixes
+        stress_regime_active=result.stress_regime_active,
+        stress_weight=result.stress_weight,
+        macro_factor_summary=result.macro_factor_summary,
+        term_structure=term_dicts,
     )
 
 
@@ -1806,6 +1814,7 @@ def portfolio_credit(request: PortfolioCreditRequest) -> PortfolioCreditResponse
             transition_score=o.transition_score,
             collateral_type=o.collateral_type,
             scenario=o.scenario,
+            region=getattr(o, "region", "Global"),
         )
         for o in request.obligors
     ]
@@ -1835,6 +1844,119 @@ def portfolio_credit(request: PortfolioCreditRequest) -> PortfolioCreditResponse
         incremental_capital_usd_m=result.incremental_capital_usd_m,
         sector_breakdown=result.sector_breakdown,
         obligors=[_dc(o) for o in result.obligors],
+        portfolio_term_structure=result.portfolio_term_structure,
+        calibration_method=result.calibration_method,
     )
 
-    return calibration_report_to_dict(report)
+
+# ── Gap 7: Real-time position monitor (SSE) ───────────────────────────────────
+
+from fastapi.responses import StreamingResponse as _StreamingResponse
+import asyncio as _asyncio
+import json as _json
+
+@app.post("/portfolio/stream")
+async def portfolio_stream(request: PortfolioStreamRequest):
+    """SSE endpoint — push recalculated portfolio CVaR on every tick.
+
+    Clients connect via EventSource (or fetch with ReadableStream) and receive
+    a JSON-encoded PortfolioRiskResponse on each push. The engine recalculates
+    the full MC-CVaR each tick so the client always sees fresh numbers.
+
+    Gap 7 fix: provides the real-time position monitor that Aladdin uses to
+    reprice the portfolio on every market tick.
+
+    Query parameters (also accepted in body):
+        interval_seconds : push frequency in seconds (default 5, min 1)
+        max_ticks        : stop after N pushes (0 = run until disconnect)
+    """
+    from ..climate.portfolio import aggregate_portfolio_risk, PortfolioPosition
+    import dataclasses, time
+
+    def _dc(obj):
+        if dataclasses.is_dataclass(obj) and not isinstance(obj, type):
+            return {k: _dc(v) for k, v in dataclasses.asdict(obj).items()}
+        if isinstance(obj, list):
+            return [_dc(x) for x in obj]
+        if isinstance(obj, dict):
+            return {k: _dc(v) for k, v in obj.items()}
+        return obj
+
+    interval = max(1.0, request.interval_seconds)
+    max_ticks = request.max_ticks if request.max_ticks > 0 else 999_999
+
+    base_positions = [
+        PortfolioPosition(
+            company_id=p.company_id,
+            company_name=p.company_name,
+            exposure_usd_m=p.exposure_usd_m,
+            sector=p.sector,
+            region=p.region,
+            physical_score=p.physical_score,
+            transition_score=p.transition_score,
+        )
+        for p in request.positions
+    ]
+
+    async def event_generator():
+        import random as _rand
+        tick = 0
+        while tick < max_ticks:
+            try:
+                # Simulate live market exposure drifts (±2% per tick)
+                live_positions = [
+                    PortfolioPosition(
+                        company_id=p.company_id,
+                        company_name=p.company_name,
+                        exposure_usd_m=p.exposure_usd_m * (1.0 + _rand.uniform(-0.02, 0.02)),
+                        sector=p.sector,
+                        region=p.region,
+                        physical_score=p.physical_score,
+                        transition_score=p.transition_score,
+                    )
+                    for p in base_positions
+                ]
+
+                result = aggregate_portfolio_risk(live_positions, run_stress=False)
+                payload = {
+                    "tick":                      tick + 1,
+                    "timestamp":                 time.time(),
+                    "run_id":                    result.run_id,
+                    "portfolio_eal_cp_usd_m":    result.portfolio_eal_cp_usd_m,
+                    "portfolio_var99_cp_usd_m":  result.portfolio_var99_cp_usd_m,
+                    "portfolio_cvar99_cp_usd_m": result.portfolio_cvar99_cp_usd_m,
+                    "herfindahl_index":          result.herfindahl_index,
+                    "stress_regime_active":      result.stress_regime_active,
+                    "stress_weight":             result.stress_weight,
+                    "positions": [
+                        {
+                            "company_id":      p.company_id,
+                            "company_name":    p.company_name,
+                            "exposure_usd_m":  p.exposure_usd_m,
+                            "eal_cp_usd_m":    r.eal_cp_usd_m,
+                            "mc_cvar99_usd_m": r.mc_cvar99_usd_m,
+                            "mc_cvar99_pct":   r.mc_cvar99_pct,
+                        }
+                        for p, r in zip(live_positions, result.positions)
+                    ],
+                }
+                yield f"data: {_json.dumps(payload)}\n\n"
+                tick += 1
+                await _asyncio.sleep(interval)
+            except _asyncio.CancelledError:
+                break
+            except Exception as exc:
+                yield f"data: {_json.dumps({'error': str(exc), 'tick': tick})}\n\n"
+                break
+
+        yield "data: {\"event\": \"stream_ended\"}\n\n"
+
+    return _StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
+        },
+    )

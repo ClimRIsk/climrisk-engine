@@ -519,7 +519,7 @@ class PortfolioRiskRequest(BaseModel):
     run_stress: bool = True           # include 1.5/2/3/4°C stress scenarios
 
 class PortfolioRiskResponse(BaseModel):
-    """Aladdin-style portfolio climate risk report."""
+    """Aladdin-style portfolio climate risk report (v0.9)."""
     run_id:             str
     n_positions:        int
     total_exposure_usd_m: float
@@ -543,6 +543,13 @@ class PortfolioRiskResponse(BaseModel):
     positions:              List[Dict[str, Any]] = []
     factor_attribution:     Dict[str, Any] = {}
     stress_scenarios:       List[Dict[str, Any]] = []
+    # Gap 2: MC CVaR regime flags
+    stress_regime_active:   bool = False
+    stress_weight:          float = 0.0
+    # Gap 4: macro factor summary
+    macro_factor_summary:   Dict[str, Any] = {}
+    # Gap 6: term structure (5/10/30-year EAL/VaR99)
+    term_structure:         List[Dict[str, Any]] = []
 
 
 # ── Aladdin-style Credit Risk ─────────────────────────────────────────────────
@@ -557,8 +564,9 @@ class CounterpartyIn(BaseModel):
     baseline_lgd:     float = 0.45
     physical_score:   float = 50.0
     transition_score: float = 50.0
-    collateral_type:  str   = "unsecured"   # "real_estate"|"equipment"|"inventory"|"unsecured"
+    collateral_type:  str   = "unsecured"
     scenario:         str   = "cp"
+    region:           str   = "Global"
 
 class PortfolioCreditRequest(BaseModel):
     """POST /portfolio/credit — climate-adjusted PD/LGD/ECL/RWA for loan book."""
@@ -579,3 +587,25 @@ class PortfolioCreditResponse(BaseModel):
     incremental_capital_usd_m: float
     sector_breakdown:          Dict[str, Any] = {}
     obligors:                  List[Dict[str, Any]] = []
+    # Gap 6: portfolio-level IFRS 9 lifetime ECL term structure
+    portfolio_term_structure:  List[Dict[str, Any]] = []
+    calibration_method:        str = ""
+
+
+# ── Gap 7: Real-time position monitor (SSE) ───────────────────────────────────
+
+class PositionTickIn(BaseModel):
+    """A single live position update (price/exposure change) for SSE stream."""
+    company_id:       str
+    company_name:     str
+    sector:           str
+    region:           str = "Global"
+    exposure_usd_m:   float
+    physical_score:   float = 50.0
+    transition_score: float = 50.0
+
+class PortfolioStreamRequest(BaseModel):
+    """POST /portfolio/stream — initiate SSE real-time position monitor."""
+    positions: List[PositionTickIn]
+    interval_seconds: float = 5.0   # push frequency
+    max_ticks: int = 60             # stop after N ticks (0 = run until client disconnects)
