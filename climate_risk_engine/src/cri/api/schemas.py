@@ -512,6 +512,12 @@ class PortfolioPositionIn(BaseModel):
     region:           str = "Global"
     physical_score:   float = 50.0    # 0–100; supply from a prior CRI run if available
     transition_score: float = 50.0
+    # Task 53: Optional multi-factor transition sub-scores (0–100 each).
+    # If omitted, decomposition is inferred from sector weights.
+    policy_score:     Optional[float] = None
+    technology_score: Optional[float] = None
+    market_score:     Optional[float] = None
+    litigation_score: Optional[float] = None
 
 class PortfolioRiskRequest(BaseModel):
     """POST /portfolio/risk — aggregate portfolio climate VaR."""
@@ -550,6 +556,8 @@ class PortfolioRiskResponse(BaseModel):
     macro_factor_summary:   Dict[str, Any] = {}
     # Gap 6: term structure (5/10/30-year EAL/VaR99)
     term_structure:         List[Dict[str, Any]] = []
+    # Task 53: multi-factor transition risk decomposition
+    transition_factor_cp:   Dict[str, Any] = {}
 
 
 # ── Aladdin-style Credit Risk ─────────────────────────────────────────────────
@@ -609,3 +617,81 @@ class PortfolioStreamRequest(BaseModel):
     positions: List[PositionTickIn]
     interval_seconds: float = 5.0   # push frequency
     max_ticks: int = 60             # stop after N ticks (0 = run until client disconnects)
+
+
+# ── Task 54: CVaR Optimiser ───────────────────────────────────────────────────
+
+class PortfolioOptimiseRequest(BaseModel):
+    """POST /portfolio/optimise — minimise CVaR₉₉ via SLSQP."""
+    positions:       List[PortfolioPositionIn]
+    sector_cap:      float = 0.40    # max weight in any single sector
+    single_name_cap: float = 0.30    # max single-name weight
+    hhi_limit:       float = 0.25    # max Herfindahl-Hirschman Index of weights
+    w_min:           float = 0.01    # minimum position weight
+
+class PortfolioOptimiseResponse(BaseModel):
+    """CVaR optimisation result."""
+    status:                  str
+    message:                 str
+    original_cvar99_usd_m:   float = 0.0
+    optimised_cvar99_usd_m:  float = 0.0
+    cvar99_reduction_pct:    float = 0.0
+    original_eal_usd_m:      float = 0.0
+    optimised_eal_usd_m:     float = 0.0
+    hhi_original:            float = 0.0
+    hhi_optimised:           float = 0.0
+    positions:               List[Dict[str, Any]] = []
+    binding_constraints:     List[str] = []
+    n_iterations:            int = 0
+    solver:                  str = "scipy-SLSQP"
+    methodology:             str = ""
+
+
+# ── Task 56: Rules engine ────────────────────────────────────────────────────
+
+class RulesCheckRequest(BaseModel):
+    """POST /portfolio/rules — check portfolio against configurable risk limits."""
+    positions:              List[PortfolioPositionIn]
+    cvar99_limit_usd_m:     Optional[float] = None   # hard CVaR99 limit
+    sector_concentration_limit: float = 0.40         # max sector % of CVaR
+    single_name_limit:      float = 0.30             # max single-name % of CVaR
+    hhi_limit:              float = 0.30             # HHI of MC-CVaR weights
+    eal_to_revenue_limit:   Optional[float] = None   # EAL / total exposure threshold
+
+class RulesCheckResponse(BaseModel):
+    """Rules engine output — breaches and alerts."""
+    overall_status:   str               # "PASS" | "WARN" | "BREACH"
+    checks:           List[Dict[str, Any]] = []
+    breach_count:     int = 0
+    warn_count:       int = 0
+    portfolio_cvar99_usd_m: float = 0.0
+    portfolio_eal_usd_m:    float = 0.0
+    hhi:                    float = 0.0
+    generated_at:           str = ""
+
+
+# ── Task 57: Validation framework ────────────────────────────────────────────
+
+class ValidationRequest(BaseModel):
+    """POST /portfolio/validate — backtesting and model quality metrics."""
+    # Realised losses (actuals) vs model predictions over a set of periods
+    # Each entry: {"period": str, "predicted_eal": float, "realised_loss": float,
+    #              "predicted_pd": float, "realised_default": int (0|1)}
+    observations: List[Dict[str, Any]]
+    # Which metrics to compute (all by default)
+    metrics: List[str] = ["gini", "brier", "kupiec"]
+
+class ValidationResponse(BaseModel):
+    """Model validation metrics."""
+    n_observations:  int = 0
+    gini_coefficient: Optional[float] = None   # discriminatory power (0–1; 0.6+ good)
+    brier_score:      Optional[float] = None   # PD calibration (lower = better; <0.25 good)
+    kupiec_pof:       Optional[Dict[str, Any]] = None  # VaR coverage test
+    hl_test:          Optional[Dict[str, Any]] = None  # Hosmer-Lemeshow calibration
+    summary:          str = ""
+    methodology:      str = (
+        "Gini: AUROC×2-1 (Engelmann 2003). "
+        "Brier: mean squared error of PD vs default indicator. "
+        "Kupiec: Proportion-of-Failures test for VaR coverage (Basel III §MAR99). "
+        "HL: Hosmer-Lemeshow χ² calibration test (10 bins)."
+    )

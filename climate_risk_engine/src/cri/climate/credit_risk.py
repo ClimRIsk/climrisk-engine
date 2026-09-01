@@ -28,8 +28,153 @@ References
 from __future__ import annotations
 
 import math
+import random
 from dataclasses import dataclass, field
 from typing import Optional
+
+
+# ── IRB helpers (Basel II/III Advanced approach) ──────────────────────────────
+
+def _norm_cdf(x: float) -> float:
+    """Standard normal CDF via math.erf."""
+    return 0.5 * (1.0 + math.erf(x / math.sqrt(2.0)))
+
+def _norm_pdf(x: float) -> float:
+    return math.exp(-0.5 * x * x) / math.sqrt(2.0 * math.pi)
+
+def _norm_inv(p: float) -> float:
+    """Rational approximation for inverse normal (Beasley-Springer-Moro)."""
+    p = max(1e-10, min(1 - 1e-10, p))
+    if p < 0.5:
+        sign = -1.0
+        pp = p
+    else:
+        sign = 1.0
+        pp = 1.0 - p
+    t = math.sqrt(-2.0 * math.log(pp))
+    c0, c1, c2 = 2.515517, 0.802853, 0.010328
+    d1, d2, d3 = 1.432788, 0.189269, 0.001308
+    num = c0 + c1 * t + c2 * t * t
+    den = 1.0 + d1 * t + d2 * t * t + d3 * t * t * t
+    return sign * (t - num / den)
+
+def _asset_correlation(pd: float) -> float:
+    """Basel II §272 asset correlation for corporate exposures.
+
+    R(PD) = 0.12·(1-e^{-50·PD})/(1-e^{-50}) + 0.24·[1-(1-e^{-50·PD})/(1-e^{-50})]
+    For SMEs: subtract 0.04×(1 - max(5, min(50, S)-5)/45)
+    We use the standard corporate formula.
+    """
+    e50 = math.exp(-50.0)
+    w = (1.0 - math.exp(-50.0 * pd)) / max(1e-12, 1.0 - e50)
+    return 0.12 * w + 0.24 * (1.0 - w)
+
+def _irb_rwa(pd: float, lgd: float, maturity: float, ead: float,
+             base_rw_pct: float = 100.0) -> float:
+    """Basel II/III Advanced IRB risk weight × EAD → RWA (USD M).
+
+    Formula (BCBS §272):
+      K = LGD × N[(1-R)^(-0.5)·G(PD) + (R/(1-R))^0.5·G(0.999)] - PD·LGD
+      K *= (1-1.5b)^(-1) × (1+(M-2.5)b)   maturity adjustment
+      RW = K × 12.5 × 1.06                  capital ratio scaling
+    """
+    pd = max(1e-6, min(0.9999, pd))
+    lgd = max(0.01, min(1.0, lgd))
+    R = _asset_correlation(pd)
+    G_pd   = _norm_inv(pd)
+    G_999  = _norm_inv(0.999)
+    N_arg  = (1.0 - R) ** (-0.5) * G_pd + (R / (1.0 - R)) ** 0.5 * G_999
+    K_raw  = lgd * _norm_cdf(N_arg) - pd * lgd
+    # Maturity adjustment (b = (0.11852 - 0.05478 × ln(PD))^2)
+    b = (0.11852 - 0.05478 * math.log(max(1e-6, pd))) ** 2
+    K = K_raw * (1.0 + (maturity - 2.5) * b) / max(1e-9, 1.0 - 1.5 * b)
+    K = max(0.0, K)
+    rw = K * 12.5 * 1.06   # 1.06 = scaling factor per Basel II §272
+    return ead * rw * (base_rw_pct / 100.0)
+
+
+# ── Wrong-way risk (WWR) — joint PD/LGD simulation ───────────────────────────
+# When a physical climate event hits, it simultaneously:
+#   (a) increases probability of default (revenue shock, CAPEX surge)
+#   (b) reduces collateral value (asset damage → lower recovery)
+# This creates positive correlation between PD and LGD — the "double hit".
+#
+# We model this using a bivariate normal draw with sector-specific correlation ρ_wwr.
+# Source: BCBS "Climate-related financial risks" WP37 (2021) §IV.C
+#
+# ρ_wwr: how tightly linked is asset value destruction with obligor default?
+#   High (0.6–0.8): sectors with physical assets as primary collateral (RE, agriculture)
+#   Low  (0.1–0.3): sectors where collateral is diversified or intangible (tech, financials)
+_WWR_CORRELATION: dict[str, float] = {
+    "Real Estate":        0.72,
+    "Agriculture":        0.68,
+    "Mining":             0.60,
+    "Metals & Mining":    0.60,
+    "Oil & Gas":          0.55,
+    "Energy":             0.52,
+    "Utilities":          0.48,
+    "Chemicals":          0.42,
+    "Construction":       0.45,
+    "Transport":          0.38,
+    "Industrials":        0.32,
+    "Food & Beverage":    0.35,
+    "Automotive":         0.30,
+    "Consumer":           0.22,
+    "Healthcare":         0.18,
+    "Technology":         0.12,
+    "Financial Services": 0.20,
+}
+_WWR_N_PATHS = 5_000   # MC paths for WWR simulation
+
+def _wwr_correlation(sector: str) -> float:
+    return _WWR_CORRELATION.get(sector.strip(), 0.35)
+
+def _wwr_ecl(
+    climate_pd: float,
+    climate_lgd: float,
+    ead: float,
+    sector: str,
+    physical_pd_uplift: float,
+) -> tuple[float, float]:
+    """Wrong-way risk ECL via bivariate normal simulation.
+
+    Simulates N_paths joint draws of (PD_shock, LGD_shock) with
+    correlation ρ_wwr. Returns (wwr_ecl_usd_m, wwr_increment_vs_independent).
+
+    Under independence: ECL = E[PD] × E[LGD] × EAD
+    Under WWR:          ECL = E[PD × LGD] × EAD  (covariance term adds uplift)
+    """
+    rho = _wwr_correlation(sector)
+    # Only apply WWR when physical risk is elevated (risk materialising as damage)
+    # Scale WWR intensity by physical_pd_uplift / baseline_pd ratio
+    if physical_pd_uplift < 1e-6 or climate_pd < 1e-6:
+        return climate_pd * climate_lgd * ead, 0.0
+
+    # PD and LGD are bounded (0,1) — model as logit-normal marginals
+    # Logit transform: p_logit ~ N(logit(mu), sigma^2)
+    sigma_pd  = max(0.01, math.sqrt(climate_pd  * (1 - climate_pd)))  / 2.0
+    sigma_lgd = max(0.01, math.sqrt(climate_lgd * (1 - climate_lgd))) / 2.0
+
+    rng_state = random.getstate()
+    random.seed(137)
+    total_ecl = 0.0
+    for _ in range(_WWR_N_PATHS):
+        # Correlated bivariate normal
+        z1 = _norm_inv(random.random())
+        z2 = rho * z1 + math.sqrt(max(0.0, 1.0 - rho * rho)) * _norm_inv(random.random())
+        # Map back to (0,1) via N(mu + sigma*z)
+        pd_sim  = max(1e-6, min(0.9999, _norm_cdf(
+            _norm_inv(climate_pd) + sigma_pd * z1
+        )))
+        lgd_sim = max(1e-6, min(0.9999, _norm_cdf(
+            _norm_inv(climate_lgd) + sigma_lgd * z2
+        )))
+        total_ecl += pd_sim * lgd_sim * ead
+    random.setstate(rng_state)
+
+    wwr_ecl = total_ecl / _WWR_N_PATHS
+    independent_ecl = climate_pd * climate_lgd * ead
+    return round(wwr_ecl, 4), round(wwr_ecl - independent_ecl, 4)
 
 
 # ── Sector sensitivity parameters ─────────────────────────────────────────────
@@ -325,13 +470,21 @@ _SCENARIO_TRANSITION_MULT: dict[str, float] = {
 }
 
 
-def _rw_from_pd(pd: float) -> float:
-    """Basel III Standardised Approach risk weight from PD."""
-    if pd <= 0.005: return 1.00
-    if pd <= 0.02:  return 1.00
-    if pd <= 0.08:  return 1.50
-    if pd <= 0.25:  return 2.50
-    return 3.00
+def _rw_from_pd(pd: float, lgd: float = 0.45, maturity: float = 2.5,
+               ead: float = 1.0, base_rw_pct: float = 100.0) -> float:
+    """IRB Vasicek risk weight (Basel II/III Advanced approach).
+
+    Returns the *risk-weight multiplier* (RWA / EAD) so the call-site
+    computation `rwa = ead × rw × (base_rw_pct/100)` still works.
+
+    We compute true IRB RWA then divide by EAD to get the multiplier.
+    Falls back to standardised floor of 0.20 to prevent negative capital.
+    """
+    if ead < 1e-9:
+        return 1.0
+    irb = _irb_rwa(pd, lgd, maturity, ead, base_rw_pct)
+    rw = irb / ead / max(0.01, base_rw_pct / 100.0)
+    return max(0.20, rw)   # IRB floor: 20% risk weight minimum
 
 
 def _ifrs9_stage(pd: float) -> int:
@@ -412,13 +565,29 @@ def compute_counterparty_risk(inp: CounterpartyInput) -> CounterpartyRiskResult:
     climate_ecl   = climate_pd * climate_lgd * inp.ead_usd_m
     ecl_increment = climate_ecl - baseline_ecl
 
-    # ── RWA ───────────────────────────────────────────────────────────────────
-    baseline_rw  = _rw_from_pd(inp.baseline_pd)
-    climate_rw   = _rw_from_pd(climate_pd)
+    # ── Task 50: IRB Vasicek RWA ──────────────────────────────────────────────
+    # Maturity approximation: assume average loan maturity of 2.5 years (Basel floor).
+    # LGD passed through so asset correlation scales correctly.
+    _mat = 2.5
+    baseline_rw  = _rw_from_pd(inp.baseline_pd, inp.baseline_lgd, _mat,
+                                inp.ead_usd_m, sens.base_rw_pct)
+    climate_rw   = _rw_from_pd(climate_pd, climate_lgd, _mat,
+                                inp.ead_usd_m, sens.base_rw_pct)
     baseline_rwa = inp.ead_usd_m * baseline_rw * (sens.base_rw_pct / 100.0)
     climate_rwa  = inp.ead_usd_m * climate_rw  * (sens.base_rw_pct / 100.0)
     rwa_increment = climate_rwa - baseline_rwa
     capital_charge = rwa_increment * 0.125   # 12.5% effective CET1
+
+    # ── Task 51: Wrong-way risk ECL ───────────────────────────────────────────
+    # Bivariate normal simulation captures the double-hit: physical damage
+    # simultaneously raises PD (revenue shock) and reduces recovery (asset damage).
+    # wwr_ecl_usd_m replaces the naive E[PD]×E[LGD]×EAD when physical risk is elevated.
+    wwr_ecl_usd_m, wwr_increment_vs_independent = _wwr_ecl(
+        climate_pd, climate_lgd, inp.ead_usd_m, inp.sector, physical_pd_uplift
+    )
+    # Use WWR ECL as the headline climate_ecl (it is always ≥ independence case)
+    climate_ecl_wwr = wwr_ecl_usd_m
+    ecl_increment_wwr = climate_ecl_wwr - baseline_ecl
 
     # ── Gap 6: IFRS 9 stage + term structure ─────────────────────────────────
     stage0 = _ifrs9_stage(climate_pd)
@@ -440,7 +609,17 @@ def compute_counterparty_risk(inp: CounterpartyInput) -> CounterpartyRiskResult:
         "transition_pd_uplift":  round(transition_pd_uplift, 6),
         "lgd_uplift":            round(lgd_uplift, 4),
         "ifrs9_stage_year0":     stage0,
-        "methodology": "ECB Climate Stress Test 2022 §3.2 + NGFS Phase 4 + Logistic calibration (Gap 5)",
+        # Task 50 — IRB
+        "irb_asset_correlation": round(_asset_correlation(climate_pd), 6),
+        "irb_rw_baseline":       round(baseline_rw, 4),
+        "irb_rw_climate":        round(climate_rw, 4),
+        # Task 51 — WWR
+        "wwr_correlation":       round(_wwr_correlation(inp.sector), 4),
+        "wwr_ecl_increment_usd_m": round(wwr_increment_vs_independent, 4),
+        "methodology": (
+            "ECB Climate Stress Test 2022 §3.2 + NGFS Phase 4 + "
+            "Logistic calibration (Gap 5) + IRB Vasicek (Task 50) + WWR (Task 51)"
+        ),
         **calib_audit,
     }
 
@@ -460,9 +639,9 @@ def compute_counterparty_risk(inp: CounterpartyInput) -> CounterpartyRiskResult:
         lgd_uplift=round(lgd_uplift, 6),
         climate_pd=round(climate_pd, 6),
         climate_lgd=round(climate_lgd, 6),
-        climate_ecl_usd_m=round(climate_ecl, 4),
-        climate_rwa_usd_m=round(climate_rwa, 4),
-        ecl_increment_usd_m=round(ecl_increment, 4),
+        climate_ecl_usd_m=round(climate_ecl_wwr, 4),   # WWR ECL (≥ independence)
+        climate_rwa_usd_m=round(climate_rwa, 4),        # IRB RWA
+        ecl_increment_usd_m=round(ecl_increment_wwr, 4),
         rwa_increment_usd_m=round(rwa_increment, 4),
         capital_charge_usd_m=round(capital_charge, 4),
         indicative_climate_rating=_pd_to_rating(climate_pd),

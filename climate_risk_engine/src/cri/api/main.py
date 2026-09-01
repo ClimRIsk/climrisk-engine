@@ -1735,6 +1735,11 @@ def portfolio_risk(request: PortfolioRiskRequest) -> PortfolioRiskResponse:
             region=p.region,
             physical_score=p.physical_score,
             transition_score=p.transition_score,
+            # Task 53: pass through sub-scores if provided
+            policy_score=getattr(p, "policy_score", None),
+            technology_score=getattr(p, "technology_score", None),
+            market_score=getattr(p, "market_score", None),
+            litigation_score=getattr(p, "litigation_score", None),
         )
         for p in request.positions
     ]
@@ -1780,6 +1785,8 @@ def portfolio_risk(request: PortfolioRiskRequest) -> PortfolioRiskResponse:
         stress_weight=result.stress_weight,
         macro_factor_summary=result.macro_factor_summary,
         term_structure=term_dicts,
+        # Task 53: multi-factor transition decomposition
+        transition_factor_cp=result.factor_attribution.transition_factor_cp,
     )
 
 
@@ -1849,6 +1856,248 @@ def portfolio_credit(request: PortfolioCreditRequest) -> PortfolioCreditResponse
     )
 
 
+# ── Task 54: Portfolio CVaR optimiser ────────────────────────────────────────
+
+from ..climate.portfolio_optimiser import optimise_portfolio_cvar as _optimise_cvar
+from ..climate.portfolio_optimiser import OptimisationResult as _OptResult
+import dataclasses as _dc_mod
+
+from .schemas import (
+    PortfolioOptimiseRequest, PortfolioOptimiseResponse,
+    RulesCheckRequest, RulesCheckResponse,
+    ValidationRequest, ValidationResponse,
+)
+
+@app.post("/portfolio/optimise", response_model=PortfolioOptimiseResponse)
+def portfolio_optimise(request: PortfolioOptimiseRequest) -> PortfolioOptimiseResponse:
+    """Minimise portfolio MC-CVaR₉₉ via scipy SLSQP subject to risk constraints.
+
+    Implements Rockafellar-Uryasev CVaR minimisation.
+    Returns original vs optimised weights, CVaR reduction, and binding constraints.
+    Falls back gracefully if scipy is not installed.
+    """
+    from ..climate.portfolio import PortfolioPosition as _PP
+    positions = [
+        _PP(
+            company_id=p.company_id,
+            company_name=p.company_name,
+            exposure_usd_m=p.exposure_usd_m,
+            sector=p.sector,
+            region=p.region,
+            physical_score=p.physical_score,
+            transition_score=p.transition_score,
+        )
+        for p in request.positions
+    ]
+    result = _optimise_cvar(
+        positions,
+        sector_cap=request.sector_cap,
+        single_name_cap=request.single_name_cap,
+        hhi_limit=request.hhi_limit,
+        w_min=request.w_min,
+    )
+    def _dc(obj):
+        if _dc_mod.is_dataclass(obj) and not isinstance(obj, type):
+            return {k: _dc(v) for k, v in _dc_mod.asdict(obj).items()}
+        if isinstance(obj, list):
+            return [_dc(x) for x in obj]
+        return obj
+
+    return PortfolioOptimiseResponse(
+        status=result.status,
+        message=result.message,
+        original_cvar99_usd_m=result.original_cvar99_usd_m,
+        optimised_cvar99_usd_m=result.optimised_cvar99_usd_m,
+        cvar99_reduction_pct=result.cvar99_reduction_pct,
+        original_eal_usd_m=result.original_eal_usd_m,
+        optimised_eal_usd_m=result.optimised_eal_usd_m,
+        hhi_original=result.hhi_original,
+        hhi_optimised=result.hhi_optimised,
+        positions=[_dc(p) for p in result.positions],
+        binding_constraints=result.binding_constraints,
+        n_iterations=result.n_iterations,
+        solver=result.solver,
+        methodology=result.methodology,
+    )
+
+
+# ── Task 56: Rules engine ─────────────────────────────────────────────────────
+
+import datetime as _datetime
+
+@app.post("/portfolio/rules", response_model=RulesCheckResponse)
+def portfolio_rules(request: RulesCheckRequest) -> RulesCheckResponse:
+    """Check portfolio against configurable risk limit rules.
+
+    Returns: breach/warn/pass status per rule, overall flag, and metrics.
+    Rules checked:
+      • CVaR₉₉ absolute limit (if supplied)
+      • Sector concentration (% of total CVaR from any single sector)
+      • Single-name concentration (% of total CVaR from any single position)
+      • HHI of MC-CVaR weights
+      • EAL / total exposure ratio (if limit supplied)
+    """
+    from ..climate.portfolio import PortfolioPosition as _PP, aggregate_portfolio_risk as _agg
+    positions = [
+        _PP(
+            company_id=p.company_id,
+            company_name=p.company_name,
+            exposure_usd_m=p.exposure_usd_m,
+            sector=p.sector,
+            region=p.region,
+            physical_score=p.physical_score,
+            transition_score=p.transition_score,
+        )
+        for p in request.positions
+    ]
+    result = _agg(positions, run_stress=False)
+
+    checks = []
+    breach = 0
+    warn   = 0
+
+    cvar99 = result.portfolio_cvar99_cp_usd_m
+    eal    = result.portfolio_eal_cp_usd_m
+    hhi    = result.herfindahl_index
+    total_exp = result.total_exposure_usd_m
+
+    # ── Rule 1: CVaR absolute limit ───────────────────────────────────────────
+    if request.cvar99_limit_usd_m is not None:
+        limit = request.cvar99_limit_usd_m
+        ratio = cvar99 / max(1e-9, limit)
+        status = "PASS"
+        if ratio >= 1.0:
+            status = "BREACH"; breach += 1
+        elif ratio >= 0.85:
+            status = "WARN"; warn += 1
+        checks.append({
+            "rule": "CVaR₉₉ Absolute Limit",
+            "status": status,
+            "value": round(cvar99, 4),
+            "limit": limit,
+            "utilisation_pct": round(ratio * 100, 1),
+            "message": f"CVaR₉₉ ${cvar99:.2f}M vs limit ${limit:.2f}M ({ratio:.0%} utilised)",
+        })
+
+    # ── Rule 2: Sector concentration ─────────────────────────────────────────
+    mc_total = sum(p.mc_cvar99_usd_m for p in result.positions) or 1e-9
+    sector_mc: dict[str, float] = {}
+    for p in result.positions:
+        sector_mc[p.sector] = sector_mc.get(p.sector, 0.0) + p.mc_cvar99_usd_m
+    for sec, sec_cvar in sorted(sector_mc.items(), key=lambda x: -x[1]):
+        ratio = sec_cvar / mc_total
+        status = "PASS"
+        if ratio >= request.sector_concentration_limit:
+            status = "BREACH"; breach += 1
+        elif ratio >= request.sector_concentration_limit * 0.85:
+            status = "WARN"; warn += 1
+        checks.append({
+            "rule": f"Sector Concentration: {sec}",
+            "status": status,
+            "value": round(ratio, 4),
+            "limit": request.sector_concentration_limit,
+            "utilisation_pct": round(ratio / request.sector_concentration_limit * 100, 1),
+            "message": f"{sec} = {ratio:.1%} of MC-CVaR (limit {request.sector_concentration_limit:.0%})",
+        })
+
+    # ── Rule 3: Single-name concentration ────────────────────────────────────
+    for p in sorted(result.positions, key=lambda x: -x.mc_cvar99_usd_m):
+        ratio = p.mc_cvar99_usd_m / mc_total
+        status = "PASS"
+        if ratio >= request.single_name_limit:
+            status = "BREACH"; breach += 1
+        elif ratio >= request.single_name_limit * 0.85:
+            status = "WARN"; warn += 1
+        checks.append({
+            "rule": f"Single-Name: {p.company_name}",
+            "status": status,
+            "value": round(ratio, 4),
+            "limit": request.single_name_limit,
+            "utilisation_pct": round(ratio / request.single_name_limit * 100, 1),
+            "message": f"{p.company_name} = {ratio:.1%} of MC-CVaR (limit {request.single_name_limit:.0%})",
+        })
+
+    # ── Rule 4: HHI ───────────────────────────────────────────────────────────
+    hhi_status = "PASS"
+    if hhi >= request.hhi_limit:
+        hhi_status = "BREACH"; breach += 1
+    elif hhi >= request.hhi_limit * 0.85:
+        hhi_status = "WARN"; warn += 1
+    checks.append({
+        "rule": "HHI Concentration",
+        "status": hhi_status,
+        "value": round(hhi, 4),
+        "limit": request.hhi_limit,
+        "utilisation_pct": round(hhi / request.hhi_limit * 100, 1),
+        "message": f"HHI = {hhi:.3f} (limit {request.hhi_limit:.3f})",
+    })
+
+    # ── Rule 5: EAL / exposure ratio ─────────────────────────────────────────
+    if request.eal_to_revenue_limit is not None and total_exp > 0:
+        eal_ratio = eal / total_exp
+        limit = request.eal_to_revenue_limit
+        er_status = "PASS"
+        if eal_ratio >= limit:
+            er_status = "BREACH"; breach += 1
+        elif eal_ratio >= limit * 0.85:
+            er_status = "WARN"; warn += 1
+        checks.append({
+            "rule": "EAL / Total Exposure",
+            "status": er_status,
+            "value": round(eal_ratio, 4),
+            "limit": limit,
+            "utilisation_pct": round(eal_ratio / limit * 100, 1),
+            "message": f"EAL/Exposure = {eal_ratio:.2%} (limit {limit:.2%})",
+        })
+
+    overall = "PASS"
+    if breach > 0:
+        overall = "BREACH"
+    elif warn > 0:
+        overall = "WARN"
+
+    return RulesCheckResponse(
+        overall_status=overall,
+        checks=checks,
+        breach_count=breach,
+        warn_count=warn,
+        portfolio_cvar99_usd_m=round(cvar99, 4),
+        portfolio_eal_usd_m=round(eal, 4),
+        hhi=round(hhi, 4),
+        generated_at=_datetime.datetime.utcnow().isoformat() + "Z",
+    )
+
+
+# ── Task 57: Validation framework ────────────────────────────────────────────
+
+from ..climate.validation import run_validation as _run_validation
+
+@app.post("/portfolio/validate", response_model=ValidationResponse)
+def portfolio_validate(request: ValidationRequest) -> ValidationResponse:
+    """Model validation — Gini, Brier, Kupiec, and Hosmer-Lemeshow metrics.
+
+    Submit historical observations (predicted PD + realised default, predicted EAL +
+    realised loss) to assess model discriminatory power and calibration quality.
+    """
+    result = _run_validation(request.observations, metrics=request.metrics)
+
+    if "error" in result:
+        raise HTTPException(status_code=422, detail=result["error"])
+
+    kpof = result.get("kupiec_pof")
+    hl   = result.get("hl_test")
+
+    return ValidationResponse(
+        n_observations=result.get("n_observations", 0),
+        gini_coefficient=result.get("gini_coefficient"),
+        brier_score=result.get("brier_score"),
+        kupiec_pof=kpof if isinstance(kpof, dict) else None,
+        hl_test=hl if isinstance(hl, dict) else None,
+        summary=result.get("summary", ""),
+        methodology=result.get("methodology", ""),
+    )
+
+
 # ── Gap 7: Real-time position monitor (SSE) ───────────────────────────────────
 
 from fastapi.responses import StreamingResponse as _StreamingResponse
@@ -1898,17 +2147,59 @@ async def portfolio_stream(request: PortfolioStreamRequest):
         for p in request.positions
     ]
 
+    # ── Task 58: yfinance ticker map ─────────────────────────────────────────
+    # Maps company_id → Yahoo Finance ticker for real market price changes.
+    # Price changes are used to update exposure (mark-to-market) on each SSE tick.
+    _TICKER_MAP: dict[str, str] = {
+        "bhp":         "BHP.AX",
+        "rio_tinto":   "RIO.L",
+        "shell":       "SHEL.L",
+        "santos":      "STO.AX",
+        "meridian":    "MEL.NZ",
+        "woodside":    "WDS.AX",
+        "chevron":     "CVX",
+        "exxon":       "XOM",
+        "bp":          "BP.L",
+        "total":       "TTE.PA",
+        "glencore":    "GLEN.L",
+        "vale":        "VALE",
+        "fortescue":   "FMG.AX",
+        "nextenergy":  "NEE",
+        "orsted":      "ORSTED.CO",
+    }
+
+    def _fetch_price_change(company_id: str) -> float:
+        """Try yfinance; fall back to ±2% random walk if unavailable."""
+        import random as _rnd
+        try:
+            import yfinance as yf
+            ticker = _TICKER_MAP.get(company_id.lower())
+            if not ticker:
+                return _rnd.uniform(-0.02, 0.02)
+            # Fast 2-day history — returns a single close-to-close return
+            hist = yf.Ticker(ticker).history(period="2d", interval="1d", timeout=3)
+            if len(hist) >= 2:
+                c0, c1 = hist["Close"].iloc[-2], hist["Close"].iloc[-1]
+                return float(c1 / c0 - 1.0)
+            return _rnd.uniform(-0.005, 0.005)
+        except Exception:
+            import random as _rnd2
+            return _rnd2.uniform(-0.02, 0.02)
+
     async def event_generator():
         import random as _rand
         tick = 0
         while tick < max_ticks:
             try:
-                # Simulate live market exposure drifts (±2% per tick)
+                # Task 58: attempt real price changes from yfinance; fall back to random walk
+                price_changes = {p.company_id: _fetch_price_change(p.company_id)
+                                 for p in base_positions}
+
                 live_positions = [
                     PortfolioPosition(
                         company_id=p.company_id,
                         company_name=p.company_name,
-                        exposure_usd_m=p.exposure_usd_m * (1.0 + _rand.uniform(-0.02, 0.02)),
+                        exposure_usd_m=p.exposure_usd_m * (1.0 + price_changes.get(p.company_id, 0.0)),
                         sector=p.sector,
                         region=p.region,
                         physical_score=p.physical_score,
