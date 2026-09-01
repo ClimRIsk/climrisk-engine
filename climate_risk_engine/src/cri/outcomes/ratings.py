@@ -600,6 +600,38 @@ class RatingEngine:
             w_f * financial.score
         )
 
+        # ── Gap 1 fix: NPV-based composite floor ─────────────────────────────
+        # A 40% enterprise-value destruction cannot be rated A or B regardless
+        # of how the three pillars score individually. This enforces the
+        # hierarchical rule: worst-case combined NPV impact governs the floor.
+        #
+        # Thresholds calibrated to S&P / Moody's corporate distress research:
+        #   > 15% combined NPV hit → at least B (Moderate) = composite ≥ 21
+        #   > 30% combined NPV hit → at least C (Elevated)  = composite ≥ 41
+        #   > 50% combined NPV hit → at least D (High)      = composite ≥ 61
+        #   > 70% combined NPV hit → at least E (Critical)  = composite ≥ 81
+        def _combined_npv(r: RunResults) -> float:
+            tr = abs(getattr(r, "npv_impact_pct", 0.0) or 0.0)
+            ph = abs(getattr(r, "physical_npv_impact_pct", 0.0) or 0.0)
+            cb = abs(getattr(r, "combined_npv_impact_pct", 0.0) or 0.0)
+            return cb if cb > 0 else tr + ph
+
+        worst_combined = max(
+            _combined_npv(nze_results),
+            _combined_npv(dt_results),
+            _combined_npv(cp_results),
+        )
+        npv_floor = 0.0
+        if worst_combined > 70:
+            npv_floor = 81.0
+        elif worst_combined > 50:
+            npv_floor = 61.0
+        elif worst_combined > 30:
+            npv_floor = 41.0
+        elif worst_combined > 15:
+            npv_floor = 21.0
+        composite = max(composite, npv_floor)
+
         rating = _letter(composite)
 
         # Confidence from data quality
