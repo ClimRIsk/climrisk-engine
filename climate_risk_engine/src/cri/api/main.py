@@ -591,6 +591,21 @@ class FileRunSummaryRow(BaseModel):
     peak_loss_pct: float | None = None              # peak annual loss % across horizon
     warming_delta_c: float | None = None            # actual CMIP6 warming at asset (°C)
     has_live_data: bool = False                     # True if NASA POWER / Open-Meteo responded
+    # Decision-support metrics (Gap 1–4 fixes, pipeline.py v0.8)
+    gross_var_npv: float | None = None              # USD M — cumulative NPV of gross physical VaR
+    net_var_npv: float | None = None                # USD M — cumulative NPV after insurance
+    peak_annual_gross_var: float | None = None      # USD M — worst single-year gross VaR
+    revenue_usd_m: float | None = None              # USD M — annual revenue (from company profile)
+    expected_annual_loss_m: float | None = None     # USD M — EAL = peak_annual_gross_var
+    insurance_gap_npv_m: float | None = None        # USD M — gross_var_npv − net_var_npv
+    physical_risk_score: float | None = None        # 0–100 from RatingEngine.physical.score
+    compound_risk_score: float | None = None        # 0–100 — physical × 1.15 compound multiplier
+    transition_score: float | None = None           # 0–100 from RatingEngine.transition.score
+    financial_score: float | None = None            # 0–100 from RatingEngine.financial.score
+    climate_rating: str | None = None               # A / B / C / D / E letter rating
+    composite_score: float | None = None            # 0–100 overall CRI composite
+    stranded_year: int | None = None                # first year with stranded_writedown > 0
+    disruption_days_yr: float | None = None         # peak_annual_gross_var_usd / (revenue/260)
 
 
 class FileRunResponse(BaseModel):
