@@ -842,6 +842,12 @@ class StandardAssetIn(BaseModel):
     # Optional qualitative features
     critical_features:      List[str] = []  # e.g. ["power_plant","water_cooling","rail_access"]
     asset_type:             str = "industrial"  # "industrial"|"office"|"data_center"|"infrastructure"
+    # Gap 9: optional component dependency graph for critical-path BI
+    # Supply as adjacency dict: {"nodes": {"boiler": {"hazard_sensitivities": {"flood": 0.6},
+    # "recovery_days": 30, "has_redundancy": false}, ...},
+    # "upstream": {"boiler": ["water_intake"], ...}, "description": "..."}
+    # If omitted, engine auto-selects the sector default graph.
+    component_graph:        Optional[Dict[str, Any]] = None
 
 
 class BatchAssessmentRequest(BaseModel):

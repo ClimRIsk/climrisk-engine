@@ -55,6 +55,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from .ssp_scenarios import NGFS_TO_SSP, SSP_SCENARIOS, SSPScenario
+from .asset_graph import ComponentGraph, critical_path_downtime, get_sector_graph  # Gap 9: critical-path BI
 
 
 # ── Sector physical-exposure ratios (φ) ────────────────────────────────────
@@ -363,6 +364,7 @@ def compute_physical_npv_impact(
     wacc: float = 0.10,
     start_year: int = 2026,
     horizon: int = 2050,
+    component_graph: ComponentGraph | None = None,
 ) -> PhysicalRiskResult:
     """
     Compute the physical-risk NPV drag for one (company, scenario) pair.
@@ -425,12 +427,24 @@ def compute_physical_npv_impact(
     probs_2028: dict[str, float] = {}
     elf_2028: float = 0.0
 
+    # Gap 9: resolve component graph — use caller's custom graph, fall back to
+    # sector default, then fall back to legacy phi × ELF scalar.
+    _cp_graph: ComponentGraph | None = component_graph or get_sector_graph(sec_key)
+    _cp_audit_mid: dict = {}   # captured once at mid_year for the audit trail
+
     for t in years:
         delta_t = ssp.gmst(t)                       # GMST anomaly at year t
         probs   = _hazard_probs_at_gmst(delta_t)
         elf     = _joint_elf(probs)
 
-        revenue_at_risk = revenue_usd * phi * elf
+        # Gap 9: critical-path BI — per-year downtime fraction from DAG
+        if _cp_graph is not None:
+            cp_fraction, _cp_audit_t = critical_path_downtime(_cp_graph, probs)
+            revenue_at_risk = revenue_usd * cp_fraction
+            if t == mid_year:
+                _cp_audit_mid = _cp_audit_t
+        else:
+            revenue_at_risk = revenue_usd * phi * elf
         discount        = (1.0 + wacc) ** (t - t0)
         year_drag       = revenue_at_risk / discount
         total_drag     += year_drag
@@ -481,6 +495,9 @@ def compute_physical_npv_impact(
         "year_by_year":         audit_years,
         "compound_pairs_used":  [list(p) for p in _COMPOUND_PAIRS],
         "copula_correlations":  {f"{h1}/{h2}": rho for (h1, h2), rho in _HAZARD_CORR.items()},
+        # Gap 9: critical-path BI audit (None when graph not available)
+        "critical_path_bi":     _cp_audit_mid if _cp_graph is not None else None,
+        "bi_model":             "critical_path_dag" if _cp_graph is not None else "sector_phi_elf",
     }
 
     return PhysicalRiskResult(
@@ -501,7 +518,7 @@ def compute_physical_npv_impact(
         ev_base_usd=ev_base_usd,
         wacc=wacc,
         horizon_years=len(years),
-        data_source="IPCC AR6 WG1/WG2 + NGFS 2023 · log-logistic CDF · Gaussian copula",
+        data_source="IPCC AR6 WG1/WG2 + NGFS 2023 · log-logistic CDF · Gaussian copula · critical-path DAG",
         audit_trail=audit_trail,
     )
 

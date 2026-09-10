@@ -3192,6 +3192,45 @@ async def batch_assess_assets(request: BatchAssessmentRequest) -> BatchAssessmen
             phys_eal = a.replacement_cost_usd_m * 0.015
             hazard_bkdn = {}
 
+        # 2b. Gap 9: Critical-path BI EAL — revenue downtime from component dependency graph
+        # Property damage (phys_eal) and business interruption are additive; the geo calibration
+        # only covers replacement cost × damage fraction; BI is a separate revenue exposure.
+        bi_eal = 0.0
+        try:
+            from ..climate.asset_graph import (
+                ComponentGraph as _CG,
+                ComponentNode as _CN,
+                critical_path_downtime as _cpd,
+                get_sector_graph as _gsg,
+            )
+            hazard_probs_geo = get_all_hazard_elfs(iso2, a.sector)
+
+            # Resolve graph: caller-supplied > sector default > skip
+            _cp_graph = None
+            if a.component_graph and isinstance(a.component_graph, dict):
+                # Deserialise caller-supplied adjacency dict
+                cg = _CG(description=a.component_graph.get("description", "custom"))
+                for node_name, node_data in (a.component_graph.get("nodes") or {}).items():
+                    cg.nodes[node_name] = _CN(
+                        name=node_name,
+                        hazard_sensitivities=node_data.get("hazard_sensitivities", {}),
+                        recovery_days=int(node_data.get("recovery_days", 7)),
+                        has_redundancy=bool(node_data.get("has_redundancy", False)),
+                    )
+                cg.upstream = a.component_graph.get("upstream") or {}
+                if cg.nodes:
+                    _cp_graph = cg
+            if _cp_graph is None:
+                _cp_graph = _gsg(a.sector)
+
+            if _cp_graph is not None:
+                cp_fraction, _ = _cpd(_cp_graph, hazard_probs_geo)
+                bi_eal = a.annual_revenue_usd_m * cp_fraction
+        except Exception:
+            pass  # silently skip; property damage EAL still computed above
+
+        phys_eal = phys_eal + bi_eal  # total physical risk: damage + downtime
+
         # 3. Transition EAL from sector + emissions
         co2_total = a.scope1_tco2 + a.scope2_tco2 + (a.scope3_tco2 or 0.0)
         # Carbon cost under CP scenario by 2035: ~$80/tCO2e (NGFS Phase 4)
