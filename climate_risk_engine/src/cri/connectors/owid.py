@@ -1,10 +1,58 @@
-"""Our World in Data connector for energy and commodity data."""
+"""Our World in Data connector for energy and commodity data.
+
+Fossil share:  live from OWID energy CSV on GitHub
+  https://raw.githubusercontent.com/owid/energy-data/master/owid-energy-data.csv
+  Column: fossil_share_energy (% of primary energy from fossil fuels)
+  Downloaded once, cached on disk; fallback to regional hardcoded table.
+
+Commodity demand indices: IEA WEO 2023-aligned static curves (no public API).
+"""
 
 from pathlib import Path
 from typing import Optional, Dict
+import csv
+import io
 import json
+import urllib.request
 
 from .base import BaseConnector
+
+# ---------------------------------------------------------------------------
+# OWID energy CSV — fossil share lookup
+# ---------------------------------------------------------------------------
+_OWID_ENERGY_URL = (
+    "https://raw.githubusercontent.com/owid/energy-data/master/owid-energy-data.csv"
+)
+
+# ISO-3166-1 alpha-3 and common name aliases → OWID country name
+_ISO_TO_OWID: dict[str, str] = {
+    "AUS": "Australia",  "AUT": "Austria",   "BEL": "Belgium",
+    "BRA": "Brazil",     "CAN": "Canada",    "CHE": "Switzerland",
+    "CHN": "China",      "DEU": "Germany",   "DNK": "Denmark",
+    "ESP": "Spain",      "FIN": "Finland",   "FRA": "France",
+    "GBR": "United Kingdom", "IDN": "Indonesia", "IND": "India",
+    "ITA": "Italy",      "JPN": "Japan",     "KOR": "South Korea",
+    "MEX": "Mexico",     "NLD": "Netherlands", "NOR": "Norway",
+    "POL": "Poland",     "RUS": "Russia",    "SAU": "Saudi Arabia",
+    "SWE": "Sweden",     "TUR": "Turkey",    "UKR": "Ukraine",
+    "USA": "United States", "ZAF": "South Africa",
+    # Two-letter aliases
+    "AU": "Australia", "BR": "Brazil",  "CA": "Canada",  "CN": "China",
+    "DE": "Germany",   "FR": "France",  "GB": "United Kingdom",
+    "ID": "Indonesia", "IN": "India",   "IT": "Italy",   "JP": "Japan",
+    "KR": "South Korea","MX": "Mexico", "NO": "Norway",  "PL": "Poland",
+    "RU": "Russia",    "SA": "Saudi Arabia","SE": "Sweden","TR": "Turkey",
+    "UA": "Ukraine",   "US": "United States","ZA": "South Africa",
+}
+
+# Fallback regional averages (fraction, 0-1) for countries not in OWID data
+_REGIONAL_FALLBACK: dict[str, float] = {
+    "China": 0.83, "India": 0.74, "Australia": 0.78, "United States": 0.81,
+    "Germany": 0.65, "France": 0.13, "Brazil": 0.44, "Canada": 0.64,
+    "United Kingdom": 0.72, "Russia": 0.88, "Japan": 0.83,
+    "South Korea": 0.83, "Saudi Arabia": 0.99, "Indonesia": 0.72,
+    "South Africa": 0.87, "Norway": 0.29, "Sweden": 0.23,
+}
 
 
 # IEA WEO 2023-aligned demand indices by commodity and scenario
@@ -83,44 +131,101 @@ class OWIDConnector(BaseConnector):
             "Use get_fossil_share() or get_commodity_demand_index()"
         )
 
-    def get_fossil_share(self, country: str, year: int) -> float:
-        """Get fossil fuel share of energy for a country/year.
+    # ── OWID energy CSV cache (class-level, shared across instances) ──────────
+    _owid_index: dict[tuple[str, int], float] | None = None
 
-        Note: This would require downloading and parsing the OWID energy data.
-        For now returns a placeholder.
+    def _load_owid_index(self) -> dict[tuple[str, int], float]:
+        """Download + parse OWID energy CSV; cache in class variable.
+
+        Returns dict keyed by (country_name, year) → fossil_share_energy (0-100 → 0-1).
+        Falls back to empty dict on network failure.
+        """
+        if OWIDConnector._owid_index is not None:
+            return OWIDConnector._owid_index
+
+        # Try disk cache first (CSV is ~5 MB; refresh daily)
+        disk_key = "owid_energy_csv_index"
+        cached = self._load_cache(disk_key)
+        if cached:
+            OWIDConnector._owid_index = {
+                (k.split("|")[0], int(k.split("|")[1])): v
+                for k, v in cached.items()
+            }
+            return OWIDConnector._owid_index
+
+        try:
+            with urllib.request.urlopen(_OWID_ENERGY_URL, timeout=20) as resp:
+                text = resp.read().decode("utf-8")
+            reader = csv.DictReader(io.StringIO(text))
+            index: dict[tuple[str, int], float] = {}
+            for row in reader:
+                raw = row.get("fossil_share_energy", "").strip()
+                if not raw:
+                    continue
+                try:
+                    yr = int(row["year"])
+                    share = float(raw) / 100.0   # OWID stores as percentage
+                    index[(row["country"], yr)] = share
+                except (ValueError, KeyError):
+                    continue
+            OWIDConnector._owid_index = index
+            # Persist to disk (keyed as "country|year")
+            self._save_cache(disk_key, {f"{c}|{y}": v for (c, y), v in index.items()})
+            return index
+        except Exception:
+            OWIDConnector._owid_index = {}
+            return {}
+
+    def get_fossil_share(self, country: str, year: int) -> float:
+        """Get fossil fuel share of primary energy for a country/year.
+
+        Primary source: OWID energy CSV (live download, disk-cached daily).
+        Fallback: regional hardcoded table.
 
         Args:
-            country: Country name or ISO code
-            year: Year
+            country: Country name, ISO-3166-1 alpha-2 or alpha-3 code
+            year:    Year (historical: available; future: last known + linear decline)
 
         Returns:
-            Fossil fuel share (0-1), or 0 if data unavailable
+            Fossil fuel share as fraction 0-1.
         """
         cache_key = f"fossil_share_{country}_{year}"
         cached = self._load_cache(cache_key)
         if cached is not None:
             return cached.get("fossil_share", 0.0)
 
-        # Placeholder: return typical values for major regions
-        fossil_shares = {
-            "China": 0.82,
-            "India": 0.75,
-            "Australia": 0.80,
-            "USA": 0.82,
-            "Germany": 0.64,
-            "France": 0.12,
-            "Brazil": 0.45,
-            "Canada": 0.65,
-        }
+        # Normalise country name
+        owid_name = _ISO_TO_OWID.get(country.upper(), country)
 
-        share = fossil_shares.get(country, 0.75)
-        # Decline over time (transition assumption)
-        year_factor = (year - 2026) / 24
-        share = max(0.0, share - year_factor * 0.15)
+        index = self._load_owid_index()
 
-        result = {"fossil_share": share, "country": country, "year": year}
+        # Exact year lookup
+        if (owid_name, year) in index:
+            share = index[(owid_name, year)]
+        else:
+            # Find nearest available historical year for this country
+            country_years = sorted(
+                {y for (c, y) in index if c == owid_name}, reverse=True
+            )
+            if country_years:
+                latest_yr = country_years[0]
+                base_share = index[(owid_name, latest_yr)]
+                if year > latest_yr:
+                    # Forward-project: linear decline assumption (transition)
+                    elapsed = year - latest_yr
+                    share = max(0.0, base_share - elapsed * 0.006)   # ~0.6%/yr decline
+                else:
+                    share = base_share
+            else:
+                # Country not in OWID data — use regional fallback
+                share = _REGIONAL_FALLBACK.get(owid_name, 0.72)
+                if year > 2022:
+                    share = max(0.0, share - (year - 2022) * 0.006)
+
+        result = {"fossil_share": round(share, 4), "country": country, "year": year,
+                  "source": "owid_live" if index else "regional_fallback"}
         self._save_cache(cache_key, result)
-        return share
+        return result["fossil_share"]
 
     def get_commodity_demand_index(
         self, commodity: str, scenario: str, year: int
