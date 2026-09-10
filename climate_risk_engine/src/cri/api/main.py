@@ -70,6 +70,12 @@ from .schemas import (
     PortfolioCreditRequest,
     PortfolioCreditResponse,
     PortfolioStreamRequest,
+    DecisionRequest,
+    DecisionBrief,
+    RiskSignal,
+    FinancialImpact,
+    RiskDriver,
+    RecommendedAction,
 )
 
 
@@ -2513,4 +2519,510 @@ async def portfolio_stream(request: PortfolioStreamRequest):
             "X-Accel-Buffering": "no",
             "Connection": "keep-alive",
         },
+    )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Task 72: POST /decision — Decision-Support First
+# ══════════════════════════════════════════════════════════════════════════════
+# This is the PRIMARY endpoint of the CRI engine.
+# It answers "what should I do?" before "how do I report it?".
+#
+# Architecture:
+#   1. Run scoped engine (physical + transition + financial)
+#   2. Synthesise Decision Brief: signal → financial impact → drivers → actions
+#   3. Compliance outputs (TCFD/ISSB) are optional, derived from the brief
+#
+# The signal generation logic:
+#   HOLD   : EAL < 2% EBITDA AND no stranded assets AND no acute hazards
+#   WATCH  : EAL 2–5% EBITDA OR stranded asset risk emerging
+#   REDUCE : EAL 5–15% EBITDA OR CVaR99 > 20% of exposure
+#   EXIT   : EAL > 15% EBITDA OR CVaR99 > 40% of exposure
+# ══════════════════════════════════════════════════════════════════════════════
+
+import uuid as _uuid
+import datetime as _dt_dec
+
+def _derive_signal(
+    eal_pct_ebitda: float,
+    cvar99_pct_exposure: float,
+    stranded_pct: float,
+    acute_hazard: bool,
+) -> tuple[str, str, str]:
+    """Return (action, urgency, rationale) for the primary risk signal."""
+    if eal_pct_ebitda > 0.15 or cvar99_pct_exposure > 0.40:
+        action = "EXIT"
+        urgency = "IMMEDIATE"
+        rationale = (
+            f"EAL represents {eal_pct_ebitda:.0%} of EBITDA and CVaR₉₉ is "
+            f"{cvar99_pct_exposure:.0%} of exposure — capital at risk exceeds "
+            f"acceptable loss thresholds."
+        )
+    elif eal_pct_ebitda > 0.05 or cvar99_pct_exposure > 0.20:
+        action = "REDUCE"
+        urgency = "NEAR_TERM"
+        rationale = (
+            f"EAL of {eal_pct_ebitda:.0%} of EBITDA and CVaR₉₉ of "
+            f"{cvar99_pct_exposure:.0%} of exposure exceed risk appetite. "
+            f"Recommend reducing exposure or demanding risk-adjusted pricing."
+        )
+    elif eal_pct_ebitda > 0.02 or stranded_pct > 0.25 or acute_hazard:
+        action = "WATCH"
+        urgency = "MEDIUM_TERM"
+        rationale = (
+            f"EAL of {eal_pct_ebitda:.0%} EBITDA is within policy but "
+            f"{'stranded asset risk is emerging' if stranded_pct > 0.25 else 'acute hazards detected'}. "
+            f"Monitor quarterly; review covenants."
+        )
+    else:
+        action = "HOLD"
+        urgency = "LONG_TERM"
+        rationale = (
+            f"EAL of {eal_pct_ebitda:.0%} EBITDA is within risk appetite. "
+            f"No acute hazards or stranded asset flags. Continue standard monitoring."
+        )
+    return action, urgency, rationale
+
+
+def _confidence_from_data_quality(data_quality: str, n_assets: int) -> str:
+    if data_quality == "LIVE_API" and n_assets >= 2:
+        return "HIGH"
+    if data_quality in ("LIVE_API", "MODELLED") and n_assets >= 1:
+        return "MEDIUM"
+    return "LOW"
+
+
+def _build_recommended_actions(
+    action: str,
+    eal_pct: float,
+    stranded_pct: float,
+    top_hazards: list[str],
+    sector: str,
+    company_name: str,
+) -> list[dict]:
+    """Generate concrete, actionable recommendations — not compliance bullets."""
+    actions = []
+    priority = 1
+
+    if action in ("EXIT", "REDUCE"):
+        actions.append({
+            "priority": priority,
+            "action": f"Initiate position reduction for {company_name}",
+            "rationale": (
+                f"Climate EAL ({eal_pct:.0%} of EBITDA) breaches risk appetite. "
+                f"Target 30–50% exposure reduction over next 2 quarters."
+            ),
+            "cost_usd_m": None,
+            "deadline": "Q2 2027",
+        })
+        priority += 1
+
+    if stranded_pct > 0.20:
+        actions.append({
+            "priority": priority,
+            "action": "Commission independent stranded-asset valuation",
+            "rationale": (
+                f"Model shows {stranded_pct:.0%} of asset value at risk under NZE scenario. "
+                f"Engage specialist for asset-level recovery value assessment."
+            ),
+            "cost_usd_m": 0.15,
+            "deadline": "Within 90 days",
+        })
+        priority += 1
+
+    if "flood_riverine" in top_hazards or "flood_coastal" in top_hazards:
+        actions.append({
+            "priority": priority,
+            "action": "Verify flood protection status and insurance coverage for all riverside/coastal assets",
+            "rationale": (
+                "Riverine/coastal flood is a top risk driver. "
+                "Confirm flood barriers, drainage, and BI insurance are current. "
+                "Require flood resilience capex roadmap from management."
+            ),
+            "cost_usd_m": None,
+            "deadline": "Before wet season",
+        })
+        priority += 1
+
+    if "heat_stress" in top_hazards or "drought" in top_hazards or "water_stress" in top_hazards:
+        actions.append({
+            "priority": priority,
+            "action": "Request water security plan and cooling resilience assessment",
+            "rationale": (
+                "Thermal and water stress are material risk drivers. "
+                "Confirm water allocation rights, cooling backup, and crop/process alternatives."
+            ),
+            "cost_usd_m": None,
+            "deadline": "Next operational review",
+        })
+        priority += 1
+
+    if sector in ("Oil & Gas", "Coal", "Utilities") and action != "EXIT":
+        actions.append({
+            "priority": priority,
+            "action": "Request transition plan with 2030/2040 emissions pathway and capex commitments",
+            "rationale": (
+                f"Sector ({sector}) faces material policy and technology transition risk. "
+                f"Require credible net-zero trajectory before next credit renewal."
+            ),
+            "cost_usd_m": None,
+            "deadline": "Before next facility renewal",
+        })
+        priority += 1
+
+    if action == "HOLD":
+        actions.append({
+            "priority": priority,
+            "action": "Maintain standard climate monitoring — annual review sufficient",
+            "rationale": (
+                "Risk is within appetite. "
+                "Include climate EAL in annual credit review package."
+            ),
+            "cost_usd_m": None,
+            "deadline": "Annual review",
+        })
+
+    return actions[:5]  # cap at 5
+
+
+@app.post(
+    "/decision",
+    response_model=DecisionBrief,
+    summary="Primary risk management decision brief",
+    description=(
+        "Decision-support first. Returns a structured brief for risk managers, "
+        "credit committees, and portfolio teams. "
+        "Answers 'what should I do?' before 'how do I disclose it?'. "
+        "Compliance outputs (TCFD/ISSB) are a derived secondary layer."
+    ),
+    tags=["Decision Support"],
+)
+def get_decision_brief(request: DecisionRequest) -> DecisionBrief:
+    """Run the CRI engine and return a decision-first risk brief.
+
+    Modes:
+      company_id provided   → full scoped engine run on seed company
+      portfolio + positions → portfolio CVaR signal (fast)
+      sector + region only  → parametric signal (fast, no company data)
+    """
+    from ..engine.scope import ReportScope
+    from ..engine.orchestrator import run_scoped as _scoped
+    from ..climate.portfolio import aggregate_portfolio_risk, PortfolioPosition
+
+    run_id     = str(_uuid.uuid4())[:8]
+    generated  = _dt_dec.datetime.utcnow().isoformat() + "Z"
+
+    # ── Scenario label ─────────────────────────────────────────────────────────
+    scenario_labels = {
+        "nze":     "Net Zero by 2050 (SSP1-2.6)",
+        "delayed": "Delayed Transition (SSP2-4.5)",
+        "cp":      "Current Policies (SSP3-7.0)",
+    }
+    scenario_label = scenario_labels.get(request.scenario, "Current Policies (SSP3-7.0)")
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # MODE A: Portfolio — multi-position CVaR signal
+    # ══════════════════════════════════════════════════════════════════════════
+    if request.positions:
+        positions_obj = [
+            PortfolioPosition(
+                company_id=p.company_id,
+                company_name=p.company_name,
+                exposure_usd_m=p.exposure_usd_m,
+                sector=p.sector,
+                region=p.region,
+                physical_score=p.physical_score,
+                transition_score=p.transition_score,
+            )
+            for p in request.positions
+        ]
+        port = aggregate_portfolio_risk(positions_obj, run_stress=False)
+        total_exp = port.total_exposure_usd_m or 1.0
+        cvar99    = port.portfolio_cvar99_cp_usd_m
+        eal       = port.portfolio_eal_cp_usd_m
+        # Rough EBITDA proxy: assume 15% EBITDA margin on exposure as revenue stand-in
+        ebitda_proxy  = total_exp * 0.15
+        eal_pct       = eal / max(ebitda_proxy, 1.0)
+        cvar99_pct    = cvar99 / max(total_exp, 1.0)
+        stranded_pct  = 0.0   # not computed in portfolio mode
+
+        action, urgency, rationale = _derive_signal(eal_pct, cvar99_pct, stranded_pct, False)
+        confidence = "MEDIUM"
+
+        # Top sectors by CVaR contribution as "drivers"
+        sector_contrib: dict[str, float] = {}
+        for p in port.positions:
+            sector_contrib[p.sector] = sector_contrib.get(p.sector, 0.0) + p.mc_cvar99_usd_m
+        mc_total = sum(sector_contrib.values()) or 1.0
+        drivers = [
+            RiskDriver(
+                factor=f"Sector: {sec}",
+                category="physical",
+                contribution_pct=round(val / mc_total * 100, 1),
+                horizon="2025–2035",
+                severity="HIGH" if val / mc_total > 0.40 else "MODERATE",
+            )
+            for sec, val in sorted(sector_contrib.items(), key=lambda x: -x[1])[:3]
+        ]
+
+        top_sectors = [r.factor.replace("Sector: ", "") for r in drivers]
+        rec_actions = _build_recommended_actions(
+            action, eal_pct, stranded_pct, [], top_sectors[0] if top_sectors else "", "Portfolio"
+        )
+
+        return DecisionBrief(
+            signal=RiskSignal(action=action, confidence=confidence,
+                              rationale=rationale, urgency=urgency),
+            financial_impact=FinancialImpact(
+                expected_annual_loss_usd_m=round(eal, 3),
+                worst_case_1pct_usd_m=round(cvar99, 3),
+                ebitda_impact_pct=round(eal_pct * 100, 2),
+                revenue_at_risk_pct=round(eal / max(total_exp, 1.0) * 100, 2),
+                stranded_asset_value_usd_m=0.0,
+                credit_spread_widening_bps=round(min(500.0, eal_pct * 1200), 1),
+                wacc_uplift_bps=round(cvar99_pct * 50, 1),
+                npv_haircut_pct=round(eal_pct * 60, 2),
+            ),
+            top_drivers=drivers,
+            recommended_actions=[RecommendedAction(**a) for a in rec_actions],
+            sector=", ".join(list(sector_contrib.keys())[:3]),
+            region="Multi-region",
+            scenario_label=scenario_label,
+            horizon_year=request.horizon_year,
+            data_quality="MODELLED",
+            model_confidence=confidence,
+            run_id=run_id,
+            generated_at=generated,
+        )
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # MODE B: Single company — full scoped run
+    # ══════════════════════════════════════════════════════════════════════════
+    company = None
+    if request.company_id:
+        company = COMPANY_REGISTRY.get(request.company_id)
+        if not company:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Company '{request.company_id}' not found. "
+                       f"Use GET /companies to list available IDs."
+            )
+
+    if company is None:
+        # ── MODE C: Parametric (no company data) ─────────────────────────────
+        # Use sector/region defaults to produce a signal without a full engine run.
+        sector = request.sector or "Industrials"
+        region = request.region or "Global"
+        exposure = request.exposure_usd_m or 100.0
+
+        # Parametric EAL: sector phi × regional multiplier × exposure
+        _sector_elf = {
+            "Oil & Gas": 0.038, "Coal": 0.035, "Utilities": 0.032,
+            "Mining": 0.030, "Agriculture": 0.045, "Real Estate": 0.028,
+            "Chemicals": 0.025, "Transport": 0.022, "Industrials": 0.020,
+            "Technology": 0.008, "Financial Services": 0.010, "Healthcare": 0.012,
+        }
+        elf = _sector_elf.get(sector, 0.022)
+        eal = elf * exposure
+        cvar99 = eal * 3.0   # rule-of-thumb: CVaR99 ≈ 3× EAL for heavy tails
+        ebitda_proxy = exposure * 0.15
+        eal_pct    = eal / max(ebitda_proxy, 1.0)
+        cvar99_pct = cvar99 / max(exposure, 1.0)
+
+        action, urgency, rationale = _derive_signal(eal_pct, cvar99_pct, 0.0, False)
+        confidence = "LOW"
+
+        drivers = [
+            RiskDriver(factor="Physical hazard (parametric)", category="physical",
+                       contribution_pct=60.0, horizon="2025–2035", severity="MODERATE"),
+            RiskDriver(factor="Transition risk (sector exposure)", category="transition",
+                       contribution_pct=30.0, horizon="2030–2040", severity="MODERATE"),
+            RiskDriver(factor="Macro factor (GDP/rate shock)", category="macro",
+                       contribution_pct=10.0, horizon="2035–2050", severity="LOW"),
+        ]
+        rec_actions = _build_recommended_actions(action, eal_pct, 0.0, [], sector, "Target Company")
+        return DecisionBrief(
+            signal=RiskSignal(action=action, confidence=confidence,
+                              rationale=rationale + " (parametric estimate — provide company_id for full analysis)",
+                              urgency=urgency),
+            financial_impact=FinancialImpact(
+                expected_annual_loss_usd_m=round(eal, 3),
+                worst_case_1pct_usd_m=round(cvar99, 3),
+                ebitda_impact_pct=round(eal_pct * 100, 2),
+                revenue_at_risk_pct=round(eal / max(exposure, 1.0) * 100, 2),
+                stranded_asset_value_usd_m=round(exposure * 0.15 if sector in ("Oil & Gas","Coal") else 0.0, 2),
+                credit_spread_widening_bps=round(min(500.0, eal_pct * 1200), 1),
+                wacc_uplift_bps=round(cvar99_pct * 50, 1),
+                npv_haircut_pct=round(eal_pct * 60, 2),
+            ),
+            top_drivers=drivers,
+            recommended_actions=[RecommendedAction(**a) for a in rec_actions],
+            sector=sector,
+            region=region,
+            scenario_label=scenario_label,
+            horizon_year=request.horizon_year,
+            data_quality="FALLBACK",
+            model_confidence="LOW",
+            run_id=run_id,
+            generated_at=generated,
+        )
+
+    # ── Full scoped engine run on seed company ─────────────────────────────────
+    _scope_str = "full_cri" if request.scope == "full" else "physical_transition"
+    scoped = _scoped(
+        company,
+        scope=ReportScope(_scope_str),
+    )
+
+    # ── Extract physical numbers ──────────────────────────────────────────────
+    physical = scoped.physical
+    transition = scoped.transition
+
+    phys_eal     = 0.0
+    top_hazards: list[str] = []
+    data_quality = "MODELLED"
+
+    if physical:
+        # Use hazard_breakdown_2035 (dict: hazard → USD cost at 2035 under CP)
+        # as the EAL proxy; sum gives total expected annual loss at horizon.
+        hazard_map = physical.hazard_breakdown_2035 or {}
+        phys_eal   = sum(hazard_map.values()) / 1e6   # USD → USD M
+        # Sort hazards by contribution so highest-impact comes first
+        top_hazards = [h for h, _ in sorted(hazard_map.items(),
+                                             key=lambda kv: kv[1], reverse=True)]
+        data_quality = "MODELLED"
+
+    trans_eal = 0.0
+    if transition:
+        # Use EBITDA compression under NZE 2030 × baseline EBITDA as proxy cost
+        comp_frac = abs(transition.ebitda_compression_2030_nze or 0.0)
+        trans_eal = comp_frac * max(company.financials.ebitda, 1.0)
+
+    total_eal = phys_eal + trans_eal
+
+    # ── Financial ratios ──────────────────────────────────────────────────────
+    ebitda      = max(company.financials.ebitda, 1.0)
+    revenue     = max(company.financials.revenue, 1.0)
+    if request.exposure_usd_m:
+        exposure = request.exposure_usd_m
+    elif hasattr(company.financials, "equity_value"):
+        exposure = company.financials.net_debt + company.financials.equity_value
+    else:
+        exposure = company.financials.net_debt * 1.5
+    exposure    = max(exposure, 1.0)
+
+    eal_pct       = total_eal / ebitda
+    cvar99        = total_eal * 3.2     # CVaR₉₉ ≈ 3.2× EAL (log-logistic tail calibration)
+    cvar99_pct    = cvar99 / exposure
+
+    # Stranded asset: NZE NPV haircut vs CP — valuation_results values are
+    # RunResults dataclasses (attribute access, not .get())
+    stranded_pct = 0.0
+    if scoped.valuation_results:
+        _rr_nze = scoped.valuation_results.get("nze")
+        _rr_cp  = scoped.valuation_results.get("cp")
+        if _rr_nze is not None and _rr_cp is not None:
+            npv_nze_v = getattr(_rr_nze, "npv_fcf", None)
+            npv_cp_v  = getattr(_rr_cp,  "npv_fcf", None)
+            if npv_nze_v is not None and npv_cp_v is not None and npv_cp_v > 0:
+                stranded_pct = max(0.0, (npv_cp_v - npv_nze_v) / npv_cp_v)
+
+    # Acute hazard flag: any top hazard with severity > 3 on flood/cyclone/wildfire
+    acute_flag = any(h in ("flood_riverine", "flood_coastal", "cyclone", "wildfire")
+                     for h in top_hazards)
+
+    # ── Signal ────────────────────────────────────────────────────────────────
+    action, urgency, rationale = _derive_signal(eal_pct, cvar99_pct, stranded_pct, acute_flag)
+    n_assets    = len(company.assets)
+    confidence  = _confidence_from_data_quality(data_quality, n_assets)
+
+    # ── Top risk drivers ──────────────────────────────────────────────────────
+    drivers = []
+    if phys_eal > 0:
+        phys_share = phys_eal / max(total_eal, 1e-9) * 100
+        for i, h in enumerate(top_hazards[:3]):
+            drivers.append(RiskDriver(
+                factor=h.replace("_", " ").title() + " — " + (company.assets[0].region if company.assets else ""),
+                category="physical",
+                contribution_pct=round(phys_share / max(len(top_hazards[:3]), 1), 1),
+                horizon="2025–2035",
+                severity="HIGH" if i == 0 else "MODERATE",
+            ))
+    if trans_eal > 0:
+        trans_share = trans_eal / max(total_eal, 1e-9) * 100
+        drivers.append(RiskDriver(
+            factor=f"Transition risk — carbon price + demand destruction ({company.sector})",
+            category="transition",
+            contribution_pct=round(trans_share, 1),
+            horizon="2030–2045",
+            severity="HIGH" if trans_share > 40 else "MODERATE",
+        ))
+    if not drivers:
+        drivers.append(RiskDriver(
+            factor="Climate risk (insufficient asset data for breakdown)",
+            category="physical",
+            contribution_pct=100.0,
+            horizon="2025–2035",
+            severity="MODERATE",
+        ))
+
+    # ── Financial impact ──────────────────────────────────────────────────────
+    # valuation_results values are RunResults dataclasses — use getattr, not .get()
+    def _vattr(label: str, attr: str, default: float = 0.0) -> float:
+        if not scoped.valuation_results:
+            return default
+        rr = scoped.valuation_results.get(label)
+        return getattr(rr, attr, default) if rr is not None else default
+
+    npv_cp   = _vattr("cp",  "npv_fcf")
+    npv_nze  = _vattr("nze", "npv_fcf")
+    wacc_cp  = _vattr("cp",  "wacc_used")
+    wacc_nze = _vattr("nze", "wacc_used")
+    wacc_uplift_bps = round((wacc_cp - wacc_nze) * 10000, 1) if wacc_cp > 0 and wacc_nze > 0 else 0.0
+    npv_haircut = round((npv_nze - npv_cp) / max(abs(npv_nze), 1.0) * 100, 2) if npv_nze != 0 else 0.0
+
+    # ── Recommended actions ───────────────────────────────────────────────────
+    rec_raw = _build_recommended_actions(
+        action, eal_pct, stranded_pct, top_hazards, company.sector, company.name
+    )
+
+    # ── Compliance layer (secondary) ──────────────────────────────────────────
+    compliance_layer = {
+        "note": "Compliance outputs are derived from this brief. Use POST /reports/tcfd, /reports/issb, or /reports/csrd.",
+        "tcfd_pillars": ["Governance", "Strategy", "Risk Management", "Metrics & Targets"],
+        "issb_s2_material": eal_pct > 0.02,
+        "csrd_required": company.sector in ("Utilities", "Oil & Gas", "Mining", "Agriculture"),
+        "key_metric_for_disclosure": {
+            "metric": "Expected Annual Loss from climate hazards",
+            "value_usd_m": round(total_eal, 3),
+            "as_pct_ebitda": round(eal_pct * 100, 2),
+        },
+    }
+
+    return DecisionBrief(
+        signal=RiskSignal(action=action, confidence=confidence,
+                          rationale=rationale, urgency=urgency),
+        financial_impact=FinancialImpact(
+            expected_annual_loss_usd_m=round(total_eal, 3),
+            worst_case_1pct_usd_m=round(cvar99, 3),
+            ebitda_impact_pct=round(eal_pct * 100, 2),
+            revenue_at_risk_pct=round(total_eal / revenue * 100, 2),
+            stranded_asset_value_usd_m=round(stranded_pct * max(npv_cp, 0.0), 2),
+            credit_spread_widening_bps=round(min(500.0, eal_pct * 1200), 1),
+            wacc_uplift_bps=wacc_uplift_bps,
+            npv_haircut_pct=npv_haircut,
+        ),
+        top_drivers=drivers,
+        recommended_actions=[RecommendedAction(**a) for a in rec_raw],
+        company_id=company.id,
+        company_name=company.name,
+        sector=company.sector,
+        region=company.assets[0].region if company.assets else "Global",
+        scenario_label=scenario_label,
+        horizon_year=request.horizon_year,
+        data_quality=data_quality,
+        model_confidence=confidence,
+        compliance_layer=compliance_layer,
+        run_id=run_id,
+        generated_at=generated,
     )

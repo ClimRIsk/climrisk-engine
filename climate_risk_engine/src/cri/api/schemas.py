@@ -695,3 +695,115 @@ class ValidationResponse(BaseModel):
         "Kupiec: Proportion-of-Failures test for VaR coverage (Basel III §MAR99). "
         "HL: Hosmer-Lemeshow χ² calibration test (10 bins)."
     )
+
+
+# ── Task 72: Decision-support first — primary risk management API ─────────────
+# The Decision Brief is the primary output for risk managers, credit committees,
+# and portfolio teams. Compliance outputs (TCFD/ISSB/CSRD) are a derived layer.
+#
+# Design principle: answer "should I hold this exposure?" before answering
+# "how do I disclose this?".
+
+class DecisionRequest(BaseModel):
+    """POST /decision — primary risk management assessment.
+
+    For a company (by id) or a custom asset, returns a Decision Brief
+    structured for risk managers and credit committees, not compliance teams.
+
+    Scope options:
+      "quick"     — physical hazard + transition signal only (fast, ~1s)
+      "full"      — all pillars: physical + transition + valuation + credit
+      "portfolio" — portfolio-level CVaR signal for a list of positions
+    """
+    company_id:       Optional[str]   = None
+    scope:            str             = "full"    # "quick" | "full" | "portfolio"
+    scenario:         str             = "cp"      # "nze" | "delayed" | "cp"
+    horizon_year:     int             = 2035
+    # Optional override fields for quick one-off assessments
+    exposure_usd_m:   Optional[float] = None      # credit/investment exposure
+    sector:           Optional[str]   = None
+    region:           Optional[str]   = None
+    # Portfolio mode: pass positions instead of company_id
+    positions:        Optional[List[PortfolioPositionIn]] = None
+
+
+class RiskSignal(BaseModel):
+    """Primary risk management signal — the first thing a risk manager reads."""
+    action:            str    # "HOLD" | "WATCH" | "REDUCE" | "EXIT"
+    confidence:        str    # "HIGH" | "MEDIUM" | "LOW"
+    rationale:         str    # one-sentence justification
+    urgency:           str    # "IMMEDIATE" | "NEAR_TERM" | "MEDIUM_TERM" | "LONG_TERM"
+
+
+class FinancialImpact(BaseModel):
+    """Quantified financial impact — what the risk manager cares about."""
+    expected_annual_loss_usd_m:   float   # EAL under current policies
+    worst_case_1pct_usd_m:        float   # CVaR₉₉ — the tail loss
+    ebitda_impact_pct:            float   # EAL as % of company EBITDA
+    revenue_at_risk_pct:          float   # revenue at risk under stress
+    stranded_asset_value_usd_m:   float   # stranded value under NZE scenario
+    credit_spread_widening_bps:   float   # implied spread widening (Moody's calibration)
+    wacc_uplift_bps:              float   # climate WACC premium
+    npv_haircut_pct:              float   # % enterprise value reduction vs unconstrained
+
+
+class RiskDriver(BaseModel):
+    """One material risk driver with quantified contribution."""
+    factor:          str    # e.g. "Flood (riverine) — Queensland assets"
+    category:        str    # "physical" | "transition" | "macro"
+    contribution_pct: float # share of total EAL from this factor
+    horizon:         str    # "2025–2030" | "2030–2040" | "2040–2050"
+    severity:        str    # "LOW" | "MODERATE" | "HIGH" | "CRITICAL"
+
+
+class RecommendedAction(BaseModel):
+    """Concrete action for the risk manager — not a disclosure bullet."""
+    priority:    int    # 1 = highest
+    action:      str    # what to do
+    rationale:   str    # why
+    cost_usd_m:  Optional[float] = None   # estimated cost if applicable
+    deadline:    Optional[str]   = None   # "Q3 2026", "Before 2030", etc.
+
+
+class DecisionBrief(BaseModel):
+    """Decision-first risk output for risk managers and credit committees.
+
+    Structured so the first field answers the decision, the second quantifies it,
+    and compliance outputs are in the final `compliance_layer` field.
+
+    This is the primary output of the CRI engine. TCFD/ISSB reports are generated
+    from this — not the other way around.
+    """
+    # ── 1. The signal (read first) ────────────────────────────────────────────
+    signal:              RiskSignal
+
+    # ── 2. Quantified financial impact ────────────────────────────────────────
+    financial_impact:    FinancialImpact
+
+    # ── 3. What's driving the risk ────────────────────────────────────────────
+    top_drivers:         List[RiskDriver]      # ranked by contribution
+
+    # ── 4. What the risk manager should do ───────────────────────────────────
+    recommended_actions: List[RecommendedAction]
+
+    # ── 5. Position context ───────────────────────────────────────────────────
+    company_id:          Optional[str]   = None
+    company_name:        Optional[str]   = None
+    sector:              str             = ""
+    region:              str             = ""
+    scenario_label:      str             = ""   # "Current Policies (SSP3-7.0)"
+    horizon_year:        int             = 2035
+    data_quality:        str             = ""   # "LIVE_API" | "MODELLED" | "FALLBACK"
+    model_confidence:    str             = ""   # "HIGH" | "MEDIUM" | "LOW"
+
+    # ── 6. Compliance layer (secondary — derive TCFD/ISSB from this) ──────────
+    compliance_layer:    Optional[Dict[str, Any]] = None   # {tcfd, issb, csrd} on demand
+
+    run_id:              str             = ""
+    generated_at:        str             = ""
+    methodology_note:    str             = (
+        "Decision brief produced by CRI Engine. Physical risk: WRI Aqueduct 4.0 + "
+        "IPCC AR6 log-logistic hazard fragility. Transition: NGFS Phase 4 + IEA NZE 2023. "
+        "Financial: climate-adjusted DCF with regime-based terminal value. "
+        "Compliance outputs (TCFD/ISSB/CSRD) are derived from this brief on request."
+    )
