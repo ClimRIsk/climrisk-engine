@@ -1138,11 +1138,12 @@ def connector_status() -> dict:
     ngfs = NGFSConnector()
     return {
         "wri_aqueduct": {
-            "status": "active",
+            "status": "live",
             "source": "WRI Aqueduct 4.0",
-            "url": "https://aqueduct.wri.org",
-            "coverage": "21 major mining/energy regions + lat/lon API",
-            "hazards": ["water_stress", "flood_risk", "drought_risk"],
+            "url": "https://aqueduct40.wri.org/api/v1/point",
+            "coverage": "Global point query (lat/lon) — fallback to 21-region lookup table",
+            "hazards": ["water_stress", "flood_riverine", "flood_coastal", "drought", "groundwater"],
+            "note": "Year-adjusted projections via WRI SSP2-RCP4.5 stress multipliers",
         },
         "ngfs_scenarios": {
             "status": "active",
@@ -1166,6 +1167,78 @@ def connector_status() -> dict:
             "hazards": ["demand_shift"],
         },
     }
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# PREDICTIVE EVENT ENGINE
+# Short-to-medium horizon climate event alerts via GDACS + NOAA NHC + Open-Meteo
+# ──────────────────────────────────────────────────────────────────────────────
+
+class PredictiveAsset(BaseModel):
+    """Single asset for a predictive assessment."""
+    id:                  str
+    name:                str
+    lat:                 float
+    lon:                 float
+    sector:              str = "industrial"
+    annual_revenue_usd:  float = 0.0
+
+
+class PredictiveRequest(BaseModel):
+    """Request body for POST /predictive/alerts."""
+    company_id:          str
+    company_name:        str
+    assets:              list[PredictiveAsset]
+    annual_revenue_usd:  float
+    min_severity:        int   = 2      # 1=Minor … 5=Severe; default filter ≥ Moderate
+    min_confidence:      float = 0.35
+
+
+@app.post("/predictive/alerts")
+def get_predictive_alerts(req: PredictiveRequest) -> list[dict]:
+    """Run the predictive event engine for a company's assets.
+
+    Queries GDACS (real-time disaster alerts), NOAA NHC (tropical storm cone),
+    and Open-Meteo 16-day ensemble forecasts for each asset location.
+    Returns a ranked list of EventAlert objects serialised as dicts.
+
+    Each alert includes:
+      - event_type, severity, time_horizon_days, confidence
+      - total_revenue_at_risk_usd, capex_at_risk_usd, ebitda_margin_hit_pp
+      - urgency_score (higher = act sooner)
+      - asset coordinates + company context
+
+    Alerts are filtered to severity ≥ req.min_severity and confidence ≥ req.min_confidence.
+    """
+    from ..predictive.engine import PredictiveEventEngine
+    import dataclasses
+
+    engine = PredictiveEventEngine(
+        min_severity=req.min_severity,
+        min_confidence=req.min_confidence,
+    )
+    asset_dicts = [a.model_dump() for a in req.assets]
+    alerts = engine.assess_company(
+        company_id=req.company_id,
+        company_name=req.company_name,
+        assets=asset_dicts,
+        annual_revenue_usd=req.annual_revenue_usd,
+    )
+    # Serialise: use to_dict if available, else dataclasses.asdict
+    result = []
+    for a in alerts:
+        if hasattr(a, "to_dict"):
+            d = a.to_dict()
+        else:
+            d = dataclasses.asdict(a)
+            # Convert enum fields to strings for JSON serialisation
+            for k, v in d.items():
+                if hasattr(v, "value"):
+                    d[k] = v.value
+                elif hasattr(v, "name"):
+                    d[k] = v.name
+        result.append(d)
+    return result
 
 
 # ──────────────────────────────────────────────────────────────────────────────

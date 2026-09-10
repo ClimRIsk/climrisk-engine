@@ -293,7 +293,8 @@ def simulate_year(
     total_s1s2 = sum(c["scope1"] + c["scope2"] for c in contributions)
     agg_transition_capex = compute_transition_capex(
         scenario.family, year, total_s1s2, drivers.carbon_price,
-        custom_targets=scenario.abatement_targets
+        custom_targets=scenario.abatement_targets,
+        sector=company.sector,
     )
 
     revenue_by_commodity: dict[str, float] = {}
