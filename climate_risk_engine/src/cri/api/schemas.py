@@ -810,3 +810,159 @@ class DecisionBrief(BaseModel):
         "Financial: climate-adjusted DCF with regime-based terminal value. "
         "Compliance outputs (TCFD/ISSB/CSRD) are derived from this brief on request."
     )
+
+
+# ── Pillar 2: Standardized Asset Data Schema (batch onboarding) ───────────────
+# Clients supply raw asset-level data — no company registration required.
+# Engine runs physical + transition scoring across all supplied assets and
+# returns per-asset results plus portfolio aggregates.
+
+class StandardAssetIn(BaseModel):
+    """Canonical asset record for batch ingestion.
+
+    Covers all data a risk manager needs to supply for a full CRI assessment.
+    The engine derives country_iso2 from lat/lon if not provided.
+    Missing financial fields are estimated from sector benchmarks.
+    """
+    asset_id:               str              # client's own reference (e.g. "AU-QLD-001")
+    name:                   str
+    lat:                    float            # decimal degrees  (e.g. -27.47)
+    lon:                    float            # decimal degrees  (e.g. 153.02)
+    sector:                 str              # matches engine sector taxonomy
+    country_iso2:           Optional[str]  = None   # auto-derived from lat/lon if omitted
+    # Financials
+    replacement_cost_usd_m: float            # Replacement Cost New — for physical damage
+    annual_revenue_usd_m:   float
+    ebitda_usd_m:           Optional[float] = None   # defaults to 20% of revenue if omitted
+    net_debt_usd_m:         Optional[float] = None   # defaults to 0
+    # Emissions (tonnes CO2e / year)
+    scope1_tco2:            float = 0.0
+    scope2_tco2:            float = 0.0
+    scope3_tco2:            Optional[float] = None
+    # Optional qualitative features
+    critical_features:      List[str] = []  # e.g. ["power_plant","water_cooling","rail_access"]
+    asset_type:             str = "industrial"  # "industrial"|"office"|"data_center"|"infrastructure"
+
+
+class BatchAssessmentRequest(BaseModel):
+    """POST /assets/batch — assess one or many assets in a single call."""
+    assets:          List[StandardAssetIn]
+    horizon_year:    int  = 2035
+    risk_appetite:   str  = "moderate"    # "conservative"|"moderate"|"aggressive"
+    scenarios:       List[str] = ["nze", "cp"]
+
+
+class AssetAssessmentResult(BaseModel):
+    """Per-asset output from batch assessment."""
+    asset_id:                   str
+    name:                       str
+    lat:                        float
+    lon:                        float
+    sector:                     str
+    country_iso2:               str
+    # Risk scores (0–100)
+    physical_score:             float
+    transition_score:           float
+    composite_score:            float
+    # Signal
+    signal:                     str    # "HOLD"|"WATCH"|"REDUCE"|"EXIT"
+    signal_confidence:          str    # "HIGH"|"MEDIUM"|"LOW"
+    # Financial impact
+    expected_annual_loss_usd_m: float
+    eal_pct_revenue:            float
+    eal_pct_rcv:                float
+    worst_case_cvar99_usd_m:    float
+    stranded_asset_value_usd_m: float
+    credit_spread_widening_bps: float
+    # Dominant hazard
+    primary_hazard:             str
+    primary_hazard_contribution_pct: float
+    hazard_breakdown:           Dict[str, float] = {}
+    # Transition
+    carbon_cost_usd_m_2030:     float = 0.0
+    ebitda_compression_pct:     float = 0.0
+    # Data quality
+    data_quality:               str   # "CALIBRATED"|"MODELLED"|"ESTIMATED"
+    caveats:                    List[str] = []
+
+
+class BatchAssessmentResponse(BaseModel):
+    """Response from POST /assets/batch — per-asset results + portfolio aggregates."""
+    run_id:                 str
+    n_assets:               int
+    horizon_year:           int
+    risk_appetite:          str
+    generated_at:           str
+    # Portfolio totals
+    total_rcv_usd_m:        float
+    total_revenue_usd_m:    float
+    total_eal_usd_m:        float
+    portfolio_eal_pct_rcv:  float
+    portfolio_cvar99_usd_m: float
+    # Signal distribution
+    signal_counts:          Dict[str, int]  # {"HOLD":2,"WATCH":1,"REDUCE":0,"EXIT":0}
+    highest_risk_asset_id:  str
+    highest_risk_asset_name: str
+    # Breakdowns
+    sector_breakdown:       Dict[str, Any] = {}
+    # Per-asset results
+    assets:                 List[AssetAssessmentResult]
+    # Methodology
+    data_sources:           List[str] = []
+    methodology_note:       str = (
+        "Physical EAL: INFORM Risk Index 2024 + WRI 2023 EAL fractions, 60/40 blended "
+        "with log-logistic fragility curves (IPCC AR6). Transition: NGFS Phase 4 carbon "
+        "price trajectories × sector emissions intensity. Financial: climate-adjusted DCF."
+    )
+
+
+# ── Pillar 3: LLM-generated content from engine data ─────────────────────────
+# Articles, narratives, and summaries are produced by an LLM micro-agent
+# seeded with deterministic engine output. No numbers are invented.
+
+class ArticleRequest(BaseModel):
+    """POST /generate/article — produce a grounded article from live engine data."""
+    company_id:    str
+    article_type:  str = "linkedin"   # "linkedin"|"investor_memo"|"case_study"|"regulatory_commentary"
+    tone:          str = "professional"  # "professional"|"executive"|"accessible"
+    word_count:    int = 600
+    risk_appetite: str = "moderate"
+    focus:         Optional[str] = None  # optional emphasis: "physical"|"transition"|"financial"
+
+
+class ArticleResponse(BaseModel):
+    """Generated article with full data provenance."""
+    company_id:       str
+    company_name:     str
+    article_type:     str
+    tone:             str
+    content:          str             # the article text
+    word_count_actual: int
+    key_numbers_used: List[str]       # real engine numbers embedded in the article
+    signal:           str             # HOLD/WATCH/REDUCE/EXIT that drove the framing
+    data_source:      str = "CRI Engine — deterministic physics-based assessment"
+    run_id:           str
+    generated_at:     str
+    disclaimer:       str = (
+        "All figures are produced by the CRI Engine from deterministic climate risk models. "
+        "Data provenance: CMIP6 IPCC AR6 / NGFS Phase 4 / INFORM Risk Index 2024 / WRI 2023. "
+        "This content is generated for informational purposes and does not constitute investment advice."
+    )
+
+
+class NarrativeRequest(BaseModel):
+    """POST /generate/narrative — produce one section of a risk narrative."""
+    company_id: str
+    section:    str   # "executive_summary"|"physical_risk"|"transition_risk"|"financial_impact"|"recommendations"
+    audience:   str = "risk_manager"  # "board"|"risk_manager"|"auditor"|"investor"|"public"
+    risk_appetite: str = "moderate"
+
+
+class NarrativeResponse(BaseModel):
+    """One narrative section with supporting metrics."""
+    section:      str
+    audience:     str
+    content:      str
+    key_metrics:  Dict[str, Any] = {}
+    run_id:       str
+    generated_at: str

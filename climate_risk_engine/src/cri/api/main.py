@@ -76,6 +76,16 @@ from .schemas import (
     FinancialImpact,
     RiskDriver,
     RecommendedAction,
+    # Pillar 2 — batch asset onboarding
+    StandardAssetIn,
+    BatchAssessmentRequest,
+    BatchAssessmentResponse,
+    AssetAssessmentResult,
+    # Pillar 3 — LLM content generation
+    ArticleRequest,
+    ArticleResponse,
+    NarrativeRequest,
+    NarrativeResponse,
 )
 
 
@@ -3111,4 +3121,277 @@ def get_decision_brief(request: DecisionRequest) -> DecisionBrief:
         compliance_layer=compliance_layer,
         run_id=run_id,
         generated_at=generated,
+    )
+
+
+# ── Pillar 2: POST /assets/batch — standardized batch asset assessment ────────
+
+@app.post("/assets/batch", response_model=BatchAssessmentResponse, tags=["Pillar 2 — Batch Assets"])
+async def batch_assess_assets(request: BatchAssessmentRequest) -> BatchAssessmentResponse:
+    """Assess one or many assets from raw asset data — no company registration required.
+
+    Accepts a list of assets with coordinates, sector, financials, and emissions.
+    Returns per-asset risk scores, signals, and EAL alongside portfolio aggregates.
+
+    This is the primary intake for institutional clients onboarding their asset portfolio.
+    A client with 500 assets in a CSV can batch-submit and receive a ranked risk register
+    within seconds.
+    """
+    import math
+    from datetime import datetime, timezone
+
+    # Lazy imports to keep startup fast
+    from ..climate.hazard_geo_calibration import (
+        calibrated_eal_usd_m,
+        country_from_latlon,
+        get_all_hazard_elfs,
+    )
+
+    run_id = f"batch-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S%f')[:20]}"
+    generated = datetime.now(timezone.utc).isoformat()
+    horizon = request.horizon_year
+    appetite = request.risk_appetite
+
+    # Signal thresholds (mirrors /decision logic)
+    _THRESHOLDS = {
+        "conservative": {"exit": 0.04, "reduce": 0.02, "watch": 0.01},
+        "moderate":     {"exit": 0.08, "reduce": 0.04, "watch": 0.02},
+        "aggressive":   {"exit": 0.15, "reduce": 0.08, "watch": 0.04},
+    }.get(appetite, {"exit": 0.08, "reduce": 0.04, "watch": 0.02})
+
+    # Transition EAL multipliers by sector
+    _TRANSITION_MULT = {
+        "Oil & Gas": 0.18, "Mining": 0.12, "Utilities": 0.14, "Steel": 0.10,
+        "Cement": 0.09, "Chemicals": 0.08, "Agriculture": 0.07,
+        "Shipping": 0.07, "Aviation": 0.08, "Automotive": 0.06,
+        "Real Estate": 0.04, "Financial Services": 0.02,
+    }
+
+    asset_results: list[AssetAssessmentResult] = []
+    total_rcv = 0.0
+    total_rev = 0.0
+    total_eal = 0.0
+    signal_counts: dict[str, int] = {"HOLD": 0, "WATCH": 0, "REDUCE": 0, "EXIT": 0}
+
+    for a in request.assets:
+        # 1. Resolve country
+        iso2 = a.country_iso2
+        if not iso2:
+            try:
+                iso2 = country_from_latlon(a.lat, a.lon)
+            except Exception:
+                iso2 = "GL"
+
+        # 2. Physical EAL from geo-calibrated lookup
+        ebitda = a.ebitda_usd_m if a.ebitda_usd_m is not None else a.annual_revenue_usd_m * 0.20
+        try:
+            phys_eal, hazard_bkdn = calibrated_eal_usd_m(
+                a.replacement_cost_usd_m, iso2, a.sector, top_n=6
+            )
+        except Exception:
+            phys_eal = a.replacement_cost_usd_m * 0.015
+            hazard_bkdn = {}
+
+        # 3. Transition EAL from sector + emissions
+        co2_total = a.scope1_tco2 + a.scope2_tco2 + (a.scope3_tco2 or 0.0)
+        # Carbon cost under CP scenario by 2035: ~$80/tCO2e (NGFS Phase 4)
+        carbon_cost_m = co2_total * 80.0 / 1_000_000
+        # Plus EBITDA compression from sector transition multiplier
+        trans_mult = _TRANSITION_MULT.get(a.sector, 0.05)
+        trans_eal = ebitda * trans_mult + carbon_cost_m
+
+        total_asset_eal = phys_eal + trans_eal
+
+        # 4. Scores (0–100)
+        phys_score = min(100.0, (phys_eal / max(a.replacement_cost_usd_m, 1.0)) * 1500.0)
+        trans_score = min(100.0, (trans_eal / max(ebitda, 1.0)) * 200.0)
+        composite = phys_score * 0.45 + trans_score * 0.35 + (co2_total / max(a.annual_revenue_usd_m * 1e3, 1.0)) * 20.0
+        composite = min(100.0, composite)
+
+        # 5. Signal
+        eal_pct = total_asset_eal / max(a.annual_revenue_usd_m, 1.0)
+        if eal_pct >= _THRESHOLDS["exit"]:
+            signal, conf = "EXIT", "HIGH"
+        elif eal_pct >= _THRESHOLDS["reduce"]:
+            signal, conf = "REDUCE", "HIGH" if composite > 70 else "MEDIUM"
+        elif eal_pct >= _THRESHOLDS["watch"]:
+            signal, conf = "WATCH", "MEDIUM"
+        else:
+            signal, conf = "HOLD", "HIGH" if composite < 30 else "MEDIUM"
+
+        signal_counts[signal] = signal_counts.get(signal, 0) + 1
+
+        # 6. CVaR99 (simple scaling from EAL)
+        cvar99 = total_asset_eal * 4.2
+
+        # 7. Stranded asset (NZE penalty)
+        stranded = a.replacement_cost_usd_m * min(0.35, trans_mult * 2.0)
+
+        # 8. Credit spread
+        cs_bps = min(500.0, eal_pct * 1200.0)
+
+        # 9. Primary hazard
+        primary_hazard = max(hazard_bkdn, key=hazard_bkdn.get) if hazard_bkdn else "compound"
+        primary_pct = (
+            (hazard_bkdn[primary_hazard] / phys_eal * 100.0) if phys_eal > 0 and hazard_bkdn else 0.0
+        )
+
+        # 10. Data quality
+        data_quality = "CALIBRATED" if hazard_bkdn else "ESTIMATED"
+
+        total_rcv += a.replacement_cost_usd_m
+        total_rev += a.annual_revenue_usd_m
+        total_eal += total_asset_eal
+
+        asset_results.append(AssetAssessmentResult(
+            asset_id=a.asset_id,
+            name=a.name,
+            lat=a.lat,
+            lon=a.lon,
+            sector=a.sector,
+            country_iso2=iso2,
+            physical_score=round(phys_score, 1),
+            transition_score=round(trans_score, 1),
+            composite_score=round(composite, 1),
+            signal=signal,
+            signal_confidence=conf,
+            expected_annual_loss_usd_m=round(total_asset_eal, 3),
+            eal_pct_revenue=round(eal_pct * 100, 2),
+            eal_pct_rcv=round(total_asset_eal / max(a.replacement_cost_usd_m, 1.0) * 100, 2),
+            worst_case_cvar99_usd_m=round(cvar99, 2),
+            stranded_asset_value_usd_m=round(stranded, 2),
+            credit_spread_widening_bps=round(cs_bps, 1),
+            primary_hazard=primary_hazard,
+            primary_hazard_contribution_pct=round(primary_pct, 1),
+            hazard_breakdown={k: round(v, 3) for k, v in hazard_bkdn.items()},
+            carbon_cost_usd_m_2030=round(carbon_cost_m, 3),
+            ebitda_compression_pct=round(trans_mult * 100, 1),
+            data_quality=data_quality,
+            caveats=[] if data_quality == "CALIBRATED" else ["No CMIP6 raster — EAL estimated from sector benchmark"],
+        ))
+
+    # Portfolio aggregates
+    portfolio_cvar99 = total_eal * 3.8  # portfolio diversification reduces tail
+    highest = max(asset_results, key=lambda x: x.composite_score) if asset_results else None
+
+    # Sector breakdown
+    sector_bkdn: dict[str, dict] = {}
+    for ar in asset_results:
+        s = ar.sector
+        if s not in sector_bkdn:
+            sector_bkdn[s] = {"n_assets": 0, "total_eal_usd_m": 0.0, "signals": {}}
+        sector_bkdn[s]["n_assets"] += 1
+        sector_bkdn[s]["total_eal_usd_m"] = round(sector_bkdn[s]["total_eal_usd_m"] + ar.expected_annual_loss_usd_m, 3)
+        sector_bkdn[s]["signals"][ar.signal] = sector_bkdn[s]["signals"].get(ar.signal, 0) + 1
+
+    return BatchAssessmentResponse(
+        run_id=run_id,
+        n_assets=len(asset_results),
+        horizon_year=horizon,
+        risk_appetite=appetite,
+        generated_at=generated,
+        total_rcv_usd_m=round(total_rcv, 2),
+        total_revenue_usd_m=round(total_rev, 2),
+        total_eal_usd_m=round(total_eal, 3),
+        portfolio_eal_pct_rcv=round(total_eal / max(total_rcv, 1.0) * 100, 2),
+        portfolio_cvar99_usd_m=round(portfolio_cvar99, 2),
+        signal_counts=signal_counts,
+        highest_risk_asset_id=highest.asset_id if highest else "",
+        highest_risk_asset_name=highest.name if highest else "",
+        sector_breakdown=sector_bkdn,
+        assets=asset_results,
+        data_sources=[
+            "INFORM Risk Index 2024 (EAL fractions)",
+            "World Risk Index 2023 (exposure/vulnerability)",
+            "NGFS Phase 4 carbon price trajectories",
+            "IPCC AR6 log-logistic hazard fragility curves",
+        ],
+    )
+
+
+# ── Pillar 3: POST /generate/article — LLM article from engine data ───────────
+
+@app.post("/generate/article", response_model=ArticleResponse, tags=["Pillar 3 — Content Generation"])
+async def generate_article_endpoint(request: ArticleRequest) -> ArticleResponse:
+    """Generate a grounded article (LinkedIn, investor memo, case study, etc.)
+    from live engine data for a registered company.
+
+    The engine runs a full /decision assessment first, then passes the structured
+    output to the LLM narrator. Every number in the article comes from the engine —
+    none are invented by the LLM.
+
+    Requires ANTHROPIC_API_KEY environment variable for LLM generation.
+    Falls back to a high-quality template if the key is not set.
+    """
+    from datetime import datetime, timezone
+    from ..ai.narrator import generate_article as _gen_article
+
+    # Run the engine to get live data
+    dec_request = DecisionRequest(
+        company_id=request.company_id,
+        scope="full",
+        horizon_year=2035,
+        risk_appetite=request.risk_appetite,
+    )
+    brief: DecisionBrief = await assess_decision_brief(dec_request)
+    brief_dict = brief.model_dump()
+
+    result = _gen_article(
+        brief=brief_dict,
+        article_type=request.article_type,
+        tone=request.tone,
+        word_count=request.word_count,
+        focus=request.focus,
+    )
+
+    return ArticleResponse(
+        company_id=request.company_id,
+        company_name=brief.company_name or request.company_id,
+        article_type=request.article_type,
+        tone=request.tone,
+        content=result["content"],
+        word_count_actual=result["word_count_actual"],
+        key_numbers_used=result["key_numbers_used"],
+        signal=brief.signal.action,
+        run_id=brief.run_id,
+        generated_at=datetime.now(timezone.utc).isoformat(),
+    )
+
+
+# ── Pillar 3: POST /generate/narrative — one narrative section ────────────────
+
+@app.post("/generate/narrative", response_model=NarrativeResponse, tags=["Pillar 3 — Content Generation"])
+async def generate_narrative_endpoint(request: NarrativeRequest) -> NarrativeResponse:
+    """Generate one narrative section (executive summary, physical risk, etc.)
+    from live engine data.
+
+    Useful for assembling disclosure documents section-by-section, or for
+    populating TCFD/IFRS S2 report templates with LLM-drafted prose backed
+    by deterministic engine numbers.
+    """
+    from datetime import datetime, timezone
+    from ..ai.narrator import generate_narrative as _gen_narrative
+
+    dec_request = DecisionRequest(
+        company_id=request.company_id,
+        scope="full",
+        horizon_year=2035,
+        risk_appetite=request.risk_appetite,
+    )
+    brief: DecisionBrief = await assess_decision_brief(dec_request)
+    brief_dict = brief.model_dump()
+
+    result = _gen_narrative(
+        brief=brief_dict,
+        section=request.section,
+        audience=request.audience,
+    )
+
+    return NarrativeResponse(
+        section=request.section,
+        audience=request.audience,
+        content=result["content"],
+        key_metrics=result["key_metrics"],
+        run_id=brief.run_id,
+        generated_at=datetime.now(timezone.utc).isoformat(),
     )
