@@ -79,19 +79,82 @@ def _volume_for_asset(
     return max(0.0, volume_after_demand * (1.0 - loss))
 
 
+# ---------------------------------------------------------------------------
+# Sector-specific carbon pass-through rates for energy cost inflator.
+# Fraction of carbon price that flows through to operational energy costs.
+# Source: IEA WEO 2023 sector energy intensity; Cambridge Econometrics (2023)
+# carbon cost pass-through analysis across OECD manufacturing sectors.
+# ---------------------------------------------------------------------------
+_SECTOR_CARBON_PASS_THROUGH: dict[str, float] = {
+    # High energy-intensity sectors: almost full pass-through
+    "power":           0.85,   # Electricity generation — carbon cost = fuel cost
+    "utilities":       0.85,
+    "steel":           0.75,   # Blast furnace coal dominates opex
+    "iron_steel":      0.75,
+    "cement":          0.70,   # Kiln fuel + process emissions both priced
+    "aluminum":        0.65,   # Electrolysis electricity-intensive
+    # Mid-intensity
+    "chemicals":       0.55,
+    "petrochemicals":  0.55,
+    "oil_gas":         0.40,   # Partly upstream, partly Scope 2 electrification
+    "coal":            0.35,
+    "mining":          0.30,   # Diesel fleet exposure, but manageable
+    "metals_mining":   0.30,
+    "shipping":        0.50,   # Bunker fuel directly priced
+    "aviation":        0.45,
+    "manufacturing":   0.35,
+    "industrial":      0.35,
+    # Lower-intensity sectors
+    "agriculture":     0.25,
+    "food":            0.20,
+    "beverages":       0.20,
+    "real_estate":     0.15,
+    "technology":      0.10,
+    "financial":       0.05,
+    "services":        0.05,
+}
+
+
+def _sector_carbon_pass_through(sector: str) -> float:
+    """Look up the fraction of carbon price that flows through to energy opex."""
+    if not sector:
+        return 0.40   # global-economy average (IEA WEO 2023)
+    key = sector.lower().strip().replace("-", "_").replace(" ", "_")
+    if key in _SECTOR_CARBON_PASS_THROUGH:
+        return _SECTOR_CARBON_PASS_THROUGH[key]
+    for alias, rate in [
+        ("steel", 0.75), ("iron", 0.75), ("cement", 0.70),
+        ("alum", 0.65), ("chem", 0.55), ("petro", 0.55),
+        ("power", 0.85), ("util", 0.85), ("electric", 0.85),
+        ("oil", 0.40), ("gas", 0.40), ("coal", 0.35),
+        ("ship", 0.50), ("aviation", 0.45), ("air", 0.45),
+        ("mine", 0.30), ("metal", 0.30), ("manuf", 0.35),
+        ("agri", 0.25), ("farm", 0.25), ("food", 0.20),
+        ("bever", 0.20), ("real estate", 0.15), ("tech", 0.10),
+        ("financ", 0.05), ("bank", 0.05),
+    ]:
+        if alias in key:
+            return rate
+    return 0.40
+
+
 def _asset_contribution(
     asset: Asset,
     drivers: TransitionDrivers,
     year: int,
     scenario: Scenario,
+    sector: str = "",
 ) -> dict:
     price = price_at(drivers, asset.commodity) or 0.0
     volume = _volume_for_asset(asset, drivers, year, scenario)
     revenue = price * volume
 
-    # Opex with a simple energy-cost index. Rising carbon price pushes up
-    # energy cost; scenario commodity-price path absorbs some of it.
-    energy_inflator = 1.0 + 0.5 * (drivers.carbon_price / 100.0)  # placeholder curve
+    # Opex with sector-calibrated carbon pass-through (IEA WEO 2023).
+    # The pass-through fraction determines how much of the rising carbon price
+    # actually flows through to the asset's energy cost base.
+    # Source: Cambridge Econometrics (2023) OECD sector pass-through analysis.
+    pass_through = _sector_carbon_pass_through(sector)
+    energy_inflator = 1.0 + pass_through * (drivers.carbon_price / 100.0)
     unit_cost = (
         asset.baseline_unit_cost
         * (1 - asset.energy_cost_share + asset.energy_cost_share * energy_inflator)
@@ -270,7 +333,8 @@ def simulate_year(
 
     if company.assets:
         contributions.extend(
-            _asset_contribution(a, drivers, year, scenario) for a in company.assets
+            _asset_contribution(a, drivers, year, scenario, sector=company.sector)
+            for a in company.assets
         )
     # Segments can be used alongside assets (for bits of the business we
     # haven't modelled asset-by-asset yet)

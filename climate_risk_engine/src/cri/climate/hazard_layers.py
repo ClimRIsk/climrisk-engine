@@ -1050,7 +1050,8 @@ def _heat_stress(region: str, ssp: SSPScenario, year: int,
 
 def _flood_riverine(region: str, ssp: SSPScenario, year: int, lulc: str,
                     flood_factor: float = 1.0,
-                    live_precip_delta_pct: Optional[float] = None) -> HazardScore:
+                    live_precip_delta_pct: Optional[float] = None,
+                    wri_riverine_override: Optional[float] = None) -> HazardScore:
     """
     Riverine (fluvial) flood: heavy precip + river system.
     Sources: WRI Aqueduct + IPCC AR6 Ch11.4 Clausius-Clapeyron + WMO precipitation normals.
@@ -1067,7 +1068,8 @@ def _flood_riverine(region: str, ssp: SSPScenario, year: int, lulc: str,
       CMIP6 at asset coordinates, SSP-scaled. Replaces IPCC GMST × Clausius-Clapeyron
       global average with a coordinate-level CMIP6 precipitation signal.
     """
-    baseline = WRI_BASELINE.get(region, WRI_BASELINE["global"])["riverine_flood"]
+    baseline = (wri_riverine_override if wri_riverine_override is not None
+                else WRI_BASELINE.get(region, WRI_BASELINE["global"])["riverine_flood"])
     # Apply sub-grid elevation correction to the baseline before any SSP scaling
     adjusted_baseline = baseline * flood_factor
     warming = ssp.regional_warming(year, region)
@@ -1125,7 +1127,8 @@ def _flood_riverine(region: str, ssp: SSPScenario, year: int, lulc: str,
 
 def _flood_coastal(region: str, ssp: SSPScenario, year: int,
                    is_coastal: bool, elevation_m: float,
-                   coastal_factor: float = 1.0) -> HazardScore:
+                   coastal_factor: float = 1.0,
+                   wri_coastal_override: Optional[float] = None) -> HazardScore:
     """
     Coastal flood: storm surge + sea level rise compound event.
     Source: WRI Aqueduct (coastal) + IPCC AR6 Ch9.
@@ -1149,7 +1152,8 @@ def _flood_coastal(region: str, ssp: SSPScenario, year: int,
             data_source="N/A", applicable=False,
             notes=reason,
         )
-    baseline = WRI_BASELINE.get(region, WRI_BASELINE["global"])["coastal_flood"]
+    baseline = (wri_coastal_override if wri_coastal_override is not None
+                else WRI_BASELINE.get(region, WRI_BASELINE["global"])["coastal_flood"])
     slr = ssp.slr(year, region)
     # SLR amplifies coastal flood frequency (IPCC AR6 Ch9 Fig 9.28)
     slr_amplifier = 1 + slr * 3.5     # +3.5× risk per metre of SLR
@@ -1392,7 +1396,8 @@ def _cyclone(region: str, ssp: SSPScenario, year: int, is_coastal: bool,
     )
 
 
-def _drought(region: str, ssp: SSPScenario, year: int) -> HazardScore:
+def _drought(region: str, ssp: SSPScenario, year: int,
+             wri_drought_override: Optional[float] = None) -> HazardScore:
     """
     Meteorological + hydrological drought intensity and duration.
     Sources: WRI Aqueduct (baseline) + IPCC AR6 Ch11.6 (PDSI) + WMO observed return periods.
@@ -1401,7 +1406,8 @@ def _drought(region: str, ssp: SSPScenario, year: int) -> HazardScore:
     drought return period from met baselines (e.g. CL-02 returns every 3yr
     vs CA-QC every 12yr), giving meaningfully different event probabilities.
     """
-    baseline = WRI_BASELINE.get(region, WRI_BASELINE["global"])["drought"]
+    baseline = (wri_drought_override if wri_drought_override is not None
+                else WRI_BASELINE.get(region, WRI_BASELINE["global"])["drought"])
     warming = ssp.regional_warming(year, region)
     # Drought intensifies non-linearly with warming (IPCC AR6 — PDSI scaling)
     drought_mult = 1 + warming * 0.22 + warming ** 2 * 0.04
@@ -1441,7 +1447,8 @@ def _drought(region: str, ssp: SSPScenario, year: int) -> HazardScore:
 
 
 def _water_stress(region: str, ssp: SSPScenario, year: int,
-                  water_stress_factor: float = 1.0) -> HazardScore:
+                  water_stress_factor: float = 1.0,
+                  wri_water_stress_override: Optional[float] = None) -> HazardScore:
     """
     Chronic freshwater scarcity — water withdrawal vs availability.
     Source: WRI Aqueduct 4.0 (primary); FAO AQUASTAT; IPCC AR6 WG2 Ch4.
@@ -1451,7 +1458,8 @@ def _water_stress(region: str, ssp: SSPScenario, year: int,
     have access to fresher highland catchments. −15% per 500m above regional mean,
     capped at 40% reduction. Source: FAO AQUASTAT; WRI Aqueduct 4.0 sub-basin.
     """
-    baseline = WRI_BASELINE.get(region, WRI_BASELINE["global"])["water_stress"]
+    baseline = (wri_water_stress_override if wri_water_stress_override is not None
+                else WRI_BASELINE.get(region, WRI_BASELINE["global"])["water_stress"])
     adjusted_baseline = baseline * water_stress_factor
     warming = ssp.regional_warming(year, region)
     stress_mult = 1 + warming * 0.15
@@ -2626,7 +2634,34 @@ class PhysicalHazardEngine:
                 "steps 1-4 applied using lookup-table baseline."
             )
 
-        # Compute all 25 hazards with sub-grid downscaling + GIS overrides applied
+        # ── Live WRI Aqueduct point query (when coordinates available) ──────────
+        # Override the regional WRI_BASELINE lookup with real lat/lon API scores.
+        # WRIAqueductConnector caches at 0.1° resolution so repeated calls within
+        # a run are free. Year-adjusted via SSP2-RCP4.5 stress multipliers.
+        # Falls back silently to WRI_BASELINE dict if API unreachable.
+        wri_riverine_live: Optional[float] = None
+        wri_coastal_live:  Optional[float] = None
+        wri_drought_live:  Optional[float] = None
+        wri_water_live:    Optional[float] = None
+        if lat is not None and lon is not None and _depth == 0:
+            try:
+                from ..connectors.wri_aqueduct import WRIAqueductConnector
+                _wri = WRIAqueductConnector().get_water_risk(lat, lon, year)
+                if _wri.get("source", "").startswith("wri_aqueduct_live"):
+                    # Live API returned — use point-level scores
+                    wri_riverine_live = _wri.get("flood_risk")
+                    wri_coastal_live  = _wri.get("flood_risk")  # coastal uses same flood score
+                    wri_drought_live  = _wri.get("drought_risk")
+                    wri_water_live    = _wri.get("water_stress")
+                    if live_projection_meta is not None:
+                        live_projection_meta["wri_source"] = "live_api"
+                    elif live_data is None:
+                        # Attach WRI provenance even when climate API was unavailable
+                        live_projection_meta = {"wri_source": "live_api", "live": False}
+            except Exception:
+                pass   # silent fallback — never break a run for this
+
+        # Compute all 25 hazards with sub-grid downscaling + GIS + live WRI overrides
         hazards: dict[str, HazardScore] = {
             # ── Core 10 (original) ────────────────────────────────────────────
             "heat_stress":            _heat_stress(region, scenario, year,
@@ -2635,8 +2670,10 @@ class PhysicalHazardEngine:
                                           live_baseline_t2m_max_c=live_baseline_t2m_max_c),
             "flood_riverine":         _flood_riverine(region, scenario, year, lulc,
                                           flood_factor=sg["flood_factor"],
-                                          live_precip_delta_pct=live_precip_delta_pct),
-            "flood_coastal":          _flood_coastal(region, scenario, year, is_coastal, elevation, coastal_factor),
+                                          live_precip_delta_pct=live_precip_delta_pct,
+                                          wri_riverine_override=wri_riverine_live),
+            "flood_coastal":          _flood_coastal(region, scenario, year, is_coastal, elevation, coastal_factor,
+                                          wri_coastal_override=wri_coastal_live),
             "sea_level_rise":         _sea_level_rise(region, scenario, year, is_coastal, elevation, coastal_factor),
             "saltwater_intrusion":    _saltwater_intrusion(region, scenario, year, is_coastal, elevation, coastal_factor),
             "landslide":              _landslide(region, scenario, year, elevation, lulc),
@@ -2644,9 +2681,11 @@ class PhysicalHazardEngine:
             # GIS: is_cyclone_belt_override enables risk when IBTrACS confirms belt
             "cyclone":                _cyclone(region, scenario, year, is_coastal,
                                           is_cyclone_belt_override=gis_is_cyclone_belt),
-            "drought":                _drought(region, scenario, year),
+            "drought":                _drought(region, scenario, year,
+                                          wri_drought_override=wri_drought_live),
             "water_stress":           _water_stress(region, scenario, year,
-                                          water_stress_factor=sg["water_stress_factor"]),
+                                          water_stress_factor=sg["water_stress_factor"],
+                                          wri_water_stress_override=wri_water_live),
             # ── New 15 (v0.4) — GIS overrides passed where relevant ───────────
             "extreme_cold":           _extreme_cold(region, scenario, year, elevation_m=elevation),
             # GIS: ERA5 mean winter temp overrides region lookup for icing Gaussian
