@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+
 # ── Self-healing multipart install ───────────────────────────────────────────
 # FastAPI calls ensure_multipart_is_installed() at *app startup* for any route
 # that uses UploadFile.  On Render the cached venv sometimes omits it despite
@@ -17,11 +19,13 @@ except ImportError:
 # ─────────────────────────────────────────────────────────────────────────────
 
 import tempfile
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 import dataclasses
@@ -43,6 +47,7 @@ from ..scenarios import (
 from .schemas import (
     AssetInput,
     CompanyResponse,
+    CreateCompanyRequest,
     DisclosureRequest,
     DisclosureResponse,
     HazardYearOut,
@@ -90,11 +95,58 @@ from .schemas import (
 
 
 # Initialize FastAPI app
+# ── API key auth ──────────────────────────────────────────────────────────────
+# Set API_KEYS env var to a comma-separated list of valid keys.
+# Example: API_KEYS="key-prod-abc123,key-demo-xyz789"
+# If API_KEYS is empty/unset, auth is DISABLED (dev mode).
+_API_KEYS: set[str] = {
+    k.strip() for k in os.getenv("API_KEYS", "").split(",") if k.strip()
+}
+# Paths that bypass auth (public)
+_PUBLIC_PATHS: frozenset[str] = frozenset({
+    "/health", "/docs", "/openapi.json", "/redoc", "/scenarios",
+})
+
+
+# ── Startup: merge Supabase companies into registry ───────────────────────────
+@asynccontextmanager
+async def _lifespan(app: FastAPI):
+    """Load persisted companies from Supabase on startup."""
+    from .db import load_companies as _load_from_db
+    persisted = _load_from_db()
+    if persisted:
+        COMPANY_REGISTRY.update(persisted)
+        import logging
+        logging.getLogger(__name__).info(
+            "Loaded %d company/ies from Supabase into registry.", len(persisted)
+        )
+    yield  # app runs here
+
+
 app = FastAPI(
     title="Climate Risk Intelligence API",
     description="REST API for climate financial risk modelling",
     version="0.3.0",
+    lifespan=_lifespan,
 )
+
+
+# ── API key middleware ────────────────────────────────────────────────────────
+@app.middleware("http")
+async def _auth_middleware(request: Request, call_next):
+    """Enforce X-API-Key on all non-public endpoints when API_KEYS is set."""
+    if _API_KEYS:
+        path = request.url.path
+        # Allow public paths and CORS preflight
+        if path not in _PUBLIC_PATHS and request.method != "OPTIONS":
+            key = request.headers.get("X-API-Key", "")
+            if key not in _API_KEYS:
+                return JSONResponse(
+                    {"error": "Invalid or missing API key. Set X-API-Key header."},
+                    status_code=401,
+                )
+    return await call_next(request)
+
 
 # Add CORS middleware (allow all origins for dev)
 app.add_middleware(
@@ -115,7 +167,6 @@ SCENARIO_REGISTRY = {
 COMPANY_REGISTRY = get_all_companies()
 
 # Custom scenarios created via POST /scenarios are stored here at runtime.
-# Not persisted across restarts; persistence is a Phase 2 feature.
 CUSTOM_SCENARIO_REGISTRY: dict[str, Scenario] = {}
 
 
@@ -196,6 +247,124 @@ def list_companies() -> list[CompanyResponse]:
             )
         )
     return companies
+
+
+@app.post("/companies", response_model=CompanyResponse, status_code=201, tags=["Companies"])
+def create_company(req: CreateCompanyRequest) -> CompanyResponse:
+    """Register a new company and persist it to Supabase.
+
+    Accepts a simplified payload — full financials, emissions, and an optional
+    primary asset location.  Once registered the company is immediately available
+    for `/runs`, `/decision`, `/ratings`, and all other assessment endpoints.
+
+    If a company with the same `id` already exists it is overwritten.
+    """
+    from ..data.schemas import (
+        Asset, Commodity, Company, EmissionsProfile, Financials,
+    )
+    from .schemas import AssetLocationResponse, FinancialsResponse
+    from .db import save_company as _save
+
+    # Derive defaults for optional fields
+    ebitda  = req.ebitda_usd_m  if req.ebitda_usd_m  is not None else req.revenue_usd_m * 0.20
+    capex   = req.capex_usd_m   if req.capex_usd_m   is not None else req.revenue_usd_m * 0.08
+    ev      = req.equity_value_usd_m if req.equity_value_usd_m is not None else (
+        ebitda * 8.0 - req.net_debt_usd_m  # rough 8× EBITDA default EV
+    )
+
+    financials = Financials(
+        revenue=req.revenue_usd_m,
+        ebitda=ebitda,
+        capex=capex,
+        wacc_base=req.wacc_pct,
+        net_debt=req.net_debt_usd_m,
+        market_cap=max(0.0, ev),
+    )
+
+    # Build asset list (optional)
+    assets: list[Asset] = []
+    if req.asset_lat is not None and req.asset_lon is not None:
+        rcv = req.asset_replacement_cost_usd_m or req.revenue_usd_m * 0.5
+        assets.append(Asset(
+            id=f"{req.id}_primary",
+            name=req.asset_name or f"{req.name} — Primary Asset",
+            commodity=Commodity.OTHER,
+            region=req.hq_region,
+            baseline_production=0.0,
+            production_unit="units",
+            baseline_unit_cost=0.0,
+            energy_cost_share=0.20,
+            carrying_value=rcv,
+            remaining_life_years=25,
+            emissions=EmissionsProfile(
+                scope1_intensity=req.scope1_tco2 / max(req.revenue_usd_m * 1e3, 1.0),
+                scope2_intensity=req.scope2_tco2 / max(req.revenue_usd_m * 1e3, 1.0),
+                scope3_intensity=req.scope3_tco2 / max(req.revenue_usd_m * 1e3, 1.0),
+            ),
+            lat=req.asset_lat,
+            lon=req.asset_lon,
+        ))
+
+    company = Company(
+        id=req.id,
+        name=req.name,
+        sector=req.sector,
+        hq_region=req.hq_region,
+        financials=financials,
+        assets=assets,
+        data_quality=req.data_quality,
+    )
+
+    # Persist to Supabase (no-op if not configured)
+    _save(company)
+
+    # Add to in-memory registry so it's immediately queryable
+    COMPANY_REGISTRY[req.id] = company
+
+    return CompanyResponse(
+        id=company.id,
+        name=company.name,
+        sector=company.sector,
+        region=company.hq_region,
+        data_quality=company.data_quality,
+        financials=FinancialsResponse(
+            revenue_usd_m=round(req.revenue_usd_m, 1),
+            ebitda_usd_m=round(ebitda, 1),
+            capex_usd_m=round(capex, 1),
+            wacc_pct=round(req.wacc_pct * 100, 2),
+            net_debt_usd_m=round(req.net_debt_usd_m, 1),
+        ),
+        assets=[
+            AssetLocationResponse(
+                id=a.id,
+                name=a.name,
+                commodity=a.commodity.value,
+                region=a.region,
+                lat=a.lat,
+                lon=a.lon,
+                equipment_type=getattr(a, "equipment_type", "industrial"),
+                baseline_production=a.baseline_production,
+                production_unit=a.production_unit,
+                carrying_value_usd_m=round(a.carrying_value, 1),
+            )
+            for a in assets
+        ],
+    )
+
+
+@app.delete("/companies/{company_id}", status_code=204, tags=["Companies"])
+def delete_company(company_id: str) -> None:
+    """Remove a company from the registry and from Supabase.
+
+    Seed companies (from companies_seed.py) can be removed from the live
+    registry but will return on the next server restart unless also deleted
+    from Supabase.
+    """
+    from .db import delete_company as _delete_from_db
+    if company_id not in COMPANY_REGISTRY:
+        raise HTTPException(status_code=404, detail=f"Company '{company_id}' not found.")
+    del COMPANY_REGISTRY[company_id]
+    _delete_from_db(company_id)
 
 
 @app.post("/runs", response_model=RunResponse)

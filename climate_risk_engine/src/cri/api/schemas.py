@@ -56,6 +56,42 @@ class CompanyResponse(BaseModel):
     data_quality: str
 
 
+class CreateCompanyRequest(BaseModel):
+    """POST /companies — register a new company for CRI assessment.
+
+    Supply the core financials and at least one asset location.
+    The engine derives country ISO2 from lat/lon and fills in any missing
+    fields (EBITDA, CAPEX) from sector benchmarks.
+    """
+    # Identity
+    id:              str    # unique slug, e.g. "rio-tinto-plc" — used as lookup key
+    name:            str
+    sector:          str    # free-text; matched to engine taxonomy (e.g. "Mining", "Chemicals")
+    hq_region:       str = "global"
+
+    # Financials (all USD millions)
+    revenue_usd_m:               float
+    ebitda_usd_m:                Optional[float] = None   # defaults to 20% of revenue
+    net_debt_usd_m:              float = 0.0
+    equity_value_usd_m:          Optional[float] = None   # enterprise value proxy
+    wacc_pct:                    float = 0.10
+    capex_usd_m:                 Optional[float] = None   # defaults to 8% of revenue
+
+    # Emissions (tonnes CO2e / year)
+    scope1_tco2:     float = 0.0
+    scope2_tco2:     float = 0.0
+    scope3_tco2:     float = 0.0
+
+    # Primary asset (optional — enables geospatial hazard calibration)
+    asset_lat:                   Optional[float] = None
+    asset_lon:                   Optional[float] = None
+    asset_replacement_cost_usd_m: Optional[float] = None  # Replacement Cost New
+    asset_name:                  Optional[str]  = None
+
+    # Data quality flag influences confidence multiplier in reports
+    data_quality:    str = "medium"   # "low" | "medium" | "high"
+
+
 class CustomScenarioParams(BaseModel):
     """Full custom scenario specification supplied inline by the caller.
 
