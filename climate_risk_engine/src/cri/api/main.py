@@ -1791,6 +1791,181 @@ def calibrate_against_historical(request: CalibrateRequest) -> dict:
         ) from exc
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# MODEL SCORECARD  —  aggregate backtesting across all historical events
+# ──────────────────────────────────────────────────────────────────────────────
+
+@app.get(
+    "/validation/scorecard",
+    summary="Aggregate model accuracy scorecard across all 16 backtesting events",
+    tags=["Validation"],
+)
+def model_scorecard() -> dict:
+    """
+    Run the CRI physical hazard engine against all 16 documented historical
+    climate events and return an aggregate accuracy scorecard.
+
+    This is the primary trust-building endpoint.  Each event is run with a
+    synthetic company proxy; predicted loss fractions are compared against
+    documented economy-wide losses from Munich Re NatCatSERVICE, Swiss Re
+    sigma, EM-DAT, World Bank GFDRR, and NOAA NCEI.
+
+    **Accuracy thresholds:**
+    - CALIBRATED   — predicted within ±20% of documented loss rate
+    - ACCEPTABLE   — predicted within ±50% (within typical model uncertainty)
+    - NEEDS_REVIEW — predicted error >50% (systematic bias suspected)
+
+    **Aggregate metrics:**
+    - `hit_rate_pct`       — % of events CALIBRATED or ACCEPTABLE (target ≥80%)
+    - `calibrated_pct`     — % of events strictly CALIBRATED (target ≥50%)
+    - `mean_abs_error_pct` — mean absolute relative error across all events
+    - `events`             — per-event breakdown (name, type, predicted, actual, error, status)
+
+    Results are cached for 24 hours since they do not depend on external APIs.
+
+    **Citation:** All loss benchmarks are cited in GET /scenarios/historical.
+    Methodology: CRI Physical Hazard Engine v0.4, backtested against 16 events
+    spanning 1997–2023 (El Niño/La Niña, floods, drought, cyclone, wildfire,
+    heat dome, cold snap).
+    """
+    from ..climate.scenarios.historical_events import HISTORICAL_LIBRARY, list_historical_events
+    from ..climate.scenarios.calibration import run_calibration, calibration_report_to_dict
+
+    # Check 24-hour disk cache (simple JSON file)
+    import json as _json
+    import time as _time
+    from pathlib import Path as _Path
+    _cache_path = _Path("/tmp/cri_scorecard_cache_v04.json")
+    try:
+        if _cache_path.exists():
+            _cache_age = _time.time() - _cache_path.stat().st_mtime
+            if _cache_age < 86400:   # 24 hours
+                cached = _json.loads(_cache_path.read_text())
+                if isinstance(cached, dict) and "hit_rate_pct" in cached:
+                    cached["_cached"] = True
+                    return cached
+    except Exception:
+        pass
+
+    event_ids = list(HISTORICAL_LIBRARY.keys())
+    rows = []
+    calibrated = 0
+    acceptable = 0
+    total_rel_err = 0.0
+    ran = 0
+
+    for eid in event_ids:
+        try:
+            report = run_calibration(
+                historical_event_id=eid,
+                company=None,          # synthetic proxy
+                sector_filter=None,
+                ssp="ssp370",
+                year=2025,
+            )
+            rd = calibration_report_to_dict(report)
+            status = rd.get("overall_status", "error")
+            rel_err = rd.get("overall_relative_error_pct", None)
+
+            ev = HISTORICAL_LIBRARY[eid]
+            rows.append({
+                "event_id":            eid,
+                "event_name":          ev.name,
+                "year":                ev.year_start,
+                "hazard_type":         ev.physical_event_id.replace("_", " ").title()
+                                       if ev.physical_event_id else "—",
+                "primary_region":      str(ev.region.value) if hasattr(ev.region, "value") else str(ev.region),
+                "total_loss_usd_m":    ev.total_loss_usd_m,
+                "source":              ev.source_total_loss,
+                "overall_status":      status,
+                "relative_error_pct":  round(rel_err, 1) if rel_err is not None else None,
+                "sector_results":      rd.get("sector_results", []),
+            })
+
+            if rel_err is not None:
+                total_rel_err += abs(rel_err)
+                ran += 1
+            if status == "calibrated":
+                calibrated += 1
+            elif status == "acceptable":
+                acceptable += 1
+
+        except Exception as exc:
+            rows.append({
+                "event_id": eid,
+                "event_name": eid,
+                "overall_status": "error",
+                "error": str(exc),
+            })
+
+    n = len(event_ids)
+    hit_rate = round(100.0 * (calibrated + acceptable) / max(1, n), 1)
+    calibrated_pct = round(100.0 * calibrated / max(1, n), 1)
+    mean_abs_err = round(total_rel_err / max(1, ran), 1)
+
+    # Grade interpretation
+    if hit_rate >= 80:
+        grade, grade_note = "A", "Strong model performance — suitable for institutional use"
+    elif hit_rate >= 65:
+        grade, grade_note = "B", "Acceptable model performance — suitable with documented caveats"
+    elif hit_rate >= 50:
+        grade, grade_note = "C", "Moderate performance — recommend supplemental analyst review"
+    else:
+        grade, grade_note = "D", "Below target — recalibration recommended before institutional deployment"
+
+    result = {
+        "model_version":        "CRI v0.4",
+        "backtesting_events":   n,
+        "events_ran":           ran,
+        "hit_rate_pct":         hit_rate,
+        "calibrated_pct":       calibrated_pct,
+        "acceptable_pct":       round(100.0 * acceptable / max(1, n), 1),
+        "needs_review_pct":     round(100.0 * (n - calibrated - acceptable) / max(1, n), 1),
+        "mean_abs_error_pct":   mean_abs_err,
+        "grade":                grade,
+        "grade_note":           grade_note,
+        "events":               rows,
+        "accuracy_thresholds": {
+            "calibrated":   "Predicted loss within ±20% of documented loss rate",
+            "acceptable":   "Predicted loss within ±50% (within typical model uncertainty)",
+            "needs_review": "Predicted error >50% — systematic bias suspected",
+        },
+        "data_sources": [
+            "Munich Re NatCatSERVICE", "Swiss Re sigma reports",
+            "EM-DAT (CRED)", "World Bank GFDRR",
+            "NOAA NCEI Billion-Dollar Disasters",
+        ],
+        "event_coverage": {
+            "date_range":    "1997–2023",
+            "hazard_types":  ["flood", "drought", "cyclone", "wildfire", "heat_dome",
+                              "cold_snap", "El_Nino_La_Nina"],
+            "regions":       ["Asia-Pacific", "North America", "Europe",
+                              "South Asia", "Southern Africa"],
+        },
+        "caveats": [
+            "Historical losses are economy-wide; engine predictions are single-company normalised.",
+            "Indirect losses (supply chain, GDP multiplier) are excluded from engine predictions.",
+            "Calibration uses synthetic sector proxies, not specific named companies.",
+            "Seasonal timing of events may differ from the engine's annual average hazard.",
+        ],
+        "methodology": (
+            "For each event, a synthetic company matching the primary affected sector is run "
+            "through the CRI physical hazard cascade engine. Predicted revenue loss fraction "
+            "is compared against the documented economy-wide loss as a fraction of sectoral GDP. "
+            "Relative error = |predicted_frac - historical_frac| / historical_frac."
+        ),
+        "_cached": False,
+    }
+
+    # Cache result for 24 h
+    try:
+        _cache_path.write_text(_json.dumps(result, default=str))
+    except Exception:
+        pass
+
+    return result
+
+
 # ── Aladdin-style Portfolio Risk ──────────────────────────────────────────────
 
 @app.post("/portfolio/risk", response_model=PortfolioRiskResponse)
