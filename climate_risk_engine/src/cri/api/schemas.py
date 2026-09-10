@@ -725,6 +725,9 @@ class DecisionRequest(BaseModel):
     region:           Optional[str]   = None
     # Portfolio mode: pass positions instead of company_id
     positions:        Optional[List[PortfolioPositionIn]] = None
+    # Risk appetite controls signal thresholds — use "conservative" for DFIs/insurers,
+    # "aggressive" for PE/trading desks with explicit high-risk mandates.
+    risk_appetite:    str             = "moderate"  # "conservative" | "moderate" | "aggressive"
 
 
 class RiskSignal(BaseModel):

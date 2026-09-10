@@ -2543,42 +2543,70 @@ async def portfolio_stream(request: PortfolioStreamRequest):
 import uuid as _uuid
 import datetime as _dt_dec
 
+# ── Signal thresholds by risk appetite ───────────────────────────────────────
+# Thresholds: (eal_exit, eal_reduce, eal_watch, cvar_exit, cvar_reduce, stranded_watch)
+_SIGNAL_THRESHOLDS: dict[str, dict[str, float]] = {
+    # Conservative — DFIs, insurance, pension funds. Lower tolerance.
+    "conservative": {
+        "eal_exit": 0.08, "eal_reduce": 0.03, "eal_watch": 0.01,
+        "cvar_exit": 0.25, "cvar_reduce": 0.12, "stranded_watch": 0.15,
+    },
+    # Moderate — commercial banks, credit committees. Standard.
+    "moderate": {
+        "eal_exit": 0.15, "eal_reduce": 0.05, "eal_watch": 0.02,
+        "cvar_exit": 0.40, "cvar_reduce": 0.20, "stranded_watch": 0.25,
+    },
+    # Aggressive — PE, trading desks, high-risk mandates.
+    "aggressive": {
+        "eal_exit": 0.25, "eal_reduce": 0.10, "eal_watch": 0.04,
+        "cvar_exit": 0.60, "cvar_reduce": 0.35, "stranded_watch": 0.40,
+    },
+}
+
+
 def _derive_signal(
     eal_pct_ebitda: float,
     cvar99_pct_exposure: float,
     stranded_pct: float,
     acute_hazard: bool,
+    risk_appetite: str = "moderate",
 ) -> tuple[str, str, str]:
-    """Return (action, urgency, rationale) for the primary risk signal."""
-    if eal_pct_ebitda > 0.15 or cvar99_pct_exposure > 0.40:
+    """Return (action, urgency, rationale) for the primary risk signal.
+
+    Thresholds vary by risk_appetite so the same numbers produce different
+    signals for a DFI (conservative) vs. a PE house (aggressive).
+    """
+    t = _SIGNAL_THRESHOLDS.get(risk_appetite, _SIGNAL_THRESHOLDS["moderate"])
+
+    if eal_pct_ebitda > t["eal_exit"] or cvar99_pct_exposure > t["cvar_exit"]:
         action = "EXIT"
         urgency = "IMMEDIATE"
         rationale = (
             f"EAL represents {eal_pct_ebitda:.0%} of EBITDA and CVaR₉₉ is "
             f"{cvar99_pct_exposure:.0%} of exposure — capital at risk exceeds "
-            f"acceptable loss thresholds."
+            f"{risk_appetite} risk appetite thresholds."
         )
-    elif eal_pct_ebitda > 0.05 or cvar99_pct_exposure > 0.20:
+    elif eal_pct_ebitda > t["eal_reduce"] or cvar99_pct_exposure > t["cvar_reduce"]:
         action = "REDUCE"
         urgency = "NEAR_TERM"
         rationale = (
             f"EAL of {eal_pct_ebitda:.0%} of EBITDA and CVaR₉₉ of "
-            f"{cvar99_pct_exposure:.0%} of exposure exceed risk appetite. "
+            f"{cvar99_pct_exposure:.0%} of exposure exceed {risk_appetite} risk appetite. "
             f"Recommend reducing exposure or demanding risk-adjusted pricing."
         )
-    elif eal_pct_ebitda > 0.02 or stranded_pct > 0.25 or acute_hazard:
+    elif eal_pct_ebitda > t["eal_watch"] or stranded_pct > t["stranded_watch"] or acute_hazard:
         action = "WATCH"
         urgency = "MEDIUM_TERM"
         rationale = (
-            f"EAL of {eal_pct_ebitda:.0%} EBITDA is within policy but "
-            f"{'stranded asset risk is emerging' if stranded_pct > 0.25 else 'acute hazards detected'}. "
+            f"EAL of {eal_pct_ebitda:.0%} EBITDA is within {risk_appetite} appetite but "
+            f"{'stranded asset risk is emerging' if stranded_pct > t['stranded_watch'] else 'acute hazards detected'}. "
             f"Monitor quarterly; review covenants."
         )
     else:
         action = "HOLD"
         urgency = "LONG_TERM"
         rationale = (
-            f"EAL of {eal_pct_ebitda:.0%} EBITDA is within risk appetite. "
+            f"EAL of {eal_pct_ebitda:.0%} EBITDA is within {risk_appetite} risk appetite. "
             f"No acute hazards or stranded asset flags. Continue standard monitoring."
         )
     return action, urgency, rationale
@@ -2746,7 +2774,7 @@ def get_decision_brief(request: DecisionRequest) -> DecisionBrief:
         cvar99_pct    = cvar99 / max(total_exp, 1.0)
         stranded_pct  = 0.0   # not computed in portfolio mode
 
-        action, urgency, rationale = _derive_signal(eal_pct, cvar99_pct, stranded_pct, False)
+        action, urgency, rationale = _derive_signal(eal_pct, cvar99_pct, stranded_pct, False, risk_appetite=request.risk_appetite)
         confidence = "MEDIUM"
 
         # Top sectors by CVaR contribution as "drivers"
@@ -2829,7 +2857,7 @@ def get_decision_brief(request: DecisionRequest) -> DecisionBrief:
         eal_pct    = eal / max(ebitda_proxy, 1.0)
         cvar99_pct = cvar99 / max(exposure, 1.0)
 
-        action, urgency, rationale = _derive_signal(eal_pct, cvar99_pct, 0.0, False)
+        action, urgency, rationale = _derive_signal(eal_pct, cvar99_pct, 0.0, False, risk_appetite=request.risk_appetite)
         confidence = "LOW"
 
         drivers = [
@@ -2883,14 +2911,57 @@ def get_decision_brief(request: DecisionRequest) -> DecisionBrief:
     data_quality = "MODELLED"
 
     if physical:
-        # Use hazard_breakdown_2035 (dict: hazard → USD cost at 2035 under CP)
-        # as the EAL proxy; sum gives total expected annual loss at horizon.
-        hazard_map = physical.hazard_breakdown_2035 or {}
-        phys_eal   = sum(hazard_map.values()) / 1e6   # USD → USD M
+        # Primary: use engine hazard_breakdown_2035 (model-derived, asset-level)
+        engine_map = physical.hazard_breakdown_2035 or {}
+        engine_eal = sum(engine_map.values())   # USD M
+
+        # Secondary: geo-calibrated EAL from INFORM/WRI indices as cross-check
+        # Compute weighted average across all company assets by replacement value
+        try:
+            from ..climate.hazard_geo_calibration import calibrated_eal_usd_m
+            geo_eal_total = 0.0
+            geo_breakdown: dict[str, float] = {}
+            for asset in company.assets:
+                asset_rcn = getattr(asset, "replacement_cost_usd_m",
+                                    getattr(asset, "book_value_usd_m", 0.0))
+                if asset_rcn <= 0:
+                    # Estimate from revenue share if RCN not set
+                    asset_rcn = revenue * 0.05
+                region = getattr(asset, "region", company.hq_region)
+                geo_total, geo_bd = calibrated_eal_usd_m(
+                    asset_rcn, region, company.sector
+                )
+                geo_eal_total += geo_total
+                for h, v in geo_bd.items():
+                    geo_breakdown[h] = geo_breakdown.get(h, 0.0) + v
+
+            # Blend: 60% engine (model-calibrated to fragility curves) +
+            #        40% geo-calibrated (country/sector frequency data)
+            if geo_eal_total > 0 and engine_eal > 0:
+                blend_factor = 0.60
+                blended_map: dict[str, float] = {}
+                all_hazards = set(engine_map) | set(geo_breakdown)
+                for h in all_hazards:
+                    if h == "other":
+                        continue
+                    e_val = engine_map.get(h, 0.0)
+                    g_val = geo_breakdown.get(h, 0.0)
+                    blended_map[h] = blend_factor * e_val + (1 - blend_factor) * g_val
+                hazard_map = blended_map
+                phys_eal = sum(hazard_map.values())
+                data_quality = "CALIBRATED"   # best-available: engine + geo index
+            else:
+                hazard_map = engine_map
+                phys_eal = engine_eal
+                data_quality = "MODELLED"
+        except Exception:
+            hazard_map = engine_map
+            phys_eal = engine_eal
+            data_quality = "MODELLED"
+
         # Sort hazards by contribution so highest-impact comes first
         top_hazards = [h for h, _ in sorted(hazard_map.items(),
                                              key=lambda kv: kv[1], reverse=True)]
-        data_quality = "MODELLED"
 
     trans_eal = 0.0
     if transition:
@@ -2905,10 +2976,12 @@ def get_decision_brief(request: DecisionRequest) -> DecisionBrief:
     revenue     = max(company.financials.revenue, 1.0)
     if request.exposure_usd_m:
         exposure = request.exposure_usd_m
-    elif hasattr(company.financials, "equity_value"):
-        exposure = company.financials.net_debt + company.financials.equity_value
+    elif company.financials.market_cap:
+        # Enterprise value = equity (market cap) + net debt — the correct credit exposure denominator
+        exposure = company.financials.market_cap + company.financials.net_debt
     else:
-        exposure = company.financials.net_debt * 1.5
+        # Fallback: approximate EV as 8× EBITDA (typical industrial multiple)
+        exposure = ebitda * 8.0
     exposure    = max(exposure, 1.0)
 
     eal_pct       = total_eal / ebitda
@@ -2932,7 +3005,7 @@ def get_decision_brief(request: DecisionRequest) -> DecisionBrief:
                      for h in top_hazards)
 
     # ── Signal ────────────────────────────────────────────────────────────────
-    action, urgency, rationale = _derive_signal(eal_pct, cvar99_pct, stranded_pct, acute_flag)
+    action, urgency, rationale = _derive_signal(eal_pct, cvar99_pct, stranded_pct, acute_flag, risk_appetite=request.risk_appetite)
     n_assets    = len(company.assets)
     confidence  = _confidence_from_data_quality(data_quality, n_assets)
 
@@ -2949,14 +3022,27 @@ def get_decision_brief(request: DecisionRequest) -> DecisionBrief:
                 severity="HIGH" if i == 0 else "MODERATE",
             ))
     if trans_eal > 0:
+        from ..climate.portfolio import _transition_factor_weights
         trans_share = trans_eal / max(total_eal, 1e-9) * 100
-        drivers.append(RiskDriver(
-            factor=f"Transition risk — carbon price + demand destruction ({company.sector})",
-            category="transition",
-            contribution_pct=round(trans_share, 1),
-            horizon="2030–2045",
-            severity="HIGH" if trans_share > 40 else "MODERATE",
-        ))
+        tf_weights = _transition_factor_weights(company.sector)
+        _subfactor_labels = {
+            "policy":     ("Policy & Regulation", "Mandatory carbon pricing, stranded-asset regulation, CBAM border levy"),
+            "technology": ("Technology Displacement", "Low-carbon substitution eroding demand for core products"),
+            "market":     ("Market Repricing",      "Commodity price erosion as green alternatives gain share"),
+            "litigation": ("Litigation Exposure",   "Climate liability, delayed-action lawsuits, disclosure penalties"),
+        }
+        for subfactor, weight in sorted(tf_weights.items(), key=lambda kv: kv[1], reverse=True):
+            label, rationale = _subfactor_labels.get(subfactor, (subfactor.title(), ""))
+            sub_pct = round(trans_share * weight, 1)
+            if sub_pct < 0.5:
+                continue
+            drivers.append(RiskDriver(
+                factor=f"{label} — {company.sector}",
+                category="transition",
+                contribution_pct=sub_pct,
+                horizon="2030–2045",
+                severity="HIGH" if weight >= 0.35 else "MODERATE" if weight >= 0.20 else "LOW",
+            ))
     if not drivers:
         drivers.append(RiskDriver(
             factor="Climate risk (insufficient asset data for breakdown)",
