@@ -6,23 +6,17 @@
 # only the port changes, since HF Spaces requires the app to listen on 7860.
 #
 # [gis] extras add rasterio for JRC Global Flood Hazard Map COG reads.
-# GDAL system libraries are required for rasterio to build/run.
+# rasterio binary wheels bundle their own GDAL — no system GDAL install needed.
+# Only libgomp1 is required for rasterio's parallel processing on linux/slim.
 
 FROM python:3.11-slim
 
 WORKDIR /app
 
-# System deps: build tools + GDAL for rasterio (JRC hydraulic flood depth)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
-    gdal-bin \
-    libgdal-dev \
-    python3-gdal \
+    libgomp1 \
     && rm -rf /var/lib/apt/lists/*
-
-# Pin GDAL Python bindings to match the system GDAL version
-RUN GDAL_VERSION=$(gdal-config --version) && \
-    pip install --no-cache-dir "GDAL==${GDAL_VERSION}"
 
 COPY climate_risk_engine/ /app/climate_risk_engine/
 
