@@ -57,6 +57,14 @@ from dataclasses import dataclass, field
 from .ssp_scenarios import NGFS_TO_SSP, SSP_SCENARIOS, SSPScenario
 from .asset_graph import ComponentGraph, critical_path_downtime, get_sector_graph  # Gap 9: critical-path BI
 
+# JRC hydraulic flood integration (optional — degrades gracefully if rasterio absent)
+try:
+    from .flood_depth import compute_flood_eal as _jrc_flood_eal, DEPTH_FETCH_FAILED
+    _JRC_AVAILABLE = True
+except ImportError:
+    _JRC_AVAILABLE = False
+    DEPTH_FETCH_FAILED = -1.0
+
 
 # ── Sector physical-exposure ratios (φ) ────────────────────────────────────
 # Fraction of revenue that is materially exposed to acute/chronic hazards.
@@ -356,6 +364,9 @@ def _sector_key(sector_raw: str) -> str:
 
 # ── Main public API ─────────────────────────────────────────────────────────
 
+_FLOOD_HAZARDS: frozenset[str] = frozenset({"flood_riverine", "coastal_flooding"})
+
+
 def compute_physical_npv_impact(
     ngfs_family: str,
     sector: str,
@@ -365,9 +376,23 @@ def compute_physical_npv_impact(
     start_year: int = 2026,
     horizon: int = 2050,
     component_graph: ComponentGraph | None = None,
+    # JRC hydraulic flood integration — optional
+    asset_lat: float | None = None,
+    asset_lon: float | None = None,
+    asset_rcv_usd: float | None = None,   # replacement cost value; falls back to ev_base_usd * 0.4
 ) -> PhysicalRiskResult:
     """
     Compute the physical-risk NPV drag for one (company, scenario) pair.
+
+    Flood model selection
+    ---------------------
+    When asset_lat/lon are provided, the flood component of physical risk is
+    computed from JRC Global Flood Hazard Maps (LISFLOOD-FP, Dottori 2016)
+    using JRC Huizinga 2017 depth-damage functions.  Non-flood hazards (heat,
+    drought, freeze-thaw, wildfire) continue to use the existing phi×ELF model.
+
+    When coordinates are absent or the JRC fetch fails, the entire calculation
+    falls back to the phi×ELF model.
 
     Parameters
     ----------
@@ -385,6 +410,12 @@ def compute_physical_npv_impact(
         First projection year.
     horizon : int
         Last projection year (inclusive).
+    asset_lat, asset_lon : float | None
+        WGS84 coordinates of the primary asset location.  When provided,
+        enables JRC hydraulic flood depth lookup.
+    asset_rcv_usd : float | None
+        Replacement cost value of the asset (USD).  If not supplied, estimated
+        as ev_base_usd × 0.40 (typical fixed-asset / EV ratio for industrials).
 
     Returns
     -------
@@ -432,6 +463,32 @@ def compute_physical_npv_impact(
     _cp_graph: ComponentGraph | None = component_graph or get_sector_graph(sec_key)
     _cp_audit_mid: dict = {}   # captured once at mid_year for the audit trail
 
+    # ── JRC hydraulic flood integration ───────────────────────────────────────
+    # When asset coordinates are provided, compute the baseline flood EAL
+    # (at current climate, δT=0) from JRC LISFLOOD depth-damage curves.
+    # In the year loop, this EAL is scaled by a per-year climate multiplier
+    # (flood_prob(t) / flood_prob_baseline) derived from our GMST model.
+    # Non-flood hazards (heat, drought, freeze-thaw, wildfire) continue to
+    # use the phi×ELF model with flood hazards stripped out.
+    _jrc_mode: bool = False
+    _jrc_baseline_eal: float = 0.0
+    _jrc_audit: dict = {}
+    _flood_base_prob: float = _hazard_probs_at_gmst(0.0).get("flood_riverine", 0.0)
+
+    if _JRC_AVAILABLE and asset_lat is not None and asset_lon is not None:
+        _rcv = asset_rcv_usd if asset_rcv_usd and asset_rcv_usd > 0 else ev_base_usd * 0.40
+        _jrc_eal, _jrc_audit = _jrc_flood_eal(
+            lat=asset_lat,
+            lon=asset_lon,
+            asset_rcv_usd=_rcv,
+            sector_key=sec_key,
+            gmst_delta=0.0,   # baseline — climate scaling happens per year below
+        )
+        if _jrc_eal >= 0.0 and "jrc_unavailable" not in _jrc_audit.get("note", ""):
+            _jrc_mode = True
+            _jrc_baseline_eal = _jrc_eal
+    # ── end JRC setup ─────────────────────────────────────────────────────────
+
     for t in years:
         delta_t = ssp.gmst(t)                       # GMST anomaly at year t
         probs   = _hazard_probs_at_gmst(delta_t)
@@ -443,8 +500,37 @@ def compute_physical_npv_impact(
             revenue_at_risk = revenue_usd * cp_fraction
             if t == mid_year:
                 _cp_audit_mid = _cp_audit_t
+            jrc_flood_loss_t = 0.0
+            non_flood_loss_t = revenue_at_risk
+            flood_climate_mult = 1.0
         else:
-            revenue_at_risk = revenue_usd * phi * elf
+            if _jrc_mode:
+                # ── JRC hydraulic flood component ────────────────────────────
+                # Scale baseline EAL by the ratio of current-climate flood
+                # probability to the baseline, as a proxy for climate-driven
+                # intensification.  Separately compute the non-flood ELF from
+                # the remaining hazard probs so we don't double-count.
+                flood_prob_t = probs.get("flood_riverine", _flood_base_prob)
+                flood_climate_mult = min(
+                    2.0,
+                    flood_prob_t / max(_flood_base_prob, 1e-6),
+                )
+                jrc_flood_loss_t = _jrc_baseline_eal * flood_climate_mult
+
+                non_flood_probs  = {
+                    k: v for k, v in probs.items()
+                    if k not in _FLOOD_HAZARDS
+                }
+                elf_non_flood    = _joint_elf(non_flood_probs)
+                non_flood_loss_t = revenue_usd * phi * elf_non_flood
+
+                revenue_at_risk  = jrc_flood_loss_t + non_flood_loss_t
+            else:
+                jrc_flood_loss_t = 0.0
+                non_flood_loss_t = revenue_usd * phi * elf
+                flood_climate_mult = 1.0
+                revenue_at_risk  = non_flood_loss_t
+
         discount        = (1.0 + wacc) ** (t - t0)
         year_drag       = revenue_at_risk / discount
         total_drag     += year_drag
@@ -463,7 +549,7 @@ def compute_physical_npv_impact(
 
         # Gap 3: store key years in audit trail (every 5 years + boundaries)
         if t in (start_year, 2028, 2030, 2035, 2038, 2040, 2045, horizon):
-            audit_years.append({
+            _year_entry: dict = {
                 "year":             t,
                 "gmst_delta_c":     round(delta_t, 3),
                 "hazard_probs":     {k: round(v, 4) for k, v in probs.items()},
@@ -472,7 +558,12 @@ def compute_physical_npv_impact(
                 "revenue_at_risk":  round(revenue_at_risk, 0),
                 "discount_factor":  round(1.0 / discount, 5),
                 "pv_drag":          round(year_drag, 0),
-            })
+            }
+            if _jrc_mode:
+                _year_entry["jrc_flood_loss_usd"]   = round(jrc_flood_loss_t, 0)
+                _year_entry["non_flood_loss_usd"]    = round(non_flood_loss_t, 0)
+                _year_entry["flood_climate_mult"]    = round(flood_climate_mult, 4)
+            audit_years.append(_year_entry)
 
     physical_npv_impact_pct = -(total_drag / ev_base_usd)
 
@@ -498,6 +589,21 @@ def compute_physical_npv_impact(
         # Gap 9: critical-path BI audit (None when graph not available)
         "critical_path_bi":     _cp_audit_mid if _cp_graph is not None else None,
         "bi_model":             "critical_path_dag" if _cp_graph is not None else "sector_phi_elf",
+        # JRC hydraulic flood model provenance
+        "jrc_flood_model": {
+            "active":               _jrc_mode,
+            "baseline_eal_usd":     round(_jrc_baseline_eal, 0) if _jrc_mode else None,
+            "asset_lat":            asset_lat,
+            "asset_lon":            asset_lon,
+            "asset_rcv_usd":        round(asset_rcv_usd or ev_base_usd * 0.40, 0) if _jrc_mode else None,
+            "flood_hazards_modelled": sorted(_FLOOD_HAZARDS),
+            "data_source":          "JRC Global Flood Hazard Maps (LISFLOOD-FP, Dottori 2016)" if _jrc_mode else "phi_elf_proxy",
+            "per_rp_breakdown":     _jrc_audit.get("return_periods") if _jrc_mode else None,
+            "note": (
+                None if _jrc_mode
+                else "Coordinates not provided — using WRI Aqueduct phi×ELF proxy for flood hazard"
+            ),
+        },
     }
 
     return PhysicalRiskResult(
