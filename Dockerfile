@@ -20,7 +20,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY climate_risk_engine/ /app/climate_risk_engine/
 
-RUN pip install --no-cache-dir "./climate_risk_engine[api,gis]"
+RUN pip install --no-cache-dir "./climate_risk_engine[api,flood]"
 
 ENV CRI_CACHE_DIR=/tmp/cri_cache
 
