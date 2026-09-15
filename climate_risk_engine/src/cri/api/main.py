@@ -4103,3 +4103,597 @@ async def counterparty_aggregation_endpoint(req: CounterpartyAggRequest):
             "HHI < 0.10 = low, 0.10–0.25 = medium, > 0.25 = high concentration."
         ),
     }
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  PRACTITIONER WORKFLOW LAYER  (Tasks #116–122)
+#  Fast triage, company lookup, scenario comparison, IC brief,
+#  what-if sensitivity, SFDR Excel export, portfolio delta
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── /screen/triage ────────────────────────────────────────────────────────────
+
+class TriageCompany(BaseModel):
+    company_name: str
+    sector_key:   str
+    country:      str
+
+class BatchTriageRequest(BaseModel):
+    companies: list[TriageCompany]
+
+class SingleTriageRequest(BaseModel):
+    company_name: str
+    sector_key:   str
+    country:      str
+
+@app.post("/screen/triage", tags=["Screening"])
+async def screen_triage(req: SingleTriageRequest):
+    """
+    Fast RED / AMBER / GREEN traffic-light triage.
+    No engine run, no lat/lon required — ideal for pipeline screening.
+    Returns in < 100 ms.
+    """
+    from cri.intake.screen import screen_company
+    result = screen_company(
+        company_name=req.company_name,
+        sector_key=req.sector_key,
+        country=req.country,
+    )
+    return {
+        "company_name":         result.company_name,
+        "sector_key":           result.sector_key,
+        "country":              result.country,
+        "traffic_light":        result.traffic_light,
+        "combined_score":       result.combined_score,
+        "physical_score":       result.physical_score,
+        "transition_score":     result.transition_score,
+        "rationale":            result.rationale,
+        "top_risks":            result.top_risks,
+        "recommended_action":   result.recommended_action,
+        "full_engine_priority": result.full_engine_priority,
+        "methodology": (
+            "Physical: country hazard (IPCC AR6 / EM-DAT) × sector amplifier. "
+            "Transition: sector carbon tier × jurisdiction policy ambition. "
+            "Combined = 0.5×physical + 0.5×transition. "
+            "RED ≥ 0.60 | AMBER 0.35–0.60 | GREEN < 0.35."
+        ),
+    }
+
+@app.post("/screen/triage/batch", tags=["Screening"])
+async def screen_triage_batch(req: BatchTriageRequest):
+    """
+    Batch triage up to 50 companies in one call.
+    Returns results sorted RED-first so you know which deals
+    to prioritise for full engine analysis.
+    """
+    from cri.intake.screen import screen_batch
+    companies = [c.model_dump() for c in req.companies]
+    return screen_batch(companies)
+
+
+# ── /company/lookup ───────────────────────────────────────────────────────────
+
+class CompanyLookupRequest(BaseModel):
+    query:        str
+    hint_sector:  Optional[str] = None
+    hint_country: Optional[str] = None
+
+@app.post("/company/lookup", tags=["Workflow"])
+async def company_lookup(req: CompanyLookupRequest):
+    """
+    Resolve a company name or ticker to a pre-populated ClimRisk
+    API payload. Use this before calling /physical/flood or /transition
+    to avoid manually entering coordinates and financial benchmarks.
+    """
+    from cri.api.company_resolve import resolve_company
+    result = resolve_company(
+        query=req.query,
+        hint_sector=req.hint_sector,
+        hint_country=req.hint_country,
+    )
+    return {
+        "found":           result.found,
+        "confidence":      result.confidence,
+        "company_name":    result.company_name,
+        "ticker":          result.ticker,
+        "sector_key":      result.sector_key,
+        "country":         result.country,
+        "hq_lat":          result.hq_lat,
+        "hq_lon":          result.hq_lon,
+        "revenue_usd_m":   result.revenue_usd_m,
+        "ev_usd_m":        result.ev_usd_m,
+        "scope1_mt_co2e":  result.scope1_mt_co2e,
+        "elevation_m":     result.elevation_m,
+        "distance_to_coast_km": result.distance_to_coast_km,
+        "pre_filled_payload": result.pre_filled_payload,
+        "notes":           result.notes,
+    }
+
+
+# ── /compare/scenarios ────────────────────────────────────────────────────────
+
+class ScenarioCompareRequest(BaseModel):
+    company_id:                  str
+    company_name:                str
+    sector_key:                  str
+    asset_lat:                   float
+    asset_lon:                   float
+    asset_elevation_m:           float = 5.0
+    distance_to_coast_km:        float = 50.0
+    ev_usd_m:                    float
+    revenue_usd_m:               float
+    scope1_emissions_mt_co2e:    float
+    green_revenue_pct:           float = 0.0
+
+@app.post("/compare/scenarios", tags=["Workflow"])
+async def compare_scenarios(req: ScenarioCompareRequest):
+    """
+    Single call that runs all three IPCC warming scenarios
+    (SSP1-2.6 / SSP2-4.5 / SSP5-8.5) and all three NGFS transition
+    scenarios (Net Zero 2050 / Delayed Transition / Current Policies)
+    and returns results side-by-side.
+    """
+    from cri.climate.sea_level_rise import compute_slr_risk, slr_to_dict
+    from cri.climate.transition import run_transition_risk
+
+    physical_scenarios = {}
+    for scenario in ["SSP1-2.6", "SSP2-4.5", "SSP5-8.5"]:
+        slr = compute_slr_risk(
+            asset_id=req.company_id,
+            asset_name=req.company_name,
+            asset_lat=req.asset_lat,
+            asset_lon=req.asset_lon,
+            asset_elevation_m=req.asset_elevation_m,
+            ev_usd_m=req.ev_usd_m,
+            scenario=scenario,
+            distance_to_coast_km=req.distance_to_coast_km,
+        )
+        physical_scenarios[scenario] = {
+            "slr_2050_m":        slr.slr_2050_m,
+            "slr_2100_m":        slr.slr_2100_m,
+            "inundation_prob_2050": slr.inundation_prob_2050,
+            "inundation_prob_2100": slr.inundation_prob_2100,
+            "risk_tier":         slr.risk_tier,
+            "expected_loss_usd_m": slr.expected_loss_usd_m,
+        }
+
+    transition_scenarios = {}
+    for scenario in ["net_zero_2050", "delayed_transition", "current_policies"]:
+        tr = run_transition_risk(
+            company_id=req.company_id,
+            company_name=req.company_name,
+            sector_key=req.sector_key,
+            scope1_emissions_mt_co2e=req.scope1_emissions_mt_co2e,
+            revenue_usd_m=req.revenue_usd_m,
+            ev_usd_m=req.ev_usd_m,
+            green_revenue_pct=req.green_revenue_pct,
+            scenario=scenario,
+        )
+        transition_scenarios[scenario] = {
+            "carbon_cost_2030_usd_m":  tr.carbon_cost_2030_usd_m,
+            "carbon_cost_2050_usd_m":  tr.carbon_cost_2050_usd_m,
+            "var_pct_revenue":         tr.var_pct_revenue,
+            "stranded_asset_risk":     tr.stranded_asset_risk,
+            "transition_risk_score":   tr.transition_risk_score,
+            "risk_tier":               tr.risk_tier,
+        }
+
+    return {
+        "company_id":   req.company_id,
+        "company_name": req.company_name,
+        "physical": {
+            "scenarios": physical_scenarios,
+            "summary": "SLR exposure across IPCC SSP scenarios. Risk tiers: critical/high/medium/low/negligible.",
+        },
+        "transition": {
+            "scenarios": transition_scenarios,
+            "summary":   "Carbon cost and stranded asset risk across NGFS transition scenarios.",
+        },
+        "worst_case": {
+            "physical_scenario":    "SSP5-8.5",
+            "transition_scenario":  "delayed_transition",
+            "note": "Delayed transition with high physical warming is the most adverse combination.",
+        },
+    }
+
+
+# ── /deal/brief ───────────────────────────────────────────────────────────────
+
+class DealBriefRequest(BaseModel):
+    company_name:              str
+    sector_key:                str
+    country:                   str
+    # Physical inputs
+    flood_var_pct:             float = 0.0
+    slr_risk_tier:             str   = "negligible"
+    biodiversity_score:        float = 0.0
+    # Transition inputs
+    transition_var_pct:        float = 0.0
+    scope1_mt_co2e:            float = 0.0
+    carbon_price_sensitivity:  float = 0.0
+    # Deal inputs
+    ev_usd_m:                  float = 0.0
+    revenue_usd_m:             float = 0.0
+    ltv_pct:                   float = 0.0
+    tenor_years:               int   = 5
+    deal_type:                 str   = "term_loan"
+
+@app.post("/deal/brief", tags=["Workflow"])
+async def deal_brief(req: DealBriefRequest):
+    """
+    Generate an IC-ready deal brief with:
+    - PROCEED / DEFER / PASS recommendation
+    - 3 ranked risk bullets
+    - Specific covenant language
+    - KPI monitoring list
+
+    Feed this the outputs from /physical/flood, /physical/slr,
+    /transition, and /physical/biodiversity to get a complete brief.
+    """
+    from cri.outcomes.deal_brief import generate_deal_brief, deal_brief_to_dict
+    brief = generate_deal_brief(
+        company_name=req.company_name,
+        sector_key=req.sector_key,
+        country=req.country,
+        flood_var_pct=req.flood_var_pct,
+        slr_risk_tier=req.slr_risk_tier,
+        biodiversity_score=req.biodiversity_score,
+        transition_var_pct=req.transition_var_pct,
+        scope1_mt_co2e=req.scope1_mt_co2e,
+        carbon_price_sensitivity=req.carbon_price_sensitivity,
+        ev_usd_m=req.ev_usd_m,
+        revenue_usd_m=req.revenue_usd_m,
+        ltv_pct=req.ltv_pct,
+        tenor_years=req.tenor_years,
+        deal_type=req.deal_type,
+    )
+    return deal_brief_to_dict(brief)
+
+
+# ── /sensitivity ──────────────────────────────────────────────────────────────
+
+class SensitivityRequest(BaseModel):
+    company_name:              str
+    sector_key:                str
+    scope1_mt_co2e:            float
+    revenue_usd_m:             float
+    ev_usd_m:                  float
+    base_flood_var_pct:        float = 0.0
+    base_elevation_m:          float = 5.0
+    base_carbon_price:         float = 130.0
+    base_capex_green:          float = 0.0
+    base_scope1_reduction_pct: float = 0.0
+    sweep:                     str   = "carbon_price"  # carbon_price|capex_green|scope1_reduction|elevation
+    sweep_min:                 Optional[float] = None
+    sweep_max:                 Optional[float] = None
+    sweep_steps:               int   = 10
+
+@app.post("/sensitivity", tags=["Workflow"])
+async def sensitivity_sweep(req: SensitivityRequest):
+    """
+    What-if parameter sweep. Move one lever at a time and see how
+    transition VaR, physical VaR and composite score respond.
+
+    Sweep levers:
+    - carbon_price       Multiply base price 0.5× to 3.0×
+    - capex_green        Committed green capex 0–500 USD M
+    - scope1_reduction   Scope 1 cut vs. baseline 0–75%
+    - elevation          Asset elevation 0–30 m (physical sensitivity)
+
+    Returns a grid of points suitable for chart rendering.
+    """
+    from cri.outcomes.sensitivity import run_sensitivity, sensitivity_to_dict
+    result = run_sensitivity(
+        company_name=req.company_name,
+        sector_key=req.sector_key,
+        scope1_mt_co2e=req.scope1_mt_co2e,
+        revenue_usd_m=req.revenue_usd_m,
+        ev_usd_m=req.ev_usd_m,
+        base_flood_var_pct=req.base_flood_var_pct,
+        base_elevation_m=req.base_elevation_m,
+        base_carbon_price=req.base_carbon_price,
+        base_capex_green=req.base_capex_green,
+        base_scope1_reduction_pct=req.base_scope1_reduction_pct,
+        sweep=req.sweep,
+        sweep_min=req.sweep_min,
+        sweep_max=req.sweep_max,
+        sweep_steps=req.sweep_steps,
+    )
+    return sensitivity_to_dict(result)
+
+
+# ── /regulatory/sfdr-pai/export ──────────────────────────────────────────────
+
+class SFDRExportRequest(BaseModel):
+    company_id:              str
+    company_name:            str
+    sector_key:              str
+    country:                 str
+    scope1_mt_co2e:          float
+    scope2_mt_co2e:          float
+    scope3_mt_co2e:          float = 0.0
+    revenue_usd_m:           float
+    ev_usd_m:                float
+    fossil_fuel_exposure_pct: float = 0.0
+    renewable_energy_pct:    float = 0.0
+    board_gender_diversity_pct: float = 0.0
+    controversy_flag:        bool  = False
+    taxonomy_aligned_pct:    float = 0.0
+    data_quality_score:      int   = 3
+    reporting_year:          int   = 2024
+
+@app.post("/regulatory/sfdr-pai/export", tags=["Regulatory"])
+async def sfdr_pai_export(req: SFDRExportRequest):
+    """
+    Generate SFDR RTS Annex I PAI Excel export.
+    Returns an .xlsx file in EU regulatory table format with all
+    18 mandatory PAI indicators pre-populated.
+    """
+    import io
+    try:
+        import openpyxl
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from openpyxl.utils import get_column_letter
+    except ImportError:
+        raise HTTPException(status_code=500, detail="openpyxl not installed")
+
+    from fastapi.responses import StreamingResponse
+    from cri.regulatory.sfdr_pai import compute_sfdr_pai
+
+    pai = compute_sfdr_pai(
+        company_id=req.company_id,
+        company_name=req.company_name,
+        sector_key=req.sector_key,
+        country=req.country,
+        scope1_mt_co2e=req.scope1_mt_co2e,
+        scope2_mt_co2e=req.scope2_mt_co2e,
+        scope3_mt_co2e=req.scope3_mt_co2e,
+        revenue_usd_m=req.revenue_usd_m,
+        ev_usd_m=req.ev_usd_m,
+        fossil_fuel_exposure_pct=req.fossil_fuel_exposure_pct,
+        renewable_energy_pct=req.renewable_energy_pct,
+        board_gender_diversity_pct=req.board_gender_diversity_pct,
+        controversy_flag=req.controversy_flag,
+        taxonomy_aligned_pct=req.taxonomy_aligned_pct,
+        data_quality_score=req.data_quality_score,
+        reporting_year=req.reporting_year,
+    )
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "SFDR PAI Annex I"
+
+    # Header
+    header_fill = PatternFill("solid", fgColor="003366")
+    header_font = Font(bold=True, color="FFFFFF", size=10)
+    sub_fill    = PatternFill("solid", fgColor="D9E1F2")
+    sub_font    = Font(bold=True, size=9)
+    thin_border = Border(
+        left=Side(style="thin"), right=Side(style="thin"),
+        top=Side(style="thin"), bottom=Side(style="thin"),
+    )
+
+    # Title row
+    ws.merge_cells("A1:H1")
+    ws["A1"] = f"SFDR RTS Annex I — Principal Adverse Impact Indicators"
+    ws["A1"].font = Font(bold=True, size=12, color="003366")
+    ws["A1"].alignment = Alignment(horizontal="center")
+
+    ws.merge_cells("A2:H2")
+    ws["A2"] = (
+        f"Company: {req.company_name}  |  "
+        f"Reporting Year: {req.reporting_year}  |  "
+        f"Generated: {datetime.now(timezone.utc).strftime('%Y-%m-%d')}"
+    )
+    ws["A2"].font = Font(italic=True, size=9)
+
+    # Column headers (row 4)
+    cols = [
+        "PAI #", "Indicator Name", "Category",
+        "Value", "Unit", "Data Quality (1–5)",
+        "Coverage (%)", "Notes / Methodology",
+    ]
+    for ci, h in enumerate(cols, 1):
+        cell = ws.cell(row=4, column=ci, value=h)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal="center", wrap_text=True)
+        cell.border = thin_border
+
+    # Column widths
+    widths = [6, 45, 20, 14, 12, 14, 12, 50]
+    for ci, w in enumerate(widths, 1):
+        ws.column_dimensions[get_column_letter(ci)].width = w
+
+    # Data rows
+    row_idx = 5
+    for indicator in pai.pai_indicators:
+        ws.cell(row=row_idx, column=1, value=indicator["indicator_number"]).border = thin_border
+        ws.cell(row=row_idx, column=2, value=indicator["indicator_name"]).border = thin_border
+        ws.cell(row=row_idx, column=3, value=indicator["category"]).border = thin_border
+        ws.cell(row=row_idx, column=4, value=indicator.get("value", "N/A")).border = thin_border
+        ws.cell(row=row_idx, column=5, value=indicator.get("unit", "")).border = thin_border
+        ws.cell(row=row_idx, column=6, value=indicator.get("data_quality_score", req.data_quality_score)).border = thin_border
+        ws.cell(row=row_idx, column=7, value=indicator.get("coverage_pct", 100)).border = thin_border
+        notes_cell = ws.cell(row=row_idx, column=8, value=indicator.get("methodology_note", ""))
+        notes_cell.border = thin_border
+        notes_cell.alignment = Alignment(wrap_text=True)
+
+        # Alternate row shading
+        if row_idx % 2 == 0:
+            fill = PatternFill("solid", fgColor="F2F2F2")
+            for ci in range(1, 9):
+                ws.cell(row=row_idx, column=ci).fill = fill
+
+        row_idx += 1
+
+    # Summary section
+    row_idx += 1
+    ws.cell(row=row_idx, column=1, value="Summary").font = sub_font
+    ws.cell(row=row_idx, column=1).fill = sub_fill
+    row_idx += 1
+    ws.cell(row=row_idx, column=1, value="Overall Data Quality")
+    ws.cell(row=row_idx, column=2, value=pai.overall_data_quality)
+    row_idx += 1
+    ws.cell(row=row_idx, column=1, value="Estimated GHG Intensity (tCO2e/EUR M rev)")
+    ws.cell(row=row_idx, column=2, value=round(pai.ghg_intensity_revenue, 1))
+    row_idx += 1
+    ws.cell(row=row_idx, column=1, value="Fossil Fuel Exposure (%)")
+    ws.cell(row=row_idx, column=2, value=req.fossil_fuel_exposure_pct)
+
+    # Footer
+    row_idx += 2
+    ws.cell(row=row_idx, column=1, value=(
+        "Prepared by ClimRisk Engine | "
+        "Regulation: SFDR RTS (EU) 2022/1288 Annex I — Table 1 (18 mandatory PAIs). "
+        "Data sourced from company disclosures / third-party estimation where noted."
+    )).font = Font(italic=True, size=8, color="666666")
+
+    # Freeze panes
+    ws.freeze_panes = "A5"
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+
+    filename = f"SFDR_PAI_{req.company_name.replace(' ','_')}_{req.reporting_year}.xlsx"
+    return StreamingResponse(
+        buf,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+# ── /portfolio/delta ──────────────────────────────────────────────────────────
+
+class PortfolioDeltaPosition(BaseModel):
+    company_id:            str
+    company_name:          str
+    prior_score:           float
+    current_score:         float
+    prior_flood_var_pct:   Optional[float] = None
+    current_flood_var_pct: Optional[float] = None
+    prior_transition_var:  Optional[float] = None
+    current_transition_var: Optional[float] = None
+    exposure_usd_m:        float = 0.0
+    change_driver:         Optional[str] = None  # "new_data" | "model_update" | "market_move"
+
+class PortfolioDeltaRequest(BaseModel):
+    run_id_prior:   str
+    run_id_current: str
+    positions:      list[PortfolioDeltaPosition]
+    as_of_date:     Optional[str] = None
+
+@app.post("/portfolio/delta", tags=["Portfolio"])
+async def portfolio_delta(req: PortfolioDeltaRequest):
+    """
+    What changed between two engine runs and what drove the change.
+
+    Pass prior and current scores for each position. Returns:
+    - Largest movers (score change > 0.05)
+    - Portfolio-level aggregate delta
+    - Change attribution by driver
+    - Positions that crossed a tier boundary (e.g. GREEN→AMBER)
+    """
+    now = datetime.now(timezone.utc).isoformat()
+
+    movers    = []
+    upgrades  = []  # risk decreased
+    downgrades = []  # risk increased
+    tier_changes = []
+
+    def _tier(score: float) -> str:
+        if score >= 0.65: return "RED"
+        if score >= 0.40: return "AMBER"
+        return "GREEN"
+
+    total_prior   = 0.0
+    total_current = 0.0
+    weighted_prior   = 0.0
+    weighted_current = 0.0
+    total_exposure   = sum(p.exposure_usd_m for p in req.positions)
+
+    drivers_count: dict[str, int] = {}
+
+    for pos in req.positions:
+        delta = pos.current_score - pos.prior_score
+        weight = pos.exposure_usd_m / total_exposure if total_exposure > 0 else 0
+
+        weighted_prior   += pos.prior_score * weight
+        weighted_current += pos.current_score * weight
+
+        prior_tier   = _tier(pos.prior_score)
+        current_tier = _tier(pos.current_score)
+
+        change_details = {
+            "company_id":       pos.company_id,
+            "company_name":     pos.company_name,
+            "prior_score":      round(pos.prior_score, 3),
+            "current_score":    round(pos.current_score, 3),
+            "score_delta":      round(delta, 3),
+            "prior_tier":       prior_tier,
+            "current_tier":     current_tier,
+            "exposure_usd_m":   pos.exposure_usd_m,
+            "weight_pct":       round(weight * 100, 2),
+            "change_driver":    pos.change_driver or "unspecified",
+            "flood_var_delta":  None,
+            "transition_var_delta": None,
+        }
+
+        if pos.prior_flood_var_pct is not None and pos.current_flood_var_pct is not None:
+            change_details["flood_var_delta"] = round(
+                pos.current_flood_var_pct - pos.prior_flood_var_pct, 2
+            )
+        if pos.prior_transition_var is not None and pos.current_transition_var is not None:
+            change_details["transition_var_delta"] = round(
+                pos.current_transition_var - pos.prior_transition_var, 2
+            )
+
+        if abs(delta) >= 0.05:
+            movers.append(change_details)
+
+        if prior_tier != current_tier:
+            tier_changes.append({
+                **change_details,
+                "tier_change": f"{prior_tier} → {current_tier}",
+                "direction":   "upgrade" if current_tier < prior_tier else "downgrade",
+            })
+
+        if delta < -0.05:
+            upgrades.append(change_details)
+        elif delta > 0.05:
+            downgrades.append(change_details)
+
+        driver = pos.change_driver or "unspecified"
+        drivers_count[driver] = drivers_count.get(driver, 0) + 1
+
+    movers.sort(key=lambda x: abs(x["score_delta"]), reverse=True)
+    tier_changes.sort(key=lambda x: abs(x["score_delta"]), reverse=True)
+
+    portfolio_delta = round(weighted_current - weighted_prior, 4)
+    portfolio_direction = "deteriorated" if portfolio_delta > 0 else "improved"
+
+    return {
+        "run_id_prior":          req.run_id_prior,
+        "run_id_current":        req.run_id_current,
+        "as_of_date":            req.as_of_date or now,
+        "position_count":        len(req.positions),
+        "total_exposure_usd_m":  round(total_exposure, 2),
+        "portfolio_summary": {
+            "weighted_score_prior":   round(weighted_prior, 4),
+            "weighted_score_current": round(weighted_current, 4),
+            "delta":                  portfolio_delta,
+            "direction":              portfolio_direction,
+        },
+        "tier_changes":          tier_changes,
+        "largest_movers":        movers[:10],
+        "upgrades_count":        len(upgrades),
+        "downgrades_count":      len(downgrades),
+        "change_driver_breakdown": drivers_count,
+        "methodology": (
+            "Score delta = current_score – prior_score. "
+            "Material movers: |delta| ≥ 0.05. "
+            "Tier boundaries: RED ≥ 0.65, AMBER 0.40–0.65, GREEN < 0.40. "
+            "Portfolio delta is exposure-weighted mean score change."
+        ),
+    }
