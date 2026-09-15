@@ -32,4 +32,6 @@ ENV CRI_CACHE_DIR=/tmp/cri_cache
 
 EXPOSE 7860
 
-CMD ["uvicorn", "cri.api.main:app", "--host", "0.0.0.0", "--port", "7860", "--workers", "1"]
+# Render injects $PORT dynamically (default 10000).
+# HF Spaces requires 7860. Fall back to 7860 if $PORT is unset.
+CMD ["sh", "-c", "uvicorn cri.api.main:app --host 0.0.0.0 --port ${PORT:-7860} --workers 1"]
