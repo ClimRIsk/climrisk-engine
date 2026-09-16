@@ -4697,3 +4697,359 @@ async def portfolio_delta(req: PortfolioDeltaRequest):
             "Portfolio delta is exposure-weighted mean score change."
         ),
     }
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# AGENT — Autonomous assessment endpoints
+# ══════════════════════════════════════════════════════════════════════════════
+#
+# The agent layer accepts a company name + optional hints and autonomously:
+#   1. Resolves the entity via GLEIF
+#   2. Fetches data from SEC EDGAR, CDP, SBTi, Yahoo Finance, OSM geocoder
+#   3. Runs the full risk assessment pipeline
+#   4. Produces 2025–2050 predictive trajectories (3 NGFS scenarios)
+#   5. Returns a sourced report with every field provenance-tagged
+#
+# No hallucination: every gap is explicitly listed in data_gaps.
+# No silent benchmarks: estimated values are flagged ESTIMATED.
+# ══════════════════════════════════════════════════════════════════════════════
+
+import asyncio as _asyncio
+
+from ..agent.job_runner import (
+    JobStatus,
+    create_job,
+    get_job,
+    list_jobs,
+    run_assessment_job,
+)
+
+
+class AgentAssessRequest(BaseModel):
+    company_name:   str   = Field(..., description="Company name (as known to the practitioner)")
+    assessment_scope: str = Field(
+        default="standard",
+        description="'triage' (name+sector+country only) | 'standard' (full DD) | 'full_dd' (all sources + trajectory)",
+    )
+    sector:         Optional[str]   = Field(None, description="Sector key, e.g. 'oil_gas', 'utilities', 'technology'")
+    country:        Optional[str]   = Field(None, description="ISO-2 country code hint, e.g. 'US', 'GB', 'DE'")
+    ticker:         Optional[str]   = Field(None, description="Stock ticker (optional, speeds up Yahoo Finance lookup)")
+    lat:            Optional[float] = Field(None, description="Primary asset latitude (skips geocoding if provided)")
+    lon:            Optional[float] = Field(None, description="Primary asset longitude (skips geocoding if provided)")
+    use_estimates:  bool            = Field(
+        default=True,
+        description=(
+            "If true, sector benchmarks fill missing fields (flagged ESTIMATED). "
+            "If false, gaps stay None — use for strictest due diligence."
+        ),
+    )
+
+
+@app.post(
+    "/agent/assess",
+    tags=["Agent"],
+    summary="Submit an autonomous climate risk assessment job",
+    response_description=(
+        "Job ID and initial status. Poll /agent/jobs/{job_id} for results."
+    ),
+)
+async def agent_assess(req: AgentAssessRequest, background_tasks=None):
+    """
+    Submit a company for autonomous climate risk assessment.
+
+    The engine will:
+    1. Resolve the entity via GLEIF LEI registry
+    2. Fetch SEC EDGAR / CDP / SBTi / Yahoo Finance data in parallel
+    3. Geocode the registered address for physical hazard calculations
+    4. Run the full CRI engine (physical + transition + biodiversity)
+    5. Produce 2025–2050 predictive trajectories (3 NGFS scenarios)
+    6. Return a fully sourced report — every field tagged with source + confidence
+
+    **Returns immediately** with a `job_id`. Poll `/agent/jobs/{job_id}` for
+    progress and results.  Typical completion time: 15–45 seconds.
+    """
+    job = create_job(
+        company_name=req.company_name,
+        scope=req.assessment_scope,
+    )
+
+    # Run in background — don't block the HTTP response
+    _asyncio.create_task(
+        run_assessment_job(
+            job,
+            sector=req.sector,
+            country_hint=req.country,
+            ticker=req.ticker,
+            lat=req.lat,
+            lon=req.lon,
+            use_estimates=req.use_estimates,
+        )
+    )
+
+    return {
+        "job_id":       job.job_id,
+        "status":       job.status.value,
+        "company_name": job.company_name,
+        "scope":        job.scope,
+        "message":      (
+            f"Assessment queued for '{req.company_name}'. "
+            f"Poll /agent/jobs/{job.job_id} for progress and results."
+        ),
+        "poll_url":     f"/agent/jobs/{job.job_id}",
+    }
+
+
+@app.get(
+    "/agent/jobs/{job_id}",
+    tags=["Agent"],
+    summary="Poll assessment job status and retrieve results",
+)
+async def agent_job_status(job_id: str):
+    """
+    Poll an assessment job.
+
+    Returns current status, progress events, partial data, and (when completed)
+    the full result including:
+    - company_profile: all sourced fields with provenance
+    - risk_assessment: physical + transition + composite scores
+    - trajectory: 2025–2050 projections across 3 NGFS scenarios
+    - data_gaps: explicit list of what couldn't be sourced and why
+    - data_request: actionable list of what data to provide to close gaps
+    """
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail=f"Job '{job_id}' not found")
+
+    if job.status == JobStatus.COMPLETED:
+        return job.to_full_dict()
+    else:
+        return job.to_status_dict()
+
+
+@app.get(
+    "/agent/jobs",
+    tags=["Agent"],
+    summary="List recent assessment jobs",
+)
+async def agent_list_jobs(limit: int = 20):
+    """
+    List the most recent assessment jobs (newest first).
+
+    Useful for monitoring batch runs or checking job history.
+    Jobs are retained for 6 hours after completion.
+    """
+    return {
+        "jobs":  list_jobs(limit=limit),
+        "count": len(list_jobs(limit=limit)),
+    }
+
+
+@app.post(
+    "/agent/profile",
+    tags=["Agent"],
+    summary="Synchronous company data profile (no risk assessment)",
+    response_description="CompanyProfile with full provenance — no engine run",
+)
+async def agent_profile_only(req: AgentAssessRequest):
+    """
+    Fetch and return a sourced company profile **without** running the full
+    risk engine.  Useful for:
+    - Previewing what data is available before committing to an assessment
+    - Populating the data entry form for manual review
+    - Checking what gaps exist for a counterparty
+
+    Runs synchronously (waits for all sources before returning).
+    Typical time: 10–25 seconds.
+    """
+    from ..data_acquisition.company_profiler import build_company_profile
+
+    profile = await build_company_profile(
+        company_name=req.company_name,
+        sector=req.sector,
+        country_hint=req.country,
+        ticker=req.ticker,
+        lat=req.lat,
+        lon=req.lon,
+        use_estimates=req.use_estimates,
+    )
+
+    return {
+        "company_profile":    profile.to_dict(),
+        "engine_payload":     profile.engine_payload(),
+        "assessment_readiness": profile.assessment_readiness,
+        "data_gaps":          [
+            {
+                "field":   g.field_name,
+                "reason":  g.reason,
+                "impact":  g.impact,
+                "action":  g.suggested_action,
+            }
+            for g in profile.data_gaps
+        ],
+        "data_request": [
+            {
+                "field":          g.field_name,
+                "why_needed":     g.impact,
+                "how_to_provide": g.suggested_action,
+            }
+            for g in profile.data_gaps
+            if "benchmark" not in g.reason.lower()
+        ],
+        "note": (
+            "Use /agent/assess to run the full risk assessment on this profile. "
+            "Use engine_payload as the body for /assess if you prefer manual review first."
+        ),
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Extended risk standalone endpoints
+# ─────────────────────────────────────────────────────────────────────────────
+
+class StrandedAssetsRequest(BaseModel):
+    company_name:        str   = Field(..., description="Company display name")
+    sector:              str   = Field(..., description="Sector slug (oil_gas, coal, utilities, steel, cement, …)")
+    carrying_value_usd_m: float = Field(..., description="Net book value of PP&E / reserves (USD M)")
+    revenue_usd_m:       float = Field(..., description="Annual revenue (USD M)")
+    ev_usd_m:            Optional[float] = Field(None, description="Enterprise value (USD M); defaults to 2× revenue")
+    market_cap_usd_m:    Optional[float] = Field(None, description="Market cap (USD M)")
+    wacc:                float = Field(default=0.09, description="Discount rate (default 9%)")
+    carbon_price_coverage: float = Field(default=1.0, description="Fraction of Scope 1 emissions under carbon price (0-1)")
+    free_allocation_pct:   float = Field(default=0.0,  description="EU ETS-style free allowance as fraction of covered emissions")
+
+
+@app.post(
+    "/agent/stranded-assets",
+    tags=["Agent", "Extended Risk"],
+    summary="Stranded asset NPV impairment — IEA WEO 2023 unburnable carbon model",
+    response_description="Per-scenario (NZE / Delayed / Current Policies) stranded asset analysis with yearly breakdown",
+)
+def agent_stranded_assets(req: StrandedAssetsRequest):
+    """
+    Assess the stranded asset risk for fossil-fuel-exposed companies using
+    IEA WEO 2023 Annex A remaining demand paths.
+
+    **Covered sectors:** oil_gas, coal, gas, utilities (gas power), steel, cement.
+    Returns `is_applicable: false` for non-fossil sectors.
+
+    **Output per NGFS scenario:**
+    - `stranding_year` — first year carbon-inclusive cost exceeds break-even
+    - `npv_impairment_usd_m` — present-value write-down
+    - `impairment_pct_ev` — impairment as % of enterprise value
+    - `years` — year-by-year stranded fraction and discounted impairment
+
+    Sources: IEA WEO 2023 Annex A; Rystad UCube 2023; Carbon Tracker Initiative 2023.
+    """
+    from ..climate.stranded_assets import assess_stranded_assets
+    result = assess_stranded_assets(
+        company_name=req.company_name,
+        sector=req.sector,
+        carrying_value_usd_m=req.carrying_value_usd_m,
+        revenue_usd_m=req.revenue_usd_m,
+        ev_usd_m=req.ev_usd_m,
+        market_cap_usd_m=req.market_cap_usd_m,
+        wacc=req.wacc,
+        carbon_price_coverage=req.carbon_price_coverage,
+        free_allocation_pct=req.free_allocation_pct,
+    )
+    import dataclasses
+    return dataclasses.asdict(result)
+
+
+class CBAMRequest(BaseModel):
+    company_name:        str   = Field(..., description="Company display name")
+    sector:              str   = Field(..., description="CBAM-covered sector: cement, steel, aluminium, fertilizers, chemicals, hydrogen, electricity")
+    revenue_usd_m:       float = Field(..., description="Total annual revenue (USD M)")
+    eu_revenue_fraction: float = Field(default=0.20, description="Fraction of revenue from EU-bound exports (0-1); default 20%")
+    production_tonnes:   Optional[float] = Field(None, description="Annual production volume (tonnes); estimated from revenue if absent")
+    origin_country:      str   = Field(default="default", description="ISO-2 country of production (for carbon price deduction per Article 9)")
+    carbon_price_paid_eur: Optional[float] = Field(None, description="Override for origin carbon price (EUR/tCO2)")
+    eur_usd_rate:        float = Field(default=1.08, description="EUR/USD conversion rate")
+
+
+@app.post(
+    "/agent/cbam",
+    tags=["Agent", "Extended Risk"],
+    summary="EU CBAM certificate cost trajectory 2026-2034 (Regulation EU 2023/956)",
+    response_description="Year-by-year CBAM certificate cost, net of origin carbon price, for covered sectors",
+)
+def agent_cbam(req: CBAMRequest):
+    """
+    Assess EU Carbon Border Adjustment Mechanism (CBAM) exposure for companies
+    exporting to the EU in covered sectors (Annex I, Regulation EU 2023/956).
+
+    **CBAM coverage:** cement, iron & steel, aluminium, fertilisers, hydrogen, electricity.
+    Returns `is_applicable: false` for sectors outside Annex I scope.
+
+    **Output:**
+    - `cbam_trajectory` — year-by-year certificate cost 2026-2034
+    - `peak_annual_cost_usd_m` — highest single-year CBAM bill
+    - `methodology` — embedded carbon intensity source and EU ETS price path
+
+    Certificate price tracks EU ETS (NGFS Phase 4 / EMBER calibrated: €60/t in 2026 → €160/t in 2034).
+    Origin carbon price deducted per Article 9 (e.g. China ETS €8/t, Korea ETS €20/t).
+    """
+    from ..climate.cbam import assess_cbam_exposure
+    result = assess_cbam_exposure(
+        company_name=req.company_name,
+        sector=req.sector,
+        revenue_usd_m=req.revenue_usd_m,
+        eu_revenue_fraction=req.eu_revenue_fraction,
+        production_tonnes=req.production_tonnes,
+        origin_country=req.origin_country,
+        carbon_price_paid_eur=req.carbon_price_paid_eur,
+        eur_usd_rate=req.eur_usd_rate,
+    )
+    import dataclasses
+    return dataclasses.asdict(result)
+
+
+class WaterRiskRequest(BaseModel):
+    company_name:    str   = Field(..., description="Company display name")
+    sector:          str   = Field(..., description="Sector slug (agriculture, mining, chemicals, steel, beverages, utilities, …)")
+    aqueduct_score:  float = Field(..., description="WRI Aqueduct 4.0 composite water risk score (0-5). Look up at https://www.wri.org/applications/aqueduct/water-risk-atlas")
+    revenue_usd_m:   float = Field(..., description="Annual revenue (USD M)")
+    ev_usd_m:        Optional[float] = Field(None, description="Enterprise value (USD M); defaults to 2× revenue")
+    wacc:            float = Field(default=0.09, description="Discount rate")
+    horizon:         int   = Field(default=2050, description="End year for NPV projection")
+    scenario:        str   = Field(default="current_policies", description="'nze' | 'delayed' | 'current_policies'")
+    water_intensity: Optional[float] = Field(None, description="m³ per USD revenue (optional; sector default used if absent)")
+
+
+@app.post(
+    "/agent/water-risk",
+    tags=["Agent", "Extended Risk"],
+    summary="Water stress financial loss model — WRI Aqueduct 4.0 → NPV drag",
+    response_description="NPV production loss, cost increase, curtailment risk, and defensive capex by year under water stress scenario",
+)
+def agent_water_risk(req: WaterRiskRequest):
+    """
+    Translate a WRI Aqueduct 4.0 water stress score into year-by-year financial
+    impact under the specified NGFS-aligned climate scenario.
+
+    **Financial layers:**
+    1. Production loss (sector × stress band, Ceres 2019 / S&P Sustainable1 2023)
+    2. Operating cost uplift (water procurement, recycling, Bloomberg NEF 2023)
+    3. Curtailment expected value (regulatory shutdown, CDP Water 2023)
+    4. Defensive capex present value (recycling loops, ZLD treatment)
+
+    **WRI Aqueduct score bands:**
+    - 0-1: Low | 1-2: Low-Medium | 2-3: Medium-High | 3-4: High | 4-5: Extremely High
+
+    Stress score escalates with warming per WRI Aqueduct SSP projections:
+    Current Policies → 1.42× by 2050; NZE → 1.12× by 2050.
+    """
+    from ..climate.water_stress_loss import assess_water_stress
+    result = assess_water_stress(
+        company_name=req.company_name,
+        sector=req.sector,
+        aqueduct_score=req.aqueduct_score,
+        revenue_usd_m=req.revenue_usd_m,
+        ev_usd_m=req.ev_usd_m,
+        wacc=req.wacc,
+        horizon=req.horizon,
+        scenario=req.scenario,
+        water_intensity=req.water_intensity,
+    )
+    import dataclasses
+    return dataclasses.asdict(result)

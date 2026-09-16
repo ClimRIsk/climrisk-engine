@@ -11,7 +11,18 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-api = ["fastapi>=0.110", "uvicorn>=0.29", "requests>=2.31", "python-multipart>=0.0.9", "openpyxl>=3.1", "reportlab>=4.0", "supabase>=2.4"]
+api = [
+    "fastapi>=0.110",
+    "uvicorn>=0.29",
+    "requests>=2.31",
+    "python-multipart>=0.0.9",
+    "openpyxl>=3.1",
+    "reportlab>=4.0",
+    "supabase>=2.4",
+    # Data acquisition layer — autonomous agent
+    "httpx>=0.27",          # async HTTP client for GLEIF, EDGAR, CDP, SBTi, Nominatim
+    "yfinance>=0.2.37",     # Yahoo Finance market data (revenue, EV, market cap)
+]
 # Minimal JRC flood depth lookup — rasterio binary wheel only, no system GDAL needed
 flood = ["rasterio>=1.3"]
 dev = ["pytest>=8.0", "ruff>=0.4"]
