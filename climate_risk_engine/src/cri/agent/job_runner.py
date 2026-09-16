@@ -242,6 +242,8 @@ async def _run_extended_analyses(job: AssessmentJob, profile, risk_result: dict)
     from ..climate.water_stress_loss import assess_water_stress
     from ..climate.litigation_risk import assess_litigation_risk
     from ..climate.impact_materiality import assess_impact_materiality
+    from ..climate.paris_alignment import assess_paris_alignment
+    from ..climate.wildfire_risk import assess_wildfire_risk
 
     company_name = profile.resolved_name or profile.input_name
     sector       = profile.sector or "default"
@@ -295,12 +297,15 @@ async def _run_extended_analyses(job: AssessmentJob, profile, risk_result: dict)
             logger.warning("Extended analysis '%s' failed: %s", fn.__name__, exc)
             return None
 
+    _EU_COUNTRIES = {"DE", "FR", "NL", "GB", "SE", "DK", "NO", "BE", "ES"}
     (
         stranded_r,
         cbam_r,
         water_r,
         lit_r,
         mat_r,
+        paris_r,
+        wildfire_r,
     ) = await asyncio.gather(
         _safe_run(
             assess_stranded_assets,
@@ -328,7 +333,7 @@ async def _run_extended_analyses(job: AssessmentJob, profile, risk_result: dict)
             sbti_status=sbti_status,
             cdp_score=cdp_score,
             revenue_usd_m=revenue,
-            has_eu_operations=jurisdiction in {"DE", "FR", "NL", "GB", "SE", "DK", "NO", "BE", "ES"},
+            has_eu_operations=jurisdiction in _EU_COUNTRIES,
         ),
         _safe_run(
             assess_impact_materiality,
@@ -339,7 +344,24 @@ async def _run_extended_analyses(job: AssessmentJob, profile, risk_result: dict)
             revenue_usd_m=revenue,
             has_net_zero_target=has_net_zero,
             has_sbti_validated=has_sbti_val,
-            has_eu_operations=jurisdiction in {"DE", "FR", "NL", "GB", "SE", "DK", "NO", "BE", "ES"},
+            has_eu_operations=jurisdiction in _EU_COUNTRIES,
+        ),
+        _safe_run(
+            assess_paris_alignment,
+            company_name, sector,
+            scope1_mt_co2e=scope1_mt,
+            scope2_mt_co2e=scope2_mt,
+            scope3_mt_co2e=scope3_mt,
+            revenue_usd_m=revenue,
+            has_sbti_validated=has_sbti_val,
+        ),
+        _safe_run(
+            assess_wildfire_risk,
+            company_name, sector,
+            hq_country=jurisdiction,
+            revenue_usd_m=revenue,
+            wacc=0.09,
+            scenario="delayed",
         ),
     )
 
@@ -357,6 +379,8 @@ async def _run_extended_analyses(job: AssessmentJob, profile, risk_result: dict)
         "water_stress":         _to_dict(water_r),
         "litigation_risk":      _to_dict(lit_r),
         "impact_materiality":   _to_dict(mat_r),
+        "paris_alignment":      _to_dict(paris_r),
+        "wildfire_risk":        _to_dict(wildfire_r),
     }
 
 

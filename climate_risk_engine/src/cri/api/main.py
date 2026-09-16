@@ -5051,5 +5051,101 @@ def agent_water_risk(req: WaterRiskRequest):
         scenario=req.scenario,
         water_intensity=req.water_intensity,
     )
-    import dataclasses
-    return dataclasses.asdict(result)
+    import dataclasses as _dc
+    return _dc.asdict(result)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Paris Temperature Alignment — Implied Temperature Rise (ITR)
+# ─────────────────────────────────────────────────────────────────────────────
+
+class ParisAlignmentRequest(BaseModel):
+    company_name:       str   = Field(..., description="Company display name")
+    sector:             str   = Field(..., description="Sector slug (oil_gas, utilities, steel, cement, aviation, …)")
+    scope1_mt_co2e:     Optional[float] = Field(None, description="Base-year Scope 1 emissions (Mt CO2e/yr)")
+    scope2_mt_co2e:     Optional[float] = Field(None, description="Base-year Scope 2 emissions (Mt CO2e/yr)")
+    scope3_mt_co2e:     Optional[float] = Field(None, description="Base-year Scope 3 total emissions (Mt CO2e/yr)")
+    revenue_usd_m:      float = Field(1000.0, description="Annual revenue (USD M)")
+    base_year:          int   = Field(2022, description="Emissions base year")
+    has_sbti_validated: bool  = Field(False, description="Has SBTi-validated science-based target")
+    allocation_method:  str   = Field("proportional_scope12", description="Budget allocation: proportional_scope12 | revenue_weighted")
+
+
+@app.post(
+    "/agent/paris-alignment",
+    tags=["Extended Risk"],
+    summary="Paris Temperature Alignment — Implied Temperature Rise (ITR)",
+    response_description=(
+        "ITR in °C, 1.5°C/2°C carbon budget, overshoot fraction, reduction gap, "
+        "SBTi NZS alignment, IFRS S2 disclosure metrics, 2025-2050 trajectory"
+    ),
+)
+def agent_paris_alignment(req: ParisAlignmentRequest):
+    """
+    Compute the Implied Temperature Rise (ITR) using IPCC AR6 carbon budget
+    allocation. Outputs ITR (°C), budget overshoot, SBTi Net-Zero Standard
+    alignment, and IFRS S2 GHG cross-industry metrics.
+    """
+    from ..climate.paris_alignment import assess_paris_alignment
+    import dataclasses as _dc
+    result = assess_paris_alignment(
+        company_name=req.company_name,
+        sector=req.sector,
+        scope1_mt_co2e=req.scope1_mt_co2e,
+        scope2_mt_co2e=req.scope2_mt_co2e,
+        scope3_mt_co2e=req.scope3_mt_co2e,
+        revenue_usd_m=req.revenue_usd_m,
+        base_year=req.base_year,
+        has_sbti_validated=req.has_sbti_validated,
+        allocation_method=req.allocation_method,
+    )
+    return _dc.asdict(result)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Wildfire Risk — NASA FIRMS FWI → NPV financial loss
+# ─────────────────────────────────────────────────────────────────────────────
+
+class WildfireRiskRequest(BaseModel):
+    company_name:       str   = Field(..., description="Company display name")
+    sector:             str   = Field(..., description="Sector slug (agriculture, forestry, oil_gas, mining, utilities, real_estate, …)")
+    hq_country:         str   = Field("US", description="ISO-2 country code for primary operations")
+    revenue_usd_m:      float = Field(1000.0, description="Annual revenue (USD M)")
+    asset_value_usd_m:  Optional[float] = Field(None, description="Physical asset replacement value (USD M)")
+    wacc:               float = Field(0.08, description="Discount rate for NPV")
+    horizon:            int   = Field(2050, description="Assessment end year (max 2050)")
+    scenario:           str   = Field("delayed", description="NGFS scenario: nze | delayed | cp")
+    fire_zone_override: Optional[int]   = Field(None, description="Override country zone (1-6)")
+    nasa_firms_density: Optional[float] = Field(None, description="NASA FIRMS fire density (fires/km²/yr)")
+
+
+@app.post(
+    "/agent/wildfire-risk",
+    tags=["Extended Risk"],
+    summary="Wildfire risk — FWI trend × sector vulnerability → NPV loss",
+    response_description=(
+        "Annual fire probability (2025-2050), NPV direct damage, BI loss, "
+        "supply chain disruption, insurance protection gap, risk tier"
+    ),
+)
+def agent_wildfire_risk(req: WildfireRiskRequest):
+    """
+    CMIP6 Fire Weather Index projections × sector vulnerability → NPV financial
+    losses (direct asset damage, business interruption, supply chain disruption).
+    Insurance protection gap quantified per Swiss Re sigma data.
+    """
+    from ..climate.wildfire_risk import assess_wildfire_risk
+    import dataclasses as _dc
+    result = assess_wildfire_risk(
+        company_name=req.company_name,
+        sector=req.sector,
+        hq_country=req.hq_country,
+        revenue_usd_m=req.revenue_usd_m,
+        asset_value_usd_m=req.asset_value_usd_m,
+        wacc=req.wacc,
+        horizon=req.horizon,
+        scenario=req.scenario,
+        fire_zone_override=req.fire_zone_override,
+        nasa_firms_density=req.nasa_firms_density,
+    )
+    return _dc.asdict(result)
