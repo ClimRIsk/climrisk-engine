@@ -205,7 +205,7 @@ class WildfireRiskResult:
     company_name:       str
     sector:             str
     country:            str
-    fire_zone:          int    # 1=Very High → 6=Tropical
+    fire_zone:          int = 0    # 1=Very High → 6=Tropical (set by assess_wildfire_risk)
 
     # Annual probability (current and future)
     baseline_annual_prob: float = 0.0    # 2024 probability

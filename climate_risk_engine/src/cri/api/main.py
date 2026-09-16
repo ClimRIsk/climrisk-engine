@@ -5279,6 +5279,8 @@ def agent_portfolio_export_csv(limit: int = 500):
         wildfire = r.get("wildfire_risk", {})
         stranded = r.get("stranded_assets", {})
         cbam     = r.get("cbam", {})
+        impact   = r.get("impact_materiality", {})
+        paris    = r.get("paris_alignment", {})
 
         # EV impairment — from nze/cp scenario results
         nze_res = r.get("nze", {})
@@ -5314,6 +5316,44 @@ def agent_portfolio_export_csv(limit: int = 500):
             "wildfire_npv_direct_usd_m":     _safe(wildfire, "npv_direct_damage_usd_m"),
             "stranded_asset_npv_usd_m":      _safe(stranded, "npv_stranded_value_usd_m"),
             "cbam_exposure_usd_m":           _safe(cbam, "annual_cbam_cost_usd_m"),
+            # Physical risk — new fields (Fix #2/#3/#6/#8/#9)
+            "eal_p10_usd_m":                 _safe(phys, "eal_p10_usd_m"),
+            "eal_p50_usd_m":                 _safe(phys, "eal_p50_usd_m"),
+            "eal_p90_usd_m":                 _safe(phys, "eal_p90_usd_m"),
+            "npv_p10_usd_m":                 _safe(phys, "npv_p10_usd_m"),
+            "npv_p50_usd_m":                 _safe(phys, "npv_p50_usd_m"),
+            "npv_p90_usd_m":                 _safe(phys, "npv_p90_usd_m"),
+            "compound_event_uplift_pct":     _safe(phys, "compound_event_uplift_pct"),
+            "climate_credit_spread_bps":     _safe(phys, "climate_credit_spread_bps"),
+            "climate_adjusted_wacc":         _safe(phys, "climate_adjusted_wacc"),
+            "npv_at_adjusted_wacc_usd_m":    _safe(phys, "npv_at_adjusted_wacc_usd_m"),
+            "eal_tipping_point_stress_usd_m":_safe(phys, "eal_tipping_point_stress_usd_m"),
+            "npv_tipping_point_stress_usd_m":_safe(phys, "npv_tipping_point_stress_usd_m"),
+            "insured_fraction_baseline":     _safe(phys, "insured_fraction_baseline"),
+            "insured_fraction_2050":         _safe(phys, "insured_fraction_2050"),
+            "insurance_protection_gap_usd_m":_safe(phys, "insurance_protection_gap_usd_m"),
+            "insurance_withdrawal_risk":     _safe(phys, "insurance_withdrawal_risk_flag"),
+            "country_adaptive_capacity":     _safe(phys, "country_adaptive_capacity"),
+            "wildfire_eal_2050_usd_m":       _safe(phys, "wildfire_eal_2050_usd_m"),
+            "slr_expected_loss_2050_usd_m":  _safe(phys, "slr_expected_loss_2050_usd_m"),
+            # Paris alignment — 2030 milestone + decision logic (Fix #6/#10)
+            "itr_degrees_c":                 _safe(paris, "implied_temperature_rise"),
+            "itr_label":                     _safe(paris, "itr_label"),
+            "paris_decision_tier":           _safe(paris, "decision_tier"),
+            "paris_composite_score":         _safe(paris, "composite_risk_score"),
+            "interim_2030_on_track":         _safe(paris, "interim_2030_on_track"),
+            "interim_2030_gap_mt":           _safe(paris, "interim_2030_gap_mt"),
+            "overshoot_fraction":            _safe(paris, "overshoot_fraction"),
+            "scope3_required_flag":          any(
+                "SCOPE3_REQUIRED" in str(g) for g in (paris.get("data_gaps") or [])
+            ),
+            # Double materiality / ESRS E1 (Fix #6)
+            "impact_materiality_material":   _safe(impact, "is_material"),
+            "impact_max_efrag_score":        _safe(impact, "max_score"),
+            "impact_dominant_domain":        _safe(impact, "dominant_impact_domain"),
+            "impact_score_ghg_e1_1":         _safe(impact, "score_e1_1_ghg"),
+            "impact_score_energy_e1_5":      _safe(impact, "score_e1_5_energy"),
+            "impact_score_biodiversity_e1_6":_safe(impact, "score_e1_6_biodiversity"),
         })
 
     # Stream as CSV

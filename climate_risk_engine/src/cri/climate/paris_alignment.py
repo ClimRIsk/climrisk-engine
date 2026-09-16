@@ -230,6 +230,25 @@ class ParisAlignmentResult:
     methodology:            str         = ""
     data_gaps:              list[str]   = field(default_factory=list)
 
+    # ── 2030 interim milestone (Fix — missing interim checkpoint) ────────────
+    # EU Fit-for-55, SBTi near-term, GFANZ 2030 commitments all gate here.
+    interim_2030_target_mt: float       = 0.0   # SBTi 50% reduction target
+    interim_2030_projected_mt: float    = 0.0   # company projected Scope 1+2
+    interim_2030_gap_mt: float          = 0.0   # projected − target (positive = miss)
+    interim_2030_on_track: bool         = False
+    interim_2030_required_annual_reduction_pct: float = 0.0
+
+    # ── Fit-for-55 / CBAM intermediate checkpoints ───────────────────────────
+    emissions_2025_mt: float            = 0.0   # first trajectory year
+    emissions_2035_mt: float            = 0.0   # midpoint
+    emissions_2040_mt: float            = 0.0   # pre-2050 gate
+
+    # ── Decision logic audit trail (transparency gap fix) ────────────────────
+    composite_risk_score: float         = 0.0   # 0-100 weighted score
+    decision_tier: str                  = ""    # HOLD | WATCH | REDUCE | EXIT
+    decision_weights: dict              = field(default_factory=dict)  # component weights
+    decision_rationale: str             = ""    # plain-language explanation
+
 
 def assess_paris_alignment(
     company_name:           str,
@@ -277,6 +296,23 @@ def assess_paris_alignment(
     # ── Base emissions ────────────────────────────────────────────────────────
     scope12_base = (scope1_mt_co2e or 0.0) + (scope2_mt_co2e or 0.0)
     scope123_base = scope12_base + (scope3_mt_co2e or 0.0)
+
+    # ── Fix #7: Scope 3 enforcement for high-emitting sectors ─────────────────
+    # For sectors where Scope 3 is 60-85% of total emissions, a missing Scope 3
+    # causes the ITR to be understated by 3-5× — a material misrepresentation.
+    _SCOPE3_REQUIRED_SECTORS = {
+        "cement", "steel", "oil_gas", "chemicals", "aviation",
+        "shipping", "coal", "metals_mining", "automobiles",
+    }
+    if s in _SCOPE3_REQUIRED_SECTORS and scope3_mt_co2e is None:
+        result.data_gaps.append(
+            "SCOPE3_REQUIRED: This sector's Scope 3 emissions typically represent "
+            "60-85% of total footprint (GHG Protocol / SBTi FLAG guidance). "
+            "Without Scope 3, the Implied Temperature Rise (ITR) is understated by "
+            "3-5× and Paris alignment assessment is not credible. "
+            "Provide Scope 3 Category 11 (sold products) or Category 15 (investments) "
+            "from CDP disclosure or third-party estimate (e.g., Trucost/MSCI)."
+        )
 
     if scope12_base == 0:
         # Estimate from sector intensity × revenue
@@ -529,4 +565,99 @@ def assess_paris_alignment(
         "Sources: IPCC AR6 WGI (2021), IEA NZE 2023, SBTi Corporate Net-Zero Standard v1.1 (2023), "
         "MSCI ITR Methodology (2021), 2DII/PACTA (2022)."
     )
+
+    # ── 2030 Interim Milestone (Fix — missing checkpoint) ────────────────────
+    # SBTi near-term: 50% Scope 1+2 reduction by 2030 vs. base year
+    # EU Fit-for-55: -55% GHG by 2030 vs. 1990 (proxy: -50% vs. 2022 base for corporate)
+    result.interim_2030_target_mt = round(scope12_base * 0.50, 3)
+    years_to_2030_idx = 2030 - 2025  # index into trajectory (0-indexed from 2025)
+    proj_2030 = trajectory[years_to_2030_idx] if len(trajectory) > years_to_2030_idx else trajectory[-1]
+    result.interim_2030_projected_mt = round(proj_2030, 3)
+    result.interim_2030_gap_mt = round(max(0.0, proj_2030 - result.interim_2030_target_mt), 3)
+    result.interim_2030_on_track = (proj_2030 <= result.interim_2030_target_mt)
+    # Required CAGR from base year to 2030 to hit 50% target
+    years_base_to_2030 = 2030 - base_year
+    if scope12_base > 0 and years_base_to_2030 > 0:
+        result.interim_2030_required_annual_reduction_pct = round(
+            (1 - (result.interim_2030_target_mt / scope12_base) ** (1 / years_base_to_2030)) * 100, 2
+        )
+
+    # Intermediate emissions checkpoints
+    def _traj_at_year(yr: int) -> float:
+        idx = yr - 2025
+        if 0 <= idx < len(trajectory): return round(trajectory[idx], 3)
+        return round(trajectory[-1], 3)
+
+    result.emissions_2025_mt = _traj_at_year(2025)
+    result.emissions_2035_mt = _traj_at_year(2035)
+    result.emissions_2040_mt = _traj_at_year(2040)
+
+    # Add 2030 finding to key_findings
+    if not result.interim_2030_on_track:
+        result.key_findings.append(
+            f"⚠ 2030 INTERIM MISS: Projected Scope 1+2 in 2030 is {proj_2030:.2f} Mt — "
+            f"{result.interim_2030_gap_mt:.2f} Mt above the SBTi near-term 50% reduction "
+            f"target ({result.interim_2030_target_mt:.2f} Mt). Required CAGR: "
+            f"{result.interim_2030_required_annual_reduction_pct:.1f}%/yr from {base_year}. "
+            f"This trajectory would fail SBTi validation and triggers engagement action "
+            f"under GFANZ, IIGCC, and most major institutional ESG mandates NOW (not 2044)."
+        )
+    else:
+        result.key_findings.append(
+            f"✓ 2030 milestone on track: Projected {proj_2030:.2f} Mt ≤ target "
+            f"{result.interim_2030_target_mt:.2f} Mt (SBTi 50% near-term reduction)."
+        )
+
+    # ── Decision logic audit trail (Fix — opaque HOLD/WATCH/REDUCE/EXIT) ─────
+    # Composite score: ITR component (50%) + overshoot fraction (30%) + 2030 gap (20%)
+    _itr_score = min(100.0, max(0.0, (itr - 1.5) / (4.5 - 1.5) * 100))
+    _overshoot_score = min(100.0, max(0.0, (overshoot - 1.0) / 9.0 * 100))
+    _gap_2030 = result.interim_2030_gap_mt / max(scope12_base * 0.5, 0.001)
+    _gap_2030_score = min(100.0, max(0.0, _gap_2030 * 100))
+    _weights = {"itr_alignment": 0.50, "budget_overshoot": 0.30, "interim_2030_gap": 0.20}
+    composite = (
+        _itr_score    * _weights["itr_alignment"] +
+        _overshoot_score * _weights["budget_overshoot"] +
+        _gap_2030_score  * _weights["interim_2030_gap"]
+    )
+    result.composite_risk_score = round(composite, 1)
+    result.decision_weights = {
+        "itr_alignment (50% weight)": round(_itr_score, 1),
+        "budget_overshoot (30% weight)": round(_overshoot_score, 1),
+        "interim_2030_gap (20% weight)": round(_gap_2030_score, 1),
+        "composite_score": round(composite, 1),
+    }
+    # Decision tier mapping
+    if composite < 20:
+        result.decision_tier = "HOLD"
+        result.decision_rationale = (
+            f"Composite transition risk score {composite:.0f}/100 (low). "
+            f"ITR {itr}°C is {_itr_label(itr)}; 2030 target on track; "
+            f"budget overshoot {overshoot:.1f}×. Monitor quarterly."
+        )
+    elif composite < 45:
+        result.decision_tier = "WATCH"
+        result.decision_rationale = (
+            f"Composite score {composite:.0f}/100 (moderate). "
+            f"ITR {itr}°C ({_itr_label(itr)}). "
+            + (f"2030 gap of {result.interim_2030_gap_mt:.2f} Mt requires engagement. " if not result.interim_2030_on_track else "")
+            + f"Escalate to formal engagement if not improved within 2 reporting cycles."
+        )
+    elif composite < 70:
+        result.decision_tier = "REDUCE"
+        result.decision_rationale = (
+            f"Composite score {composite:.0f}/100 (high). "
+            f"ITR {itr}°C significantly above Paris targets; budget overshoot {overshoot:.1f}×. "
+            f"Material litigation and regulatory risk. Reduce exposure to SBTi-aligned "
+            f"threshold or seek binding commitment by next AGM."
+        )
+    else:
+        result.decision_tier = "EXIT"
+        result.decision_rationale = (
+            f"Composite score {composite:.0f}/100 (critical). "
+            f"ITR {itr}°C incompatible with Paris Agreement; {overshoot:.1f}× 1.5°C budget consumed. "
+            f"Asset stranding risk is material. Divest under fiduciary duty (Task Force on "
+            f"Climate-related Financial Disclosures, TCFD Scenario Analysis)."
+        )
+
     return result

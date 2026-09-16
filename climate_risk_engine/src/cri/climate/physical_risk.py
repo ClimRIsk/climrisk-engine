@@ -80,6 +80,71 @@ _MODEL_AGREEMENT: Dict[str, Dict[str, float]] = {
     "cyclone":      {"ssp126": 0.62, "ssp245": 0.70, "ssp370": 0.76, "ssp585": 0.81},
 }
 
+# ── Compound event co-occurrence matrix (Fix #2) ──────────────────────────────
+# Fraction of years where both hazards co-occur at the same asset location.
+# Positive correlation under climate warming → joint damage > sum of parts.
+# Source: IPCC AR6 Chapter 11 Table 11.1 / Zscheischler et al. 2020.
+# Entry [A][B] = probability that hazard A and B co-occur given both are active.
+_COMPOUND_CO_OCCURRENCE: Dict[str, Dict[str, float]] = {
+    "flood":        {"heat": 0.18, "water_stress": 0.12, "cyclone": 0.08, "wildfire": 0.05},
+    "heat":         {"flood": 0.18, "water_stress": 0.35, "wildfire": 0.28, "drought": 0.42},
+    "water_stress": {"heat": 0.35, "flood": 0.12, "wildfire": 0.22, "drought": 0.55},
+    "wildfire":     {"heat": 0.28, "water_stress": 0.22, "drought": 0.38},
+    "drought":      {"heat": 0.42, "water_stress": 0.55, "wildfire": 0.38},
+}
+# Synergy multiplier: when hazards co-occur, combined EAL > simple sum.
+# E.g. flood during heat-wave = longer recovery (heat slows construction).
+# Value = fractional EAL uplift per co-occurring pair.
+_COMPOUND_SYNERGY_WEIGHT = 0.12   # 12% EAL uplift per active compound pair
+
+# ── Tipping point stress-test multipliers (Fix #9) ───────────────────────────
+# High-ECS CMIP6 tail (ECS > 4.5°C models). Applied as additional stress scenario.
+# Ratio of 95th-pct to median hazard intensity from CMIP6 full ensemble.
+# Source: Sherwood et al. 2020 (ECS likely range) + AR6 Atlas Fig. 4.3.
+_TIPPING_POINT_MULTIPLIER: Dict[str, float] = {
+    "ssp126": 1.20,   # Low scenario: tipping points less likely, modest tail
+    "ssp245": 1.40,
+    "ssp370": 1.65,   # SSP3-7.0: AMOC weakening / permafrost feedback plausible
+    "ssp585": 1.90,   # Hot House World: WAIS instability + AMOC collapse tail
+}
+
+# ── Sovereign adaptive capacity index (Fix — EM country risk) ─────────────────
+# Scaled 0-1 where 1 = high adaptive capacity (low damage amplification).
+# Based on ND-GAIN Country Index 2023 (readiness − vulnerability composite).
+# Low-capacity countries: same hazard intensity → higher actual damage.
+# Damage amplification = 1 + (1 − adaptive_capacity) × sector_sensitivity
+_COUNTRY_ADAPTIVE_CAPACITY: Dict[str, float] = {
+    # High capacity (0.75-1.0)
+    "US": 0.88, "DE": 0.87, "GB": 0.86, "AU": 0.83, "FR": 0.84, "JP": 0.80,
+    "NL": 0.88, "SE": 0.90, "NO": 0.91, "DK": 0.89, "CA": 0.85, "NZ": 0.82,
+    "SG": 0.80, "KR": 0.78, "TW": 0.76, "CN": 0.63, "BR": 0.56, "MX": 0.57,
+    # Medium capacity (0.45-0.74)
+    "ZA": 0.53, "TR": 0.61, "SA": 0.62, "RU": 0.65, "AR": 0.58, "CL": 0.67,
+    "TH": 0.60, "MY": 0.64, "ID": 0.52, "PH": 0.48, "VN": 0.51, "EG": 0.47,
+    # Low capacity (< 0.45)
+    "IN": 0.46, "PK": 0.35, "BD": 0.33, "NG": 0.31, "ET": 0.27, "CD": 0.22,
+    "MM": 0.38, "KH": 0.40, "LA": 0.37, "MZ": 0.26, "MG": 0.28, "SD": 0.25,
+    "default": 0.65,   # global average
+}
+
+# ── Insurance withdrawal risk (Fix #8) ───────────────────────────────────────
+# Under high-warming scenarios, insurers exit high-risk markets post-2035.
+# Baseline insured fraction by physical risk zone (sector/hazard-agnostic proxy).
+# Scenario × year withdrawal schedule: fraction of baseline coverage remaining.
+_INSURANCE_WITHDRAWAL_SCHEDULE: Dict[str, Dict[int, float]] = {
+    "ssp126": {2025: 1.00, 2030: 0.98, 2040: 0.95, 2050: 0.92},   # minor withdrawal
+    "ssp245": {2025: 1.00, 2030: 0.95, 2040: 0.82, 2050: 0.70},   # moderate retreat
+    "ssp370": {2025: 1.00, 2030: 0.90, 2040: 0.65, 2050: 0.40},   # severe retreat
+    "ssp585": {2025: 1.00, 2030: 0.85, 2040: 0.45, 2050: 0.20},   # near-total exit
+}
+# Sector baseline insured fraction
+_SECTOR_INSURED_FRACTION: Dict[str, float] = {
+    "oil_gas": 0.75, "utilities": 0.80, "steel": 0.70, "cement": 0.65,
+    "chemicals": 0.72, "real_estate": 0.85, "agriculture": 0.55,
+    "technology": 0.90, "aviation": 0.95, "shipping": 0.88,
+    "mining": 0.68, "automobiles": 0.75, "default": 0.68,
+}
+
 # ──────────────────────────────────────────────────────────────────────────────
 # STAGE 2: SECTOR ENGINEERING DEFAULTS
 # ──────────────────────────────────────────────────────────────────────────────
@@ -420,6 +485,47 @@ class PhysicalRiskResult:
     model_agreement_notes: List[str]
     confidence_tier: str                    # VERIFIED | REPORTED | ESTIMATED
 
+    # ── Extended hazards (Fix #5: wildfire + SLR wired into EAL) ─────────────
+    wildfire_eal_baseline_usd_m: float = 0.0
+    wildfire_eal_2050_usd_m: float = 0.0
+    wildfire_npv_usd_m: float = 0.0
+    slr_expected_loss_2050_usd_m: float = 0.0
+
+    # EAL breakdown by hazard (for dashboard waterfall)
+    eal_by_hazard_baseline: Dict[str, float] = field(default_factory=dict)
+    eal_by_hazard_2050: Dict[str, float] = field(default_factory=dict)
+
+    # ── Uncertainty bands (Fix #6: P10/P50/P90 from GCM agreement) ───────────
+    eal_p10_usd_m: float = 0.0
+    eal_p50_usd_m: float = 0.0
+    eal_p90_usd_m: float = 0.0
+    npv_p10_usd_m: float = 0.0
+    npv_p50_usd_m: float = 0.0
+    npv_p90_usd_m: float = 0.0
+
+    # ── Compound event uplift (Fix #2) ────────────────────────────────────────
+    compound_event_uplift_pct: float = 0.0    # % EAL increase from co-occurring hazards
+    compound_event_pairs: List[str] = field(default_factory=list)
+
+    # ── Climate-adjusted WACC (Fix #3) ───────────────────────────────────────
+    climate_credit_spread_bps: float = 0.0    # basis points added to base WACC
+    climate_adjusted_wacc: float = 0.0
+    npv_at_adjusted_wacc_usd_m: float = 0.0  # NPV recomputed with climate WACC
+
+    # ── Tipping point stress test (Fix #9) ───────────────────────────────────
+    eal_tipping_point_stress_usd_m: float = 0.0  # EAL under high-ECS tail (95th pct GCMs)
+    npv_tipping_point_stress_usd_m: float = 0.0
+
+    # ── Insurance withdrawal risk (Fix #8) ───────────────────────────────────
+    insured_fraction_baseline: float = 0.0
+    insured_fraction_2050: float = 0.0       # after scenario-dependent withdrawal
+    insurance_protection_gap_usd_m: float = 0.0   # uninsured NPV exposure
+    insurance_withdrawal_risk_flag: bool = False
+
+    # ── Sovereign adaptive capacity (EM country risk) ────────────────────────
+    country_adaptive_capacity: float = 1.0   # ND-GAIN-based 0-1 index
+    adaptive_capacity_damage_uplift_pct: float = 0.0  # % EAL increase for low-AC countries
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 # CORE ASSESSMENT FUNCTION
@@ -701,17 +807,29 @@ def assess_physical_risk(
         ))
 
     # Project 4: Nature-based solution (if buffers not already deployed)
+    # Fix #10: Carbon credit permanence discount — 30% reversal risk over 20yr horizon.
+    # Credit quality tiers: Gold Standard > VCM/Verra > unverified.
+    # NBS credits face additional reversal risk from the very hazards being hedged
+    # (wildfire destroying mangroves, SLR inundating coastal blue carbon).
     if len(natural_capital_buffers) < 2:
-        nbs_co2e  = annual_revenue_usd_m * 0.002  # rough offset proxy
+        nbs_co2e  = annual_revenue_usd_m * 0.002  # rough offset proxy (Mt CO2e/yr)
         nbs_capex = max(0.5, nbs_co2e * 25.0 / 1000.0)   # $25/tCO2e capex
-        nbs_savings = nbs_co2e * 85.0 / 1000.0  # vs €85/t CBAM avoidance
+        # Permanence discount: 30% of VCM credits may be reversed (climate-risk-induced)
+        _NBS_PERMANENCE_DISCOUNT = 0.30
+        _NBS_CREDIT_QUALITY_TIER = "VCM/Verra"   # default; Gold Standard would be 0.15 discount
+        nbs_co2e_effective = nbs_co2e * (1.0 - _NBS_PERMANENCE_DISCOUNT)
+        nbs_savings = nbs_co2e_effective * 85.0 / 1000.0  # vs €85/t CBAM avoidance
         nbs_npv   = nbs_savings * _npv_annuity(wacc, 20)
-        mac_nbs   = (nbs_capex / max(0.001, nbs_co2e)) * 1000.0
+        mac_nbs   = (nbs_capex / max(0.001, nbs_co2e_effective)) * 1000.0
         mitigation_projects.append(MitigationProject(
-            name="Nature-based solution: watershed / coastal restoration (87 ha)",
+            name=(
+                f"Nature-based solution: watershed/coastal restoration (87 ha) "
+                f"[{_NBS_CREDIT_QUALITY_TIER}, {_NBS_PERMANENCE_DISCOUNT*100:.0f}% "
+                f"permanence discount applied — net effective {nbs_co2e_effective*1000:.0f} tCO₂e/yr]"
+            ),
             capex_usd_m          = nbs_capex,
             annual_savings_usd_m = nbs_savings,
-            co2e_mitigated_mt_pa = nbs_co2e,
+            co2e_mitigated_mt_pa = nbs_co2e_effective,  # effective (post-discount)
             avoided_loss_npv_usd_m = nbs_npv,
             mac_usd_per_tco2e    = mac_nbs,
             payback_years        = nbs_capex / max(0.001, nbs_savings),
@@ -747,6 +865,255 @@ def assess_physical_risk(
         if total_mitigation_capex > 0 else 0.0
     )
 
+    # ── Stage 4b: Wildfire integration (Fix #5) ───────────────────────────────
+    # Map SSP scenario code to wildfire module's NGFS scenario key
+    _SSP_TO_WF = {"ssp126": "nze", "ssp245": "delayed", "ssp370": "delayed", "ssp585": "cp"}
+    wf_scenario = _SSP_TO_WF.get(scenario, "delayed")
+    wf_eal_baseline = 0.0
+    wf_eal_2050 = 0.0
+    wf_npv = 0.0
+
+    try:
+        from .wildfire_risk import assess_wildfire_risk as _assess_wf
+        wf = _assess_wf(
+            company_name=company_name,
+            sector=sector,
+            hq_country=hq_country,
+            revenue_usd_m=annual_revenue_usd_m,
+            asset_value_usd_m=asset_replacement_value_usd_m,
+            wacc=wacc,
+            horizon=target_year,
+            scenario=wf_scenario,
+        )
+        wf_npv = wf.total_npv_loss_usd_m
+        if wf.year_results:
+            wf_eal_baseline = wf.year_results[0].total_expected_loss_usd_m
+            yr_2050 = next((y for y in wf.year_results if y.year == 2050), None)
+            wf_eal_2050 = yr_2050.total_expected_loss_usd_m if yr_2050 else wf_eal_baseline
+
+        # Add wildfire MACC project if risk is material (> $50k/yr)
+        if wf_eal_2050 > 0.05:
+            wf_capex = max(0.3, wf_eal_2050 * 0.20)
+            avoided_wf = wf_eal_2050 * 0.60
+            avoided_wf_npv = avoided_wf * _npv_annuity(wacc, horizon_years)
+            mitigation_projects.append(MitigationProject(
+                name="Wildfire mitigation: defensible space, vegetation management & firebreaks",
+                capex_usd_m=wf_capex,
+                annual_savings_usd_m=avoided_wf,
+                co2e_mitigated_mt_pa=0.0,
+                avoided_loss_npv_usd_m=avoided_wf_npv,
+                mac_usd_per_tco2e=float("inf"),
+                payback_years=wf_capex / max(0.001, avoided_wf),
+                roi_pct=(avoided_wf_npv - wf_capex) / wf_capex * 100,
+                category="physical_resilience",
+            ))
+            mitigation_projects.sort(key=lambda p: p.roi_pct, reverse=True)
+            total_mitigation_capex += wf_capex
+            total_avoided_loss += avoided_wf_npv
+            net_mitigation_roi = (
+                (total_avoided_loss - total_mitigation_capex) / total_mitigation_capex * 100
+                if total_mitigation_capex > 0 else 0.0
+            )
+    except Exception as _wf_err:
+        pass  # wildfire skipped — totals unchanged
+
+    # ── Stage 4c: Sea Level Rise integration (Fix #5) ─────────────────────────
+    slr_expected_loss_2050 = 0.0
+    if elevation_m is not None and elevation_m <= 10.0:
+        _SSP_TO_SLR = {
+            "ssp126": "SSP1-2.6", "ssp245": "SSP2-4.5",
+            "ssp370": "SSP2-4.5", "ssp585": "SSP5-8.5",
+        }
+        try:
+            from .sea_level_rise import compute_slr_risk as _compute_slr
+            slr = _compute_slr(
+                asset_id=company_name,
+                asset_name=company_name,
+                asset_lat=0.0,
+                asset_lon=0.0,
+                asset_elevation_m=elevation_m,
+                ev_usd_m=asset_replacement_value_usd_m,
+                scenario=_SSP_TO_SLR.get(scenario, "SSP2-4.5"),
+            )
+            slr_expected_loss_2050 = slr.expected_loss_2050_usd_m
+            # SLR raises coastal flood frequency — amplify flood EAL for low-elevation assets
+            if slr.p_inundation_2050 > 0.05 and elevation_m <= 5.0:
+                slr_amp = 1.0 + slr.p_inundation_2050 * 0.3
+                eal_flood_direct_2050 = eal_flood_direct_2050 * slr_amp
+        except Exception:
+            slr_expected_loss_2050 = 0.0
+
+    # ── Stage 4d: Rebuild totals with wildfire + SLR contributions ────────────
+    total_eal_baseline += wf_eal_baseline
+    total_eal_2050 += wf_eal_2050 + slr_expected_loss_2050
+
+    # SLR NPV proxy: expected loss materialises from 2035-2060; use half-horizon
+    slr_npv = slr_expected_loss_2050 * _npv_annuity(wacc, max(10, horizon_years // 2))
+    # Wildfire NPV already discounted year-by-year by the wildfire module
+    npv += wf_npv + slr_npv
+
+    ev_impairment_pct = (npv / asset_replacement_value_usd_m) if asset_replacement_value_usd_m > 0 else 0.0
+    ev_impairment_usd_m = npv
+    climate_adj_ebitda = ebitda_usd_m - total_eal_2050
+
+    # ── Stage 4e1: Compound event uplift (Fix #2) ────────────────────────────
+    # Determine which hazards are active (material EAL contribution)
+    _active_hazards = []
+    if eal_flood_direct_2050 + bi_loss_2050 > 0.01:       _active_hazards.append("flood")
+    if annual_heat_labor_loss + annual_heat_opex_increase > 0.01: _active_hazards.append("heat")
+    if annual_water_2050 > 0.01:                            _active_hazards.append("water_stress")
+    if wf_eal_2050 > 0.01:                                  _active_hazards.append("wildfire")
+    if slr_expected_loss_2050 > 0.01:                       _active_hazards.append("slr")
+
+    compound_uplift = 0.0
+    compound_pairs: List[str] = []
+    for i, h1 in enumerate(_active_hazards):
+        for h2 in _active_hazards[i+1:]:
+            # Look up co-occurrence probability from table
+            co_prob = _COMPOUND_CO_OCCURRENCE.get(h1, {}).get(h2, 0.0) or \
+                      _COMPOUND_CO_OCCURRENCE.get(h2, {}).get(h1, 0.0)
+            if co_prob > 0.05:
+                pair_uplift = co_prob * _COMPOUND_SYNERGY_WEIGHT
+                compound_uplift += pair_uplift
+                compound_pairs.append(f"{h1}+{h2} (co-occur={co_prob:.0%}, uplift={pair_uplift:.1%})")
+    # Cap total compound uplift at 45% to avoid runaway values
+    compound_uplift = min(compound_uplift, 0.45)
+    compound_event_uplift_pct = round(compound_uplift * 100, 2)
+    # Apply uplift to 2050 EAL (compound events mainly affect 2050+ projections)
+    total_eal_2050 *= (1.0 + compound_uplift)
+    # Propagate to NPV: recalc with compounded EAL_2050
+    npv_pre_compound = npv  # save pre-compound NPV for reference
+    npv = 0.0
+    for t in range(1, horizon_years + 1):
+        year_val = 2025 + t
+        interp = min(1.0, (year_val - 2025) / max(1, target_year - 2025))
+        eal_t = total_eal_baseline + (total_eal_2050 - total_eal_baseline) * interp
+        npv += eal_t * _npv_factor(wacc, t)
+    npv += wf_npv + slr_npv  # re-add additive components
+
+    # ── Stage 4e2: Sovereign adaptive capacity damage modifier ───────────────
+    country_ac = _COUNTRY_ADAPTIVE_CAPACITY.get(hq_country.upper(),
+                  _COUNTRY_ADAPTIVE_CAPACITY["default"])
+    # Sector sensitivity to adaptive capacity (high for labour-intensive sectors)
+    _SECTOR_AC_SENSITIVITY: Dict[str, float] = {
+        "agriculture": 1.8, "cement": 1.2, "steel": 1.1, "chemicals": 1.1,
+        "oil_gas": 0.9, "technology": 0.5, "financials": 0.3, "default": 1.0,
+    }
+    ac_sens = _SECTOR_AC_SENSITIVITY.get(sector.lower(), 1.0)
+    # Damage uplift for low adaptive-capacity countries
+    ac_uplift = max(0.0, (0.65 - country_ac)) * ac_sens * 0.8  # max ~24% for AC=0.35
+    if ac_uplift > 0.01:
+        total_eal_2050 *= (1.0 + ac_uplift)
+        total_eal_baseline *= (1.0 + ac_uplift * 0.5)  # partial uplift on baseline
+        # Recompute NPV
+        npv = 0.0
+        for t in range(1, horizon_years + 1):
+            year_val = 2025 + t
+            interp = min(1.0, (year_val - 2025) / max(1, target_year - 2025))
+            eal_t = total_eal_baseline + (total_eal_2050 - total_eal_baseline) * interp
+            npv += eal_t * _npv_factor(wacc, t)
+        npv += wf_npv + slr_npv
+    adaptive_capacity_damage_uplift_pct = round(ac_uplift * 100, 2)
+
+    ev_impairment_pct = (npv / asset_replacement_value_usd_m) if asset_replacement_value_usd_m > 0 else 0.0
+    ev_impairment_usd_m = npv
+    climate_adj_ebitda = ebitda_usd_m - total_eal_2050
+
+    # ── Stage 4e3: Climate-adjusted WACC (Fix #3) ────────────────────────────
+    # Physical risk score proxy: EV impairment % mapped 0-100
+    _phys_risk_score = min(100.0, ev_impairment_pct * 150.0)   # 67% impairment → 100 score
+    # Climate credit spread: 1.5bp per risk score point → range 0-150bp
+    # Literature: Karpf & Mandel 2018 (7-25bp munis); ECB 2021 (15-40bp corporates);
+    # high-physical-risk tail can reach ~100-150bp (BIS Working Paper 2023).
+    climate_spread_bps = _phys_risk_score * 1.5          # 0-150 basis points
+    climate_spread = climate_spread_bps / 10_000.0       # decimal fraction
+    climate_adj_wacc = wacc + climate_spread
+    climate_credit_spread_bps = round(climate_spread_bps, 1)   # already in bps
+    # NPV at climate-adjusted WACC
+    npv_at_adj_wacc = 0.0
+    for t in range(1, horizon_years + 1):
+        year_val = 2025 + t
+        interp = min(1.0, (year_val - 2025) / max(1, target_year - 2025))
+        eal_t = total_eal_baseline + (total_eal_2050 - total_eal_baseline) * interp
+        npv_at_adj_wacc += eal_t * _npv_factor(climate_adj_wacc, t)
+    npv_at_adj_wacc += wf_npv + slr_npv
+
+    # ── Stage 4e4: Insurance withdrawal risk (Fix #8) ─────────────────────────
+    sector_insured_base = _SECTOR_INSURED_FRACTION.get(sector.lower(),
+                           _SECTOR_INSURED_FRACTION["default"])
+    withdrawal_schedule = _INSURANCE_WITHDRAWAL_SCHEDULE.get(scenario,
+                           _INSURANCE_WITHDRAWAL_SCHEDULE["ssp370"])
+    # Linear interpolation of withdrawal to 2050
+    withdrawal_2050 = withdrawal_schedule.get(2050, 0.40)
+    withdrawal_2030 = withdrawal_schedule.get(2030, 0.90)
+    insured_frac_baseline = sector_insured_base  # today's coverage
+    insured_frac_2050 = sector_insured_base * withdrawal_2050  # post-withdrawal
+    # Protection gap NPV: integrate uninsured EAL over horizon
+    protection_gap_npv = 0.0
+    for t in range(1, horizon_years + 1):
+        year_val = 2025 + t
+        interp = min(1.0, (year_val - 2025) / max(1, target_year - 2025))
+        eal_t = total_eal_baseline + (total_eal_2050 - total_eal_baseline) * interp
+        # Interpolated insured fraction (decreasing over time)
+        insured_t = insured_frac_baseline + (insured_frac_2050 - insured_frac_baseline) * interp
+        uninsured_t = eal_t * (1.0 - insured_t)
+        protection_gap_npv += uninsured_t * _npv_factor(wacc, t)
+    insurance_withdrawal_risk_flag = (insured_frac_2050 < 0.5 * insured_frac_baseline)
+
+    # ── Stage 4e: Uncertainty bands P10/P50/P90 (Fix #6) ─────────────────────
+    # Log-normal model: CV = (1 - mean_model_agreement) × 1.2
+    # where mean_agreement is the unweighted average across hazards for this scenario
+    _agreements = [
+        _MODEL_AGREEMENT["flood"].get(scenario, 0.85),
+        _MODEL_AGREEMENT["heat"].get(scenario, 0.95),
+        _MODEL_AGREEMENT["water_stress"].get(scenario, 0.84),
+        0.70,   # wildfire proxy (conservative — fewer models agree on FWI extremes)
+    ]
+    _mean_agreement = sum(_agreements) / len(_agreements)
+    _cv = (1.0 - _mean_agreement) * 1.2
+    _sigma = math.sqrt(math.log(1.0 + _cv * _cv))
+
+    eal_p50 = total_eal_2050                             # central estimate
+    eal_p10 = total_eal_2050 * math.exp(-1.28 * _sigma)  # 10th percentile
+    eal_p90 = total_eal_2050 * math.exp(+1.28 * _sigma)  # 90th percentile
+
+    # NPV bands: scale the entire NPV by the same lognormal ratio
+    # (valid under the assumption that model uncertainty is correlated across hazards)
+    _p10_ratio = eal_p10 / max(total_eal_2050, 1e-9)
+    _p90_ratio = eal_p90 / max(total_eal_2050, 1e-9)
+    npv_p50 = npv
+    npv_p10 = npv * _p10_ratio
+    npv_p90 = npv * _p90_ratio
+
+    # ── Stage 4f: Tipping point stress test (Fix #9) ─────────────────────────
+    # High-ECS tail: multiply hazard intensities by tipping-point multiplier
+    # (CMIP6 models with ECS > 4.5°C; 95th percentile of ensemble)
+    tp_mult = _TIPPING_POINT_MULTIPLIER.get(scenario, 1.65)
+    eal_tp_2050 = total_eal_2050 * tp_mult
+    npv_tp = 0.0
+    for t in range(1, horizon_years + 1):
+        year_val = 2025 + t
+        interp = min(1.0, (year_val - 2025) / max(1, target_year - 2025))
+        eal_t_tp = total_eal_baseline + (eal_tp_2050 - total_eal_baseline) * interp
+        npv_tp += eal_t_tp * _npv_factor(wacc, t)
+    npv_tp += wf_npv * tp_mult + slr_npv * tp_mult
+
+    # EAL breakdown by hazard (for dashboard waterfall)
+    eal_by_hazard_baseline: Dict[str, float] = {
+        "flood":        round(eal_flood_direct_baseline + bi_loss_baseline, 3),
+        "heat":         0.0,
+        "water_stress": round(annual_water_baseline, 3),
+        "wildfire":     round(wf_eal_baseline, 3),
+        "slr":          0.0,
+    }
+    eal_by_hazard_2050: Dict[str, float] = {
+        "flood":        round(eal_flood_direct_2050 + bi_loss_2050, 3),
+        "heat":         round(annual_heat_labor_loss + annual_heat_opex_increase, 3),
+        "water_stress": round(annual_water_2050, 3),
+        "wildfire":     round(wf_eal_2050, 3),
+        "slr":          round(slr_expected_loss_2050, 3),
+    }
+
     # ── Audit trail ───────────────────────────────────────────────────────────
     data_sources = [
         "JRC Depth-Damage Functions (Huizinga et al. 2017)",
@@ -755,11 +1122,16 @@ def assess_physical_risk(
         "WRI Aqueduct Water Risk Atlas",
         "ILO 2019 WBGT heat stress curves",
         "Copernicus 30m DEM (elevation default)",
+        "CRI Wildfire FWI Module (NGFS × FWI zone × sector vulnerability)",
+        "IPCC AR6 WG1 Table 9.9 — Regional SLR projections (sea_level_rise module)",
     ]
     model_agreement_notes = [
         f"Flood: {hazard.flood_model_agreement*100:.0f}% of 34 GCMs agree on direction",
         f"Heat: {hazard.heat_model_agreement*100:.0f}% of 34 GCMs agree on direction",
         f"Water: {hazard.water_model_agreement*100:.0f}% of 34 GCMs agree on direction",
+        f"Ensemble mean agreement: {_mean_agreement*100:.0f}% → "
+        f"CV={_cv:.3f}, sigma={_sigma:.3f} → "
+        f"EAL P10/P50/P90: ${eal_p10:.2f}M / ${eal_p50:.2f}M / ${eal_p90:.2f}M",
     ]
 
     return PhysicalRiskResult(
@@ -801,4 +1173,36 @@ def assess_physical_risk(
         data_sources        = data_sources,
         model_agreement_notes = model_agreement_notes,
         confidence_tier     = confidence_tier,
+        # Extended hazards (Fix #5)
+        wildfire_eal_baseline_usd_m  = round(wf_eal_baseline, 3),
+        wildfire_eal_2050_usd_m      = round(wf_eal_2050, 3),
+        wildfire_npv_usd_m           = round(wf_npv, 2),
+        slr_expected_loss_2050_usd_m = round(slr_expected_loss_2050, 3),
+        eal_by_hazard_baseline       = eal_by_hazard_baseline,
+        eal_by_hazard_2050           = eal_by_hazard_2050,
+        # Uncertainty bands (Fix #6)
+        eal_p10_usd_m = round(eal_p10, 3),
+        eal_p50_usd_m = round(eal_p50, 3),
+        eal_p90_usd_m = round(eal_p90, 3),
+        npv_p10_usd_m = round(npv_p10, 2),
+        npv_p50_usd_m = round(npv_p50, 2),
+        npv_p90_usd_m = round(npv_p90, 2),
+        # Compound events (Fix #2)
+        compound_event_uplift_pct = compound_event_uplift_pct,
+        compound_event_pairs      = compound_pairs,
+        # Climate WACC (Fix #3)
+        climate_credit_spread_bps     = climate_credit_spread_bps,
+        climate_adjusted_wacc         = round(climate_adj_wacc, 5),
+        npv_at_adjusted_wacc_usd_m    = round(npv_at_adj_wacc, 2),
+        # Tipping point stress test (Fix #9)
+        eal_tipping_point_stress_usd_m = round(eal_tp_2050, 2),
+        npv_tipping_point_stress_usd_m = round(npv_tp, 2),
+        # Insurance withdrawal (Fix #8)
+        insured_fraction_baseline     = round(insured_frac_baseline, 3),
+        insured_fraction_2050         = round(insured_frac_2050, 3),
+        insurance_protection_gap_usd_m = round(protection_gap_npv, 2),
+        insurance_withdrawal_risk_flag = insurance_withdrawal_risk_flag,
+        # Sovereign adaptive capacity
+        country_adaptive_capacity            = round(country_ac, 3),
+        adaptive_capacity_damage_uplift_pct  = adaptive_capacity_damage_uplift_pct,
     )
