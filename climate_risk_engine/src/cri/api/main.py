@@ -5149,3 +5149,191 @@ def agent_wildfire_risk(req: WildfireRiskRequest):
         nasa_firms_density=req.nasa_firms_density,
     )
     return _dc.asdict(result)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PHYSICAL RISK ENGINE  (Spatial Hazard → Asset Specificity → Vulnerability
+#                        → Financial Transmission)
+# Endpoint: POST /agent/physical-risk
+# ─────────────────────────────────────────────────────────────────────────────
+
+class PhysicalRiskRequest(BaseModel):
+    company_name:              str            = Field(..., description="Company display name")
+    sector:                    str            = Field(..., description="Sector slug (cement, steel, agriculture, …)")
+    hq_country:                str            = Field("US", description="ISO-2 country of primary operations")
+    annual_revenue_usd_m:      float          = Field(..., description="Annual revenue (USD M)")
+    ebitda_usd_m:              float          = Field(..., description="EBITDA (USD M)")
+    asset_replacement_value_usd_m: Optional[float] = Field(None, description="ARV (USD M); auto-derived if omitted")
+    elevation_m:               Optional[float] = Field(None, description="Site elevation above sea level (m)")
+    flood_baseline_depth_m:    Optional[float] = Field(None, description="1-in-100yr flood depth at site (m)")
+    heat_baseline_days:        Optional[float] = Field(None, description="Annual days WBGT > 28°C baseline")
+    water_stress_index:        Optional[float] = Field(None, description="WRI Aqueduct index 0–5")
+    scenario:                  str            = Field("ssp370", description="CMIP6 scenario: ssp126|ssp245|ssp370|ssp585")
+    target_year:               int            = Field(2050, ge=2030, le=2100, description="Assessment year")
+    wacc:                      float          = Field(0.08, description="Discount rate")
+    horizon_years:             int            = Field(20, ge=5, le=40, description="DCF horizon (years)")
+    natural_capital_buffers:   Optional[list[str]] = Field(None, description="Active NBS: mangrove_coast, riparian_forest, …")
+    confidence_tier:           str            = Field("ESTIMATED", description="VERIFIED|REPORTED|ESTIMATED|MISSING")
+
+
+@app.post(
+    "/agent/physical-risk",
+    tags=["Extended Risk"],
+    summary="Physical risk engine — Stage 1–4: spatial hazard → EAL → MACC",
+    response_description=(
+        "EAL baseline + 2050, NPV physical risk, EV impairment %, "
+        "climate-adjusted EBITDA, MACC projects, flood return-period compression"
+    ),
+)
+def agent_physical_risk(req: PhysicalRiskRequest):
+    """
+    Four-stage physical risk engine (Huizinga JRC depth-damage, CMIP6 multipliers,
+    ILO/NIOSH WBGT heat-stress, WRI Aqueduct water impairment, 20-yr NPV/DCF,
+    MACC project stack).
+
+    **Stages**
+    1. Spatial Hazard — CMIP6 SSP multipliers × regional baseline × NBS offsets
+    2. Asset Specificity — JRC depth-damage, sector defaults, elevation lookup
+    3. Vulnerability Curves — flood DDF, WBGT productivity loss, water impairment
+    4. Financial Transmission — EAL, BI loss, NPV, EV impairment, MACC
+
+    **Data sources:** JRC Huizinga et al. 2017 · NASA NEX-GDDP-CMIP6 (34 GCMs) ·
+    NGFS Phase 4 · WRI Aqueduct · ILO 2019 / NIOSH · Copernicus 30m DEM
+    """
+    from ..climate.physical_risk import assess_physical_risk
+    import dataclasses as _dc
+
+    result = assess_physical_risk(
+        company_name=req.company_name,
+        sector=req.sector,
+        hq_country=req.hq_country,
+        annual_revenue_usd_m=req.annual_revenue_usd_m,
+        ebitda_usd_m=req.ebitda_usd_m,
+        asset_replacement_value_usd_m=req.asset_replacement_value_usd_m,
+        elevation_m=req.elevation_m,
+        flood_baseline_depth_m=req.flood_baseline_depth_m,
+        heat_baseline_days=req.heat_baseline_days,
+        water_stress_index=req.water_stress_index,
+        scenario=req.scenario,
+        target_year=req.target_year,
+        wacc=req.wacc,
+        horizon_years=req.horizon_years,
+        natural_capital_buffers=req.natural_capital_buffers,
+        confidence_tier=req.confidence_tier,
+    )
+    return _dc.asdict(result)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PORTFOLIO EXPORT  —  GET /agent/portfolio/export-csv
+# Streams a master CSV joining job results with company metadata stored in
+# the Supabase `jobs` table (populated by the agent assess flow).
+# ─────────────────────────────────────────────────────────────────────────────
+
+from fastapi.responses import StreamingResponse
+import csv
+import io
+
+
+@app.get(
+    "/agent/portfolio/export-csv",
+    tags=["Agent", "Portfolio"],
+    summary="Export all completed job results as a master CSV",
+    response_description=(
+        "CSV download: one row per completed assessment job, with company metadata "
+        "and key risk metrics (CRI, ITR, EV impairment, EAL, water, wildfire, stranded assets)."
+    ),
+)
+def agent_portfolio_export_csv(limit: int = 500):
+    """
+    Exports all completed agent assessment jobs as a UTF-8 CSV.
+
+    Columns include:
+    - job_id, company_name, sector, jurisdiction, status, completed_at
+    - cri_rating, cri_score, itr_degrees_c
+    - ev_impairment_pct_nze, ev_impairment_pct_cp
+    - eal_baseline_usd_m, eal_2050_usd_m, npv_physical_risk_usd_m
+    - water_revenue_impairment_usd_m, wildfire_npv_direct_usd_m
+    - stranded_asset_npv_usd_m, cbam_exposure_usd_m
+
+    Jobs are sorted by completed_at descending (most recent first).
+    """
+    from ..agent.job_runner import JOB_STORE
+
+    # Collect completed jobs
+    rows = []
+    completed_jobs = [
+        j for j in JOB_STORE.values()
+        if j.status == JobStatus.COMPLETED and j.result is not None
+    ]
+    # Sort most recent first
+    completed_jobs.sort(key=lambda j: j.completed_at or "", reverse=True)
+    completed_jobs = completed_jobs[:limit]
+
+    for job in completed_jobs:
+        r = job.result or {}
+        profile  = r.get("profile", {})
+        rating   = r.get("rating", {})
+        phys     = r.get("physical_risk", {})
+        water    = r.get("water_risk", {})
+        wildfire = r.get("wildfire_risk", {})
+        stranded = r.get("stranded_assets", {})
+        cbam     = r.get("cbam", {})
+
+        # EV impairment — from nze/cp scenario results
+        nze_res = r.get("nze", {})
+        cp_res  = r.get("cp", {})
+
+        def _safe(d, *keys, default=""):
+            """Safely drill into nested dict."""
+            cur = d
+            for k in keys:
+                if not isinstance(cur, dict):
+                    return default
+                cur = cur.get(k, default)
+            return cur if cur is not None else default
+
+        rows.append({
+            "job_id":                        job.job_id,
+            "company_name":                  profile.get("company_name", job.company_name),
+            "sector":                        profile.get("sector", ""),
+            "jurisdiction":                  profile.get("jurisdiction", ""),
+            "status":                        job.status.value,
+            "completed_at":                  job.completed_at or "",
+            "cri_rating":                    _safe(rating, "rating"),
+            "cri_score":                     _safe(rating, "score"),
+            "itr_degrees_c":                 _safe(rating, "itr_degrees_c"),
+            "ev_impairment_pct_nze":         _safe(nze_res, "ev_impairment_pct"),
+            "ev_impairment_pct_cp":          _safe(cp_res, "ev_impairment_pct"),
+            "eal_baseline_usd_m":            _safe(phys, "eal_baseline_usd_m"),
+            "eal_2050_usd_m":                _safe(phys, "eal_2050_usd_m"),
+            "npv_physical_risk_usd_m":       _safe(phys, "npv_physical_risk_usd_m"),
+            "ev_impairment_pct_physical":    _safe(phys, "ev_impairment_pct"),
+            "climate_adjusted_ebitda_usd_m": _safe(phys, "climate_adjusted_ebitda_usd_m"),
+            "water_revenue_impairment_usd_m":_safe(water, "revenue_impairment_usd_m"),
+            "wildfire_npv_direct_usd_m":     _safe(wildfire, "npv_direct_damage_usd_m"),
+            "stranded_asset_npv_usd_m":      _safe(stranded, "npv_stranded_value_usd_m"),
+            "cbam_exposure_usd_m":           _safe(cbam, "annual_cbam_cost_usd_m"),
+        })
+
+    # Stream as CSV
+    def _generate():
+        if not rows:
+            yield "No completed assessment jobs found.\n"
+            return
+        fieldnames = list(rows[0].keys())
+        buf = io.StringIO()
+        writer = csv.DictWriter(buf, fieldnames=fieldnames)
+        writer.writeheader()
+        yield buf.getvalue()
+        for row in rows:
+            buf = io.StringIO()
+            writer = csv.DictWriter(buf, fieldnames=fieldnames)
+            writer.writerow(row)
+            yield buf.getvalue()
+
+    return StreamingResponse(
+        _generate(),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=climrisk_portfolio_export.csv"},
+    )

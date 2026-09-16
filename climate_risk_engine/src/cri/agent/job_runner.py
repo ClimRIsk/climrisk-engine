@@ -244,6 +244,7 @@ async def _run_extended_analyses(job: AssessmentJob, profile, risk_result: dict)
     from ..climate.impact_materiality import assess_impact_materiality
     from ..climate.paris_alignment import assess_paris_alignment
     from ..climate.wildfire_risk import assess_wildfire_risk
+    from ..climate.physical_risk import assess_physical_risk
 
     company_name = profile.resolved_name or profile.input_name
     sector       = profile.sector or "default"
@@ -306,6 +307,7 @@ async def _run_extended_analyses(job: AssessmentJob, profile, risk_result: dict)
         mat_r,
         paris_r,
         wildfire_r,
+        phys_r,
     ) = await asyncio.gather(
         _safe_run(
             assess_stranded_assets,
@@ -363,6 +365,16 @@ async def _run_extended_analyses(job: AssessmentJob, profile, risk_result: dict)
             wacc=0.09,
             scenario="delayed",
         ),
+        _safe_run(
+            assess_physical_risk,
+            company_name, sector,
+            hq_country=jurisdiction,
+            annual_revenue_usd_m=revenue,
+            ebitda_usd_m=revenue * 0.18,  # fallback 18% margin
+            scenario="ssp370",
+            target_year=2050,
+            wacc=0.09,
+        ),
     )
 
     def _to_dict(obj):
@@ -381,6 +393,7 @@ async def _run_extended_analyses(job: AssessmentJob, profile, risk_result: dict)
         "impact_materiality":   _to_dict(mat_r),
         "paris_alignment":      _to_dict(paris_r),
         "wildfire_risk":        _to_dict(wildfire_r),
+        "physical_risk":        _to_dict(phys_r),
     }
 
 
