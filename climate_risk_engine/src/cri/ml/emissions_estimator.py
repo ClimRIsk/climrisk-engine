@@ -158,9 +158,10 @@ def _analytical_estimate(
     p90  *= trend_factor
 
     # Revenue-based Scope 1 estimate
-    s1_est  = med * (revenue_usd_m / 1000.0)
-    s1_lo   = p10 * (revenue_usd_m / 1000.0)
-    s1_hi   = p90 * (revenue_usd_m / 1000.0)
+    # Units: (tCO2e / $M revenue) × ($M revenue) / 1_000_000 = Mt CO2e
+    s1_est  = med * revenue_usd_m / 1_000_000.0
+    s1_lo   = p10 * revenue_usd_m / 1_000_000.0
+    s1_hi   = p90 * revenue_usd_m / 1_000_000.0
 
     # Scope 2: estimate from energy usage proxy
     grid_factor = _grid_intensity(jurisdiction)

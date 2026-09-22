@@ -269,7 +269,11 @@ class DisclosureScanner:
             return self._empty_result()
 
         if not self._models_ready:
-            return _keyword_scan(sentences)
+            # Keyword scan needs individual sentences, not 512-char chunks.
+            # Re-split the raw text so mixed risk+commitment chunks don't
+            # collapse to risk-only due to if/elif priority.
+            fine_sents = [s.strip() for s in re.split(r'(?<=[.!?])\s+', text.strip()) if s.strip()]
+            return _keyword_scan(fine_sents if fine_sents else sentences)
 
         # ── Step 1: Filter to climate-related sentences ───────────────────────
         det_results = self._run_batch(self._detector, sentences)
