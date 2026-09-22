@@ -11,6 +11,13 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# ML intelligence layer — ClimateBERT NLP + predictive risk + emissions imputation
+ml = [
+    "transformers>=4.40",
+    "torch>=2.2",
+    "scikit-learn>=1.4",
+    "xgboost>=2.0",
+]
 api = [
     "fastapi>=0.110",
     "uvicorn>=0.29",

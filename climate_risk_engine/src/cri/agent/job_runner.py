@@ -385,6 +385,118 @@ async def _run_extended_analyses(job: AssessmentJob, profile, risk_result: dict)
             return dataclasses.asdict(obj)
         return obj
 
+    # ── ML Intelligence Layer ─────────────────────────────────────────────────
+    # Runs after the core analytical modules so it can consume their outputs.
+    # Gracefully absent when ML packages (transformers, xgboost, sklearn) are
+    # not installed — buyers see empty ml_intelligence key; engine still works.
+
+    ml_intel: dict = {}
+    try:
+        from ..ml import DisclosureScanner, RiskPredictor, EmissionsEstimator
+
+        # 1. Emissions Estimator — fill any missing scope data
+        ee = EmissionsEstimator()
+        em_est = ee.estimate(
+            revenue_usd_m  = revenue,
+            sector         = sector,
+            jurisdiction   = jurisdiction,
+            year           = 2025,
+            scope1_known   = scope1_mt if scope1_mt else None,
+            scope2_known   = scope2_mt if scope2_mt else None,
+            employee_count = getattr(profile, "employee_count", None),
+        )
+        # Back-fill profile scope values if they were missing
+        _s1 = scope1_mt if scope1_mt else em_est.scope1_mt_co2e
+        _s2 = scope2_mt if scope2_mt else em_est.scope2_mt_co2e
+        _s3 = scope3_mt if scope3_mt else em_est.scope3_mt_co2e
+
+        ml_intel["emissions_estimate"] = {
+            "scope1_mt_co2e":    em_est.scope1_mt_co2e,
+            "scope1_lo":         em_est.scope1_lo,
+            "scope1_hi":         em_est.scope1_hi,
+            "scope2_mt_co2e":    em_est.scope2_mt_co2e,
+            "scope2_lo":         em_est.scope2_lo,
+            "scope2_hi":         em_est.scope2_hi,
+            "scope3_mt_co2e":    em_est.scope3_mt_co2e,
+            "scope3_lo":         em_est.scope3_lo,
+            "scope3_hi":         em_est.scope3_hi,
+            "data_quality":      em_est.data_quality,
+            "imputed_fields":    em_est.imputed_fields,
+            "model_confidence":  em_est.model_confidence,
+            "model_version":     em_est.model_version,
+        }
+
+        # 2. Risk Predictor — 2025–2050 trajectory
+        rp = RiskPredictor()
+        # Derive base CRI score from rating (A+=5, A=15, B+=30, B=42, etc.)
+        _RATING_TO_SCORE = {
+            "AAA": 5, "AA": 10, "A+": 15, "A": 20, "A-": 25,
+            "BBB": 32, "BB+": 38, "BB": 44, "BB-": 50,
+            "B+": 42, "B": 55, "B-": 62, "CCC": 72, "CC": 82, "C": 90, "D": 98,
+        }
+        rating_str = risk_result.get("rating", {}).get("rating", "B+")
+        base_cri   = _RATING_TO_SCORE.get(rating_str, 45)
+        eal_p50    = (phys_r.eal_p50_usd_m if phys_r else None) or (revenue * 0.01)
+
+        traj = rp.predict(
+            base_cri_score  = float(base_cri),
+            sector          = sector,
+            jurisdiction    = jurisdiction,
+            revenue_usd_m   = revenue,
+            scope1_mt_co2e  = _s1 or 1.0,
+            eal_p50_usd_m   = eal_p50,
+            wacc_adjusted   = (phys_r.climate_adjusted_wacc if phys_r else None) or 0.09,
+            coastal_flag    = jurisdiction in {"NL", "BD", "VN", "PH", "ID", "MV"},
+        )
+        ml_intel["risk_trajectory"] = {
+            "years":               traj.years,
+            "nze_scores":          traj.nze_scores,
+            "delayed_scores":      traj.delayed_scores,
+            "cp_scores":           traj.cp_scores,
+            "nze_lo":              traj.nze_lo,
+            "nze_hi":              traj.nze_hi,
+            "delayed_lo":          traj.delayed_lo,
+            "delayed_hi":          traj.delayed_hi,
+            "cp_lo":               traj.cp_lo,
+            "cp_hi":               traj.cp_hi,
+            "peak_risk_year":      traj.peak_risk_year,
+            "inflection_year":     traj.inflection_year,
+            "feature_importance":  traj.feature_importance,
+            "model_version":       traj.model_version,
+        }
+
+        # 3. Disclosure Scanner — analyse any news/disclosure text in profile
+        disc_text = getattr(profile, "disclosure_text", None) or ""
+        if disc_text and len(disc_text) > 100:
+            ds = DisclosureScanner()
+            disc = ds.scan(disc_text, company_name=company_name)
+            ml_intel["disclosure_intelligence"] = {
+                "evidence_quotes": [
+                    {
+                        "text":        q.text,
+                        "quote_type":  q.quote_type,
+                        "confidence":  q.confidence,
+                        "sentiment":   q.sentiment,
+                        "is_specific": q.is_specific,
+                        "is_netzero":  q.is_netzero,
+                    }
+                    for q in disc.evidence_quotes
+                ],
+                "commitment_score":        disc.commitment_score,
+                "commitment_specificity":  disc.commitment_specificity,
+                "risk_mention_count":      disc.risk_mention_count,
+                "opportunity_count":       disc.opportunity_count,
+                "itr_adjustment_c":        disc.itr_adjustment_c,
+                "credibility_gap_flag":    disc.credibility_gap_flag,
+                "ai_confidence":           disc.ai_confidence,
+                "model_used":              disc.model_used,
+                "text_chars_scanned":      disc.text_chars_scanned,
+                "sentences_classified":    disc.sentences_classified,
+            }
+
+    except Exception as _ml_exc:
+        logger.warning("ML intelligence layer skipped: %s", _ml_exc)
+
     return {
         "stranded_assets":      _to_dict(stranded_r),
         "cbam":                 _to_dict(cbam_r),
@@ -394,6 +506,7 @@ async def _run_extended_analyses(job: AssessmentJob, profile, risk_result: dict)
         "paris_alignment":      _to_dict(paris_r),
         "wildfire_risk":        _to_dict(wildfire_r),
         "physical_risk":        _to_dict(phys_r),
+        "ml_intelligence":      ml_intel or None,
     }
 
 
