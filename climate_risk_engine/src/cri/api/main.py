@@ -724,6 +724,47 @@ def assess_parametric(request: ParametricAssessRequest) -> dict:
     except Exception:
         pass
 
+    # ── HF Enrichment 1: CarbonLens + ND-GAIN country scores ─────────────────
+    hf_enrichment: dict = {}
+    try:
+        from ..connectors.hf_carbontlens import HFEnricher
+        hf_enrichment = HFEnricher.enrich(
+            country    = None,
+            jurisdiction = request.jurisdiction,
+        )
+    except Exception:
+        pass
+
+    # ── HF Enrichment 2: Monte Carlo Climate VaR ─────────────────────────────
+    climate_var_result: dict = {}
+    try:
+        from ..engine.climate_var import compute_climate_var
+        physical_now    = scores["delayed"].get("physical_score",    composite_now * 0.70)
+        transition_now  = scores["delayed"].get("transition_score",  composite_now * 0.30)
+        asset_value_m   = request.revenue_usd_m * 2.5   # rough EV proxy
+
+        var_res = compute_climate_var(
+            physical_score         = physical_now,
+            transition_score       = transition_now,
+            portfolio_value_usd_m  = asset_value_m,
+            sector                 = canonical_sector,
+            ndgain_vulnerability   = hf_enrichment.get("vulnerability_score"),
+            ndgain_readiness       = hf_enrichment.get("readiness_score"),
+        )
+        climate_var_result = {
+            "haircut_pct":          var_res.haircut_pct,
+            "expected_loss_usd_m":  var_res.expected_loss_usd_m,
+            "var_95_usd_m":         var_res.var_95_usd_m,
+            "cvar_95_usd_m":        var_res.cvar_95_usd_m,
+            "composite_score":      var_res.composite_score,
+            "risk_tier":            var_res.risk_tier,
+            "sector_multiplier":    var_res.sector_multiplier,
+            "ndgain_adjustment":    var_res.ndgain_adjustment,
+            "hazard_contributions": var_res.hazard_contributions,
+        }
+    except Exception:
+        pass
+
     return {
         "company": request.company_name,
         "sector":  canonical_sector,
@@ -743,11 +784,16 @@ def assess_parametric(request: ParametricAssessRequest) -> dict:
             "policy_risk_score": trans_p["policy_risk_score"],
             "stranded_asset_risk": trans_p["stranded_asset_risk"],
         },
+        # ── HuggingFace data enrichments ─────────────────────────────────────
+        "hf_ndgain": hf_enrichment,          # ND-GAIN country vulnerability / readiness
+        "hf_climate_var": climate_var_result, # Monte Carlo Climate VaR (climate-risk-quant)
         "methodology": {
             "physical_risk": "IPCC AR6 Ch12 climate zone hazard profiles (Table 12.1)",
             "transition_risk": "NGFS Phase 4 carbon pathways + IEA sector emission intensities",
             "financial_translation": "NGFS financial sector impact study (Annex 3, 2023)",
-            "model_version": "cri-parametric-v2.0",
+            "climate_var": "Monte Carlo Climate VaR — adapted from deena-lad/climate-risk-quant (MIT)",
+            "country_risk": "ND-GAIN Country Index 2022 via CarbonLens / SubramaniMokkala HF Space",
+            "model_version": "cri-parametric-v2.1-hf",
         },
     }
 
@@ -1140,6 +1186,90 @@ def rate_company(request: RatingRequest) -> RatingResponse:
         weight_profile_used=wp.value,
         weights_applied=weights_applied,
     )
+
+
+# ── HuggingFace NLP Disclosure Analyzer ──────────────────────────────────────
+
+class DisclosureAnalysisRequest(BaseModel):
+    text: str = Field(..., description="Climate disclosure text to analyze (e.g. from annual report)")
+    ticker: Optional[str] = Field(None, description="Ticker symbol for CarbonLens cross-reference")
+    jurisdiction: Optional[str] = Field(None, description="ISO-2 country code for ND-GAIN context")
+
+
+@app.post("/analyze/disclosure", dependencies=[_AUTH])
+def analyze_disclosure_text(request: DisclosureAnalysisRequest) -> dict:
+    """
+    Analyze a climate disclosure text using HuggingFace NLP (ClimateRiskSense AI).
+
+    Detects climate risk events, named entities (companies/assets/locations),
+    extracts transition and physical risk signals, and performs sentiment analysis.
+
+    Cross-references with CarbonLens (ND-GAIN country scores, XGBoost credit risk)
+    when a ticker or jurisdiction is provided.
+
+    Data sources:
+      - MANSOORahme67/climaterisksense-ai (HuggingFace, NLP)
+      - SubramaniMokkala/climate-credit-risk-analyzer CarbonLens (ticker lookup)
+      - ND-GAIN Extended country index (country risk context)
+    """
+    from ..connectors.hf_nlp_analyzer import get_analyzer
+    from ..connectors.hf_carbontlens import HFEnricher
+
+    # NLP analysis
+    analyzer = get_analyzer()
+    nlp_result = analyzer.analyze_text(request.text)
+
+    # CarbonLens / ND-GAIN enrichment
+    hf_enrichment: dict = {}
+    try:
+        hf_enrichment = HFEnricher.enrich(
+            ticker       = request.ticker,
+            jurisdiction = request.jurisdiction,
+        )
+    except Exception:
+        pass
+
+    return {
+        "nlp_analysis":   nlp_result,
+        "hf_enrichment":  hf_enrichment,
+        "text_length":    len(request.text),
+        "methodology": {
+            "nlp": "MANSOORahme67/climaterisksense-ai (HuggingFace Spaces)",
+            "country_risk": "ND-GAIN Country Index 2022 via CarbonLens",
+        },
+    }
+
+
+# ── HuggingFace Climate Monitoring — live hazard score for a location ─────────
+
+class LocationHazardRequest(BaseModel):
+    lat:      float = Field(..., description="Latitude")
+    lon:      float = Field(..., description="Longitude")
+    location: str   = Field("", description="Human-readable location name (optional)")
+
+
+@app.post("/analyze/location-hazard", dependencies=[_AUTH])
+def location_hazard_score(request: LocationHazardRequest) -> dict:
+    """
+    Retrieve a live climate hazard score for a geographic coordinate using
+    the towardsinnovationlab/Climate_Risk_Monitoring HuggingFace Space.
+
+    Returns historical weather risk, satellite-derived anomalies, and a
+    0-100 hazard score that can supplement the engine's IPCC AR6 zone profiles.
+
+    Data source: towardsinnovationlab/Climate_Risk_Monitoring (HuggingFace, MCP Server)
+    """
+    from ..connectors.hf_climate_monitor import get_client
+    client = get_client()
+    report = client.get_risk_report(lat=request.lat, lon=request.lon, location=request.location)
+    score  = client.hazard_score(lat=request.lat, lon=request.lon, location=request.location)
+    return {
+        "hazard_score":  score,
+        "risk_report":   report,
+        "methodology": {
+            "source": "towardsinnovationlab/Climate_Risk_Monitoring (HuggingFace Spaces MCP)",
+        },
+    }
 
 
 @app.post("/reports/tcfd", response_model=DisclosureResponse, dependencies=[_AUTH])

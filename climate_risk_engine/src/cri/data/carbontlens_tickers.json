@@ -1,0 +1,3791 @@
+{
+  "AAPL": {
+    "credit_score": 0.40753377928508927,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "NVDA": {
+    "credit_score": 0.37885819678527355,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "MSFT": {
+    "credit_score": 0.3882366975365541,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "AMZN": {
+    "credit_score": 0.5218411500526405,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "High",
+    "high_carbon": 0
+  },
+  "GOOGL": {
+    "credit_score": 0.46552876043235164,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "META": {
+    "credit_score": 0.5511960970000592,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "High",
+    "high_carbon": 0
+  },
+  "TSLA": {
+    "credit_score": 0.48078550303848167,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "AVGO": {
+    "credit_score": 0.4337764800347174,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "BRK-B": {
+    "credit_score": 0.41971547738197046,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "WMT": {
+    "credit_score": 0.4746764104802202,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "LLY": {
+    "credit_score": 0.47079283902241986,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "JPM": {
+    "credit_score": 0.5170749583170413,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "V": {
+    "credit_score": 0.4023371563554533,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "MA": {
+    "credit_score": 0.4067244182044688,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "ORCL": {
+    "credit_score": 0.37723377490679044,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "XOM": {
+    "credit_score": 0.8007823053150951,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Severe",
+    "high_carbon": 1
+  },
+  "UNH": {
+    "credit_score": 0.3847190329236797,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "COST": {
+    "credit_score": 0.4616268808847056,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "PG": {
+    "credit_score": 0.502408942596074,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "HD": {
+    "credit_score": 0.36325752184717236,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "NFLX": {
+    "credit_score": 0.40203636048939434,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "JNJ": {
+    "credit_score": 0.45856728138928216,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "BAC": {
+    "credit_score": 0.5076538249246395,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "CRM": {
+    "credit_score": 0.38860800791128053,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "ABBV": {
+    "credit_score": 0.5103085558864174,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "KO": {
+    "credit_score": 0.4425941344526956,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "TMUS": {
+    "credit_score": 0.45859719870807814,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "CVX": {
+    "credit_score": 0.7575592229860314,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "High",
+    "high_carbon": 1
+  },
+  "MRK": {
+    "credit_score": 0.4350922347582501,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "WFC": {
+    "credit_score": 0.575470651939835,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "High",
+    "high_carbon": 0
+  },
+  "CSCO": {
+    "credit_score": 0.37522004815214305,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "ACN": {
+    "credit_score": 0.38296240798408376,
+    "risk_tier": "Low",
+    "gain_score": 64.2468917867885,
+    "vulnerability": 0.315577264183443,
+    "readiness": 0.600515099919212,
+    "esg_level": "Negligible",
+    "high_carbon": 0
+  },
+  "NOW": {
+    "credit_score": 0.40648075535361267,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "AXP": {
+    "credit_score": 0.42262027371354427,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "MCD": {
+    "credit_score": 0.47905236846182464,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "PEP": {
+    "credit_score": 0.4429750150888841,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "BX": {
+    "credit_score": 0.4642012262549776,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "IBM": {
+    "credit_score": 0.37509469108262045,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "DIS": {
+    "credit_score": 0.3871930427402962,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "TMO": {
+    "credit_score": 0.3666405156070794,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "MS": {
+    "credit_score": 0.47450146775977786,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "ABT": {
+    "credit_score": 0.4704021967607816,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "ADBE": {
+    "credit_score": 0.3710105344835708,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "PM": {
+    "credit_score": 0.4986914698489395,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "ISRG": {
+    "credit_score": 0.44467920597837246,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "GE": {
+    "credit_score": 0.8073936091099502,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Severe",
+    "high_carbon": 1
+  },
+  "INTU": {
+    "credit_score": 0.4021459735602558,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "GS": {
+    "credit_score": 0.4819961552550728,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "CAT": {
+    "credit_score": 0.7638674934476982,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "High",
+    "high_carbon": 1
+  },
+  "TXN": {
+    "credit_score": 0.4361724278663708,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "QCOM": {
+    "credit_score": 0.3864674806689685,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "VZ": {
+    "credit_score": 0.3815044125239774,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "BKNG": {
+    "credit_score": 0.4236437139900089,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "DHR": {
+    "credit_score": 0.3599615231907015,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "T": {
+    "credit_score": 0.43061388225133607,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "BLK": {
+    "credit_score": 0.41504166117360386,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "SPGI": {
+    "credit_score": 0.3698009909147839,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "PFE": {
+    "credit_score": 0.45813303840959474,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "HON": {
+    "credit_score": 0.7022569312034996,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "NEE": {
+    "credit_score": 0.6505679434313133,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "CMCSA": {
+    "credit_score": 0.42476973443534605,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "ANET": {
+    "credit_score": 0.4055224627751497,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "AMGN": {
+    "credit_score": 0.4412098449383636,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "PGR": {
+    "credit_score": 0.42533607581693045,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "LOW": {
+    "credit_score": 0.3524032798540626,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "SYK": {
+    "credit_score": 0.5028583680226553,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "UNP": {
+    "credit_score": 0.6540348862681469,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "TJX": {
+    "credit_score": 0.38064291037015796,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "SCHW": {
+    "credit_score": 0.46203201626272694,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "ETN": {
+    "credit_score": 0.6543508967824894,
+    "risk_tier": "Critical",
+    "gain_score": 64.2468917867885,
+    "vulnerability": 0.315577264183443,
+    "readiness": 0.600515099919212,
+    "esg_level": "Low",
+    "high_carbon": 1
+  },
+  "AMAT": {
+    "credit_score": 0.36440989975732246,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "BA": {
+    "credit_score": 0.8071521668309436,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "High",
+    "high_carbon": 1
+  },
+  "BSX": {
+    "credit_score": 0.45930882977588633,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "C": {
+    "credit_score": 0.5130382442298979,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "COP": {
+    "credit_score": 0.7270893162155541,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "High",
+    "high_carbon": 1
+  },
+  "PANW": {
+    "credit_score": 0.38294270959389465,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "ADP": {
+    "credit_score": 0.3760722947320732,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "DE": {
+    "credit_score": 0.6183491089327109,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 1
+  },
+  "FI": {
+    "credit_score": 0.4222090780722496,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "BMY": {
+    "credit_score": 0.4352045414148246,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "LMT": {
+    "credit_score": 0.7120436468354034,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "High",
+    "high_carbon": 1
+  },
+  "GILD": {
+    "credit_score": 0.4445743724610287,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "NKE": {
+    "credit_score": 0.4240446202153402,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "CB": {
+    "credit_score": 0.30890572025148477,
+    "risk_tier": "Low",
+    "gain_score": 72.0035803135863,
+    "vulnerability": 0.251258452297331,
+    "readiness": 0.691330058569058,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "UPS": {
+    "credit_score": 0.6078041540263648,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 1
+  },
+  "ADI": {
+    "credit_score": 0.4559549760110929,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "MMC": {
+    "credit_score": 0.4360012660507334,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "MDT": {
+    "credit_score": 0.4897486510309773,
+    "risk_tier": "High",
+    "gain_score": 64.2468917867885,
+    "vulnerability": 0.315577264183443,
+    "readiness": 0.600515099919212,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "VRTX": {
+    "credit_score": 0.4539173908421942,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "MU": {
+    "credit_score": 0.4078654256828356,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "SBUX": {
+    "credit_score": 0.46760151081754947,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "PLD": {
+    "credit_score": 0.3438563711076668,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "LRCX": {
+    "credit_score": 0.37350384839379636,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "MO": {
+    "credit_score": 0.5145399434179688,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "High",
+    "high_carbon": 0
+  },
+  "SO": {
+    "credit_score": 0.7277396737245831,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "High",
+    "high_carbon": 1
+  },
+  "EQIX": {
+    "credit_score": 0.37853994749719877,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "PYPL": {
+    "credit_score": 0.4073278316070442,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "SHW": {
+    "credit_score": 0.7109140663516696,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "ICE": {
+    "credit_score": 0.42554386300095504,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "CME": {
+    "credit_score": 0.41058143767126265,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "AMT": {
+    "credit_score": 0.3457948146868558,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "APH": {
+    "credit_score": 0.42724181153803426,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "ELV": {
+    "credit_score": 0.3420232501748717,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "TT": {
+    "credit_score": 0.6305221799777229,
+    "risk_tier": "Critical",
+    "gain_score": 64.2468917867885,
+    "vulnerability": 0.315577264183443,
+    "readiness": 0.600515099919212,
+    "esg_level": "Low",
+    "high_carbon": 1
+  },
+  "MCO": {
+    "credit_score": 0.394746507055515,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "CMG": {
+    "credit_score": 0.4391931340916458,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "INTC": {
+    "credit_score": 0.4085495920501738,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "KLAC": {
+    "credit_score": 0.4051480959084903,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "DUK": {
+    "credit_score": 0.6718948753807693,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "PH": {
+    "credit_score": 0.7103936693728685,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "CDNS": {
+    "credit_score": 0.36514025389480254,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "WM": {
+    "credit_score": 0.5958180154495741,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 1
+  },
+  "MDLZ": {
+    "credit_score": 0.440153144919254,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "MAR": {
+    "credit_score": 0.4413101813836519,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "MSI": {
+    "credit_score": 0.3711937499060998,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "WELL": {
+    "credit_score": 0.3724268752727684,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "REGN": {
+    "credit_score": 0.4106746337831969,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "CI": {
+    "credit_score": 0.3472485261114435,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "HCA": {
+    "credit_score": 0.48594291192914124,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "PNC": {
+    "credit_score": 0.48335832109337495,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "ITW": {
+    "credit_score": 0.6737766499494351,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "SNPS": {
+    "credit_score": 0.3853054574984061,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "CTAS": {
+    "credit_score": 0.615725902322657,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 1
+  },
+  "CL": {
+    "credit_score": 0.48092893086536453,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "USB": {
+    "credit_score": 0.5196187356466246,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "High",
+    "high_carbon": 0
+  },
+  "FTNT": {
+    "credit_score": 0.4240950312380233,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "ZTS": {
+    "credit_score": 0.4189997939427619,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "MCK": {
+    "credit_score": 0.3853437100257094,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "GD": {
+    "credit_score": 0.7575073298933335,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "High",
+    "high_carbon": 1
+  },
+  "TDG": {
+    "credit_score": 0.7909925663917691,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "High",
+    "high_carbon": 1
+  },
+  "AJG": {
+    "credit_score": 0.4402387166182762,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "EMR": {
+    "credit_score": 0.6999735925553998,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "MMM": {
+    "credit_score": 0.7694283518902031,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "High",
+    "high_carbon": 1
+  },
+  "ORLY": {
+    "credit_score": 0.360637374877777,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "NOC": {
+    "credit_score": 0.6921886708228242,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "COF": {
+    "credit_score": 0.45132075867609267,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "ECL": {
+    "credit_score": 0.6282548892288096,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 1
+  },
+  "EOG": {
+    "credit_score": 0.7299997828041656,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "High",
+    "high_carbon": 1
+  },
+  "FDX": {
+    "credit_score": 0.6093305121371717,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 1
+  },
+  "BDX": {
+    "credit_score": 0.45822485349316894,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "APD": {
+    "credit_score": 0.5603456979020014,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 1
+  },
+  "WMB": {
+    "credit_score": 0.6389472397214297,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "SPG": {
+    "credit_score": 0.374767746263524,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "ADSK": {
+    "credit_score": 0.4061132555605555,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "RCL": {
+    "credit_score": 0.42970640119166414,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "RSG": {
+    "credit_score": 0.6333984944779194,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "CSX": {
+    "credit_score": 0.6356275982109942,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "HLT": {
+    "credit_score": 0.4101687171093965,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "DLR": {
+    "credit_score": 0.3670769928000176,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "TGT": {
+    "credit_score": 0.3650244673274858,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "KMI": {
+    "credit_score": 0.6115557132930758,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 1
+  },
+  "OKE": {
+    "credit_score": 0.6666275387633537,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "AFL": {
+    "credit_score": 0.409549636227715,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "GM": {
+    "credit_score": 0.4611773319426492,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "BK": {
+    "credit_score": 0.43587667039234973,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "ROP": {
+    "credit_score": 0.4331974900327987,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "MET": {
+    "credit_score": 0.3867342789564845,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "CPRT": {
+    "credit_score": 0.59770480365767,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 1
+  },
+  "FCX": {
+    "credit_score": 0.7104448410729214,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "High",
+    "high_carbon": 1
+  },
+  "CVS": {
+    "credit_score": 0.41555509183393724,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "PCAR": {
+    "credit_score": 0.6866049989253704,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "SRE": {
+    "credit_score": 0.654593280026396,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "AZO": {
+    "credit_score": 0.34694114958455635,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "TRV": {
+    "credit_score": 0.4208523594320924,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "NXPI": {
+    "credit_score": 0.4801851439267664,
+    "risk_tier": "High",
+    "gain_score": 65.8722724730304,
+    "vulnerability": 0.353879572190633,
+    "readiness": 0.67132502165124,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "JCI": {
+    "credit_score": 0.6209596701295044,
+    "risk_tier": "Critical",
+    "gain_score": 64.2468917867885,
+    "vulnerability": 0.315577264183443,
+    "readiness": 0.600515099919212,
+    "esg_level": "Low",
+    "high_carbon": 1
+  },
+  "GWW": {
+    "credit_score": 0.5943078043855875,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 1
+  },
+  "NSC": {
+    "credit_score": 0.6538832072018682,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "PSA": {
+    "credit_score": 0.3674610760300753,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "SLB": {
+    "credit_score": 0.6157002305654672,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "AMP": {
+    "credit_score": 0.4298226187580381,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "ALL": {
+    "credit_score": 0.4359166493256629,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "MNST": {
+    "credit_score": 0.510523614511007,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "PAYX": {
+    "credit_score": 0.40135679850888645,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "CHTR": {
+    "credit_score": 0.41161547000324045,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "AEP": {
+    "credit_score": 0.6674380340385342,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "ROST": {
+    "credit_score": 0.41225160472116235,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "PWR": {
+    "credit_score": 0.7777958549222239,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "High",
+    "high_carbon": 1
+  },
+  "CMI": {
+    "credit_score": 0.6164806417485027,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 1
+  },
+  "URI": {
+    "credit_score": 0.5955598432819805,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 1
+  },
+  "MSCI": {
+    "credit_score": 0.39984954875651296,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "LULU": {
+    "credit_score": 0.34752725142759955,
+    "risk_tier": "Low",
+    "gain_score": 68.1819038515583,
+    "vulnerability": 0.281583885412555,
+    "readiness": 0.64522196244372,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "O": {
+    "credit_score": 0.38321946051272765,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "PSX": {
+    "credit_score": 0.7518832821337436,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "High",
+    "high_carbon": 1
+  },
+  "AIG": {
+    "credit_score": 0.44471113528526873,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "D": {
+    "credit_score": 0.6686412942824864,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "DHI": {
+    "credit_score": 0.42452268534040544,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "KR": {
+    "credit_score": 0.4206796490909548,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "NDAQ": {
+    "credit_score": 0.3687084588264885,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "OXY": {
+    "credit_score": 0.7802656080898004,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Severe",
+    "high_carbon": 1
+  },
+  "EW": {
+    "credit_score": 0.41789743665681134,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "COR": {
+    "credit_score": 0.35970249926267817,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "FIS": {
+    "credit_score": 0.40297540891458017,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "KMB": {
+    "credit_score": 0.497182045709105,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "NEM": {
+    "credit_score": 0.6202800890274454,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "DFS": {
+    "credit_score": 0.4470258142675274,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "PCG": {
+    "credit_score": 0.694328817730232,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "High",
+    "high_carbon": 1
+  },
+  "TEL": {
+    "credit_score": 0.42026353317185605,
+    "risk_tier": "Medium",
+    "gain_score": 64.2468917867885,
+    "vulnerability": 0.315577264183443,
+    "readiness": 0.600515099919212,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "MPC": {
+    "credit_score": 0.6910461608970798,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "High",
+    "high_carbon": 1
+  },
+  "FAST": {
+    "credit_score": 0.6718692133863743,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "AME": {
+    "credit_score": 0.6632492285717054,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "PEG": {
+    "credit_score": 0.6849173161920602,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "PRU": {
+    "credit_score": 0.41590687812881594,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "STZ": {
+    "credit_score": 0.4634574835260878,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "GLW": {
+    "credit_score": 0.39693746940909885,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "GRMN": {
+    "credit_score": 0.2935374185146802,
+    "risk_tier": "Low",
+    "gain_score": 72.0035803135863,
+    "vulnerability": 0.251258452297331,
+    "readiness": 0.691330058569058,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "CBRE": {
+    "credit_score": 0.32452646533053325,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Negligible",
+    "high_carbon": 0
+  },
+  "HES": {
+    "credit_score": 0.7235198928208924,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "High",
+    "high_carbon": 1
+  },
+  "CCI": {
+    "credit_score": 0.33573830765702495,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "DAL": {
+    "credit_score": 0.6935078094094538,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "High",
+    "high_carbon": 1
+  },
+  "CTSH": {
+    "credit_score": 0.3776334802197169,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "F": {
+    "credit_score": 0.4212561857882723,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "VRSK": {
+    "credit_score": 0.6101569287300855,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 1
+  },
+  "EA": {
+    "credit_score": 0.37159804029495436,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "XEL": {
+    "credit_score": 0.6716125786677422,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "TRGP": {
+    "credit_score": 0.735572100040043,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "High",
+    "high_carbon": 1
+  },
+  "A": {
+    "credit_score": 0.37543974119331935,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "IT": {
+    "credit_score": 0.42238574401480855,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "LVS": {
+    "credit_score": 0.4102116229338832,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "SYY": {
+    "credit_score": 0.3836685574799037,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "VLO": {
+    "credit_score": 0.7143516419991252,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "High",
+    "high_carbon": 1
+  },
+  "LEN": {
+    "credit_score": 0.4611514424041228,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "EXC": {
+    "credit_score": 0.6327193020627886,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "YUM": {
+    "credit_score": 0.42718805877750854,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "KHC": {
+    "credit_score": 0.5290577860216081,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "High",
+    "high_carbon": 0
+  },
+  "IQV": {
+    "credit_score": 0.4172295069487991,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "GIS": {
+    "credit_score": 0.4282101219284656,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "CCL": {
+    "credit_score": 0.4503666851562659,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "RMD": {
+    "credit_score": 0.4854741913578362,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "VMC": {
+    "credit_score": 0.7090328715127073,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "HSY": {
+    "credit_score": 0.4760155166705814,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "IDXX": {
+    "credit_score": 0.42000183392640283,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "WAB": {
+    "credit_score": 0.656015171354883,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "ROK": {
+    "credit_score": 0.6096700046103429,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 1
+  },
+  "MLM": {
+    "credit_score": 0.7155835701947189,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "High",
+    "high_carbon": 1
+  },
+  "EXR": {
+    "credit_score": 0.38483756404221914,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "DD": {
+    "credit_score": 0.6975570857442129,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "ETR": {
+    "credit_score": 0.673296528175529,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "EFX": {
+    "credit_score": 0.6567819772667732,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "UAL": {
+    "credit_score": 0.6757487412145174,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "WTW": {
+    "credit_score": 0.3443454702548622,
+    "risk_tier": "Low",
+    "gain_score": 69.6633498227979,
+    "vulnerability": 0.288055598949617,
+    "readiness": 0.681322595405575,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "HIG": {
+    "credit_score": 0.38705643445398064,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "RJF": {
+    "credit_score": 0.4816050397999709,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "AVB": {
+    "credit_score": 0.3399466806110243,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Negligible",
+    "high_carbon": 0
+  },
+  "MTB": {
+    "credit_score": 0.47716688938253865,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "DXCM": {
+    "credit_score": 0.4677462902297556,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "ED": {
+    "credit_score": 0.6426868261242804,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "EBAY": {
+    "credit_score": 0.4034297714579618,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "HPQ": {
+    "credit_score": 0.3365892218248423,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "IRM": {
+    "credit_score": 0.37951150963801245,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "EIX": {
+    "credit_score": 0.6699575078516494,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "CNC": {
+    "credit_score": 0.4059953037078661,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "WEC": {
+    "credit_score": 0.6842388617701518,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "MCHP": {
+    "credit_score": 0.5294293207272054,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "High",
+    "high_carbon": 0
+  },
+  "HUM": {
+    "credit_score": 0.43929827725085424,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "ANSS": {
+    "credit_score": 0.39730320713237055,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "BRO": {
+    "credit_score": 0.43353737285731886,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "CSGP": {
+    "credit_score": 0.45278718333301016,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "TSCO": {
+    "credit_score": 0.39314789671772754,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "STT": {
+    "credit_score": 0.4548470892982588,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "CAH": {
+    "credit_score": 0.37723653940810836,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "GPN": {
+    "credit_score": 0.6214498947965568,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "FITB": {
+    "credit_score": 0.39137193372754664,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "XYL": {
+    "credit_score": 0.6115828768071562,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 1
+  },
+  "HPE": {
+    "credit_score": 0.32993896111037824,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "KEYS": {
+    "credit_score": 0.32321888799485565,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Negligible",
+    "high_carbon": 0
+  },
+  "EQR": {
+    "credit_score": 0.35705152141311114,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "ON": {
+    "credit_score": 0.44299701000421654,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "PPG": {
+    "credit_score": 0.6664256381725369,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "K": {
+    "credit_score": 0.49874851534758935,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "NUE": {
+    "credit_score": 0.7203605226746951,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "High",
+    "high_carbon": 1
+  },
+  "EL": {
+    "credit_score": 0.4708121294887115,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "BR": {
+    "credit_score": 0.39870609980251165,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "CHD": {
+    "credit_score": 0.42845144030167515,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "MTD": {
+    "credit_score": 0.37059942577000693,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "DOV": {
+    "credit_score": 0.6778774554125581,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "FTV": {
+    "credit_score": 0.5553925195241783,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "High",
+    "high_carbon": 0
+  },
+  "TROW": {
+    "credit_score": 0.394498307437268,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "EQT": {
+    "credit_score": 0.7576983361496293,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "High",
+    "high_carbon": 1
+  },
+  "SYF": {
+    "credit_score": 0.393564521498433,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "NVR": {
+    "credit_score": 0.42721303989389603,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "DTE": {
+    "credit_score": 0.700815972254915,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "VTR": {
+    "credit_score": 0.36403102256844644,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "AWK": {
+    "credit_score": 0.6359501429101702,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "ADM": {
+    "credit_score": 0.5140661819283929,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "High",
+    "high_carbon": 0
+  },
+  "NTAP": {
+    "credit_score": 0.38719408958523693,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "PPL": {
+    "credit_score": 0.7140757802219085,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "High",
+    "high_carbon": 1
+  },
+  "LYB": {
+    "credit_score": 0.6147148318463989,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "AEE": {
+    "credit_score": 0.6785171687354159,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "EXPE": {
+    "credit_score": 0.49191892437949,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "HBAN": {
+    "credit_score": 0.43106895679616025,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "CDW": {
+    "credit_score": 0.33033119102994035,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Negligible",
+    "high_carbon": 0
+  },
+  "FE": {
+    "credit_score": 0.6593745072878394,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "HUBB": {
+    "credit_score": 0.6252167645281188,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 1
+  },
+  "HAL": {
+    "credit_score": 0.6512085141911352,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "ROL": {
+    "credit_score": 0.4259988217853854,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "PHM": {
+    "credit_score": 0.42356908475724275,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "CINF": {
+    "credit_score": 0.4580436190383894,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "PTC": {
+    "credit_score": 0.4228918833065929,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "WRB": {
+    "credit_score": 0.42971390314163843,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "DRI": {
+    "credit_score": 0.48971795516678135,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "IFF": {
+    "credit_score": 0.6474225862125949,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "SBAC": {
+    "credit_score": 0.3517948889484958,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "WAT": {
+    "credit_score": 0.3832773767060564,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "ATO": {
+    "credit_score": 0.7496495274896555,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "High",
+    "high_carbon": 1
+  },
+  "RF": {
+    "credit_score": 0.3864631854097399,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "BIIB": {
+    "credit_score": 0.43543862725470744,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "ZBH": {
+    "credit_score": 0.47073761558394567,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "CNP": {
+    "credit_score": 0.6902304261614793,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "MKC": {
+    "credit_score": 0.4808409970475115,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "ES": {
+    "credit_score": 0.5944052099827936,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 1
+  },
+  "WDC": {
+    "credit_score": 0.3468400433782901,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "TSN": {
+    "credit_score": 0.5516075800758627,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "High",
+    "high_carbon": 0
+  },
+  "TER": {
+    "credit_score": 0.4063811176301358,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "PKG": {
+    "credit_score": 0.4128304760975408,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "CLX": {
+    "credit_score": 0.44069489704020115,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "NTRS": {
+    "credit_score": 0.44564070678282525,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "DVN": {
+    "credit_score": 0.6987071938009782,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "High",
+    "high_carbon": 1
+  },
+  "CBOE": {
+    "credit_score": 0.43595916813158425,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "WY": {
+    "credit_score": 0.39907258627851405,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "LUV": {
+    "credit_score": 0.7169878150823343,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "High",
+    "high_carbon": 1
+  },
+  "ULTA": {
+    "credit_score": 0.3849246759195223,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "CMS": {
+    "credit_score": 0.6307249476124496,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "LDOS": {
+    "credit_score": 0.39998256191532333,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "CFG": {
+    "credit_score": 0.4406282102126399,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "LH": {
+    "credit_score": 0.4211107306124536,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "VRSN": {
+    "credit_score": 0.4396907642696701,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "IP": {
+    "credit_score": 0.4602883125738627,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "ESS": {
+    "credit_score": 0.362260115925124,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "COO": {
+    "credit_score": 0.4070736533231555,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "STX": {
+    "credit_score": 0.3711013341039333,
+    "risk_tier": "Low",
+    "gain_score": 70.5715560176398,
+    "vulnerability": 0.38869248799521,
+    "readiness": 0.800123608348007,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "MAA": {
+    "credit_score": 0.3669268813015657,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "FDS": {
+    "credit_score": 0.4163585399962349,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "NRG": {
+    "credit_score": 0.7227969020550622,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "High",
+    "high_carbon": 1
+  },
+  "BBY": {
+    "credit_score": 0.3791135773635243,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "SNA": {
+    "credit_score": 0.7155965906547281,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "High",
+    "high_carbon": 1
+  },
+  "L": {
+    "credit_score": 0.3783133925463383,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "PFG": {
+    "credit_score": 0.38692095295811124,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "STLD": {
+    "credit_score": 0.7263801368839464,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "High",
+    "high_carbon": 1
+  },
+  "TRMB": {
+    "credit_score": 0.36481097851600863,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "OMC": {
+    "credit_score": 0.3837394351117075,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "CTRA": {
+    "credit_score": 0.7463037079615097,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "High",
+    "high_carbon": 1
+  },
+  "HRL": {
+    "credit_score": 0.5119105465878016,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "ARE": {
+    "credit_score": 0.3673667439484805,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "JBHT": {
+    "credit_score": 0.5779486527609259,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 1
+  },
+  "GEN": {
+    "credit_score": 0.3940650877307324,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "DGX": {
+    "credit_score": 0.43132420762856855,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "KEY": {
+    "credit_score": 0.4189112982789616,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "NI": {
+    "credit_score": 0.6679950178632947,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "PNR": {
+    "credit_score": 0.5773090257719831,
+    "risk_tier": "High",
+    "gain_score": 69.6633498227979,
+    "vulnerability": 0.288055598949617,
+    "readiness": 0.681322595405575,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "J": {
+    "credit_score": 0.6444951703485816,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "DG": {
+    "credit_score": 0.38863070397908517,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "BALL": {
+    "credit_score": 0.34932854912868194,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "NWSA": {
+    "credit_score": 0.3515364574356198,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "UDR": {
+    "credit_score": 0.37497447115817983,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "HOLX": {
+    "credit_score": 0.46877595539750433,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "GPC": {
+    "credit_score": 0.3628890187975248,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "IEX": {
+    "credit_score": 0.7095727009522814,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "MAS": {
+    "credit_score": 0.64192892358989,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "KIM": {
+    "credit_score": 0.3466259776638262,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "DLTR": {
+    "credit_score": 0.4124660158759818,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "EXPD": {
+    "credit_score": 0.5977785515480057,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 1
+  },
+  "LNT": {
+    "credit_score": 0.6326584865796248,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "AVY": {
+    "credit_score": 0.38894444496926023,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "BAX": {
+    "credit_score": 0.4403279092435628,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "TPR": {
+    "credit_score": 0.3772726657300676,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "CF": {
+    "credit_score": 0.6901989483250202,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "FFIV": {
+    "credit_score": 0.40390764507712595,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "DPZ": {
+    "credit_score": 0.5073259434002435,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "AKAM": {
+    "credit_score": 0.39922474706234273,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "RL": {
+    "credit_score": 0.378959325777209,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "TXT": {
+    "credit_score": 0.7373338816659456,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "High",
+    "high_carbon": 1
+  },
+  "SWKS": {
+    "credit_score": 0.4942279438299136,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "APTV": {
+    "credit_score": 0.3644013856496874,
+    "risk_tier": "Low",
+    "gain_score": 64.2468917867885,
+    "vulnerability": 0.315577264183443,
+    "readiness": 0.600515099919212,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "RVTY": {
+    "credit_score": 0.3997245738472268,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "REG": {
+    "credit_score": 0.3547394747504984,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "INCY": {
+    "credit_score": 0.47789243812939725,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "BXP": {
+    "credit_score": 0.3502653370652325,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "KMX": {
+    "credit_score": 0.35769029824748927,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "CAG": {
+    "credit_score": 0.5041606478174789,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "High",
+    "high_carbon": 0
+  },
+  "HST": {
+    "credit_score": 0.3618654805874513,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "JKHY": {
+    "credit_score": 0.41910699398172346,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "SWK": {
+    "credit_score": 0.6628668063559391,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "DVA": {
+    "credit_score": 0.42684446520078934,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "CPB": {
+    "credit_score": 0.44532982698779583,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "CHRW": {
+    "credit_score": 0.622712630761409,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 1
+  },
+  "JNPR": {
+    "credit_score": 0.3858878882506369,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "CPT": {
+    "credit_score": 0.392156832751389,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "TAP": {
+    "credit_score": 0.41885454021233787,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "NDSN": {
+    "credit_score": 0.6691355170383951,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "UHS": {
+    "credit_score": 0.5223551463644981,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "High",
+    "high_carbon": 0
+  },
+  "NCLH": {
+    "credit_score": 0.45792956957564496,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "SJM": {
+    "credit_score": 0.5021654108835094,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "High",
+    "high_carbon": 0
+  },
+  "ALLE": {
+    "credit_score": 0.6825318873415367,
+    "risk_tier": "Critical",
+    "gain_score": 64.2468917867885,
+    "vulnerability": 0.315577264183443,
+    "readiness": 0.600515099919212,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "BG": {
+    "credit_score": 0.5143454776742357,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "High",
+    "high_carbon": 0
+  },
+  "AIZ": {
+    "credit_score": 0.455166127867585,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "IPG": {
+    "credit_score": 0.32843779918890453,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "BEN": {
+    "credit_score": 0.3982169351690656,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "EMN": {
+    "credit_score": 0.6587458173592055,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "ALB": {
+    "credit_score": 0.6944354038251633,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "MGM": {
+    "credit_score": 0.4400558054961586,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "AOS": {
+    "credit_score": 0.6715075031471524,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "WYNN": {
+    "credit_score": 0.45774927759435297,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "PNW": {
+    "credit_score": 0.6992694847290134,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "High",
+    "high_carbon": 1
+  },
+  "LKQ": {
+    "credit_score": 0.3321809734160341,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "FRT": {
+    "credit_score": 0.35941618676215686,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "AES": {
+    "credit_score": 0.6396751351668442,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "GL": {
+    "credit_score": 0.4155584938497707,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "HSIC": {
+    "credit_score": 0.36798541296609794,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "TFX": {
+    "credit_score": 0.5084258794314548,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "WBA": {
+    "credit_score": 0.35119195007624693,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "HAS": {
+    "credit_score": 0.31053395876465845,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Negligible",
+    "high_carbon": 0
+  },
+  "IVZ": {
+    "credit_score": 0.4406372352145207,
+    "risk_tier": "Medium",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "APA": {
+    "credit_score": 0.7002157506459725,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "High",
+    "high_carbon": 1
+  },
+  "MOS": {
+    "credit_score": 0.7157711212572496,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "High",
+    "high_carbon": 1
+  },
+  "PARA": {
+    "credit_score": 0.3304116029749527,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "MHK": {
+    "credit_score": 0.3542829987908122,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "CE": {
+    "credit_score": 0.6518363598407051,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 1
+  },
+  "BWA": {
+    "credit_score": 0.33141830314837534,
+    "risk_tier": "Low",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Low",
+    "high_carbon": 0
+  },
+  "QRVO": {
+    "credit_score": 0.49540850560383576,
+    "risk_tier": "High",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "Medium",
+    "high_carbon": 0
+  },
+  "FMC": {
+    "credit_score": 0.712659196174112,
+    "risk_tier": "Critical",
+    "gain_score": 66.7646656881949,
+    "vulnerability": 0.312019243435194,
+    "readiness": 0.647312557199093,
+    "esg_level": "High",
+    "high_carbon": 1
+  }
+}
