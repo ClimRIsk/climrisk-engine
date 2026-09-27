@@ -53,6 +53,18 @@ try:
 except ImportError:
     _HAS_SKLEARN = False
 
+try:
+    import joblib as _joblib
+    _HAS_JOBLIB = True
+except ImportError:
+    _HAS_JOBLIB = False
+
+import os as _os
+
+# Model cache directory — set CRI_MODEL_DIR env var for persistent on-premise storage.
+# Defaults to /tmp/cri_models/ (survives within a single Render instance lifetime).
+_MODEL_CACHE_DIR = _os.environ.get("CRI_MODEL_DIR", "/tmp/cri_models")
+
 
 # ── Result type ───────────────────────────────────────────────────────────────
 
@@ -312,11 +324,32 @@ class RiskPredictor:
 
     # ── Model training ────────────────────────────────────────────────────────
 
+    def _cache_paths(self) -> tuple[str, str]:
+        """Return (model_path, scaler_path) for joblib persistence."""
+        d = _MODEL_CACHE_DIR
+        return (
+            _os.path.join(d, f"risk_predictor_model_v{self.MODEL_VERSION}.joblib"),
+            _os.path.join(d, f"risk_predictor_scaler_v{self.MODEL_VERSION}.joblib"),
+        )
+
     def _fit(self) -> None:
         if self._fitted or not _HAS_SKLEARN:
             self._fitted = True
             return
 
+        # ── Try loading cached model from disk ────────────────────────────────
+        if _HAS_JOBLIB:
+            model_path, scaler_path = self._cache_paths()
+            if _os.path.exists(model_path) and _os.path.exists(scaler_path):
+                try:
+                    self._models["main"]  = _joblib.load(model_path)
+                    self._scalers["main"] = _joblib.load(scaler_path)
+                    self._fitted = True
+                    return
+                except Exception:
+                    pass   # corrupted cache — fall through to retrain
+
+        # ── Train from synthetic data ─────────────────────────────────────────
         X_raw, y = self._generate_training_data(n_companies=1500)
 
         import numpy as np
@@ -339,6 +372,16 @@ class RiskPredictor:
         self._models["main"]  = model
         self._scalers["main"] = scaler
         self._fitted = True
+
+        # ── Persist to disk for fast cold-starts ─────────────────────────────
+        if _HAS_JOBLIB:
+            try:
+                _os.makedirs(_MODEL_CACHE_DIR, exist_ok=True)
+                model_path, scaler_path = self._cache_paths()
+                _joblib.dump(model, model_path, compress=3)
+                _joblib.dump(scaler, scaler_path, compress=3)
+            except Exception:
+                pass   # persistence failure is non-fatal
 
     # ── Bootstrap confidence bands ────────────────────────────────────────────
 
