@@ -29,6 +29,8 @@ api = [
     # Data acquisition layer — autonomous agent
     "httpx>=0.27",          # async HTTP client for GLEIF, EDGAR, CDP, SBTi, Nominatim
     "yfinance>=0.2.37",     # Yahoo Finance market data (revenue, EV, market cap)
+    # LLM orchestration layer
+    "groq>=0.9",            # Groq client — LLaMA-3.3-70b tool calling for /agent/chat
 ]
 # Minimal JRC flood depth lookup — rasterio binary wheel only, no system GDAL needed
 flood = ["rasterio>=1.3"]

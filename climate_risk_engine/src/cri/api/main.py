@@ -2257,3 +2257,108 @@ def calibrate_against_historical(request: CalibrateRequest) -> dict:
         ) from exc
 
     return calibration_report_to_dict(report)
+
+
+# ── LLM Agent endpoints ───────────────────────────────────────────────────────
+
+class ChatRequest(BaseModel):
+    message:   str         = Field(..., description="Natural-language question or instruction")
+    context:   dict | None = Field(None, description="Optional dashboard context (company, sector, etc.)")
+    max_rounds: int        = Field(3, ge=1, le=5, description="Max tool-call rounds (1–5)")
+
+
+class DecisionBriefRequest(BaseModel):
+    company_name:  str   = Field(..., description="Company name")
+    sector:        str   = Field(..., description="Sector")
+    jurisdiction:  str   = Field("US", description="ISO 2-letter country code")
+    revenue_usd_m: float = Field(5000.0, description="Annual revenue USD millions")
+
+
+@app.post("/agent/chat", dependencies=[_AUTH], tags=["LLM Agent"])
+def agent_chat(request: ChatRequest) -> dict:
+    """
+    Natural-language climate risk Q&A powered by Groq LLaMA-3.3-70b.
+
+    The LLM decides which engine tools to call (assess_company, analyze_disclosure,
+    get_location_hazard, compare_companies, etc.), executes them against the live
+    engine, then synthesises a concise narrative answer.
+
+    Falls back to Anthropic Claude Haiku, then a template, if Groq is unavailable.
+
+    **Example queries:**
+    - "What is the climate risk for Shell?"
+    - "Compare Toyota and Ford's climate exposure"
+    - "Analyse this sustainability report text: [paste text]"
+    - "What is the hazard risk at 28.6°N, 77.2°E?"
+    - "Explain the Delayed Transition scenario"
+    """
+    from ..ai.llm_agent import run_agent
+
+    result = run_agent(
+        user_message=request.message,
+        context=request.context,
+        max_rounds=request.max_rounds,
+    )
+
+    return {
+        "narrative":        result.narrative,
+        "tool_calls_made":  result.tool_calls_made,
+        "raw_tool_results": result.raw_tool_results,
+        "model_used":       result.model_used,
+        "tokens_used":      result.tokens_used,
+        "rounds":           result.rounds,
+        "fallback_used":    result.fallback_used,
+        "error":            result.error,
+    }
+
+
+@app.post("/agent/decision-brief", dependencies=[_AUTH], tags=["LLM Agent"])
+def agent_decision_brief(request: DecisionBriefRequest) -> dict:
+    """
+    Generate a board-ready climate risk decision brief for a single company.
+
+    Runs assess_company + Monte Carlo VaR internally, then uses the LLM to
+    produce a structured narrative with: risk signal, composite score, top
+    drivers, VaR, and three specific recommended actions.
+    """
+    from ..ai.llm_agent import get_decision_brief
+
+    result = get_decision_brief(
+        company_name=request.company_name,
+        sector=request.sector,
+        jurisdiction=request.jurisdiction,
+        revenue_usd_m=request.revenue_usd_m,
+    )
+
+    return {
+        "company":          request.company_name,
+        "sector":           request.sector,
+        "jurisdiction":     request.jurisdiction,
+        "decision_brief":   result.narrative,
+        "tool_calls_made":  result.tool_calls_made,
+        "raw_engine_data":  result.raw_tool_results,
+        "model_used":       result.model_used,
+        "tokens_used":      result.tokens_used,
+        "fallback_used":    result.fallback_used,
+        "error":            result.error,
+    }
+
+
+@app.get("/agent/tools", tags=["LLM Agent"])
+def list_agent_tools() -> dict:
+    """List all tools available to the LLM agent with their descriptions."""
+    from ..ai.tools import TOOL_REGISTRY
+    return {
+        "tools": [
+            {
+                "name":        name,
+                "description": entry["definition"]["function"]["description"],
+                "parameters":  list(
+                    entry["definition"]["function"]["parameters"]
+                    .get("properties", {}).keys()
+                ),
+            }
+            for name, entry in TOOL_REGISTRY.items()
+        ],
+        "total": len(TOOL_REGISTRY),
+    }

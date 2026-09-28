@@ -1,8 +1,10 @@
 """LLM micro-agent layer — generates human-readable outputs from engine data.
 
 Pillar 3: Hybrid AI Integration.
-Uses Anthropic Claude API (ANTHROPIC_API_KEY env variable).
-Gracefully falls back to template-based output if no key is configured.
+LLM fallback chain:
+  1. Groq (GROQ_API_KEY) — fast, cheap, llama-3.3-70b-versatile
+  2. Anthropic Claude Haiku (ANTHROPIC_API_KEY) — fallback
+  3. Template strings — always works, no API key needed
 
 Design principle: the LLM is the communicator, the engine is the calculator.
 Every number in the output comes from the engine — the LLM only arranges prose.
@@ -79,25 +81,52 @@ _SECTION_PROMPTS = {
 # ── LLM call ─────────────────────────────────────────────────────────────────
 
 def _call_llm(system_prompt: str, user_prompt: str, max_tokens: int = 1500) -> Optional[str]:
-    """Call Anthropic Claude API. Returns None if key not set or call fails."""
-    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
-    if not api_key:
-        logger.info("ANTHROPIC_API_KEY not set — using template fallback")
-        return None
+    """
+    Call an LLM to generate prose.
 
-    try:
-        import anthropic
-        client = anthropic.Anthropic(api_key=api_key)
-        msg = client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=max_tokens,
-            system=system_prompt,
-            messages=[{"role": "user", "content": user_prompt}],
-        )
-        return msg.content[0].text if msg.content else None
-    except Exception as exc:
-        logger.warning("LLM call failed: %s", exc)
-        return None
+    Fallback chain:
+      1. Groq  (GROQ_API_KEY — fast, cheap)
+      2. Anthropic Claude Haiku (ANTHROPIC_API_KEY)
+      3. None  → caller uses template
+    """
+    # ── 1. Groq ──────────────────────────────────────────────────────────────
+    groq_key = os.environ.get("GROQ_API_KEY", "")
+    if groq_key:
+        try:
+            from groq import Groq
+            groq_model = os.environ.get("CLIMRISK_GROQ_MODEL", "llama-3.3-70b-versatile")
+            client = Groq(api_key=groq_key)
+            resp = client.chat.completions.create(
+                model=groq_model,
+                max_tokens=max_tokens,
+                temperature=0.2,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user",   "content": user_prompt},
+                ],
+            )
+            return resp.choices[0].message.content
+        except Exception as exc:
+            logger.warning("Groq call failed, trying Anthropic: %s", exc)
+
+    # ── 2. Anthropic ──────────────────────────────────────────────────────────
+    anthropic_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if anthropic_key:
+        try:
+            import anthropic
+            client = anthropic.Anthropic(api_key=anthropic_key)
+            msg = client.messages.create(
+                model="claude-haiku-4-5-20251001",
+                max_tokens=max_tokens,
+                system=system_prompt,
+                messages=[{"role": "user", "content": user_prompt}],
+            )
+            return msg.content[0].text if msg.content else None
+        except Exception as exc:
+            logger.warning("Anthropic call failed: %s", exc)
+
+    logger.info("No LLM API key configured — using template fallback")
+    return None
 
 
 # ── Data extraction helpers ───────────────────────────────────────────────────
