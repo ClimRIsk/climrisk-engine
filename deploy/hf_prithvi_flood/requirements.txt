@@ -1,0 +1,6 @@
+torch
+torchvision
+timm
+einops
+rasterio
+terratorch==0.99.8

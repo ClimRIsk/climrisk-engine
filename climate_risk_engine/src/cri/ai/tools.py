@@ -563,13 +563,17 @@ _ASSET_DEFINITION = {
     "function": {
         "name": "assess_physical_asset",
         "description": (
-            "Assess the physical climate risk of a real-world asset at specific GPS coordinates. "
-            "Fetches actual elevation from SRTM30m satellite data (free, no key), classifies "
-            "flood exposure using FEMA/JRC thresholds, profiles secondary hazards (cyclone, "
-            "heat, wildfire) from latitude, and generates a site-specific remediation action "
-            "plan. Also returns a 10×10 elevation grid for 3D terrain visualisation. "
-            "Use when the user mentions a specific location, address, lat/lon, building, "
-            "factory, warehouse, port, farm, or asks about physical site-level risk."
+            "Evidence-based physical climate risk for a real asset at GPS coordinates. "
+            "Analyses the 5 km x 5 km area around the site using: a 10 m terrain model "
+            "(AWS terrain tiles) with D8 flow-routing, slope and terrain position; real "
+            "Sentinel-2 satellite pixels (NDVI, water index, optical water history); Sentinel-1 "
+            "radar flood history across ~10 dates in 2 years (sees through monsoon cloud); and ESA "
+            "WorldCover 10 m land cover (built-up, flammable vegetation, wetlands). Returns "
+            "findings for flood, debris flow, landslide, wildfire and urban heat — each with "
+            "severity, the measured evidence and its source, and site-specific remediation "
+            "actions. Takes ~20-40 s. Use when the user gives a location, address, lat/lon, "
+            "building, factory, warehouse, port, mine or farm, or asks about site-level risk. "
+            "Cite the evidence values in your answer."
         ),
         "parameters": {
             "type": "object",
@@ -593,10 +597,6 @@ _ASSET_DEFINITION = {
                         "office, retail, agriculture, data_centre, hospital, residential. "
                         "Determines asset-specific remediation addons."
                     )
-                },
-                "fetch_grid": {
-                    "type": "boolean",
-                    "description": "Whether to fetch the 10×10 elevation grid for 3D terrain (default true — set false if only need risk summary)"
                 }
             },
             "required": ["lat", "lon"]
@@ -608,13 +608,31 @@ _ASSET_DEFINITION = {
 def _exec_assess_physical_asset(args: dict) -> dict:
     try:
         from ..analysis.asset_intelligence import assess_asset
-        return assess_asset(
+        r = assess_asset(
             lat=float(args["lat"]),
             lon=float(args["lon"]),
             asset_name=args.get("asset_name", "Asset"),
             asset_type=args.get("asset_type", "industrial"),
-            fetch_grid=bool(args.get("fetch_grid", True)),
+            include_visuals=False,   # never push imagery/grids into the LLM context
         )
+        # Compact view for the LLM: findings + headline, not raw sub-results
+        return {
+            "asset_name": r["asset_name"], "lat": r["lat"], "lon": r["lon"],
+            "risk_signal": r["risk_signal"], "headline": r["headline"],
+            "findings": [
+                {"hazard": f["hazard"], "severity": f["severity"],
+                 "evidence": [f"{e['metric']}: {e['value']}{(' ' + e['unit']) if e['unit'] else ''} ({e['source']})"
+                              for e in f["evidence"]],
+                 "actions": f["actions"][:4],
+                 **({"caveat": f["caveat"]} if f.get("caveat") else {})}
+                for f in r["findings"] if f["severity"] != "NEGLIGIBLE"
+            ],
+            "satellite_scene_date": r["satellite"].get("scene_date"),
+            "optical_water_history_window": r["satellite"].get("temporal_date_range"),
+            "radar_water_history_window": (r.get("radar") or {}).get("date_range"),
+            "sources": r["sources"],
+            "caveats": r["caveats"][:2],
+        }
     except Exception as exc:
         logger.exception("assess_physical_asset failed")
         return {"error": str(exc)}

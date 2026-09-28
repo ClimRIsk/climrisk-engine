@@ -1008,3 +1008,25 @@ class NarrativeResponse(BaseModel):
     key_metrics:  Dict[str, Any] = {}
     run_id:       str
     generated_at: str
+
+
+# ── Marketing-site inquiry (ported from the "Climate Financial Risk Modelling" copy;
+#    main.py imported these but they were never committed to this repo) ──
+
+class InquiryRequest(BaseModel):
+    """Demo request submitted from the marketing site's /contact form."""
+
+    first_name: str
+    last_name: str
+    work_email: str
+    company: str
+    primary_function: str
+    primary_objective: str
+    notes: Optional[str] = ""
+
+
+class InquiryResponse(BaseModel):
+    """Response for POST /inquiry."""
+
+    received: bool
+    message: str

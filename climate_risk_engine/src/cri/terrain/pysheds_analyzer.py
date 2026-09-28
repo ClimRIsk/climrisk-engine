@@ -276,9 +276,11 @@ class TerrainEngine:
     zoom        : tile zoom level (default 14 → ~9.6 m/px).
     """
 
-    def __init__(self, radius_km: float = 2.5, zoom: int = _DEFAULT_ZOOM) -> None:
+    def __init__(self, radius_km: float = 2.5, zoom: int = _DEFAULT_ZOOM,
+                 viz_px: int = 50) -> None:
         self.radius_km = radius_km
         self.zoom      = zoom
+        self.viz_px    = viz_px      # max grid dimension of the 3D viz payload
 
     # ── Public API ────────────────────────────────────────────────────────────
 
@@ -417,7 +419,7 @@ class TerrainEngine:
         log.info("TerrainEngine.assess done in %.1f s (pysheds=%s)", elapsed, pysheds_ok)
 
         # ── 9. Viz payload (for HTML 3D renderer) ─────────────────────────────
-        viz = self._build_viz(dem, slope, tpi_grid, acc_np, ar, ac, sp_m, eg)
+        viz = self._build_viz(dem, slope, tpi_grid, acc_np, ar, ac, sp_m, eg, self.viz_px)
 
         return TerrainHazardResult(
             asset_lat=lat, asset_lon=lon, asset_name=asset_name,
@@ -608,6 +610,7 @@ class TerrainEngine:
         ac:    int,
         sp_m:  float,
         eg:    ElevationGrid,
+        max_dim: int = 50,
     ) -> dict:
         """
         Downsample all grids to ≤ 50×50 and return a flat-list payload
@@ -623,11 +626,27 @@ class TerrainEngine:
             return [round(float(v), 2) if not np.isnan(v) else None
                     for v in arr.flatten()]
 
-        dem_ds   = _downsample(dem)
-        slope_ds = _downsample(slope)
-        tpi_ds   = _downsample(tpi)
+        def _block_max(arr: np.ndarray, max_dim: int = 50) -> np.ndarray:
+            # Max-pool instead of stride-sampling: 1-cell-wide D8 channels would
+            # otherwise be broken into dashes when every n-th cell is kept.
+            r, c = arr.shape
+            rstep = max(1, r // max_dim)
+            cstep = max(1, c // max_dim)
+            rr, cc = (r // rstep) * rstep, (c // cstep) * cstep
+            blk = arr[:rr, :cc].reshape(rr // rstep, rstep, cc // cstep, cstep)
+            out = np.nanmax(blk, axis=(1, 3))
+            # align to the stride-sampled grids (same length as arr[::rstep, ::cstep])
+            ref = arr[::rstep, ::cstep].shape
+            pad = np.full(ref, np.nan)
+            pad[:out.shape[0], :out.shape[1]] = out
+            return pad
+
+        dem_ds   = _downsample(dem, max_dim)
+        slope_ds = _downsample(slope, max_dim)
+        tpi_ds   = _downsample(tpi, max_dim)
         acc_log  = np.log1p(acc)
-        acc_ds   = _downsample(acc_log)
+        with np.errstate(all="ignore"):
+            acc_ds = _block_max(acc_log, max_dim)
 
         ds_rows, ds_cols = dem_ds.shape
         ds_ar = int(ar * ds_rows / eg.rows)
@@ -636,7 +655,7 @@ class TerrainEngine:
         return {
             "rows":        ds_rows,
             "cols":        ds_cols,
-            "cell_size_m": round(sp_m * max(1, eg.rows // 50), 1),
+            "cell_size_m": round(sp_m * max(1, eg.rows // max_dim), 1),
             "asset_row":   ds_ar,
             "asset_col":   ds_ac,
             "elevations":  _flat(dem_ds),

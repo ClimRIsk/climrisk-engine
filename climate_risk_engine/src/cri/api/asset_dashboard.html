@@ -4,1166 +4,585 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ClimRisk — Asset Intelligence</title>
-
-<!-- Leaflet 2D map -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-
-<!-- Three.js r128 for 3D terrain -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
   :root {
-    --bg:       #080d18;
-    --surface:  #0f1829;
-    --border:   #1a2744;
-    --primary:  #00c8ff;
-    --muted:    #8899bb;
-    --text:     #dce8ff;
-    --critical: #ef4444;
-    --high:     #f97316;
-    --moderate: #f59e0b;
-    --low:      #10b981;
-    --minimal:  #6b7280;
-    --radius:   8px;
+    --bg: #070b14; --surface: #0d1524; --surface2: #111c30; --border: #1c2a44;
+    --primary: #38bdf8; --muted: #8a9bbd; --text: #e2eaf8;
+    --critical: #ef4444; --high: #f97316; --moderate: #eab308; --low: #22c55e; --negligible: #64748b;
+    --radius: 8px;
+    --mono: ui-monospace, 'SF Mono', Menlo, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
   }
+  body { font-family: var(--sans); background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; font-size: 13px; }
 
-  body {
-    font-family: 'SF Mono', 'Fira Code', monospace;
-    background: var(--bg);
-    color: var(--text);
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
+  .header { display: flex; align-items: center; gap: 14px; padding: 10px 18px; background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  .logo { font-weight: 800; letter-spacing: 3px; color: var(--primary); font-size: 16px; }
+  .sub { font-size: 11px; color: var(--muted); }
+  .sources-pill { margin-left: auto; font-size: 10px; color: var(--muted); border: 1px solid var(--border); border-radius: 20px; padding: 3px 10px; font-family: var(--mono); }
 
-  /* ── Header ── */
-  .header {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 10px 20px;
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    flex-shrink: 0;
-  }
-  .header-logo {
-    font-size: 18px;
-    font-weight: 700;
-    color: var(--primary);
-    letter-spacing: 2px;
-  }
-  .header-sub {
-    font-size: 11px;
-    color: var(--muted);
-    letter-spacing: 1px;
-    text-transform: uppercase;
-  }
-  .header-badge {
-    margin-left: auto;
-    font-size: 10px;
-    padding: 2px 8px;
-    border: 1px solid var(--primary);
-    border-radius: 20px;
-    color: var(--primary);
-  }
+  .layout { display: grid; grid-template-columns: 250px 1fr 360px; flex: 1; min-height: 0; }
 
-  /* ── Layout ── */
-  .layout {
-    display: grid;
-    grid-template-columns: 260px 1fr 300px;
-    flex: 1;
-    overflow: hidden;
-  }
+  /* Sidebar */
+  .sidebar { background: var(--surface); border-right: 1px solid var(--border); padding: 14px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+  .section-title { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; font-weight: 600; }
+  label { font-size: 11px; color: var(--muted); display: block; margin: 8px 0 4px; }
+  input, select { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font: inherit; padding: 7px 9px; outline: none; }
+  input:focus, select:focus { border-color: var(--primary); }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .presets { display: flex; flex-wrap: wrap; gap: 5px; }
+  .preset { font-size: 11px; padding: 4px 8px; background: var(--bg); border: 1px solid var(--border); border-radius: 5px; color: var(--muted); cursor: pointer; }
+  .preset:hover { border-color: var(--primary); color: var(--text); }
+  .btn { width: 100%; padding: 10px; border: none; border-radius: 6px; font: inherit; font-weight: 700; cursor: pointer; }
+  .btn-primary { background: var(--primary); color: #04121d; }
+  .btn-ghost { background: transparent; border: 1px solid var(--primary); color: var(--primary); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .status { font-size: 11px; color: var(--muted); background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 8px; line-height: 1.5; min-height: 40px; }
+  .status.loading { color: var(--primary); }
+  .status.error { color: var(--critical); }
+  .progress { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; margin-top: 6px; display: none; }
+  .progress.on { display: block; }
+  .progress > div { height: 100%; width: 30%; background: var(--primary); animation: slide 1.2s ease-in-out infinite; }
+  @keyframes slide { 0% { transform: translateX(-100%);} 100% { transform: translateX(400%);} }
 
-  /* ── Left panel ── */
-  .sidebar {
-    background: var(--surface);
-    border-right: 1px solid var(--border);
-    padding: 16px;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-  }
-  .section-title {
-    font-size: 9px;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    color: var(--primary);
-    border-bottom: 1px solid var(--border);
-    padding-bottom: 6px;
-    margin-bottom: 4px;
-  }
-  label {
-    font-size: 10px;
-    color: var(--muted);
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    display: block;
-    margin-bottom: 4px;
-  }
-  input, select, textarea {
-    width: 100%;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    color: var(--text);
-    font-family: inherit;
-    font-size: 12px;
-    padding: 7px 10px;
-    outline: none;
-    transition: border 0.2s;
-  }
-  input:focus, select:focus, textarea:focus {
-    border-color: var(--primary);
-  }
-  select option { background: var(--surface); }
-
-  .coord-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-  }
-
-  .btn {
-    width: 100%;
-    padding: 9px;
-    border: none;
-    border-radius: var(--radius);
-    font-family: inherit;
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    cursor: pointer;
-    transition: opacity 0.2s, transform 0.1s;
-  }
-  .btn:active { transform: scale(0.98); }
-  .btn-primary {
-    background: var(--primary);
-    color: #000;
-  }
-  .btn-secondary {
-    background: transparent;
-    border: 1px solid var(--primary);
-    color: var(--primary);
-  }
-  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
-
-  .preset-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-  }
-  .preset-btn {
-    font-size: 9px;
-    padding: 3px 7px;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    color: var(--muted);
-    cursor: pointer;
-    font-family: inherit;
-    letter-spacing: 0.5px;
-    transition: border-color 0.2s, color 0.2s;
-  }
-  .preset-btn:hover { border-color: var(--primary); color: var(--primary); }
-
-  .status-bar {
-    font-size: 10px;
-    color: var(--muted);
-    padding: 6px 8px;
-    background: var(--bg);
-    border-radius: var(--radius);
-    min-height: 32px;
-    line-height: 1.4;
-  }
-  .status-bar.loading { color: var(--primary); }
-  .status-bar.error   { color: var(--critical); }
-
-  /* ── Main view ── */
-  .main-view {
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    position: relative;
-  }
-
-  .tab-bar {
-    display: flex;
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    flex-shrink: 0;
-  }
-  .tab {
-    padding: 8px 18px;
-    font-size: 10px;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    color: var(--muted);
-    cursor: pointer;
-    border-bottom: 2px solid transparent;
-    transition: color 0.2s, border-color 0.2s;
-    user-select: none;
-  }
-  .tab.active {
-    color: var(--primary);
-    border-bottom-color: var(--primary);
-  }
-
-  .view-panel {
-    flex: 1;
-    position: relative;
-    overflow: hidden;
-    display: none;
-  }
-  .view-panel.active { display: block; }
-
-  /* Three.js canvas */
-  #terrain-canvas {
-    width: 100%;
-    height: 100%;
-    display: block;
-    cursor: grab;
-  }
-  #terrain-canvas:active { cursor: grabbing; }
-
-  /* Leaflet map */
-  #map {
-    width: 100%;
-    height: 100%;
-  }
-
-  /* Terrain overlay hints */
-  .terrain-hint {
-    position: absolute;
-    bottom: 10px;
-    left: 10px;
-    font-size: 9px;
-    color: rgba(200,220,255,0.5);
-    pointer-events: none;
-    line-height: 1.6;
-  }
-
-  /* Elevation legend */
-  .elev-legend {
-    position: absolute;
-    bottom: 10px;
-    right: 10px;
-    background: rgba(8,13,24,0.85);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 8px 10px;
-    font-size: 9px;
-    color: var(--muted);
-    pointer-events: none;
-  }
-  .elev-legend .swatch {
-    display: inline-block;
-    width: 10px;
-    height: 10px;
-    border-radius: 2px;
-    margin-right: 4px;
-    vertical-align: middle;
-  }
-  .elev-legend div { margin: 2px 0; }
-
-  /* Loading overlay */
-  .loading-overlay {
-    position: absolute;
-    inset: 0;
-    background: rgba(8,13,24,0.8);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 14px;
-    font-size: 11px;
-    color: var(--primary);
-    letter-spacing: 1px;
-    display: none;
-  }
-  .loading-overlay.active { display: flex; }
-  .spinner {
-    width: 36px;
-    height: 36px;
-    border: 2px solid var(--border);
-    border-top-color: var(--primary);
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-  }
+  /* Main 3D */
+  .main { position: relative; min-width: 0; display: flex; flex-direction: column; }
+  .layerbar { display: flex; gap: 6px; padding: 8px 12px; background: var(--surface); border-bottom: 1px solid var(--border); flex-wrap: wrap; align-items: center; }
+  .chip { font-size: 11px; padding: 4px 10px; border-radius: 14px; border: 1px solid var(--border); color: var(--muted); cursor: pointer; user-select: none; background: var(--bg); }
+  .chip.on { border-color: var(--primary); color: var(--text); background: #0c2233; }
+  .chip:disabled, .chip.disabled { opacity: .35; pointer-events: none; }
+  .exag { margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); }
+  .exag input { width: 90px; padding: 0; }
+  .viewport { position: relative; flex: 1; min-height: 0; }
+  #scene { width: 100%; height: 100%; display: block; cursor: grab; }
+  #scene:active { cursor: grabbing; }
+  .placeholder { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; color: var(--muted); line-height: 1.8; font-size: 13px; }
+  .hud { position: absolute; left: 12px; bottom: 12px; font-size: 10px; color: rgba(210,225,255,.55); font-family: var(--mono); line-height: 1.6; pointer-events: none; }
+  .legend { position: absolute; right: 12px; bottom: 12px; background: rgba(7,11,20,.88); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 10px; font-size: 11px; color: var(--muted); max-width: 240px; display: none; }
+  .legend .t { color: var(--text); font-weight: 600; margin-bottom: 5px; }
+  .legend .it { display: flex; align-items: center; gap: 6px; margin: 2px 0; }
+  .legend .sw { width: 12px; height: 12px; border-radius: 2px; flex-shrink: 0; }
+  .legend .bar { height: 10px; border-radius: 2px; margin: 4px 0 2px; }
+  .legend .ends { display: flex; justify-content: space-between; font-size: 10px; }
+  .overlay-loading { position: absolute; inset: 0; background: rgba(7,11,20,.78); display: none; flex-direction: column; gap: 12px; align-items: center; justify-content: center; color: var(--primary); font-size: 12px; }
+  .overlay-loading.on { display: flex; }
+  .spinner { width: 34px; height: 34px; border: 2px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin .8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  /* ── Right risk panel ── */
-  .risk-panel {
-    background: var(--surface);
-    border-left: 1px solid var(--border);
-    overflow-y: auto;
-    padding: 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-  }
-
-  .risk-signal {
-    text-align: center;
-    padding: 12px;
-    border-radius: var(--radius);
-    border: 1px solid var(--border);
-    font-size: 22px;
-    font-weight: 900;
-    letter-spacing: 3px;
-    text-transform: uppercase;
-    background: var(--bg);
-  }
-  .risk-signal.CRITICAL { color: var(--critical); border-color: var(--critical); }
-  .risk-signal.HIGH     { color: var(--high);     border-color: var(--high); }
-  .risk-signal.MODERATE { color: var(--moderate); border-color: var(--moderate); }
-  .risk-signal.LOW      { color: var(--low);      border-color: var(--low); }
-  .risk-signal.MINIMAL  { color: var(--minimal);  border-color: var(--minimal); }
-
-  .metric-card {
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 10px 12px;
-  }
-  .metric-label {
-    font-size: 9px;
-    color: var(--muted);
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
-  }
-  .metric-value {
-    font-size: 18px;
-    font-weight: 700;
-    margin-top: 3px;
-    color: var(--text);
-  }
-  .metric-note {
-    font-size: 10px;
-    color: var(--muted);
-    margin-top: 4px;
-    line-height: 1.4;
-  }
-
-  .flood-bar {
-    height: 6px;
-    border-radius: 3px;
-    background: var(--border);
-    margin-top: 8px;
-    overflow: hidden;
-  }
-  .flood-bar-fill {
-    height: 100%;
-    border-radius: 3px;
-    transition: width 0.5s ease;
-  }
-
-  .hazard-tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    font-size: 10px;
-    padding: 3px 8px;
-    border-radius: 4px;
-    margin: 2px;
-    background: var(--bg);
-    border: 1px solid var(--border);
-  }
-  .hazard-tag .dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-  }
-
-  .action-list {
-    list-style: none;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-  .action-item {
-    font-size: 10px;
-    color: var(--muted);
-    padding: 6px 8px;
-    background: var(--bg);
-    border-left: 2px solid var(--border);
-    border-radius: 0 var(--radius) var(--radius) 0;
-    line-height: 1.5;
-  }
-  .action-item.flood-action  { border-left-color: #3b82f6; }
-  .action-item.other-action  { border-left-color: var(--moderate); }
-
-  /* AI narrative */
-  .ai-box {
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 10px 12px;
-    font-size: 10px;
-    line-height: 1.7;
-    color: var(--muted);
-    min-height: 60px;
-    white-space: pre-wrap;
-  }
-  .ai-box.loading { color: var(--primary); font-style: italic; }
-
-  .placeholder-text {
-    text-align: center;
-    color: var(--muted);
-    font-size: 11px;
-    opacity: 0.5;
-    padding: 40px 20px;
-    line-height: 2;
-  }
-
-  /* Empty terrain placeholder */
-  #terrain-placeholder {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--muted);
-    font-size: 11px;
-    line-height: 2;
-    text-align: center;
-    opacity: 0.5;
-  }
+  /* Right panel */
+  .panel { background: var(--surface); border-left: 1px solid var(--border); overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+  .panel > * { flex-shrink: 0; }
+  .signal { display: flex; align-items: center; gap: 10px; }
+  .badge { font-weight: 800; letter-spacing: 2px; padding: 6px 12px; border-radius: 6px; border: 1px solid currentColor; font-size: 14px; }
+  .sev-CRITICAL { color: var(--critical); } .sev-HIGH { color: var(--high); } .sev-MODERATE { color: var(--moderate); }
+  .sev-LOW { color: var(--low); } .sev-NEGLIGIBLE { color: var(--negligible); }
+  .headline { font-size: 12.5px; line-height: 1.55; color: var(--text); }
+  .meta { font-size: 10.5px; color: var(--muted); font-family: var(--mono); line-height: 1.6; }
+  .finding { border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface2); overflow: hidden; }
+  .finding summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; padding: 9px 11px; }
+  .finding summary::-webkit-details-marker { display: none; }
+  .finding .name { font-weight: 600; text-transform: capitalize; flex: 1; }
+  .pill { font-size: 10px; font-weight: 700; letter-spacing: 1px; padding: 2px 7px; border-radius: 10px; border: 1px solid currentColor; }
+  .finding .body { padding: 0 11px 11px; }
+  .ev { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 8px; }
+  .ev td { padding: 4px 0; border-bottom: 1px solid var(--border); vertical-align: top; }
+  .ev td.v { text-align: right; font-family: var(--mono); color: var(--text); white-space: nowrap; padding-left: 8px; }
+  .ev td.m { color: var(--muted); }
+  .ev .src { display: block; font-size: 9.5px; color: #5d6f93; }
+  .actions { list-style: none; display: flex; flex-direction: column; gap: 5px; }
+  .actions li { font-size: 11.5px; line-height: 1.5; padding: 6px 8px; border-left: 2px solid var(--primary); background: var(--bg); border-radius: 0 5px 5px 0; }
+  .caveat { font-size: 10.5px; color: var(--muted); font-style: italic; margin-top: 6px; }
+  .ai { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px; font-size: 12px; line-height: 1.65; white-space: pre-wrap; color: var(--muted); }
+  .ai.loading { color: var(--primary); font-style: italic; }
+  .foot { font-size: 10px; color: #5d6f93; line-height: 1.6; }
 </style>
 </head>
 <body>
 
-<!-- ── Header ── -->
 <div class="header">
   <div>
-    <div class="header-logo">CLIMRISK</div>
-    <div class="header-sub">Asset Physical Intelligence</div>
+    <div class="logo">CLIMRISK</div>
+    <div class="sub">Asset Physical Intelligence</div>
   </div>
-  <div class="header-badge">SRTM30m · ESRI · NGFS Phase 4</div>
+  <div class="sources-pill">AWS 10 m DEM · Sentinel-2 L2A · ESA WorldCover · Prithvi-EO-2.0</div>
 </div>
 
-<!-- ── Layout ── -->
 <div class="layout">
-
-  <!-- ────────────── LEFT SIDEBAR ────────────── -->
-  <div class="sidebar">
-
+  <!-- Sidebar -->
+  <aside class="sidebar">
     <div>
-      <div class="section-title">Asset Details</div>
-
-      <div style="margin-bottom:10px">
-        <label>Asset Name</label>
-        <input id="assetName" type="text" placeholder="Sydney Distribution Centre" value="">
-      </div>
-
-      <div style="margin-bottom:10px">
-        <label>Asset Type</label>
-        <select id="assetType">
-          <option value="industrial">Industrial</option>
-          <option value="warehouse">Warehouse</option>
-          <option value="logistics">Logistics / 3PL</option>
-          <option value="port">Port / Marine</option>
-          <option value="office">Office / Commercial</option>
-          <option value="retail">Retail</option>
-          <option value="agriculture">Agriculture / Farm</option>
-          <option value="data_centre">Data Centre</option>
-          <option value="hospital">Hospital / Healthcare</option>
-          <option value="residential">Residential</option>
-        </select>
-      </div>
-
-      <div style="margin-bottom:10px">
-        <label>Coordinates</label>
-        <div class="coord-row">
-          <div>
-            <label style="margin-bottom:2px">Latitude</label>
-            <input id="lat" type="number" step="any" placeholder="-33.8688">
-          </div>
-          <div>
-            <label style="margin-bottom:2px">Longitude</label>
-            <input id="lon" type="number" step="any" placeholder="151.2093">
-          </div>
-        </div>
+      <div class="section-title">Asset</div>
+      <label for="assetName">Name</label>
+      <input id="assetName" placeholder="e.g. Chittagong Plant 2">
+      <label for="assetType">Type</label>
+      <select id="assetType">
+        <option value="industrial">Industrial</option><option value="warehouse">Warehouse</option>
+        <option value="logistics">Logistics</option><option value="port">Port / marine</option>
+        <option value="office">Office</option><option value="retail">Retail</option>
+        <option value="agriculture">Agriculture</option><option value="data_centre">Data centre</option>
+        <option value="hospital">Hospital</option><option value="residential">Residential</option>
+      </select>
+      <div class="row2">
+        <div><label for="lat">Latitude</label><input id="lat" type="number" step="any" placeholder="23.759"></div>
+        <div><label for="lon">Longitude</label><input id="lon" type="number" step="any" placeholder="90.399"></div>
       </div>
     </div>
 
     <div>
-      <div class="section-title">Quick Locations</div>
-      <div class="preset-row">
-        <button class="preset-btn" onclick="setPreset(-33.8688,151.2093,'Sydney Port','port')">Sydney Port</button>
-        <button class="preset-btn" onclick="setPreset(1.2644,103.8200,'Singapore Changi','logistics')">Singapore</button>
-        <button class="preset-btn" onclick="setPreset(22.3193,114.1694,'HK Kwai Fong','port')">Hong Kong</button>
-        <button class="preset-btn" onclick="setPreset(25.2048,55.2708,'Dubai Jebel Ali','port')">Dubai</button>
-        <button class="preset-btn" onclick="setPreset(51.5074,-0.1278,'London Canary Wharf','office')">London</button>
-        <button class="preset-btn" onclick="setPreset(40.7128,-74.0060,'NYC Battery Park','office')">New York</button>
-        <button class="preset-btn" onclick="setPreset(-26.3054,120.6600,'Pilbara Mine','industrial')">Pilbara Mine</button>
-        <button class="preset-btn" onclick="setPreset(13.7563,100.5018,'Bangkok Factory','industrial')">Bangkok</button>
+      <div class="section-title">Example sites</div>
+      <div class="presets">
+        <button class="preset" onclick="preset(23.7590,90.3990,'Dhaka Tejgaon','industrial')">Dhaka</button>
+        <button class="preset" onclick="preset(30.7346,79.0669,'Kedarnath','hospital')">Kedarnath</button>
+        <button class="preset" onclick="preset(-22.3100,118.3500,'Pilbara camp','industrial')">Pilbara</button>
+        <button class="preset" onclick="preset(24.4534,89.7007,'Sirajganj mill','industrial')">Sirajganj</button>
+        <button class="preset" onclick="preset(22.5726,88.3639,'Kolkata port','port')">Kolkata</button>
+        <button class="preset" onclick="preset(29.7604,-95.3698,'Houston','office')">Houston</button>
       </div>
     </div>
 
     <div>
-      <div class="section-title">API Connection</div>
-      <label>API Key (X-API-Key)</label>
-      <input id="apiKey" type="password" placeholder="Enter your ClimRisk API key">
+      <div class="section-title">Connection</div>
+      <label for="apiKey">API key (X-API-Key)</label>
+      <input id="apiKey" type="password" placeholder="ClimRisk API key">
     </div>
 
-    <button class="btn btn-primary" id="analyzeBtn" onclick="analyzeAsset()">
-      ▶ Analyze Asset
-    </button>
-
-    <button class="btn btn-secondary" id="aiBtn" onclick="aiDeepDive()" disabled>
-      ✦ AI Deep Dive
-    </button>
-
-    <div class="status-bar" id="statusBar">
-      Enter coordinates and press Analyze Asset.
-    </div>
-
-  </div>
-
-  <!-- ────────────── MAIN VIEW ────────────── -->
-  <div class="main-view">
-
-    <div class="tab-bar">
-      <div class="tab active" onclick="switchTab('terrain')" id="tab-terrain">3D Terrain</div>
-      <div class="tab" onclick="switchTab('satellite')" id="tab-satellite">Satellite Map</div>
-    </div>
-
-    <!-- 3D terrain panel -->
-    <div class="view-panel active" id="panel-terrain">
-      <div id="terrain-placeholder">
-        <div>
-          Enter coordinates<br>
-          and press <strong>Analyze Asset</strong><br>
-          to render the 3D terrain.
-        </div>
-      </div>
-      <canvas id="terrain-canvas" style="display:none"></canvas>
-      <div class="terrain-hint">
-        Drag to rotate · Scroll to zoom
-      </div>
-      <div class="elev-legend" id="elev-legend" style="display:none">
-        <div><span class="swatch" style="background:#1a66ff"></span>0–2 m (flood critical)</div>
-        <div><span class="swatch" style="background:#3399ff"></span>2–5 m (flood high)</div>
-        <div><span class="swatch" style="background:#33cc77"></span>5–20 m (moderate)</div>
-        <div><span class="swatch" style="background:#99cc33"></span>20–100 m (low risk)</div>
-        <div><span class="swatch" style="background:#cc9944"></span>100 m+ (minimal)</div>
-      </div>
-      <div class="loading-overlay" id="terrain-loading">
-        <div class="spinner"></div>
-        <span id="terrain-loading-text">Fetching elevation grid…</span>
-      </div>
-    </div>
-
-    <!-- Satellite map panel -->
-    <div class="view-panel" id="panel-satellite">
-      <div id="map"></div>
-      <div class="loading-overlay" id="map-loading">
-        <div class="spinner"></div>
-        <span>Loading satellite view…</span>
-      </div>
-    </div>
-
-  </div>
-
-  <!-- ────────────── RIGHT RISK PANEL ────────────── -->
-  <div class="risk-panel">
+    <button class="btn btn-primary" id="analyzeBtn" onclick="analyze()">Analyse asset</button>
+    <button class="btn btn-ghost" id="aiBtn" onclick="aiDeepDive()" disabled>AI deep dive</button>
 
     <div>
-      <div class="section-title">Risk Signal</div>
-      <div class="risk-signal MODERATE" id="riskSignal">– –</div>
+      <div class="status" id="status">Enter coordinates, or pick an example site, then press <b>Analyse asset</b>.</div>
+      <div class="progress" id="progress"><div></div></div>
     </div>
+  </aside>
 
-    <div>
-      <div class="section-title">Site Elevation</div>
-      <div class="metric-card">
-        <div class="metric-label">SRTM30m Elevation</div>
-        <div class="metric-value" id="elevValue">–</div>
-        <div class="flood-bar"><div class="flood-bar-fill" id="floodBar" style="width:0%;background:var(--border)"></div></div>
-        <div class="metric-note" id="floodNote">–</div>
-      </div>
+  <!-- 3D -->
+  <main class="main">
+    <div class="layerbar" id="layerbar">
+      <span class="chip on" data-layer="satellite">Satellite</span>
+      <span class="chip" data-layer="sar_water">Radar flood history</span>
+      <span class="chip" data-layer="water_freq">Optical water history</span>
+      <span class="chip" data-layer="land_cover">Land cover</span>
+      <span class="chip" data-layer="ndvi">NDVI</span>
+      <span class="chip" data-layer="mndwi">Water index</span>
+      <span class="chip" data-layer="flow_acc">Flow paths</span>
+      <span class="chip" data-layer="slope">Slope</span>
+      <div class="exag">Relief ×<input type="range" id="exag" min="1" max="40" step="0.5" value="1"><span id="exagVal">1</span></div>
     </div>
-
-    <div>
-      <div class="section-title">Flood Exposure</div>
-      <div class="metric-card">
-        <div class="metric-label">Classification</div>
-        <div class="metric-value" id="floodLevel">–</div>
-        <div class="metric-note" id="floodDetail">–</div>
-      </div>
+    <div class="viewport" id="viewport">
+      <canvas id="scene"></canvas>
+      <div class="placeholder" id="placeholder">The 3D site model appears here:<br>10 m terrain draped with the latest clear Sentinel-2 image.</div>
+      <div class="hud" id="hud"></div>
+      <div class="legend" id="legend"></div>
+      <div class="overlay-loading" id="loading"><div class="spinner"></div><div id="loadingText">Working…</div></div>
     </div>
+  </main>
 
-    <div>
-      <div class="section-title">Secondary Hazards</div>
-      <div id="hazardTags">
-        <div class="placeholder-text" style="padding:10px;font-size:10px">No data</div>
-      </div>
-    </div>
-
-    <div>
-      <div class="section-title">Remediation Actions</div>
-      <ul class="action-list" id="actionList">
-        <li class="action-item">Run analysis to generate recommendations.</li>
-      </ul>
-    </div>
-
-    <div>
-      <div class="section-title">AI Narrative</div>
-      <div class="ai-box" id="aiNarrative">
-        Run <strong>AI Deep Dive</strong> for an LLM-synthesised assessment.
-      </div>
-    </div>
-
-  </div><!-- /risk-panel -->
-
-</div><!-- /layout -->
+  <!-- Findings -->
+  <aside class="panel" id="panel">
+    <div class="section-title">Assessment</div>
+    <div class="headline" style="color:var(--muted)">No site analysed yet.</div>
+  </aside>
+</div>
 
 <script>
-// ─────────────────────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
 // State
-// ─────────────────────────────────────────────────────────────────────────────
-let leafletMap = null;
-let leafletMarker = null;
-let threeScene = null;
-let threeRenderer = null;
-let threeCamera = null;
-let terrainMesh = null;
-let assetPin = null;
-let animFrameId = null;
-let lastAssessment = null;
+// ═══════════════════════════════════════════════════════════════════════════
+const SEV_COLOR = { CRITICAL:'#ef4444', HIGH:'#f97316', MODERATE:'#eab308', LOW:'#22c55e', NEGLIGIBLE:'#64748b' };
+const HAZARD_LABEL = { flood:'Flood', debris_flow:'Debris flow', landslide:'Landslide', wildfire:'Wildfire', urban_heat:'Urban heat' };
+const WC = { 10:['Tree cover','#006400'], 20:['Shrubland','#ffbb22'], 30:['Grassland','#ffff4c'], 40:['Cropland','#f096ff'],
+             50:['Built-up','#fa0000'], 60:['Bare / sparse','#b4b4b4'], 70:['Snow / ice','#f0f0f0'], 80:['Permanent water','#0064c8'],
+             90:['Herbaceous wetland','#0096a0'], 95:['Mangroves','#00cf75'], 100:['Moss / lichen','#fae6a0'] };
 
-const GRID_N = 10;
-const RISK_COLORS = {
-  CRITICAL: '#ef4444', HIGH: '#f97316', MODERATE: '#f59e0b', LOW: '#10b981', MINIMAL: '#6b7280', UNKNOWN: '#6b7280'
-};
+let last = null;
+const G = { renderer:null, scene:null, camera:null, base:null, overlay:null, geom:null, marker:null, anim:null,
+            textures:{}, activeLayer:'satellite', exag:1, relief:1, unitsPerM:1, cam:{theta:0.6, phi:0.95, r:14}, target:new THREE.Vector3() };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Tab switching
-// ─────────────────────────────────────────────────────────────────────────────
-function switchTab(name) {
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.view-panel').forEach(p => p.classList.remove('active'));
-  document.getElementById('tab-' + name).classList.add('active');
-  document.getElementById('panel-' + name).classList.add('active');
-  if (name === 'satellite' && leafletMap) {
-    setTimeout(() => leafletMap.invalidateSize(), 100);
-  }
-  if (name === 'terrain' && threeRenderer) {
-    fitRendererToCanvas();
-  }
+// ═══════════════════════════════════════════════════════════════════════════
+// UI helpers
+// ═══════════════════════════════════════════════════════════════════════════
+function preset(lat, lon, name, type) {
+  document.getElementById('lat').value = lat; document.getElementById('lon').value = lon;
+  document.getElementById('assetName').value = name; document.getElementById('assetType').value = type;
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Presets
-// ─────────────────────────────────────────────────────────────────────────────
-function setPreset(lat, lon, name, type) {
-  document.getElementById('lat').value = lat;
-  document.getElementById('lon').value = lon;
-  document.getElementById('assetName').value = name;
-  document.getElementById('assetType').value = type;
+function setStatus(msg, cls='') { const s = document.getElementById('status'); s.innerHTML = msg; s.className = 'status ' + cls; }
+function busy(on, text) {
+  document.getElementById('progress').classList.toggle('on', on);
+  document.getElementById('loading').classList.toggle('on', on);
+  if (text) document.getElementById('loadingText').textContent = text;
 }
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt = v => typeof v === 'number' ? (Math.abs(v) >= 100 ? v.toFixed(0) : Math.abs(v) >= 10 ? v.toFixed(1) : v.toFixed(2).replace(/\.?0+$/,'') || '0') : esc(v);
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Status
-// ─────────────────────────────────────────────────────────────────────────────
-function setStatus(msg, cls = '') {
-  const el = document.getElementById('statusBar');
-  el.textContent = msg;
-  el.className = 'status-bar ' + cls;
-}
+// ═══════════════════════════════════════════════════════════════════════════
+// Analyse
+// ═══════════════════════════════════════════════════════════════════════════
+async function analyze() {
+  const lat = parseFloat(document.getElementById('lat').value), lon = parseFloat(document.getElementById('lon').value);
+  const name = document.getElementById('assetName').value || 'Asset', type = document.getElementById('assetType').value;
+  const key = document.getElementById('apiKey').value;
+  if (!isFinite(lat) || !isFinite(lon)) return setStatus('Enter a valid latitude and longitude.', 'error');
+  if (!key) return setStatus('Enter your API key.', 'error');
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Main analysis call
-// ─────────────────────────────────────────────────────────────────────────────
-async function analyzeAsset() {
-  const lat = parseFloat(document.getElementById('lat').value);
-  const lon = parseFloat(document.getElementById('lon').value);
-  const assetName = document.getElementById('assetName').value || 'Asset';
-  const assetType = document.getElementById('assetType').value;
-  const apiKey = document.getElementById('apiKey').value;
-
-  if (isNaN(lat) || isNaN(lon)) {
-    setStatus('Please enter valid latitude and longitude.', 'error');
-    return;
-  }
-  if (!apiKey) {
-    setStatus('Please enter your API key.', 'error');
-    return;
-  }
-
-  document.getElementById('analyzeBtn').disabled = true;
-  document.getElementById('aiBtn').disabled = true;
-  document.getElementById('terrain-loading').classList.add('active');
-  document.getElementById('map-loading').classList.add('active');
-  setStatus('Fetching elevation + hazard data…', 'loading');
-  document.getElementById('terrain-loading-text').textContent = 'Fetching SRTM30m elevation grid…';
+  document.getElementById('analyzeBtn').disabled = true; document.getElementById('aiBtn').disabled = true;
+  const steps = ['Fetching 10 m terrain tiles from AWS…', 'Routing flow paths across the DEM…',
+                 'Reading Sentinel-2 pixels from AWS Open Data…', 'Building the 2-year water history…',
+                 'Classifying land cover (ESA WorldCover)…', 'Scoring hazards against the evidence…'];
+  let i = 0; busy(true, steps[0]); setStatus(steps[0], 'loading');
+  const tick = setInterval(() => { i = Math.min(i + 1, steps.length - 1); busy(true, steps[i]); setStatus(steps[i], 'loading'); }, 5000);
 
   try {
-    const resp = await fetch('/asset/assess', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-API-Key': apiKey },
-      body: JSON.stringify({ lat, lon, asset_name: assetName, asset_type: assetType, fetch_grid: true })
-    });
-
-    if (!resp.ok) {
-      const err = await resp.text();
-      throw new Error(`API ${resp.status}: ${err}`);
-    }
-
-    const data = await resp.json();
-    lastAssessment = data;
-
-    setStatus(`✓ ${assetName} assessed — ${data.risk_signal} risk signal.`);
-    renderRiskPanel(data);
-
-    document.getElementById('terrain-loading-text').textContent = 'Building 3D terrain…';
-    await buildTerrain3D(data, lat, lon, assetName);
-
-    initSatelliteMap(lat, lon, assetName, data.risk_signal);
-
-    document.getElementById('terrain-loading').classList.remove('active');
-    document.getElementById('map-loading').classList.remove('active');
-    document.getElementById('aiBtn').disabled = false;
-
-  } catch (err) {
-    setStatus('Error: ' + err.message, 'error');
-    document.getElementById('terrain-loading').classList.remove('active');
-    document.getElementById('map-loading').classList.remove('active');
+    const r = await fetch('/asset/assess', { method:'POST', headers:{'Content-Type':'application/json','X-API-Key':key},
+      body: JSON.stringify({ lat, lon, asset_name:name, asset_type:type, include_visuals:true }) });
+    if (!r.ok) throw new Error(`API ${r.status}: ${(await r.text()).slice(0,200)}`);
+    renderAssessment(await r.json());
+  } catch (e) {
+    setStatus('Error: ' + esc(e.message), 'error');
   } finally {
+    clearInterval(tick); busy(false);
     document.getElementById('analyzeBtn').disabled = false;
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Render risk panel
-// ─────────────────────────────────────────────────────────────────────────────
-function renderRiskPanel(data) {
-  const signal = data.risk_signal || 'MODERATE';
-  const color  = RISK_COLORS[signal] || '#6b7280';
+function renderAssessment(data) {
+  last = data;
+  renderPanel(data);
+  if (data.visual && data.visual.dem) buildScene(data);
+  const s = data.satellite || {};
+  const rd = data.radar || {};
+  setStatus(`<b>${esc(data.asset_name)}</b>: ${esc(data.risk_signal)} · analysed in ${data.elapsed_s}s` +
+            (s.scene_date ? `<br>Imagery ${esc(s.scene_date)} · optical history ${esc(s.temporal_scenes_used)} dates` : '') +
+            (rd.available ? ` · radar ${esc(rd.scenes_used)} dates` : ''));
+  document.getElementById('aiBtn').disabled = false;
+}
+window.renderAssessment = renderAssessment;
 
-  // Risk signal badge
-  const badge = document.getElementById('riskSignal');
-  badge.textContent = signal;
-  badge.className = 'risk-signal ' + signal;
+// ═══════════════════════════════════════════════════════════════════════════
+// Findings panel
+// ═══════════════════════════════════════════════════════════════════════════
+function renderPanel(d) {
+  const s = d.satellite || {}, t = d.terrain || {};
+  const findings = d.findings || [];
+  let h = `<div class="section-title">Assessment</div>
+    <div class="signal"><span class="badge sev-${esc(d.risk_signal)}">${esc(d.risk_signal)}</span>
+      <div class="meta">${d.lat.toFixed(4)}, ${d.lon.toFixed(4)}<br>${fmt(t.elevation_m)} m · ${esc(t.terrain_position || '')}</div></div>
+    <div class="headline">${esc(d.headline)}</div>
+    <div class="section-title" style="margin-top:4px">Findings</div>`;
 
-  // Elevation
-  const elev = data.elevation?.elevation_m;
-  document.getElementById('elevValue').textContent = elev != null ? `${elev.toFixed(1)} m` : '—';
+  findings.forEach((f, idx) => {
+    const open = idx === 0 && f.severity !== 'NEGLIGIBLE' ? 'open' : '';
+    const rows = (f.evidence || []).map(e =>
+      `<tr><td class="m">${esc(e.metric)}<span class="src">${esc(e.source)}</span></td><td class="v">${fmt(e.value)}${e.unit ? ' ' + esc(e.unit) : ''}</td></tr>`).join('');
+    const acts = (f.actions || []).map(a => `<li>${esc(a)}</li>`).join('');
+    h += `<details class="finding" ${open}>
+      <summary><span class="name">${esc(HAZARD_LABEL[f.hazard] || f.hazard)}</span><span class="pill sev-${f.severity}">${f.severity}</span></summary>
+      <div class="body">
+        <table class="ev">${rows}</table>
+        ${acts ? `<div class="section-title">What to do</div><ul class="actions">${acts}</ul>` : ''}
+        ${f.caveat ? `<div class="caveat">${esc(f.caveat)}</div>` : ''}
+      </div></details>`;
+  });
 
-  // Flood bar + note
-  const flood = data.flood_risk || {};
-  const floodScore = flood.score || 0;
-  const bar = document.getElementById('floodBar');
-  bar.style.width = Math.round(floodScore * 100) + '%';
-  bar.style.background = RISK_COLORS[flood.level] || '#6b7280';
-  document.getElementById('floodNote').textContent = flood.note || '—';
+  h += `<div class="section-title" style="margin-top:4px">AI narrative</div>
+    <div class="ai" id="aiBox">Press <b>AI deep dive</b> for an LLM write-up grounded in the evidence above.</div>
+    <div class="foot"><b>Sources</b><br>${(d.sources||[]).map(esc).join('<br>')}<br><br>
+    <b>Caveats</b><br>${(d.caveats||[]).slice(0,3).map(esc).join('<br>')}</div>`;
+  document.getElementById('panel').innerHTML = h;
+}
 
-  // Flood level
-  document.getElementById('floodLevel').textContent = flood.level || '—';
-  document.getElementById('floodLevel').style.color = RISK_COLORS[flood.level] || 'var(--text)';
-  document.getElementById('floodDetail').textContent = data.summary || '—';
+// ═══════════════════════════════════════════════════════════════════════════
+// Decoding packed layers
+// ═══════════════════════════════════════════════════════════════════════════
+function b64bytes(b64) { const s = atob(b64); const u = new Uint8Array(s.length); for (let i=0;i<s.length;i++) u[i]=s.charCodeAt(i); return u; }
+function unpack(p) {
+  if (!p) return null;
+  const bytes = b64bytes(p.b64);
+  const raw = p.dtype === 'uint16' ? new Uint16Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 2) : bytes;
+  if (p.categorical) return { values: raw, shape: p.shape, nodata: p.nodata, categorical: true };
+  const maxc = p.nodata, span = p.hi - p.lo, out = new Float32Array(raw.length);
+  for (let i=0;i<raw.length;i++) out[i] = raw[i] === maxc ? NaN : p.lo + raw[i] / (maxc - 1) * span;
+  return { values: out, shape: p.shape };
+}
 
-  // Secondary hazards
-  const hazardContainer = document.getElementById('hazardTags');
-  hazardContainer.innerHTML = '';
-  const secondary = data.secondary_hazards || [];
-  if (secondary.length === 0) {
-    hazardContainer.innerHTML = '<div style="font-size:10px;color:var(--muted)">None identified</div>';
+// ═══════════════════════════════════════════════════════════════════════════
+// Colour ramps → CanvasTexture (RGBA, per-pixel alpha)
+// ═══════════════════════════════════════════════════════════════════════════
+const lerp = (a,b,t) => a + (b-a)*t;
+function ramp(stops, v) {   // stops: [[v,[r,g,b,a]],...] ascending
+  if (v <= stops[0][0]) return stops[0][1];
+  for (let i=1;i<stops.length;i++) if (v <= stops[i][0]) {
+    const [v0,c0] = stops[i-1], [v1,c1] = stops[i], t = (v-v0)/(v1-v0);
+    return c0.map((c,k)=>lerp(c,c1[k],t));
+  }
+  return stops[stops.length-1][1];
+}
+const RAMPS = {
+  water_freq: { stops:[[0,[0,0,0,0]],[0.05,[0,0,0,0]],[0.1,[255,190,40,210]],[0.5,[255,110,20,235]],[0.8,[40,120,255,235]],[1,[20,70,220,240]]],
+                legend:{t:'Optical water history (clear-sky dates only)', bar:'linear-gradient(90deg,#ffbe28,#ff6e14,#2878ff)', ends:['10% (occasional flooding)','≥80% (permanent)']} },
+  sar_water:  { stops:[[0,[0,0,0,0]],[0.05,[0,0,0,0]],[0.1,[255,200,60,200]],[0.3,[255,120,30,230]],[0.8,[220,40,40,245]],[1,[220,40,40,245]]],
+                legend:{t:'Radar flood history (Sentinel-1, sees through cloud)', bar:'linear-gradient(90deg,#ffc83c,#ff781e,#dc2828)', ends:['wet on ~10% of dates','wet on most dates']} },
+  ndvi:       { stops:[[-0.2,[120,70,30,200]],[0.1,[200,160,80,200]],[0.3,[220,220,90,200]],[0.5,[110,190,60,210]],[0.8,[20,110,30,220]]],
+                legend:{t:'NDVI (vegetation)', bar:'linear-gradient(90deg,#78461e,#c8a050,#dcdc5a,#6ebe3c,#146e1e)', ends:['bare / built','dense vegetation']} },
+  mndwi:      { stops:[[-1,[0,0,0,0]],[-0.05,[0,0,0,0]],[0,[120,200,255,150]],[0.4,[30,110,255,230]],[1,[10,50,200,240]]],
+                legend:{t:'Water index (MNDWI > 0)', bar:'linear-gradient(90deg,#78c8ff,#1e6eff,#0a32c8)', ends:['wet surface','open water']} },
+  slope:      { stops:[[0,[0,0,0,0]],[8,[0,0,0,0]],[15,[255,230,60,170]],[25,[255,140,30,210]],[35,[230,40,30,230]],[60,[140,0,40,240]]],
+                legend:{t:'Slope (°)', bar:'linear-gradient(90deg,#ffe63c,#ff8c1e,#e6281e,#8c0028)', ends:['15°','35°+ (landslide-prone)']} },
+  flow_acc:   { dynamic:true,
+                legend:{t:'Flow paths (D8 accumulation)', bar:'linear-gradient(90deg,rgba(0,220,255,.2),#00dcff,#ffffff)', ends:['minor','main channels']} },
+};
+
+function layerCanvas(name, layer) {
+  const [h, w] = layer.shape; const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const ctx = c.getContext('2d'); const img = ctx.createImageData(w, h); const px = img.data; const v = layer.values;
+  if (name === 'land_cover') {
+    for (let i=0;i<v.length;i++) { const e = WC[v[i]]; if (!e) continue; const hex = e[1];
+      px[i*4]=parseInt(hex.slice(1,3),16); px[i*4+1]=parseInt(hex.slice(3,5),16); px[i*4+2]=parseInt(hex.slice(5,7),16); px[i*4+3]=200; }
+  } else if (name === 'flow_acc') {
+    // Channel network = top ~7% of cells by (log) flow accumulation
+    const fin = Array.from(v).filter(isFinite).sort((a, b) => a - b);
+    const lo = fin[Math.floor(fin.length * 0.93)] ?? 0, max = fin[fin.length - 1] ?? 1;
+    for (let i=0;i<v.length;i++) { const x = v[i]; if (!(x > lo)) continue; const t = (x - lo) / Math.max(max - lo, 1e-6);
+      px[i*4]=Math.round(lerp(40,255,t)); px[i*4+1]=Math.round(lerp(230,255,t)); px[i*4+2]=255; px[i*4+3]=Math.round(lerp(150,255,t)); }
+    ctx.putImageData(img, 0, 0);
+    // Smooth 4× upscale so 1-cell channels drape as continuous lines, not blocks
+    const big = document.createElement('canvas'); big.width = w * 4; big.height = h * 4;
+    const bctx = big.getContext('2d'); bctx.imageSmoothingEnabled = true; bctx.imageSmoothingQuality = 'high';
+    bctx.drawImage(c, 0, 0, big.width, big.height);
+    return big;
   } else {
-    secondary.forEach(h => {
-      const tag = document.createElement('div');
-      tag.className = 'hazard-tag';
-      const c = RISK_COLORS[h.exposure] || '#6b7280';
-      tag.innerHTML = `<div class="dot" style="background:${c}"></div>${h.hazard.toUpperCase()} <span style="color:${c}">${h.exposure}</span>`;
-      tag.title = h.note || '';
-      hazardContainer.appendChild(tag);
-    });
+    const st = RAMPS[name].stops;
+    for (let i=0;i<v.length;i++) { if (!isFinite(v[i])) continue; const c4 = ramp(st, v[i]);
+      px[i*4]=c4[0]; px[i*4+1]=c4[1]; px[i*4+2]=c4[2]; px[i*4+3]=c4[3]; }
   }
-
-  // Remediation actions
-  const rem = data.remediation || {};
-  const actionList = document.getElementById('actionList');
-  actionList.innerHTML = '';
-
-  const floodActions = rem.flood || [];
-  floodActions.forEach(a => {
-    const li = document.createElement('li');
-    li.className = 'action-item flood-action';
-    li.textContent = a;
-    actionList.appendChild(li);
-  });
-
-  const otherActions = [...(rem.secondary || []), ...(rem.asset_specific || [])];
-  otherActions.forEach(a => {
-    const li = document.createElement('li');
-    li.className = 'action-item other-action';
-    li.textContent = a;
-    actionList.appendChild(li);
-  });
-
-  if (actionList.children.length === 0) {
-    const li = document.createElement('li');
-    li.className = 'action-item';
-    li.textContent = 'No urgent actions required at current risk level.';
-    actionList.appendChild(li);
-  }
+  ctx.putImageData(img, 0, 0);
+  return c;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Three.js 3D terrain
-// ─────────────────────────────────────────────────────────────────────────────
-function elevColor(elev) {
-  if (elev < 0)   return [0.05, 0.1,  0.6];  // dark blue — below sea level
-  if (elev < 2)   return [0.1,  0.35, 0.95]; // bright blue — critical
-  if (elev < 5)   return [0.15, 0.55, 1.0];  // light blue — high flood
-  if (elev < 10)  return [0.2,  0.75, 0.55]; // teal-green — moderate
-  if (elev < 20)  return [0.25, 0.8,  0.3];  // green — low
-  if (elev < 50)  return [0.6,  0.78, 0.2];  // yellow-green — minimal
-  if (elev < 150) return [0.7,  0.6,  0.2];  // tan — highlands
-  return [0.55, 0.42, 0.28];                   // brown — mountains
+function legendHTML(name) {
+  if (name === 'satellite') {
+    const s = (last && last.satellite) || {};
+    return `<div class="t">Sentinel-2 true colour</div>${esc(s.scene_date || '')} · cloud ${fmt(s.scene_cloud_pct ?? 0)}%<br>10 m · ${esc(s.scene_id || '')}`;
+  }
+  if (name === 'land_cover') {
+    const present = new Set(G.textures._lcClasses || []);
+    return `<div class="t">ESA WorldCover 2021 (10 m)</div>` + Object.entries(WC).filter(([k]) => present.has(+k))
+      .map(([k,[n,c]]) => `<div class="it"><span class="sw" style="background:${c}"></span>${n}</div>`).join('');
+  }
+  const L = RAMPS[name].legend;
+  return `<div class="t">${L.t}</div><div class="bar" style="background:${L.bar}"></div><div class="ends"><span>${L.ends[0]}</span><span>${L.ends[1]}</span></div>`;
 }
 
-async function buildTerrain3D(data, lat, lon, assetName) {
-  const canvas = document.getElementById('terrain-canvas');
-  const placeholder = document.getElementById('terrain-placeholder');
-  const elevGrid = data.elevation_grid || Array(GRID_N * GRID_N).fill(0);
-  const centerElev = data.elevation?.elevation_m || 0;
+// ═══════════════════════════════════════════════════════════════════════════
+// Three.js scene
+// ═══════════════════════════════════════════════════════════════════════════
+function initRenderer() {
+  if (G.renderer) return;
+  const canvas = document.getElementById('scene');
+  G.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+  G.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  G.scene = new THREE.Scene(); G.scene.background = new THREE.Color(0x070b14);
+  G.camera = new THREE.PerspectiveCamera(40, 1, 0.05, 500);
+  G.scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x1a2233, 0.75));
+  const sun = new THREE.DirectionalLight(0xffffff, 0.75); sun.position.set(-6, 10, 4); G.scene.add(sun);
+  bindControls(canvas);
+  new ResizeObserver(resize).observe(document.getElementById('viewport'));
+  resize();
+  const loop = () => { G.anim = requestAnimationFrame(loop);
+    if (G.marker) { const t = performance.now() / 600; G.marker.userData.ring.scale.setScalar(1 + 0.25 * (0.5 + 0.5 * Math.sin(t))); }
+    G.renderer.render(G.scene, G.camera); };
+  loop();
+}
 
-  placeholder.style.display = 'none';
-  canvas.style.display = 'block';
-  document.getElementById('elev-legend').style.display = 'block';
+function resize() {
+  if (!G.renderer) return;
+  const vp = document.getElementById('viewport'); const w = vp.clientWidth, h = vp.clientHeight;
+  G.renderer.setSize(w, h, false); G.camera.aspect = w / Math.max(h, 1); G.camera.updateProjectionMatrix();
+}
 
-  // Cleanup previous scene
-  if (animFrameId) cancelAnimationFrame(animFrameId);
-  if (threeRenderer) {
-    threeRenderer.dispose();
-    threeRenderer = null;
-  }
+function updateCamera() {
+  const { theta, phi, r } = G.cam; const t = G.target;
+  G.camera.position.set(t.x + r * Math.sin(phi) * Math.sin(theta), t.y + r * Math.cos(phi), t.z + r * Math.sin(phi) * Math.cos(theta));
+  G.camera.lookAt(t);
+}
 
-  // Scene setup
-  const W = canvas.parentElement.clientWidth;
-  const H = canvas.parentElement.clientHeight;
-
-  threeScene = new THREE.Scene();
-  threeScene.background = new THREE.Color(0x080d18);
-  threeScene.fog = new THREE.FogExp2(0x080d18, 0.04);
-
-  threeCamera = new THREE.PerspectiveCamera(45, W / H, 0.1, 200);
-
-  threeRenderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-  threeRenderer.setSize(W, H);
-  threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-
-  // Terrain geometry (GRID_N-1 segments = GRID_N vertices each side)
-  const SEG = GRID_N - 1;
-  const geometry = new THREE.PlaneGeometry(10, 10, SEG, SEG);
-  const positions = geometry.attributes.position;
-  const colorsArr = [];
-
-  // Elevation stats for scaling
-  const minE = Math.min(...elevGrid.filter(e => e != null));
-  const maxE = Math.max(...elevGrid.filter(e => e != null));
-  const range = (maxE - minE) || 1;
-
-  // Apply elevation to Z, color by absolute elevation
-  for (let i = 0; i < positions.count; i++) {
-    const e = elevGrid[i] != null ? elevGrid[i] : minE;
-    // Vertical exaggeration: more dramatic for flat terrain, less for mountainous
-    const exaggeration = range < 10 ? 6 : (range < 50 ? 4 : 2);
-    const z = ((e - minE) / range) * exaggeration;
-    positions.setZ(i, z);
-
-    const [r, g, b] = elevColor(e);
-    colorsArr.push(r, g, b);
-  }
-
-  geometry.setAttribute('color', new THREE.Float32BufferAttribute(colorsArr, 3));
-  geometry.computeVertexNormals();
-  geometry.rotateX(-Math.PI / 2); // Lay flat
-
-  const material = new THREE.MeshLambertMaterial({
-    vertexColors: true,
-    side: THREE.FrontSide,
-  });
-
-  terrainMesh = new THREE.Mesh(geometry, material);
-  threeScene.add(terrainMesh);
-
-  // Wireframe overlay (subtle)
-  const wireMat = new THREE.MeshBasicMaterial({
-    color: 0x1a2744,
-    wireframe: true,
-    opacity: 0.15,
-    transparent: true,
-  });
-  threeScene.add(new THREE.Mesh(geometry, wireMat));
-
-  // Asset pin — red cylinder + sphere
-  const pinHeight = 0.6;
-  const pinGroup = new THREE.Group();
-
-  // Stem
-  const stemGeo = new THREE.CylinderGeometry(0.04, 0.04, pinHeight, 8);
-  const stemMat = new THREE.MeshLambertMaterial({ color: 0xef4444 });
-  const stem = new THREE.Mesh(stemGeo, stemMat);
-  stem.position.y = pinHeight / 2;
-  pinGroup.add(stem);
-
-  // Top sphere
-  const sphereGeo = new THREE.SphereGeometry(0.12, 12, 8);
-  const sphereMat = new THREE.MeshLambertMaterial({ color: 0xff6666 });
-  const sphere = new THREE.Mesh(sphereGeo, sphereMat);
-  sphere.position.y = pinHeight + 0.12;
-  pinGroup.add(sphere);
-
-  // Position pin at center of terrain at correct Z (after rotation, Y is up)
-  const centerIdx = Math.floor(GRID_N / 2) * GRID_N + Math.floor(GRID_N / 2);
-  const centerZ = ((elevGrid[centerIdx] || minE) - minE) / range * (range < 10 ? 6 : range < 50 ? 4 : 2);
-  pinGroup.position.set(0, centerZ, 0);
-  threeScene.add(pinGroup);
-
-  // Pulsing ring around pin
-  const ringGeo = new THREE.RingGeometry(0.25, 0.35, 32);
-  const ringMat = new THREE.MeshBasicMaterial({ color: 0xef4444, side: THREE.DoubleSide, opacity: 0.6, transparent: true });
-  const ring = new THREE.Mesh(ringGeo, ringMat);
-  ring.rotation.x = -Math.PI / 2;
-  ring.position.set(0, centerZ + 0.01, 0);
-  threeScene.add(ring);
-
-  // Risk color flood plane (flat tinted overlay for very low elevation)
-  if (centerElev < 5) {
-    const overlayGeo = new THREE.PlaneGeometry(10, 10);
-    const overlayMat = new THREE.MeshBasicMaterial({
-      color: centerElev < 2 ? 0x0033ff : 0x0066ff,
-      opacity: 0.08,
-      transparent: true,
-      side: THREE.DoubleSide,
-    });
-    const overlay = new THREE.Mesh(overlayGeo, overlayMat);
-    overlay.rotation.x = -Math.PI / 2;
-    overlay.position.y = 0.01;
-    threeScene.add(overlay);
-  }
-
-  // Lighting
-  threeScene.add(new THREE.AmbientLight(0x334466, 0.8));
-  const dirLight = new THREE.DirectionalLight(0xaabbdd, 1.0);
-  dirLight.position.set(5, 8, 5);
-  threeScene.add(dirLight);
-  const fillLight = new THREE.DirectionalLight(0x223344, 0.3);
-  fillLight.position.set(-5, 3, -5);
-  threeScene.add(fillLight);
-
-  // Grid helper (subtle)
-  const grid = new THREE.GridHelper(10, 10, 0x1a2744, 0x1a2744);
-  grid.position.y = -0.01;
-  threeScene.add(grid);
-
-  // Camera initial position
-  let theta = Math.PI / 6;
-  let phi = Math.PI / 4;
-  let radius = 14;
-  let isDragging = false;
-  let prevX = 0, prevY = 0;
-
-  const updateCamera = () => {
-    threeCamera.position.set(
-      radius * Math.sin(phi) * Math.sin(theta),
-      radius * Math.cos(phi),
-      radius * Math.sin(phi) * Math.cos(theta)
-    );
-    threeCamera.lookAt(0, 0.5, 0);
-  };
-  updateCamera();
-
-  // Mouse orbit controls
-  canvas.addEventListener('mousedown', e => { isDragging = true; prevX = e.clientX; prevY = e.clientY; });
-  window.addEventListener('mouseup', () => isDragging = false);
-  canvas.addEventListener('mousemove', e => {
-    if (!isDragging) return;
-    theta -= (e.clientX - prevX) * 0.012;
-    phi = Math.max(0.15, Math.min(Math.PI * 0.45, phi + (e.clientY - prevY) * 0.012));
-    prevX = e.clientX;
-    prevY = e.clientY;
+function bindControls(el) {
+  let drag = null, px = 0, py = 0;
+  el.addEventListener('contextmenu', e => e.preventDefault());
+  el.addEventListener('pointerdown', e => { drag = (e.button === 2 || e.shiftKey) ? 'pan' : 'orbit'; px = e.clientX; py = e.clientY; el.setPointerCapture(e.pointerId); });
+  el.addEventListener('pointerup', () => drag = null);
+  el.addEventListener('pointermove', e => {
+    if (!drag) return; const dx = e.clientX - px, dy = e.clientY - py; px = e.clientX; py = e.clientY;
+    if (drag === 'orbit') { G.cam.theta -= dx * 0.008; G.cam.phi = Math.min(1.45, Math.max(0.12, G.cam.phi - dy * 0.008)); }
+    else { const s = G.cam.r * 0.0015; const a = G.cam.theta;
+      G.target.x -= (dx * Math.cos(a) + dy * Math.sin(a)) * s; G.target.z -= (-dx * Math.sin(a) + dy * Math.cos(a)) * s;
+      G.target.x = Math.max(-6, Math.min(6, G.target.x)); G.target.z = Math.max(-6, Math.min(6, G.target.z)); }
     updateCamera();
   });
-  canvas.addEventListener('wheel', e => {
-    radius = Math.max(5, Math.min(30, radius + e.deltaY * 0.02));
-    updateCamera();
-    e.preventDefault();
-  }, { passive: false });
+  el.addEventListener('wheel', e => { e.preventDefault(); G.cam.r = Math.min(40, Math.max(2.5, G.cam.r * (1 + e.deltaY * 0.001))); updateCamera(); }, { passive: false });
+}
 
-  // Touch support
-  let lastTouchDist = 0;
-  canvas.addEventListener('touchstart', e => {
-    if (e.touches.length === 1) { isDragging = true; prevX = e.touches[0].clientX; prevY = e.touches[0].clientY; }
-    if (e.touches.length === 2) { lastTouchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); }
+function buildScene(data) {
+  initRenderer();
+  document.getElementById('placeholder').style.display = 'none';
+  const V = data.visual, D = V.dem;
+  const elev = unpack(D.elevation);
+  const rows = D.rows, cols = D.cols;
+
+  // World scale: 10 units across the window (E–W); N–S from the true ground distance
+  const [W, S, E, N] = V.bounds;
+  const midLat = (S + N) / 2;
+  const widthM = (E - W) * 111320 * Math.cos(midLat * Math.PI / 180), heightM = (N - S) * 111320;
+  const sizeX = 10, sizeZ = 10 * heightM / widthM;
+  G.unitsPerM = sizeX / widthM;
+  // Display-only clamp to the 1st–99th percentile: the DEM is a surface model, so
+  // bridge pylons, towers and river-bed voids would otherwise become fake spikes.
+  const sorted = Array.from(elev.values).filter(isFinite).sort((a, b) => a - b);
+  const q = f => sorted[Math.min(sorted.length - 1, Math.max(0, Math.round(f * (sorted.length - 1))))];
+  G.minE = q(0.01); G.maxE = q(0.99); G.relief = Math.max(G.maxE - G.minE, 1);
+
+  // Default exaggeration: aim for ~1.6 world units of relief, clamped to 1–5×.
+  // Flat sites stay near-flat: over-exaggerating a surface model turns
+  // buildings and trees into spikes. The slider still allows up to 40×.
+  const auto = Math.min(5, Math.max(1, 1.6 / (G.relief * G.unitsPerM)));
+  G.exag = Math.round(auto * 2) / 2;
+  const slider = document.getElementById('exag'); slider.value = G.exag; document.getElementById('exagVal').textContent = G.exag;
+
+  // Clear previous
+  [G.base, G.overlay, G.marker, G.frame].forEach(o => o && G.scene.remove(o));
+  Object.values(G.textures).forEach(t => t && t.dispose && t.dispose()); G.textures = {};
+  if (G.geom) G.geom.dispose();
+
+  const geom = new THREE.PlaneGeometry(sizeX, sizeZ, cols - 1, rows - 1);
+  G.geom = geom; G.elev = elev.values; G.rows = rows; G.cols = cols;
+  applyHeights();
+
+  // Satellite base texture
+  const baseMat = new THREE.MeshLambertMaterial({ color: 0x8a97ad, side: THREE.DoubleSide });
+  if (V.texture_jpeg_b64) {
+    const tex = new THREE.TextureLoader().load('data:image/jpeg;base64,' + V.texture_jpeg_b64, () => {});
+    tex.anisotropy = 8; baseMat.map = tex; baseMat.color = new THREE.Color(0xffffff); G.textures.satellite = tex;
+  }
+  G.base = new THREE.Mesh(geom, baseMat); G.scene.add(G.base);
+
+  // Overlay textures (lazy per layer)
+  G.layerData = {};
+  for (const [k, p] of Object.entries(V.layers || {})) G.layerData[k] = unpack(p);
+  if (G.layerData.land_cover) G.textures._lcClasses = [...new Set(G.layerData.land_cover.values)].filter(c => WC[c]);
+  G.overlay = new THREE.Mesh(geom, new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, side: THREE.DoubleSide }));
+  G.overlay.visible = false; G.scene.add(G.overlay);
+
+  // Frame (bounding box outline at base)
+  const fr = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(sizeX, 0.001, sizeZ)), new THREE.LineBasicMaterial({ color: 0x1c2a44 }));
+  fr.position.y = -0.02; G.frame = fr; G.scene.add(fr);
+
+  // Asset marker at DEM asset cell
+  const col = SEV_COLOR[data.risk_signal] || '#38bdf8';
+  const mx = -sizeX / 2 + (D.asset_col / (cols - 1)) * sizeX, mz = -sizeZ / 2 + (D.asset_row / (rows - 1)) * sizeZ;
+  const g = new THREE.Group();
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.4, 8), new THREE.MeshBasicMaterial({ color: col }));
+  beam.position.y = 0.7; g.add(beam);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.09, 16, 12), new THREE.MeshBasicMaterial({ color: col })); head.position.y = 1.42; g.add(head);
+  // 250 m and 500 m rings (true ground distance)
+  [250, 500].forEach((m, i) => {
+    const rr = m * G.unitsPerM;
+    const ring = new THREE.Mesh(new THREE.RingGeometry(rr - 0.012, rr + 0.012, 96), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: i ? 0.55 : 0.9, side: THREE.DoubleSide, depthTest: false }));
+    ring.rotation.x = -Math.PI / 2; ring.position.y = 0.02; g.add(ring);
   });
-  canvas.addEventListener('touchmove', e => {
-    e.preventDefault();
-    if (e.touches.length === 1 && isDragging) {
-      theta -= (e.touches[0].clientX - prevX) * 0.012;
-      phi = Math.max(0.15, Math.min(Math.PI * 0.45, phi + (e.touches[0].clientY - prevY) * 0.012));
-      prevX = e.touches[0].clientX;
-      prevY = e.touches[0].clientY;
-      updateCamera();
-    }
-    if (e.touches.length === 2) {
-      const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-      radius = Math.max(5, Math.min(30, radius - (d - lastTouchDist) * 0.05));
-      lastTouchDist = d;
-      updateCamera();
-    }
-  }, { passive: false });
-  canvas.addEventListener('touchend', () => isDragging = false);
+  const pulse = new THREE.Mesh(new THREE.RingGeometry(0.1, 0.14, 48), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.8, side: THREE.DoubleSide, depthTest: false }));
+  pulse.rotation.x = -Math.PI / 2; pulse.position.y = 0.03; g.add(pulse); g.userData.ring = pulse;
+  g.userData.cell = [D.asset_row, D.asset_col]; g.position.set(mx, 0, mz);
+  G.marker = g; G.scene.add(g);
+  placeMarker();
 
-  // Animate
-  let t = 0;
-  const animate = () => {
-    animFrameId = requestAnimationFrame(animate);
-    t += 0.02;
-    // Subtle pulse on ring
-    ring.scale.setScalar(1 + 0.1 * Math.sin(t));
-    ring.material.opacity = 0.3 + 0.3 * Math.sin(t);
-    threeRenderer.render(threeScene, threeCamera);
-  };
-  animate();
+  // North arrow label
+  addLabel('N', 0, 0.25, -sizeZ / 2 - 0.4);
 
-  // Resize handler
-  const resizeObserver = new ResizeObserver(() => fitRendererToCanvas());
-  resizeObserver.observe(canvas.parentElement);
+  // Camera
+  G.target.set(mx * 0.5, 0.3, mz * 0.5); G.cam = { theta: 0.55, phi: 0.95, r: 13 }; updateCamera();
+
+  // Layer chips availability
+  document.querySelectorAll('.chip').forEach(ch => {
+    const L = ch.dataset.layer; ch.classList.toggle('disabled', L !== 'satellite' && !G.layerData[L]);
+  });
+  setLayer('satellite');
+
+  const s = data.satellite || {};
+  document.getElementById('hud').innerHTML =
+    `${esc(data.asset_name)} · ${(widthM/1000).toFixed(1)} × ${(heightM/1000).toFixed(1)} km · DEM ${rows}×${cols} @ ${fmt(D.cell_size_m)} m<br>` +
+    `Ground ${fmt(G.minE)}–${fmt(G.maxE)} m (surface-model extremes ${fmt(D.min_m)}/${fmt(D.max_m)} m clipped) · rings 250 m / 500 m<br>Drag = rotate · Shift/right-drag = pan · Scroll = zoom`;
 }
 
-function fitRendererToCanvas() {
-  if (!threeRenderer || !threeCamera) return;
-  const canvas = document.getElementById('terrain-canvas');
-  const W = canvas.parentElement.clientWidth;
-  const H = canvas.parentElement.clientHeight;
-  threeRenderer.setSize(W, H);
-  threeCamera.aspect = W / H;
-  threeCamera.updateProjectionMatrix();
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Leaflet satellite map
-// ─────────────────────────────────────────────────────────────────────────────
-function initSatelliteMap(lat, lon, assetName, riskSignal) {
-  const tileUrl = 'https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
-  const attribution = '© Esri, Maxar, Earthstar Geographics';
-
-  if (!leafletMap) {
-    leafletMap = L.map('map', { zoomControl: true }).setView([lat, lon], 14);
-    L.tileLayer(tileUrl, { attribution, maxZoom: 19 }).addTo(leafletMap);
-
-    // Risk radius circle
-    const color = RISK_COLORS[riskSignal] || '#6b7280';
-    L.circle([lat, lon], {
-      radius: 500,
-      color: color,
-      fillColor: color,
-      fillOpacity: 0.1,
-      weight: 1,
-    }).addTo(leafletMap);
-
-    // Asset marker
-    const pinIcon = L.divIcon({
-      className: '',
-      html: `<div style="
-        width:12px;height:12px;
-        background:${color};
-        border:2px solid white;
-        border-radius:50%;
-        box-shadow:0 0 8px ${color};
-      "></div>`,
-      iconSize: [12, 12],
-      iconAnchor: [6, 6],
-    });
-    leafletMarker = L.marker([lat, lon], { icon: pinIcon })
-      .addTo(leafletMap)
-      .bindPopup(`<b>${assetName}</b><br>Risk: <b style="color:${color}">${riskSignal}</b>`)
-      .openPopup();
-
-    // Scale bar
-    L.control.scale({ imperial: false }).addTo(leafletMap);
-
-  } else {
-    leafletMap.setView([lat, lon], 14);
-    if (leafletMarker) leafletMap.removeLayer(leafletMarker);
-    leafletMap.eachLayer(layer => {
-      if (layer instanceof L.Circle || layer instanceof L.Marker) leafletMap.removeLayer(layer);
-    });
-    initSatelliteMap(lat, lon, assetName, riskSignal); // re-add
+function applyHeights() {
+  // PlaneGeometry is built in XY with vertex order row-major from the north edge.
+  // Before the first rotateX(-90°) height lives on Z; afterwards it lives on Y.
+  const pos = G.geom.attributes.position, s = G.unitsPerM * G.exag;
+  const rotated = !!G.geom.userData.rotated;
+  for (let i = 0; i < pos.count; i++) {
+    const e = G.elev[i], h = isFinite(e) ? (Math.min(Math.max(e, G.minE), G.maxE) - G.minE) * s : 0;
+    if (rotated) pos.setY(i, h); else pos.setZ(i, h);
   }
+  pos.needsUpdate = true;
+  if (!rotated) { G.geom.rotateX(-Math.PI / 2); G.geom.userData.rotated = true; }
+  G.geom.computeVertexNormals(); G.geom.computeBoundingSphere();
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// AI Deep Dive
-// ─────────────────────────────────────────────────────────────────────────────
-async function aiDeepDive() {
-  if (!lastAssessment) return;
-  const apiKey = document.getElementById('apiKey').value;
-  if (!apiKey) { setStatus('API key required for AI analysis.', 'error'); return; }
+function placeMarker() {
+  if (!G.marker) return;
+  const [r, c] = G.marker.userData.cell; const e = G.elev[r * G.cols + c];
+  G.marker.position.y = isFinite(e) ? (Math.min(Math.max(e, G.minE), G.maxE) - G.minE) * G.unitsPerM * G.exag : 0;
+}
 
-  const aiBox = document.getElementById('aiNarrative');
-  aiBox.className = 'ai-box loading';
-  aiBox.textContent = 'Groq LLaMA-3.3-70b reasoning over physical asset data…';
-  document.getElementById('aiBtn').disabled = true;
+function addLabel(text, x, y, z) {
+  const c = document.createElement('canvas'); c.width = c.height = 64; const ctx = c.getContext('2d');
+  ctx.fillStyle = '#e2eaf8'; ctx.font = 'bold 40px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(text, 32, 34);
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), depthTest: false }));
+  sp.scale.set(0.45, 0.45, 1); sp.position.set(x, y, z); G.scene.add(sp); if (G.label) G.scene.remove(G.label); G.label = sp;
+}
 
-  const lat = lastAssessment.lat;
-  const lon = lastAssessment.lon;
-  const assetName = lastAssessment.asset_name;
-  const riskSignal = lastAssessment.risk_signal;
-  const elev = lastAssessment.elevation?.elevation_m;
-  const floodLevel = lastAssessment.flood_risk?.level;
-
-  const message = (
-    `Produce a concise, expert physical risk assessment for "${assetName}" at ` +
-    `coordinates (${lat}°, ${lon}°). The asset sits at ${elev?.toFixed(1) ?? 'unknown'} m elevation ` +
-    `with ${floodLevel} flood exposure. Risk signal: ${riskSignal}. ` +
-    `Use the assess_physical_asset tool to retrieve full data, then provide: ` +
-    `1) risk signal with justification, 2) primary physical drivers, ` +
-    `3) 2030 and 2050 outlook under NZE vs Current Policies scenario, ` +
-    `4) three immediate recommended actions.`
-  );
-
-  try {
-    const resp = await fetch('/agent/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-API-Key': apiKey },
-      body: JSON.stringify({
-        message,
-        context: { asset: assetName, lat, lon, elevation_m: elev, risk_signal: riskSignal },
-        max_rounds: 2,
-      }),
-    });
-
-    if (!resp.ok) throw new Error(`API ${resp.status}`);
-    const data = await resp.json();
-    aiBox.className = 'ai-box';
-    aiBox.textContent = data.narrative || 'No narrative generated.';
-    setStatus(`✓ AI analysis complete (${data.model_used}, ${data.rounds} rounds).`);
-  } catch (err) {
-    aiBox.className = 'ai-box';
-    aiBox.textContent = 'AI analysis unavailable: ' + err.message;
-    setStatus('AI error: ' + err.message, 'error');
-  } finally {
-    document.getElementById('aiBtn').disabled = false;
+function setLayer(name) {
+  G.activeLayer = name;
+  document.querySelectorAll('.chip').forEach(ch => ch.classList.toggle('on', ch.dataset.layer === name));
+  if (name === 'satellite' || !G.layerData[name]) { G.overlay.visible = false; }
+  else {
+    if (!G.textures[name]) { const t = new THREE.CanvasTexture(layerCanvas(name, G.layerData[name])); t.magFilter = name === 'land_cover' ? THREE.NearestFilter : THREE.LinearFilter; G.textures[name] = t; }
+    G.overlay.material.map = G.textures[name]; G.overlay.material.needsUpdate = true; G.overlay.visible = true;
   }
+  const lg = document.getElementById('legend'); lg.innerHTML = legendHTML(name); lg.style.display = 'block';
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Window resize
-// ─────────────────────────────────────────────────────────────────────────────
-window.addEventListener('resize', () => {
-  if (threeRenderer) fitRendererToCanvas();
-  if (leafletMap) leafletMap.invalidateSize();
+document.getElementById('layerbar').addEventListener('click', e => { const ch = e.target.closest('.chip'); if (ch && G.base) setLayer(ch.dataset.layer); });
+document.getElementById('exag').addEventListener('input', e => {
+  G.exag = parseFloat(e.target.value); document.getElementById('exagVal').textContent = G.exag;
+  if (G.geom) { applyHeights(); placeMarker(); }
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// AI deep dive
+// ═══════════════════════════════════════════════════════════════════════════
+async function aiDeepDive() {
+  if (!last) return;
+  const key = document.getElementById('apiKey').value; const box = document.getElementById('aiBox');
+  if (!key) return setStatus('API key required.', 'error');
+  box.className = 'ai loading'; box.textContent = 'Reasoning over the terrain, satellite and land-cover evidence…';
+  document.getElementById('aiBtn').disabled = true;
+  const summary = (last.findings || []).filter(f => f.severity !== 'NEGLIGIBLE').map(f =>
+    `${f.hazard} ${f.severity}: ` + (f.evidence || []).slice(0, 5).map(e => `${e.metric} ${e.value}${e.unit ? ' ' + e.unit : ''}`).join('; ')).join('\n');
+  const message =
+    `Write a site risk brief for "${last.asset_name}" (${last.asset_type}) at ${last.lat}, ${last.lon}. ` +
+    `Call assess_physical_asset for these coordinates and base every claim on its evidence values. ` +
+    `Structure: 1) risk signal and why, citing the measured evidence; 2) the physical mechanism for each material hazard; ` +
+    `3) how exposure is likely to change by 2050 under NGFS Current Policies vs Net Zero 2050 (qualitative, say it is qualitative); ` +
+    `4) the three highest-value actions, most urgent first. Evidence already computed:\n${summary}`;
+  try {
+    const r = await fetch('/agent/chat', { method:'POST', headers:{'Content-Type':'application/json','X-API-Key':key},
+      body: JSON.stringify({ message, context:{ asset:last.asset_name, lat:last.lat, lon:last.lon, risk_signal:last.risk_signal }, max_rounds:2 }) });
+    if (!r.ok) throw new Error(`API ${r.status}`);
+    const d = await r.json(); box.className = 'ai'; box.textContent = d.narrative || 'No narrative returned.';
+    setStatus(`AI brief ready (${esc(d.model_used)}, tools: ${esc((d.tool_calls_made||[]).join(', ') || 'none')}).`);
+  } catch (e) { box.className = 'ai'; box.textContent = 'AI brief unavailable: ' + e.message; }
+  finally { document.getElementById('aiBtn').disabled = false; }
+}
 </script>
 </body>
 </html>

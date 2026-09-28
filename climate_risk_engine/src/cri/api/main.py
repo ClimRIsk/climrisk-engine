@@ -2373,26 +2373,26 @@ class AssetAssessRequest(BaseModel):
     lon:          float  = Field(..., ge=-180, le=180,  description="Longitude in decimal degrees")
     asset_name:   str    = Field("Asset",                description="Name or description of the asset")
     asset_type:   str    = Field("industrial",           description="Asset type (industrial, warehouse, port, data_centre, agriculture, hospital, ...)")
-    fetch_grid:   bool   = Field(True,                  description="Fetch 10×10 elevation grid for 3D terrain rendering")
+    include_visuals: bool = Field(True,                  description="Return DEM grid, Sentinel-2 texture and overlay layers for the 3D dashboard (~400 KB)")
+    radius_km:    float  = Field(2.5, ge=1.0, le=5.0,    description="Half-width of the analysis window in km")
 
 
 @app.post("/asset/assess", dependencies=[_AUTH], tags=["Asset Intelligence"])
 def assess_asset_endpoint(request: AssetAssessRequest) -> dict:
     """
-    Coordinate-precise physical climate risk assessment for a real-world asset.
+    Evidence-based physical climate risk for a real asset location.
 
-    Fetches actual elevation from SRTM30m (OpenTopoData, free, no API key),
-    classifies flood exposure using FEMA/JRC thresholds, profiles secondary
-    hazards (cyclone, heat, wildfire) from latitude band, and generates a
-    site-specific remediation action plan.
+    Fuses three observation layers over a ~5 km × 5 km window:
+    - **Terrain** — AWS terrain tiles (~10 m), pysheds D8 flow routing, slope, TPI
+    - **Sentinel-2 L2A pixels** (AWS Open Data) — NDVI, MNDWI, and a multi-date
+      water-frequency history that reveals observed flooding. Uses the Prithvi-EO-2.0
+      flood model on a Hugging Face endpoint when CLIMRISK_PRITHVI_ENDPOINT is set.
+    - **ESA WorldCover 2021** (10 m) — built-up, flammable vegetation, wetlands
 
-    Optionally returns a 10×10 elevation grid (100 SRTM30m points covering
-    ~5 km × 5 km) for 3D terrain rendering in the Asset Intelligence dashboard.
-
-    **Example request:**
-    ```json
-    { "lat": -33.8688, "lon": 151.2093, "asset_name": "Sydney Port", "asset_type": "port" }
-    ```
+    Returns findings (flood, debris flow, landslide, wildfire, urban heat) with
+    severity, measured evidence + source, and remediation actions. With
+    include_visuals, also returns the DEM, true-colour texture and overlay layers
+    for the 3D dashboard. Typical latency 20–40 s (cached for 6 h per location).
     """
     from ..analysis.asset_intelligence import assess_asset
     return assess_asset(
@@ -2400,7 +2400,8 @@ def assess_asset_endpoint(request: AssetAssessRequest) -> dict:
         lon=request.lon,
         asset_name=request.asset_name,
         asset_type=request.asset_type,
-        fetch_grid=request.fetch_grid,
+        radius_km=request.radius_km,
+        include_visuals=request.include_visuals,
     )
 
 
@@ -2410,10 +2411,10 @@ def asset_dashboard():
     Serve the Asset Intelligence 3D dashboard HTML.
 
     Opens an interactive single-page application with:
-    - 3D terrain view (Three.js, SRTM30m elevation grid)
-    - Satellite map (Leaflet + ESRI World Imagery, no API key)
-    - Physical risk panel (elevation, flood zone, secondary hazards)
-    - Remediation action plan
+    - 3D terrain (Three.js) built from the 10 m AWS DEM, draped with the actual
+      Sentinel-2 true-colour scene for the site
+    - Overlay layers: water history, NDVI, water index, land cover, slope, flow paths
+    - Evidence-backed findings and remediation actions
     - AI Deep Dive (Groq LLaMA-3.3-70b narrative via /agent/chat)
 
     No authentication required to load the dashboard itself.
