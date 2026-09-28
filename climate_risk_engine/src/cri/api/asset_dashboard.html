@@ -1,0 +1,1169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClimRisk — Asset Intelligence</title>
+
+<!-- Leaflet 2D map -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+
+<!-- Three.js r128 for 3D terrain -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #080d18;
+    --surface:  #0f1829;
+    --border:   #1a2744;
+    --primary:  #00c8ff;
+    --muted:    #8899bb;
+    --text:     #dce8ff;
+    --critical: #ef4444;
+    --high:     #f97316;
+    --moderate: #f59e0b;
+    --low:      #10b981;
+    --minimal:  #6b7280;
+    --radius:   8px;
+  }
+
+  body {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── Header ── */
+  .header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 20px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .header-logo {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--primary);
+    letter-spacing: 2px;
+  }
+  .header-sub {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .header-badge {
+    margin-left: auto;
+    font-size: 10px;
+    padding: 2px 8px;
+    border: 1px solid var(--primary);
+    border-radius: 20px;
+    color: var(--primary);
+  }
+
+  /* ── Layout ── */
+  .layout {
+    display: grid;
+    grid-template-columns: 260px 1fr 300px;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* ── Left panel ── */
+  .sidebar {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 16px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .section-title {
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--primary);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 6px;
+    margin-bottom: 4px;
+  }
+  label {
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 4px;
+  }
+  input, select, textarea {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 12px;
+    padding: 7px 10px;
+    outline: none;
+    transition: border 0.2s;
+  }
+  input:focus, select:focus, textarea:focus {
+    border-color: var(--primary);
+  }
+  select option { background: var(--surface); }
+
+  .coord-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .btn {
+    width: 100%;
+    padding: 9px;
+    border: none;
+    border-radius: var(--radius);
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+  }
+  .btn:active { transform: scale(0.98); }
+  .btn-primary {
+    background: var(--primary);
+    color: #000;
+  }
+  .btn-secondary {
+    background: transparent;
+    border: 1px solid var(--primary);
+    color: var(--primary);
+  }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .preset-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .preset-btn {
+    font-size: 9px;
+    padding: 3px 7px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--muted);
+    cursor: pointer;
+    font-family: inherit;
+    letter-spacing: 0.5px;
+    transition: border-color 0.2s, color 0.2s;
+  }
+  .preset-btn:hover { border-color: var(--primary); color: var(--primary); }
+
+  .status-bar {
+    font-size: 10px;
+    color: var(--muted);
+    padding: 6px 8px;
+    background: var(--bg);
+    border-radius: var(--radius);
+    min-height: 32px;
+    line-height: 1.4;
+  }
+  .status-bar.loading { color: var(--primary); }
+  .status-bar.error   { color: var(--critical); }
+
+  /* ── Main view ── */
+  .main-view {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .tab-bar {
+    display: flex;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .tab {
+    padding: 8px 18px;
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color 0.2s, border-color 0.2s;
+    user-select: none;
+  }
+  .tab.active {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+  }
+
+  .view-panel {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    display: none;
+  }
+  .view-panel.active { display: block; }
+
+  /* Three.js canvas */
+  #terrain-canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+    cursor: grab;
+  }
+  #terrain-canvas:active { cursor: grabbing; }
+
+  /* Leaflet map */
+  #map {
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Terrain overlay hints */
+  .terrain-hint {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    font-size: 9px;
+    color: rgba(200,220,255,0.5);
+    pointer-events: none;
+    line-height: 1.6;
+  }
+
+  /* Elevation legend */
+  .elev-legend {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    background: rgba(8,13,24,0.85);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 8px 10px;
+    font-size: 9px;
+    color: var(--muted);
+    pointer-events: none;
+  }
+  .elev-legend .swatch {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    margin-right: 4px;
+    vertical-align: middle;
+  }
+  .elev-legend div { margin: 2px 0; }
+
+  /* Loading overlay */
+  .loading-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(8,13,24,0.8);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    font-size: 11px;
+    color: var(--primary);
+    letter-spacing: 1px;
+    display: none;
+  }
+  .loading-overlay.active { display: flex; }
+  .spinner {
+    width: 36px;
+    height: 36px;
+    border: 2px solid var(--border);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Right risk panel ── */
+  .risk-panel {
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .risk-signal {
+    text-align: center;
+    padding: 12px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    font-size: 22px;
+    font-weight: 900;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    background: var(--bg);
+  }
+  .risk-signal.CRITICAL { color: var(--critical); border-color: var(--critical); }
+  .risk-signal.HIGH     { color: var(--high);     border-color: var(--high); }
+  .risk-signal.MODERATE { color: var(--moderate); border-color: var(--moderate); }
+  .risk-signal.LOW      { color: var(--low);      border-color: var(--low); }
+  .risk-signal.MINIMAL  { color: var(--minimal);  border-color: var(--minimal); }
+
+  .metric-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+  }
+  .metric-label {
+    font-size: 9px;
+    color: var(--muted);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+  }
+  .metric-value {
+    font-size: 18px;
+    font-weight: 700;
+    margin-top: 3px;
+    color: var(--text);
+  }
+  .metric-note {
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 4px;
+    line-height: 1.4;
+  }
+
+  .flood-bar {
+    height: 6px;
+    border-radius: 3px;
+    background: var(--border);
+    margin-top: 8px;
+    overflow: hidden;
+  }
+  .flood-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.5s ease;
+  }
+
+  .hazard-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    margin: 2px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+  }
+  .hazard-tag .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+  }
+
+  .action-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .action-item {
+    font-size: 10px;
+    color: var(--muted);
+    padding: 6px 8px;
+    background: var(--bg);
+    border-left: 2px solid var(--border);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    line-height: 1.5;
+  }
+  .action-item.flood-action  { border-left-color: #3b82f6; }
+  .action-item.other-action  { border-left-color: var(--moderate); }
+
+  /* AI narrative */
+  .ai-box {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+    font-size: 10px;
+    line-height: 1.7;
+    color: var(--muted);
+    min-height: 60px;
+    white-space: pre-wrap;
+  }
+  .ai-box.loading { color: var(--primary); font-style: italic; }
+
+  .placeholder-text {
+    text-align: center;
+    color: var(--muted);
+    font-size: 11px;
+    opacity: 0.5;
+    padding: 40px 20px;
+    line-height: 2;
+  }
+
+  /* Empty terrain placeholder */
+  #terrain-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 2;
+    text-align: center;
+    opacity: 0.5;
+  }
+</style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<div class="header">
+  <div>
+    <div class="header-logo">CLIMRISK</div>
+    <div class="header-sub">Asset Physical Intelligence</div>
+  </div>
+  <div class="header-badge">SRTM30m · ESRI · NGFS Phase 4</div>
+</div>
+
+<!-- ── Layout ── -->
+<div class="layout">
+
+  <!-- ────────────── LEFT SIDEBAR ────────────── -->
+  <div class="sidebar">
+
+    <div>
+      <div class="section-title">Asset Details</div>
+
+      <div style="margin-bottom:10px">
+        <label>Asset Name</label>
+        <input id="assetName" type="text" placeholder="Sydney Distribution Centre" value="">
+      </div>
+
+      <div style="margin-bottom:10px">
+        <label>Asset Type</label>
+        <select id="assetType">
+          <option value="industrial">Industrial</option>
+          <option value="warehouse">Warehouse</option>
+          <option value="logistics">Logistics / 3PL</option>
+          <option value="port">Port / Marine</option>
+          <option value="office">Office / Commercial</option>
+          <option value="retail">Retail</option>
+          <option value="agriculture">Agriculture / Farm</option>
+          <option value="data_centre">Data Centre</option>
+          <option value="hospital">Hospital / Healthcare</option>
+          <option value="residential">Residential</option>
+        </select>
+      </div>
+
+      <div style="margin-bottom:10px">
+        <label>Coordinates</label>
+        <div class="coord-row">
+          <div>
+            <label style="margin-bottom:2px">Latitude</label>
+            <input id="lat" type="number" step="any" placeholder="-33.8688">
+          </div>
+          <div>
+            <label style="margin-bottom:2px">Longitude</label>
+            <input id="lon" type="number" step="any" placeholder="151.2093">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-title">Quick Locations</div>
+      <div class="preset-row">
+        <button class="preset-btn" onclick="setPreset(-33.8688,151.2093,'Sydney Port','port')">Sydney Port</button>
+        <button class="preset-btn" onclick="setPreset(1.2644,103.8200,'Singapore Changi','logistics')">Singapore</button>
+        <button class="preset-btn" onclick="setPreset(22.3193,114.1694,'HK Kwai Fong','port')">Hong Kong</button>
+        <button class="preset-btn" onclick="setPreset(25.2048,55.2708,'Dubai Jebel Ali','port')">Dubai</button>
+        <button class="preset-btn" onclick="setPreset(51.5074,-0.1278,'London Canary Wharf','office')">London</button>
+        <button class="preset-btn" onclick="setPreset(40.7128,-74.0060,'NYC Battery Park','office')">New York</button>
+        <button class="preset-btn" onclick="setPreset(-26.3054,120.6600,'Pilbara Mine','industrial')">Pilbara Mine</button>
+        <button class="preset-btn" onclick="setPreset(13.7563,100.5018,'Bangkok Factory','industrial')">Bangkok</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-title">API Connection</div>
+      <label>API Key (X-API-Key)</label>
+      <input id="apiKey" type="password" placeholder="Enter your ClimRisk API key">
+    </div>
+
+    <button class="btn btn-primary" id="analyzeBtn" onclick="analyzeAsset()">
+      ▶ Analyze Asset
+    </button>
+
+    <button class="btn btn-secondary" id="aiBtn" onclick="aiDeepDive()" disabled>
+      ✦ AI Deep Dive
+    </button>
+
+    <div class="status-bar" id="statusBar">
+      Enter coordinates and press Analyze Asset.
+    </div>
+
+  </div>
+
+  <!-- ────────────── MAIN VIEW ────────────── -->
+  <div class="main-view">
+
+    <div class="tab-bar">
+      <div class="tab active" onclick="switchTab('terrain')" id="tab-terrain">3D Terrain</div>
+      <div class="tab" onclick="switchTab('satellite')" id="tab-satellite">Satellite Map</div>
+    </div>
+
+    <!-- 3D terrain panel -->
+    <div class="view-panel active" id="panel-terrain">
+      <div id="terrain-placeholder">
+        <div>
+          Enter coordinates<br>
+          and press <strong>Analyze Asset</strong><br>
+          to render the 3D terrain.
+        </div>
+      </div>
+      <canvas id="terrain-canvas" style="display:none"></canvas>
+      <div class="terrain-hint">
+        Drag to rotate · Scroll to zoom
+      </div>
+      <div class="elev-legend" id="elev-legend" style="display:none">
+        <div><span class="swatch" style="background:#1a66ff"></span>0–2 m (flood critical)</div>
+        <div><span class="swatch" style="background:#3399ff"></span>2–5 m (flood high)</div>
+        <div><span class="swatch" style="background:#33cc77"></span>5–20 m (moderate)</div>
+        <div><span class="swatch" style="background:#99cc33"></span>20–100 m (low risk)</div>
+        <div><span class="swatch" style="background:#cc9944"></span>100 m+ (minimal)</div>
+      </div>
+      <div class="loading-overlay" id="terrain-loading">
+        <div class="spinner"></div>
+        <span id="terrain-loading-text">Fetching elevation grid…</span>
+      </div>
+    </div>
+
+    <!-- Satellite map panel -->
+    <div class="view-panel" id="panel-satellite">
+      <div id="map"></div>
+      <div class="loading-overlay" id="map-loading">
+        <div class="spinner"></div>
+        <span>Loading satellite view…</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ────────────── RIGHT RISK PANEL ────────────── -->
+  <div class="risk-panel">
+
+    <div>
+      <div class="section-title">Risk Signal</div>
+      <div class="risk-signal MODERATE" id="riskSignal">– –</div>
+    </div>
+
+    <div>
+      <div class="section-title">Site Elevation</div>
+      <div class="metric-card">
+        <div class="metric-label">SRTM30m Elevation</div>
+        <div class="metric-value" id="elevValue">–</div>
+        <div class="flood-bar"><div class="flood-bar-fill" id="floodBar" style="width:0%;background:var(--border)"></div></div>
+        <div class="metric-note" id="floodNote">–</div>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-title">Flood Exposure</div>
+      <div class="metric-card">
+        <div class="metric-label">Classification</div>
+        <div class="metric-value" id="floodLevel">–</div>
+        <div class="metric-note" id="floodDetail">–</div>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-title">Secondary Hazards</div>
+      <div id="hazardTags">
+        <div class="placeholder-text" style="padding:10px;font-size:10px">No data</div>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-title">Remediation Actions</div>
+      <ul class="action-list" id="actionList">
+        <li class="action-item">Run analysis to generate recommendations.</li>
+      </ul>
+    </div>
+
+    <div>
+      <div class="section-title">AI Narrative</div>
+      <div class="ai-box" id="aiNarrative">
+        Run <strong>AI Deep Dive</strong> for an LLM-synthesised assessment.
+      </div>
+    </div>
+
+  </div><!-- /risk-panel -->
+
+</div><!-- /layout -->
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// State
+// ─────────────────────────────────────────────────────────────────────────────
+let leafletMap = null;
+let leafletMarker = null;
+let threeScene = null;
+let threeRenderer = null;
+let threeCamera = null;
+let terrainMesh = null;
+let assetPin = null;
+let animFrameId = null;
+let lastAssessment = null;
+
+const GRID_N = 10;
+const RISK_COLORS = {
+  CRITICAL: '#ef4444', HIGH: '#f97316', MODERATE: '#f59e0b', LOW: '#10b981', MINIMAL: '#6b7280', UNKNOWN: '#6b7280'
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tab switching
+// ─────────────────────────────────────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.view-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  document.getElementById('panel-' + name).classList.add('active');
+  if (name === 'satellite' && leafletMap) {
+    setTimeout(() => leafletMap.invalidateSize(), 100);
+  }
+  if (name === 'terrain' && threeRenderer) {
+    fitRendererToCanvas();
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Presets
+// ─────────────────────────────────────────────────────────────────────────────
+function setPreset(lat, lon, name, type) {
+  document.getElementById('lat').value = lat;
+  document.getElementById('lon').value = lon;
+  document.getElementById('assetName').value = name;
+  document.getElementById('assetType').value = type;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Status
+// ─────────────────────────────────────────────────────────────────────────────
+function setStatus(msg, cls = '') {
+  const el = document.getElementById('statusBar');
+  el.textContent = msg;
+  el.className = 'status-bar ' + cls;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Main analysis call
+// ─────────────────────────────────────────────────────────────────────────────
+async function analyzeAsset() {
+  const lat = parseFloat(document.getElementById('lat').value);
+  const lon = parseFloat(document.getElementById('lon').value);
+  const assetName = document.getElementById('assetName').value || 'Asset';
+  const assetType = document.getElementById('assetType').value;
+  const apiKey = document.getElementById('apiKey').value;
+
+  if (isNaN(lat) || isNaN(lon)) {
+    setStatus('Please enter valid latitude and longitude.', 'error');
+    return;
+  }
+  if (!apiKey) {
+    setStatus('Please enter your API key.', 'error');
+    return;
+  }
+
+  document.getElementById('analyzeBtn').disabled = true;
+  document.getElementById('aiBtn').disabled = true;
+  document.getElementById('terrain-loading').classList.add('active');
+  document.getElementById('map-loading').classList.add('active');
+  setStatus('Fetching elevation + hazard data…', 'loading');
+  document.getElementById('terrain-loading-text').textContent = 'Fetching SRTM30m elevation grid…';
+
+  try {
+    const resp = await fetch('/asset/assess', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-API-Key': apiKey },
+      body: JSON.stringify({ lat, lon, asset_name: assetName, asset_type: assetType, fetch_grid: true })
+    });
+
+    if (!resp.ok) {
+      const err = await resp.text();
+      throw new Error(`API ${resp.status}: ${err}`);
+    }
+
+    const data = await resp.json();
+    lastAssessment = data;
+
+    setStatus(`✓ ${assetName} assessed — ${data.risk_signal} risk signal.`);
+    renderRiskPanel(data);
+
+    document.getElementById('terrain-loading-text').textContent = 'Building 3D terrain…';
+    await buildTerrain3D(data, lat, lon, assetName);
+
+    initSatelliteMap(lat, lon, assetName, data.risk_signal);
+
+    document.getElementById('terrain-loading').classList.remove('active');
+    document.getElementById('map-loading').classList.remove('active');
+    document.getElementById('aiBtn').disabled = false;
+
+  } catch (err) {
+    setStatus('Error: ' + err.message, 'error');
+    document.getElementById('terrain-loading').classList.remove('active');
+    document.getElementById('map-loading').classList.remove('active');
+  } finally {
+    document.getElementById('analyzeBtn').disabled = false;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Render risk panel
+// ─────────────────────────────────────────────────────────────────────────────
+function renderRiskPanel(data) {
+  const signal = data.risk_signal || 'MODERATE';
+  const color  = RISK_COLORS[signal] || '#6b7280';
+
+  // Risk signal badge
+  const badge = document.getElementById('riskSignal');
+  badge.textContent = signal;
+  badge.className = 'risk-signal ' + signal;
+
+  // Elevation
+  const elev = data.elevation?.elevation_m;
+  document.getElementById('elevValue').textContent = elev != null ? `${elev.toFixed(1)} m` : '—';
+
+  // Flood bar + note
+  const flood = data.flood_risk || {};
+  const floodScore = flood.score || 0;
+  const bar = document.getElementById('floodBar');
+  bar.style.width = Math.round(floodScore * 100) + '%';
+  bar.style.background = RISK_COLORS[flood.level] || '#6b7280';
+  document.getElementById('floodNote').textContent = flood.note || '—';
+
+  // Flood level
+  document.getElementById('floodLevel').textContent = flood.level || '—';
+  document.getElementById('floodLevel').style.color = RISK_COLORS[flood.level] || 'var(--text)';
+  document.getElementById('floodDetail').textContent = data.summary || '—';
+
+  // Secondary hazards
+  const hazardContainer = document.getElementById('hazardTags');
+  hazardContainer.innerHTML = '';
+  const secondary = data.secondary_hazards || [];
+  if (secondary.length === 0) {
+    hazardContainer.innerHTML = '<div style="font-size:10px;color:var(--muted)">None identified</div>';
+  } else {
+    secondary.forEach(h => {
+      const tag = document.createElement('div');
+      tag.className = 'hazard-tag';
+      const c = RISK_COLORS[h.exposure] || '#6b7280';
+      tag.innerHTML = `<div class="dot" style="background:${c}"></div>${h.hazard.toUpperCase()} <span style="color:${c}">${h.exposure}</span>`;
+      tag.title = h.note || '';
+      hazardContainer.appendChild(tag);
+    });
+  }
+
+  // Remediation actions
+  const rem = data.remediation || {};
+  const actionList = document.getElementById('actionList');
+  actionList.innerHTML = '';
+
+  const floodActions = rem.flood || [];
+  floodActions.forEach(a => {
+    const li = document.createElement('li');
+    li.className = 'action-item flood-action';
+    li.textContent = a;
+    actionList.appendChild(li);
+  });
+
+  const otherActions = [...(rem.secondary || []), ...(rem.asset_specific || [])];
+  otherActions.forEach(a => {
+    const li = document.createElement('li');
+    li.className = 'action-item other-action';
+    li.textContent = a;
+    actionList.appendChild(li);
+  });
+
+  if (actionList.children.length === 0) {
+    const li = document.createElement('li');
+    li.className = 'action-item';
+    li.textContent = 'No urgent actions required at current risk level.';
+    actionList.appendChild(li);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Three.js 3D terrain
+// ─────────────────────────────────────────────────────────────────────────────
+function elevColor(elev) {
+  if (elev < 0)   return [0.05, 0.1,  0.6];  // dark blue — below sea level
+  if (elev < 2)   return [0.1,  0.35, 0.95]; // bright blue — critical
+  if (elev < 5)   return [0.15, 0.55, 1.0];  // light blue — high flood
+  if (elev < 10)  return [0.2,  0.75, 0.55]; // teal-green — moderate
+  if (elev < 20)  return [0.25, 0.8,  0.3];  // green — low
+  if (elev < 50)  return [0.6,  0.78, 0.2];  // yellow-green — minimal
+  if (elev < 150) return [0.7,  0.6,  0.2];  // tan — highlands
+  return [0.55, 0.42, 0.28];                   // brown — mountains
+}
+
+async function buildTerrain3D(data, lat, lon, assetName) {
+  const canvas = document.getElementById('terrain-canvas');
+  const placeholder = document.getElementById('terrain-placeholder');
+  const elevGrid = data.elevation_grid || Array(GRID_N * GRID_N).fill(0);
+  const centerElev = data.elevation?.elevation_m || 0;
+
+  placeholder.style.display = 'none';
+  canvas.style.display = 'block';
+  document.getElementById('elev-legend').style.display = 'block';
+
+  // Cleanup previous scene
+  if (animFrameId) cancelAnimationFrame(animFrameId);
+  if (threeRenderer) {
+    threeRenderer.dispose();
+    threeRenderer = null;
+  }
+
+  // Scene setup
+  const W = canvas.parentElement.clientWidth;
+  const H = canvas.parentElement.clientHeight;
+
+  threeScene = new THREE.Scene();
+  threeScene.background = new THREE.Color(0x080d18);
+  threeScene.fog = new THREE.FogExp2(0x080d18, 0.04);
+
+  threeCamera = new THREE.PerspectiveCamera(45, W / H, 0.1, 200);
+
+  threeRenderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  threeRenderer.setSize(W, H);
+  threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+  // Terrain geometry (GRID_N-1 segments = GRID_N vertices each side)
+  const SEG = GRID_N - 1;
+  const geometry = new THREE.PlaneGeometry(10, 10, SEG, SEG);
+  const positions = geometry.attributes.position;
+  const colorsArr = [];
+
+  // Elevation stats for scaling
+  const minE = Math.min(...elevGrid.filter(e => e != null));
+  const maxE = Math.max(...elevGrid.filter(e => e != null));
+  const range = (maxE - minE) || 1;
+
+  // Apply elevation to Z, color by absolute elevation
+  for (let i = 0; i < positions.count; i++) {
+    const e = elevGrid[i] != null ? elevGrid[i] : minE;
+    // Vertical exaggeration: more dramatic for flat terrain, less for mountainous
+    const exaggeration = range < 10 ? 6 : (range < 50 ? 4 : 2);
+    const z = ((e - minE) / range) * exaggeration;
+    positions.setZ(i, z);
+
+    const [r, g, b] = elevColor(e);
+    colorsArr.push(r, g, b);
+  }
+
+  geometry.setAttribute('color', new THREE.Float32BufferAttribute(colorsArr, 3));
+  geometry.computeVertexNormals();
+  geometry.rotateX(-Math.PI / 2); // Lay flat
+
+  const material = new THREE.MeshLambertMaterial({
+    vertexColors: true,
+    side: THREE.FrontSide,
+  });
+
+  terrainMesh = new THREE.Mesh(geometry, material);
+  threeScene.add(terrainMesh);
+
+  // Wireframe overlay (subtle)
+  const wireMat = new THREE.MeshBasicMaterial({
+    color: 0x1a2744,
+    wireframe: true,
+    opacity: 0.15,
+    transparent: true,
+  });
+  threeScene.add(new THREE.Mesh(geometry, wireMat));
+
+  // Asset pin — red cylinder + sphere
+  const pinHeight = 0.6;
+  const pinGroup = new THREE.Group();
+
+  // Stem
+  const stemGeo = new THREE.CylinderGeometry(0.04, 0.04, pinHeight, 8);
+  const stemMat = new THREE.MeshLambertMaterial({ color: 0xef4444 });
+  const stem = new THREE.Mesh(stemGeo, stemMat);
+  stem.position.y = pinHeight / 2;
+  pinGroup.add(stem);
+
+  // Top sphere
+  const sphereGeo = new THREE.SphereGeometry(0.12, 12, 8);
+  const sphereMat = new THREE.MeshLambertMaterial({ color: 0xff6666 });
+  const sphere = new THREE.Mesh(sphereGeo, sphereMat);
+  sphere.position.y = pinHeight + 0.12;
+  pinGroup.add(sphere);
+
+  // Position pin at center of terrain at correct Z (after rotation, Y is up)
+  const centerIdx = Math.floor(GRID_N / 2) * GRID_N + Math.floor(GRID_N / 2);
+  const centerZ = ((elevGrid[centerIdx] || minE) - minE) / range * (range < 10 ? 6 : range < 50 ? 4 : 2);
+  pinGroup.position.set(0, centerZ, 0);
+  threeScene.add(pinGroup);
+
+  // Pulsing ring around pin
+  const ringGeo = new THREE.RingGeometry(0.25, 0.35, 32);
+  const ringMat = new THREE.MeshBasicMaterial({ color: 0xef4444, side: THREE.DoubleSide, opacity: 0.6, transparent: true });
+  const ring = new THREE.Mesh(ringGeo, ringMat);
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.set(0, centerZ + 0.01, 0);
+  threeScene.add(ring);
+
+  // Risk color flood plane (flat tinted overlay for very low elevation)
+  if (centerElev < 5) {
+    const overlayGeo = new THREE.PlaneGeometry(10, 10);
+    const overlayMat = new THREE.MeshBasicMaterial({
+      color: centerElev < 2 ? 0x0033ff : 0x0066ff,
+      opacity: 0.08,
+      transparent: true,
+      side: THREE.DoubleSide,
+    });
+    const overlay = new THREE.Mesh(overlayGeo, overlayMat);
+    overlay.rotation.x = -Math.PI / 2;
+    overlay.position.y = 0.01;
+    threeScene.add(overlay);
+  }
+
+  // Lighting
+  threeScene.add(new THREE.AmbientLight(0x334466, 0.8));
+  const dirLight = new THREE.DirectionalLight(0xaabbdd, 1.0);
+  dirLight.position.set(5, 8, 5);
+  threeScene.add(dirLight);
+  const fillLight = new THREE.DirectionalLight(0x223344, 0.3);
+  fillLight.position.set(-5, 3, -5);
+  threeScene.add(fillLight);
+
+  // Grid helper (subtle)
+  const grid = new THREE.GridHelper(10, 10, 0x1a2744, 0x1a2744);
+  grid.position.y = -0.01;
+  threeScene.add(grid);
+
+  // Camera initial position
+  let theta = Math.PI / 6;
+  let phi = Math.PI / 4;
+  let radius = 14;
+  let isDragging = false;
+  let prevX = 0, prevY = 0;
+
+  const updateCamera = () => {
+    threeCamera.position.set(
+      radius * Math.sin(phi) * Math.sin(theta),
+      radius * Math.cos(phi),
+      radius * Math.sin(phi) * Math.cos(theta)
+    );
+    threeCamera.lookAt(0, 0.5, 0);
+  };
+  updateCamera();
+
+  // Mouse orbit controls
+  canvas.addEventListener('mousedown', e => { isDragging = true; prevX = e.clientX; prevY = e.clientY; });
+  window.addEventListener('mouseup', () => isDragging = false);
+  canvas.addEventListener('mousemove', e => {
+    if (!isDragging) return;
+    theta -= (e.clientX - prevX) * 0.012;
+    phi = Math.max(0.15, Math.min(Math.PI * 0.45, phi + (e.clientY - prevY) * 0.012));
+    prevX = e.clientX;
+    prevY = e.clientY;
+    updateCamera();
+  });
+  canvas.addEventListener('wheel', e => {
+    radius = Math.max(5, Math.min(30, radius + e.deltaY * 0.02));
+    updateCamera();
+    e.preventDefault();
+  }, { passive: false });
+
+  // Touch support
+  let lastTouchDist = 0;
+  canvas.addEventListener('touchstart', e => {
+    if (e.touches.length === 1) { isDragging = true; prevX = e.touches[0].clientX; prevY = e.touches[0].clientY; }
+    if (e.touches.length === 2) { lastTouchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); }
+  });
+  canvas.addEventListener('touchmove', e => {
+    e.preventDefault();
+    if (e.touches.length === 1 && isDragging) {
+      theta -= (e.touches[0].clientX - prevX) * 0.012;
+      phi = Math.max(0.15, Math.min(Math.PI * 0.45, phi + (e.touches[0].clientY - prevY) * 0.012));
+      prevX = e.touches[0].clientX;
+      prevY = e.touches[0].clientY;
+      updateCamera();
+    }
+    if (e.touches.length === 2) {
+      const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+      radius = Math.max(5, Math.min(30, radius - (d - lastTouchDist) * 0.05));
+      lastTouchDist = d;
+      updateCamera();
+    }
+  }, { passive: false });
+  canvas.addEventListener('touchend', () => isDragging = false);
+
+  // Animate
+  let t = 0;
+  const animate = () => {
+    animFrameId = requestAnimationFrame(animate);
+    t += 0.02;
+    // Subtle pulse on ring
+    ring.scale.setScalar(1 + 0.1 * Math.sin(t));
+    ring.material.opacity = 0.3 + 0.3 * Math.sin(t);
+    threeRenderer.render(threeScene, threeCamera);
+  };
+  animate();
+
+  // Resize handler
+  const resizeObserver = new ResizeObserver(() => fitRendererToCanvas());
+  resizeObserver.observe(canvas.parentElement);
+}
+
+function fitRendererToCanvas() {
+  if (!threeRenderer || !threeCamera) return;
+  const canvas = document.getElementById('terrain-canvas');
+  const W = canvas.parentElement.clientWidth;
+  const H = canvas.parentElement.clientHeight;
+  threeRenderer.setSize(W, H);
+  threeCamera.aspect = W / H;
+  threeCamera.updateProjectionMatrix();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Leaflet satellite map
+// ─────────────────────────────────────────────────────────────────────────────
+function initSatelliteMap(lat, lon, assetName, riskSignal) {
+  const tileUrl = 'https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+  const attribution = '© Esri, Maxar, Earthstar Geographics';
+
+  if (!leafletMap) {
+    leafletMap = L.map('map', { zoomControl: true }).setView([lat, lon], 14);
+    L.tileLayer(tileUrl, { attribution, maxZoom: 19 }).addTo(leafletMap);
+
+    // Risk radius circle
+    const color = RISK_COLORS[riskSignal] || '#6b7280';
+    L.circle([lat, lon], {
+      radius: 500,
+      color: color,
+      fillColor: color,
+      fillOpacity: 0.1,
+      weight: 1,
+    }).addTo(leafletMap);
+
+    // Asset marker
+    const pinIcon = L.divIcon({
+      className: '',
+      html: `<div style="
+        width:12px;height:12px;
+        background:${color};
+        border:2px solid white;
+        border-radius:50%;
+        box-shadow:0 0 8px ${color};
+      "></div>`,
+      iconSize: [12, 12],
+      iconAnchor: [6, 6],
+    });
+    leafletMarker = L.marker([lat, lon], { icon: pinIcon })
+      .addTo(leafletMap)
+      .bindPopup(`<b>${assetName}</b><br>Risk: <b style="color:${color}">${riskSignal}</b>`)
+      .openPopup();
+
+    // Scale bar
+    L.control.scale({ imperial: false }).addTo(leafletMap);
+
+  } else {
+    leafletMap.setView([lat, lon], 14);
+    if (leafletMarker) leafletMap.removeLayer(leafletMarker);
+    leafletMap.eachLayer(layer => {
+      if (layer instanceof L.Circle || layer instanceof L.Marker) leafletMap.removeLayer(layer);
+    });
+    initSatelliteMap(lat, lon, assetName, riskSignal); // re-add
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AI Deep Dive
+// ─────────────────────────────────────────────────────────────────────────────
+async function aiDeepDive() {
+  if (!lastAssessment) return;
+  const apiKey = document.getElementById('apiKey').value;
+  if (!apiKey) { setStatus('API key required for AI analysis.', 'error'); return; }
+
+  const aiBox = document.getElementById('aiNarrative');
+  aiBox.className = 'ai-box loading';
+  aiBox.textContent = 'Groq LLaMA-3.3-70b reasoning over physical asset data…';
+  document.getElementById('aiBtn').disabled = true;
+
+  const lat = lastAssessment.lat;
+  const lon = lastAssessment.lon;
+  const assetName = lastAssessment.asset_name;
+  const riskSignal = lastAssessment.risk_signal;
+  const elev = lastAssessment.elevation?.elevation_m;
+  const floodLevel = lastAssessment.flood_risk?.level;
+
+  const message = (
+    `Produce a concise, expert physical risk assessment for "${assetName}" at ` +
+    `coordinates (${lat}°, ${lon}°). The asset sits at ${elev?.toFixed(1) ?? 'unknown'} m elevation ` +
+    `with ${floodLevel} flood exposure. Risk signal: ${riskSignal}. ` +
+    `Use the assess_physical_asset tool to retrieve full data, then provide: ` +
+    `1) risk signal with justification, 2) primary physical drivers, ` +
+    `3) 2030 and 2050 outlook under NZE vs Current Policies scenario, ` +
+    `4) three immediate recommended actions.`
+  );
+
+  try {
+    const resp = await fetch('/agent/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-API-Key': apiKey },
+      body: JSON.stringify({
+        message,
+        context: { asset: assetName, lat, lon, elevation_m: elev, risk_signal: riskSignal },
+        max_rounds: 2,
+      }),
+    });
+
+    if (!resp.ok) throw new Error(`API ${resp.status}`);
+    const data = await resp.json();
+    aiBox.className = 'ai-box';
+    aiBox.textContent = data.narrative || 'No narrative generated.';
+    setStatus(`✓ AI analysis complete (${data.model_used}, ${data.rounds} rounds).`);
+  } catch (err) {
+    aiBox.className = 'ai-box';
+    aiBox.textContent = 'AI analysis unavailable: ' + err.message;
+    setStatus('AI error: ' + err.message, 'error');
+  } finally {
+    document.getElementById('aiBtn').disabled = false;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Window resize
+// ─────────────────────────────────────────────────────────────────────────────
+window.addEventListener('resize', () => {
+  if (threeRenderer) fitRendererToCanvas();
+  if (leafletMap) leafletMap.invalidateSize();
+});
+</script>
+</body>
+</html>

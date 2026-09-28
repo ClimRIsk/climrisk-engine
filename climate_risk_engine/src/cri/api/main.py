@@ -2362,3 +2362,63 @@ def list_agent_tools() -> dict:
         ],
         "total": len(TOOL_REGISTRY),
     }
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# ASSET INTELLIGENCE — coordinate-precise physical risk
+# ──────────────────────────────────────────────────────────────────────────────
+
+class AssetAssessRequest(BaseModel):
+    lat:          float  = Field(..., ge=-90,  le=90,   description="Latitude in decimal degrees")
+    lon:          float  = Field(..., ge=-180, le=180,  description="Longitude in decimal degrees")
+    asset_name:   str    = Field("Asset",                description="Name or description of the asset")
+    asset_type:   str    = Field("industrial",           description="Asset type (industrial, warehouse, port, data_centre, agriculture, hospital, ...)")
+    fetch_grid:   bool   = Field(True,                  description="Fetch 10×10 elevation grid for 3D terrain rendering")
+
+
+@app.post("/asset/assess", dependencies=[_AUTH], tags=["Asset Intelligence"])
+def assess_asset_endpoint(request: AssetAssessRequest) -> dict:
+    """
+    Coordinate-precise physical climate risk assessment for a real-world asset.
+
+    Fetches actual elevation from SRTM30m (OpenTopoData, free, no API key),
+    classifies flood exposure using FEMA/JRC thresholds, profiles secondary
+    hazards (cyclone, heat, wildfire) from latitude band, and generates a
+    site-specific remediation action plan.
+
+    Optionally returns a 10×10 elevation grid (100 SRTM30m points covering
+    ~5 km × 5 km) for 3D terrain rendering in the Asset Intelligence dashboard.
+
+    **Example request:**
+    ```json
+    { "lat": -33.8688, "lon": 151.2093, "asset_name": "Sydney Port", "asset_type": "port" }
+    ```
+    """
+    from ..analysis.asset_intelligence import assess_asset
+    return assess_asset(
+        lat=request.lat,
+        lon=request.lon,
+        asset_name=request.asset_name,
+        asset_type=request.asset_type,
+        fetch_grid=request.fetch_grid,
+    )
+
+
+@app.get("/asset/dashboard", tags=["Asset Intelligence"])
+def asset_dashboard():
+    """
+    Serve the Asset Intelligence 3D dashboard HTML.
+
+    Opens an interactive single-page application with:
+    - 3D terrain view (Three.js, SRTM30m elevation grid)
+    - Satellite map (Leaflet + ESRI World Imagery, no API key)
+    - Physical risk panel (elevation, flood zone, secondary hazards)
+    - Remediation action plan
+    - AI Deep Dive (Groq LLaMA-3.3-70b narrative via /agent/chat)
+
+    No authentication required to load the dashboard itself.
+    API key is entered in the dashboard UI and used for /asset/assess calls.
+    """
+    from fastapi.responses import HTMLResponse
+    dashboard_path = Path(__file__).parent / "asset_dashboard.html"
+    return HTMLResponse(content=dashboard_path.read_text(encoding="utf-8"))

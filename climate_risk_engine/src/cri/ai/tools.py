@@ -555,17 +555,84 @@ def _exec_get_country_risk(args: dict) -> dict:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# 8. assess_physical_asset
+# ─────────────────────────────────────────────────────────────────────────────
+
+_ASSET_DEFINITION = {
+    "type": "function",
+    "function": {
+        "name": "assess_physical_asset",
+        "description": (
+            "Assess the physical climate risk of a real-world asset at specific GPS coordinates. "
+            "Fetches actual elevation from SRTM30m satellite data (free, no key), classifies "
+            "flood exposure using FEMA/JRC thresholds, profiles secondary hazards (cyclone, "
+            "heat, wildfire) from latitude, and generates a site-specific remediation action "
+            "plan. Also returns a 10×10 elevation grid for 3D terrain visualisation. "
+            "Use when the user mentions a specific location, address, lat/lon, building, "
+            "factory, warehouse, port, farm, or asks about physical site-level risk."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "lat": {
+                    "type": "number",
+                    "description": "Latitude of the asset in decimal degrees (e.g. -33.8688 for Sydney)"
+                },
+                "lon": {
+                    "type": "number",
+                    "description": "Longitude of the asset in decimal degrees (e.g. 151.2093 for Sydney)"
+                },
+                "asset_name": {
+                    "type": "string",
+                    "description": "Name or description of the asset (e.g. 'Sydney Distribution Centre', 'Collie Power Station')"
+                },
+                "asset_type": {
+                    "type": "string",
+                    "description": (
+                        "Type of asset. One of: industrial, warehouse, logistics, port, "
+                        "office, retail, agriculture, data_centre, hospital, residential. "
+                        "Determines asset-specific remediation addons."
+                    )
+                },
+                "fetch_grid": {
+                    "type": "boolean",
+                    "description": "Whether to fetch the 10×10 elevation grid for 3D terrain (default true — set false if only need risk summary)"
+                }
+            },
+            "required": ["lat", "lon"]
+        }
+    }
+}
+
+
+def _exec_assess_physical_asset(args: dict) -> dict:
+    try:
+        from ..analysis.asset_intelligence import assess_asset
+        return assess_asset(
+            lat=float(args["lat"]),
+            lon=float(args["lon"]),
+            asset_name=args.get("asset_name", "Asset"),
+            asset_type=args.get("asset_type", "industrial"),
+            fetch_grid=bool(args.get("fetch_grid", True)),
+        )
+    except Exception as exc:
+        logger.exception("assess_physical_asset failed")
+        return {"error": str(exc)}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Tool Registry
 # ─────────────────────────────────────────────────────────────────────────────
 
 TOOL_REGISTRY: dict[str, dict] = {
-    "assess_company":         {"definition": _ASSESS_DEFINITION,    "executor": _exec_assess_company},
-    "analyze_disclosure":     {"definition": _DISCLOSURE_DEFINITION, "executor": _exec_analyze_disclosure},
-    "get_location_hazard":    {"definition": _HAZARD_DEFINITION,     "executor": _exec_get_location_hazard},
+    "assess_company":          {"definition": _ASSESS_DEFINITION,    "executor": _exec_assess_company},
+    "analyze_disclosure":      {"definition": _DISCLOSURE_DEFINITION, "executor": _exec_analyze_disclosure},
+    "get_location_hazard":     {"definition": _HAZARD_DEFINITION,     "executor": _exec_get_location_hazard},
     "get_scenario_explanation":{"definition": _SCENARIO_DEFINITION,  "executor": _exec_get_scenario_explanation},
-    "get_ticker_data":        {"definition": _TICKER_DEFINITION,     "executor": _exec_get_ticker_data},
-    "compare_companies":      {"definition": _COMPARE_DEFINITION,    "executor": _exec_compare_companies},
-    "get_country_risk":       {"definition": _COUNTRY_DEFINITION,    "executor": _exec_get_country_risk},
+    "get_ticker_data":         {"definition": _TICKER_DEFINITION,     "executor": _exec_get_ticker_data},
+    "compare_companies":       {"definition": _COMPARE_DEFINITION,    "executor": _exec_compare_companies},
+    "get_country_risk":        {"definition": _COUNTRY_DEFINITION,    "executor": _exec_get_country_risk},
+    "assess_physical_asset":   {"definition": _ASSET_DEFINITION,     "executor": _exec_assess_physical_asset},
 }
 
 
