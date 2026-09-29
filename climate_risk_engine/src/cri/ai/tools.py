@@ -641,6 +641,57 @@ def _exec_assess_physical_asset(args: dict) -> dict:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# 9. get_company_assets
+# ─────────────────────────────────────────────────────────────────────────────
+
+_COMPANY_ASSETS_DEFINITION = {
+    "type": "function",
+    "function": {
+        "name": "get_company_assets",
+        "description": (
+            "Find where a company's physical assets are (power plants, cement, steel, refineries, "
+            "chemical plants, mines — Climate TRACE global + EPA US registers) and how exposed they "
+            "are: precomputed tropical-cyclone wind (validated model) and low-lying flood screening "
+            "per asset, plus portfolio shares. Instant. Use when asked where a company operates, "
+            "which of its sites are most at risk, or for portfolio physical exposure. Follow up "
+            "with assess_physical_asset on specific sites for the full satellite analysis."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "company_name": {"type": "string", "description": "Company name, e.g. 'Holcim', 'NTPC', 'ExxonMobil'"},
+                "include_subsidiaries": {"type": "boolean",
+                                         "description": "Also include owners whose names start with the same words (default true)"}
+            },
+            "required": ["company_name"]
+        }
+    }
+}
+
+
+def _exec_get_company_assets(args: dict) -> dict:
+    try:
+        from ..data.asset_register import company_exposure, norm, search
+        res = search(args["company_name"], limit=20)
+        if not res:
+            return {"found": False, "note": "No owner in the asset register (heavy industry only)."}
+        q = norm(args["company_name"])
+        keys = [r["key"] for r in res if r["match"] in ("exact", "prefix")] if args.get("include_subsidiaries", True) \
+            else [res[0]["key"]]
+        keys = keys or [res[0]["key"]]
+        e = company_exposure(keys)
+        top = [{k: a[k] for k in ("name", "country", "sector", "lat", "lon", "screen_level", "elev_m")}
+               | {"cyclone_1in100": a["cyclone"]["rp100_category"], "worst_storm": a["cyclone"]["worst"]}
+               for a in e["assets"][:10]]
+        return {"found": True, "entities": e["companies"], "n_assets": e["n_assets"],
+                "summary": {k: v for k, v in e["summary"].items() if k != "sectors"},
+                "most_exposed_assets": top, "method": e["method"], "caveats": e["caveats"]}
+    except Exception as exc:
+        logger.exception("get_company_assets failed")
+        return {"error": str(exc)}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Tool Registry
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -653,6 +704,7 @@ TOOL_REGISTRY: dict[str, dict] = {
     "compare_companies":       {"definition": _COMPARE_DEFINITION,    "executor": _exec_compare_companies},
     "get_country_risk":        {"definition": _COUNTRY_DEFINITION,    "executor": _exec_get_country_risk},
     "assess_physical_asset":   {"definition": _ASSET_DEFINITION,     "executor": _exec_assess_physical_asset},
+    "get_company_assets":      {"definition": _COMPANY_ASSETS_DEFINITION, "executor": _exec_get_company_assets},
 }
 
 

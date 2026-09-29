@@ -105,6 +105,15 @@ def _start_scheduler() -> None:
 @asynccontextmanager
 async def _lifespan(app: FastAPI):
     _start_scheduler()
+    # Preload in-memory datasets in the background so the first request has no lag
+    try:
+        from ..data.asset_register import warm_up_async
+        warm_up_async()
+        import threading
+        from ..climate.tropical_cyclone import tracks as _tc_tracks
+        threading.Thread(target=_tc_tracks, daemon=True).start()
+    except Exception as exc:                        # noqa: BLE001
+        logging.getLogger(__name__).warning("warm-up skipped: %s", exc)
     yield
 
 
@@ -2434,3 +2443,40 @@ def asset_dashboard():
     from fastapi.responses import HTMLResponse
     dashboard_path = Path(__file__).parent / "asset_dashboard.html"
     return HTMLResponse(content=dashboard_path.read_text(encoding="utf-8"))
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# COMPANY EXPOSURE — where a company's physical assets are, pre-screened
+# ──────────────────────────────────────────────────────────────────────────────
+
+class CompanyExposureRequest(BaseModel):
+    keys: list[str] = Field(..., min_length=1, max_length=50,
+                            description="Owner keys from /company/search (select all subsidiaries that apply)")
+
+
+@app.get("/company/search", dependencies=[_AUTH], tags=["Company Exposure"])
+def company_search(q: str, limit: int = 12) -> dict:
+    """
+    Find owners in the asset register (Climate TRACE global heavy industry + EPA GHGRP US).
+    In-memory lookup, typically < 10 ms.
+    """
+    from ..data.asset_register import search, stats
+    return {"query": q, "results": search(q, limit=min(max(limit, 1), 50)), "register": stats()}
+
+
+@app.post("/company/exposure", dependencies=[_AUTH], tags=["Company Exposure"])
+def company_exposure_endpoint(request: CompanyExposureRequest) -> dict:
+    """
+    All assets for the selected owners with precomputed hazard screening
+    (cyclone: validated IBTrACS model; flood: low-lying elevation signal) and a
+    portfolio summary. No network or modelling at request time.
+    """
+    from ..data.asset_register import company_exposure
+    return company_exposure(request.keys)
+
+
+@app.get("/asset/world-land", tags=["Asset Intelligence"])
+def world_land() -> dict:
+    """Natural Earth 1:110m land outline (public domain) for the offline portfolio map."""
+    import json as _json
+    return {"rings": _json.loads((Path(__file__).parent / "world_land_110m.json").read_text())}

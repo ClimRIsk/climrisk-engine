@@ -97,6 +97,29 @@
   .ai { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px; font-size: 12px; line-height: 1.65; white-space: pre-wrap; color: var(--muted); }
   .ai.loading { color: var(--primary); font-style: italic; }
   .foot { font-size: 10px; color: #5d6f93; line-height: 1.6; }
+
+  /* Mode switch + company mode */
+  .modes { display: grid; grid-template-columns: 1fr 1fr; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 3px; gap: 3px; }
+  .modes button { background: transparent; border: 0; color: var(--muted); font: inherit; font-weight: 600; padding: 7px; border-radius: 6px; cursor: pointer; }
+  .modes button.on { background: #0c2233; color: var(--text); box-shadow: inset 0 0 0 1px var(--primary); }
+  .results { display: flex; flex-direction: column; gap: 4px; max-height: 330px; overflow-y: auto; margin-top: 8px; }
+  .res { display: flex; gap: 8px; align-items: flex-start; padding: 7px 8px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; font-size: 12px; }
+  .res:hover { border-color: #2b4063; }
+  .res input { width: auto; margin-top: 2px; }
+  .res .rn { color: var(--text); font-weight: 600; }
+  .res .rm { color: var(--muted); font-size: 10.5px; }
+  #worldmap { position: absolute; inset: 0; width: 100%; height: 100%; display: none; cursor: crosshair; }
+  .tip { position: absolute; pointer-events: none; background: rgba(7,11,20,.95); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; font-size: 11px; display: none; max-width: 260px; z-index: 5; }
+  .kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .kpi { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; }
+  .kpi .v { font-size: 18px; font-weight: 700; font-family: var(--mono); }
+  .kpi .l { font-size: 10.5px; color: var(--muted); margin-top: 2px; line-height: 1.35; }
+  .lvbar { display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: var(--border); }
+  .atable { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+  .atable td { padding: 5px 4px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  .atable tr { cursor: pointer; } .atable tr:hover td { background: #0e1a2c; }
+  .atable .sub { color: var(--muted); font-size: 10px; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; }
 </style>
 </head>
 <body>
@@ -106,12 +129,23 @@
     <div class="logo">CLIMRISK</div>
     <div class="sub">Asset Physical Intelligence</div>
   </div>
-  <div class="sources-pill">AWS 10 m DEM · Sentinel-1/2 · ESA WorldCover · IBTrACS cyclones</div>
+  <div class="sources-pill">AWS 10 m DEM · Sentinel-1/2 · WorldCover · IBTrACS · Climate TRACE assets</div>
 </div>
 
 <div class="layout">
   <!-- Sidebar -->
   <aside class="sidebar">
+    <div class="modes"><button id="modeSite" class="on" onclick="setMode('site')">Site</button><button id="modeCompany" onclick="setMode('company')">Company</button></div>
+
+    <div id="companyControls" style="display:none">
+      <div class="section-title">Company</div>
+      <input id="coQuery" placeholder="Search e.g. Holcim, NTPC, Exxon" autocomplete="off">
+      <div class="results" id="coResults"></div>
+      <button class="btn btn-primary" id="coBtn" style="margin-top:10px" onclick="loadExposure()" disabled>Show exposure</button>
+      <div class="status" id="coStatus" style="margin-top:10px">Search a company, tick every entity that belongs to it (subsidiaries are listed separately), then press <b>Show exposure</b>.</div>
+    </div>
+
+    <div id="siteControls" style="display:contents">
     <div>
       <div class="section-title">Asset</div>
       <label for="assetName">Name</label>
@@ -155,6 +189,7 @@
       <div class="status" id="status">Enter coordinates, or pick an example site, then press <b>Analyse asset</b>.</div>
       <div class="progress" id="progress"><div></div></div>
     </div>
+    </div>
   </aside>
 
   <!-- 3D -->
@@ -172,6 +207,8 @@
     </div>
     <div class="viewport" id="viewport">
       <canvas id="scene"></canvas>
+      <canvas id="worldmap"></canvas>
+      <div class="tip" id="tip"></div>
       <div class="placeholder" id="placeholder">The 3D site model appears here:<br>10 m terrain draped with the latest clear Sentinel-2 image.</div>
       <div class="hud" id="hud"></div>
       <div class="legend" id="legend"></div>
@@ -563,6 +600,203 @@ document.getElementById('exag').addEventListener('input', e => {
   if (G.geom) { applyHeights(); placeMarker(); }
 });
 
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Company mode — asset register (instant, in-memory on the engine)
+// ═══════════════════════════════════════════════════════════════════════════
+const CO = { selected: new Set(), data: null, land: null, view: null, hover: -1, pick: -1, siteState: null };
+let coTimer = null;
+
+function setMode(m) {
+  const company = m === 'company';
+  document.getElementById('modeSite').classList.toggle('on', !company);
+  document.getElementById('modeCompany').classList.toggle('on', company);
+  document.getElementById('siteControls').style.display = company ? 'none' : 'contents';
+  document.getElementById('companyControls').style.display = company ? 'block' : 'none';
+  document.getElementById('layerbar').style.visibility = company ? 'hidden' : 'visible';
+  document.getElementById('worldmap').style.display = company ? 'block' : 'none';
+  document.getElementById('scene').style.display = company ? 'none' : 'block';
+  ['hud', 'legend'].forEach(id => document.getElementById(id).style.visibility = company ? 'hidden' : 'visible');
+  document.getElementById('placeholder').style.display = company || G.base ? 'none' : 'flex';
+  if (company) {
+    CO.siteState = document.getElementById('panel').innerHTML;
+    if (CO.data) renderCompanyPanel(); else document.getElementById('panel').innerHTML =
+      '<div class="section-title">Company exposure</div><div class="headline" style="color:var(--muted)">No company selected yet.</div>';
+    drawWorld();
+    document.getElementById('coQuery').focus();
+  } else if (CO.siteState !== null) {
+    document.getElementById('panel').innerHTML = CO.siteState;
+    resize();
+  }
+}
+
+document.addEventListener('input', e => {
+  if (e.target.id !== 'coQuery') return;
+  clearTimeout(coTimer);
+  coTimer = setTimeout(() => searchCompanies(e.target.value), 150);
+});
+
+async function searchCompanies(q) {
+  const box = document.getElementById('coResults');
+  if (!q || q.trim().length < 2) { box.innerHTML = ''; return; }
+  try {
+    const r = await fetch('/company/search?q=' + encodeURIComponent(q), { headers: hdrs(document.getElementById('apiKey').value) });
+    if (!r.ok) throw new Error('API ' + r.status);
+    const d = await r.json();
+    box.innerHTML = d.results.length ? d.results.map(x =>
+      `<label class="res"><input type="checkbox" data-key="${esc(x.key)}" ${CO.selected.has(x.key) ? 'checked' : ''}>
+        <span><span class="rn">${esc(x.name)}</span><br><span class="rm">${x.n_assets} asset${x.n_assets === 1 ? '' : 's'} · ${x.n_countries} countr${x.n_countries === 1 ? 'y' : 'ies'} · ${esc(x.countries.slice(0, 4).join(', '))}</span></span></label>`).join('')
+      : '<div class="rm" style="color:var(--muted);font-size:11px">No owners found. The register covers heavy industry (power, cement, steel, refining, chemicals, mining).</div>';
+    box.querySelectorAll('input[type=checkbox]').forEach(cb => cb.addEventListener('change', () => {
+      cb.checked ? CO.selected.add(cb.dataset.key) : CO.selected.delete(cb.dataset.key);
+      document.getElementById('coBtn').disabled = CO.selected.size === 0;
+    }));
+    // Tick the best match automatically so one click shows exposure
+    if (CO.selected.size === 0 && d.results[0]) { box.querySelector('input').click(); }
+  } catch (e) { box.innerHTML = `<div class="rm" style="color:var(--critical)">Search failed: ${esc(e.message)}</div>`; }
+}
+
+async function loadExposure() {
+  const st = document.getElementById('coStatus');
+  st.className = 'status loading'; st.textContent = 'Loading assets…';
+  const t0 = performance.now();
+  try {
+    const r = await fetch('/company/exposure', { method: 'POST', headers: hdrs(document.getElementById('apiKey').value),
+      body: JSON.stringify({ keys: [...CO.selected] }) });
+    if (!r.ok) throw new Error('API ' + r.status);
+    CO.data = await r.json(); CO.pick = -1;
+    if (!CO.data.found) throw new Error('no assets for the selected entities');
+    st.className = 'status';
+    st.innerHTML = `<b>${CO.data.n_assets}</b> assets loaded in ${Math.round(performance.now() - t0)} ms. Click a dot or a row to inspect; open any asset in 3D.`;
+    fitView(); drawWorld(); renderCompanyPanel();
+  } catch (e) { st.className = 'status error'; st.textContent = 'Error: ' + e.message; }
+}
+
+// ── world map (equirectangular, offline land outline) ──
+async function ensureLand() {
+  if (CO.land) return CO.land;
+  try { const r = await fetch('/asset/world-land'); CO.land = (await r.json()).rings; } catch { CO.land = []; }
+  return CO.land;
+}
+
+function fitView() {
+  const A = (CO.data && CO.data.assets) || [];
+  if (!A.length) { CO.view = { w: -180, e: 180, s: -60, n: 80 }; return; }
+  let w = Math.min(...A.map(a => a.lon)), e = Math.max(...A.map(a => a.lon));
+  let s = Math.min(...A.map(a => a.lat)), n = Math.max(...A.map(a => a.lat));
+  const padX = Math.max(8, (e - w) * 0.15), padY = Math.max(6, (n - s) * 0.15);
+  CO.view = { w: w - padX, e: e + padX, s: Math.max(-80, s - padY), n: Math.min(85, n + padY) };
+}
+
+function mapProj() {
+  const c = document.getElementById('worldmap'); const W = c.clientWidth, H = c.clientHeight;
+  const v = CO.view || { w: -180, e: 180, s: -60, n: 80 };
+  const kx = W / (v.e - v.w), ky = H / (v.n - v.s), k = Math.min(kx, ky);
+  const ox = (W - k * (v.e - v.w)) / 2, oy = (H - k * (v.n - v.s)) / 2;
+  return { W, H, x: lon => ox + (lon - v.w) * k, y: lat => oy + (v.n - lat) * k };
+}
+
+async function drawWorld() {
+  const c = document.getElementById('worldmap');
+  const dpr = Math.min(devicePixelRatio, 2);
+  c.width = c.clientWidth * dpr; c.height = c.clientHeight * dpr;
+  const ctx = c.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  if (!CO.view) fitView();
+  const P = mapProj();
+  ctx.fillStyle = '#070b14'; ctx.fillRect(0, 0, P.W, P.H);
+  const land = await ensureLand();
+  ctx.fillStyle = '#132038'; ctx.strokeStyle = '#1f3152'; ctx.lineWidth = 0.8;
+  for (const ring of land) {
+    ctx.beginPath();
+    ring.forEach(([lo, la], i) => { const X = P.x(lo), Y = P.y(la); i ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y); });
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+  }
+  const A = (CO.data && CO.data.assets) || [];
+  const order = [...A.keys()].sort((a, b) => ['NEGLIGIBLE','LOW','MODERATE','HIGH','CRITICAL'].indexOf(A[a].screen_level) - ['NEGLIGIBLE','LOW','MODERATE','HIGH','CRITICAL'].indexOf(A[b].screen_level));
+  for (const i of order) {
+    const a = A[i], X = P.x(a.lon), Y = P.y(a.lat);
+    ctx.beginPath(); ctx.arc(X, Y, i === CO.pick ? 7 : 4.5, 0, 7);
+    ctx.fillStyle = SEV_COLOR[a.screen_level]; ctx.globalAlpha = 0.9; ctx.fill(); ctx.globalAlpha = 1;
+    ctx.lineWidth = i === CO.pick ? 2.5 : 1; ctx.strokeStyle = i === CO.pick ? '#ffffff' : '#070b14'; ctx.stroke();
+  }
+  if (!A.length) {
+    ctx.fillStyle = '#8a9bbd'; ctx.font = '13px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('Search a company on the left to map its assets.', P.W / 2, P.H / 2);
+  }
+}
+
+function nearestAsset(mx, my) {
+  const A = (CO.data && CO.data.assets) || []; const P = mapProj();
+  let best = -1, bd = 81;
+  A.forEach((a, i) => { const d = (P.x(a.lon) - mx) ** 2 + (P.y(a.lat) - my) ** 2; if (d < bd) { bd = d; best = i; } });
+  return best;
+}
+
+(function bindMap() {
+  const c = document.getElementById('worldmap'), tip = document.getElementById('tip');
+  c.addEventListener('mousemove', e => {
+    const r = c.getBoundingClientRect(); const i = nearestAsset(e.clientX - r.left, e.clientY - r.top);
+    if (i < 0) { tip.style.display = 'none'; return; }
+    const a = CO.data.assets[i];
+    tip.innerHTML = `<b>${esc(a.name)}</b><br>${esc(a.sector)} · ${esc(a.country)}<br><span class="sev-${a.screen_level}">${a.screen_level}</span>` +
+      ` · cyclone ${esc(a.cyclone.rp100_category)} (1-in-100 yr)${a.elev_m != null ? ' · ' + a.elev_m + ' m' : ''}`;
+    tip.style.left = (e.clientX - r.left + 14) + 'px'; tip.style.top = (e.clientY - r.top + 10) + 'px'; tip.style.display = 'block';
+  });
+  c.addEventListener('mouseleave', () => tip.style.display = 'none');
+  c.addEventListener('click', e => { const r = c.getBoundingClientRect(); const i = nearestAsset(e.clientX - r.left, e.clientY - r.top); if (i >= 0) selectAsset(i); });
+  new ResizeObserver(() => { if (document.getElementById('worldmap').style.display === 'block') drawWorld(); }).observe(document.getElementById('viewport'));
+})();
+
+function selectAsset(i) { CO.pick = i; drawWorld(); renderCompanyPanel(); }
+
+function openSite(i) {
+  const a = CO.data.assets[i];
+  setMode('site');
+  preset(a.lat, a.lon, a.name, 'industrial');
+  analyze();
+}
+
+function renderCompanyPanel() {
+  const d = CO.data; if (!d) return;
+  const S = d.summary, pct = v => v == null ? '—' : Math.round(v * 100) + '%';
+  const lv = ['CRITICAL','HIGH','MODERATE','LOW','NEGLIGIBLE'];
+  const bar = lv.map(k => S.by_level[k] ? `<div title="${k}: ${S.by_level[k]}" style="width:${100 * S.by_level[k] / d.n_assets}%;background:${SEV_COLOR[k]}"></div>` : '').join('');
+  let pickHtml = '';
+  if (CO.pick >= 0) {
+    const a = d.assets[CO.pick];
+    pickHtml = `<div class="finding" style="padding:10px 11px">
+      <div style="display:flex;align-items:center;gap:8px"><b style="flex:1">${esc(a.name)}</b><span class="pill sev-${a.screen_level}">${a.screen_level}</span></div>
+      <div class="meta" style="margin:6px 0">${esc(a.sector)} · ${esc(a.country)} · ${a.lat.toFixed(3)}, ${a.lon.toFixed(3)}<br>
+      ${a.capacity != null ? 'capacity ' + fmt(a.capacity) + ' · ' : ''}${a.emissions_t != null ? fmt(a.emissions_t / 1e6) + ' Mt CO₂e/yr · ' : ''}${esc(a.source)}</div>
+      <table class="ev">
+        <tr><td class="m">1-in-100-year cyclone wind</td><td class="v">${a.cyclone.rp100_ms} m/s · ${esc(a.cyclone.rp100_category)}</td></tr>
+        <tr><td class="m">Hurricane-force events per year</td><td class="v">${a.cyclone.rate_cat1}</td></tr>
+        <tr><td class="m" colspan="2">Worst storm at this site<span class="vv">${esc(a.cyclone.worst || 'none recorded')}</span></td></tr>
+        <tr><td class="m">Ground elevation (screen)</td><td class="v">${a.elev_m != null ? a.elev_m + ' m' : '—'}</td></tr>
+      </table>
+      <button class="btn btn-primary" onclick="openSite(${CO.pick})">Open 3D site analysis</button></div>`;
+  }
+  const rows = d.assets.slice(0, 200).map((a, i) => `<tr onclick="selectAsset(${i})"><td><span class="dot" style="background:${SEV_COLOR[a.screen_level]}"></span></td>
+      <td>${esc(a.name)}<div class="sub">${esc(a.sector)} · ${esc(a.country)}</div></td>
+      <td style="text-align:right;white-space:nowrap">${esc(a.cyclone.rp100_category === 'below tropical-storm force' ? '—' : a.cyclone.rp100_category)}<div class="sub">${a.elev_m != null ? a.elev_m + ' m' : ''}</div></td></tr>`).join('');
+  document.getElementById('panel').innerHTML = `
+    <div class="section-title">Company exposure</div>
+    <div class="headline"><b>${esc(d.companies.slice(0, 3).join(' + '))}</b>${d.companies.length > 3 ? ` <span style="color:var(--muted)">and ${d.companies.length - 3} more entities</span>` : ''}</div>
+    <div class="kpis">
+      <div class="kpi"><div class="v">${d.n_assets}</div><div class="l">assets in ${Object.keys(S.countries).length} countries</div></div>
+      <div class="kpi"><div class="v" style="color:${SEV_COLOR.HIGH}">${pct(S.share_assets_high_or_critical)}</div><div class="l">of assets HIGH or CRITICAL${S.share_emissions_high_or_critical != null ? ' · ' + pct(S.share_emissions_high_or_critical) + ' of emissions' : ''}</div></div>
+      <div class="kpi"><div class="v">${pct(S.share_assets_cyclone_cat1plus_100yr)}</div><div class="l">face hurricane-force winds (1-in-100 yr)</div></div>
+      <div class="kpi"><div class="v">${pct(S.share_assets_low_lying_lt3m)}</div><div class="l">on land below 3 m (validated flood signal)</div></div>
+    </div>
+    <div><div class="section-title" style="margin-top:4px">Screening level</div><div class="lvbar">${bar}</div>
+      <div class="meta" style="margin-top:4px">${lv.filter(k => S.by_level[k]).map(k => `<span class="sev-${k}">${k}</span> ${S.by_level[k]}`).join(' · ')}</div></div>
+    ${pickHtml}
+    <div class="section-title" style="margin-top:4px">Assets (most exposed first)</div>
+    <table class="atable">${rows}</table>
+    ${d.assets.length > 200 ? `<div class="meta">Showing 200 of ${d.assets.length}.</div>` : ''}
+    <div class="foot"><b>Method</b><br>${esc(d.method)}<br><br><b>Caveats</b><br>${d.caveats.map(esc).join('<br>')}</div>`;
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Launch parameters from the host app (URL hash — never sent to the server)
 //   #key=<api key>&lat=..&lon=..&name=..&type=..&auto=1&embedded=1
@@ -581,6 +815,10 @@ document.getElementById('exag').addEventListener('input', e => {
   }
   if (h.get('lat') && h.get('lon')) preset(+h.get('lat'), +h.get('lon'), h.get('name') || 'Asset', h.get('type') || 'industrial');
   if (h.get('auto') === '1' && h.get('lat')) setTimeout(analyze, 50);
+  if (h.get('mode') === 'company') setTimeout(() => {
+    setMode('company');
+    if (h.get('company')) { document.getElementById('coQuery').value = h.get('company'); searchCompanies(h.get('company')); }
+  }, 30);
   history.replaceState(null, '', location.pathname);   // drop the key from the address bar
 })();
 
