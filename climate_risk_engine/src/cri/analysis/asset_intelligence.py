@@ -94,6 +94,13 @@ _ACTIONS = {
         "Maintain dedicated firefighting water storage and access for fire appliances.",
         "Join regional fire-danger alerting and pre-plan shutdown on extreme fire-danger days.",
     ],
+    "cyclone_wind": [
+        "Design or retrofit the building envelope to the local cyclone wind code for the modelled 1-in-100-year "
+        "wind (roof tie-downs, rated cladding and fixings, impact-rated openings).",
+        "Secure or remove rooftop plant and loose external items; inspect roof fixings before each season.",
+        "Prepare a cyclone season plan: 72-hour shutdown procedure, backup power and fuel, staff shelter.",
+        "Review windstorm insurance limits against the worst historical storm at this site.",
+    ],
     "urban_heat": [
         "Apply high-albedo cool-roof coatings to large roof areas (cuts roof surface temperatures significantly).",
         "Increase shade and tree canopy on site; low canopy cover amplifies local heat.",
@@ -301,6 +308,55 @@ def _wildfire(t: dict, s: dict, lc: dict) -> dict:
             "caveat": "Fuel-based screening; add NASA FIRMS fire history (needs FIRMS MAP_KEY) for ignition frequency."}
 
 
+def _tropical_cyclone(lat: float, lon: float) -> dict:
+    """
+    Track-based cyclone wind hazard (climate.tropical_cyclone): IBTrACS 1980–2025,
+    Holland wind field, validated against measured station winds.
+    Severity from the 1-in-100-year open-terrain 1-min wind (Saffir–Simpson scale).
+    """
+    from ..climate.tropical_cyclone import site_hazard
+    h = site_hazard(lat, lon)
+    SRC = "IBTrACS 1980–2025 + Holland wind model"
+    rp100 = h.rp_wind_ms.get(100, 0.0) or 0.0
+    rp50 = h.rp_wind_ms.get(50, 0.0) or 0.0
+    if rp100 >= 58:
+        sev = "CRITICAL"
+    elif rp100 >= 50:
+        sev = "HIGH"
+    elif rp100 >= 33:
+        sev = "MODERATE"
+    elif rp100 >= 17.5:
+        sev = "LOW"
+    else:
+        sev = "NEGLIGIBLE"
+    ev = [
+        _ev("Cyclones passing within 200 km since 1980", h.storms_within_200km, SRC),
+        _ev("Tropical-storm-force winds at site", h.annual_rate_ge_ts, SRC, "per year"),
+        _ev("Hurricane-force (Cat 1+) events at site since 1980", h.events_ge_cat1, SRC),
+        _ev("1-in-50-year wind (open terrain, 1-min)", f"{rp50:.0f} m/s — {h.rp_category.get(50)}", SRC),
+        _ev("1-in-100-year wind (open terrain, 1-min)", f"{rp100:.0f} m/s — {h.rp_category.get(100)}", SRC),
+    ]
+    if h.worst:
+        w = h.worst
+        ev.append(_ev("Worst storm at this site", f"{w['name']} {w['season']}: {w['peak_wind_ms']:.0f} m/s "
+                      f"({w['category_at_site']}, passed {w['closest_km']:.0f} km away)", SRC))
+    if h.station_equiv_factor and rp100:
+        ev.append(_ev("1-in-100-year wind as a typical weather station would record it",
+                      round(rp100 * h.station_equiv_factor, 1), "Calibrated to NOAA ISD station measurements", "m/s"))
+    v = h.validation or {}
+    caveat = (f"Validated against measured peak winds at {v.get('stations')} weather stations in {v.get('storms')} "
+              f"storms across all basins: pattern r = {v.get('pattern_r')}; after the land/exposure factor, "
+              f"{int(100 * (v.get('heldout_within_30pct') or 0))}% of held-out stations within ±30%. "
+              "Weakest in the West Pacific (r ≈ 0.3). Historical climate (1980–2025); no climate-change uplift applied."
+              ) if v else "Model not yet validated in this build."
+    pts = {"NEGLIGIBLE": 0, "LOW": 1, "MODERATE": 2.5, "HIGH": 4.5, "CRITICAL": 6}[sev]
+    return {"hazard": "tropical_cyclone", "score": pts, "severity": sev,
+            "mechanisms": ["cyclone_wind"] if sev in ("MODERATE", "HIGH", "CRITICAL") else [],
+            "evidence": ev, "caveat": caveat,
+            "detail": {"rp_wind_ms": h.rp_wind_ms, "rp_category": h.rp_category,
+                       "top_events": h.top_events, "method": h.method}}
+
+
 def _urban_heat(lat: float, lc: dict) -> dict:
     pts, ev = 0.0, []
     WC = "ESA WorldCover 2021"
@@ -398,6 +454,10 @@ def assess_asset(
 
     findings = [_flood(terrain, sat, lc, sar, belev), *_debris_landslide(terrain, sat),
                 _wildfire(terrain, sat, lc), _urban_heat(lat, lc)]
+    try:
+        findings.append(_tropical_cyclone(lat, lon))
+    except Exception as exc:                      # noqa: BLE001
+        errors["tropical_cyclone"] = str(exc)
     for f in findings:
         acts = []
         if f["hazard"] == "flood" and f["severity"] == "CRITICAL":
@@ -434,6 +494,7 @@ def assess_asset(
             "AWS Terrain Tiles (Terrarium, ~10 m) — s3://elevation-tiles-prod",
             "Sentinel-2 L2A COGs — AWS Open Data via Earth Search STAC",
             "ESA WorldCover 2021 v200 — s3://esa-worldcover",
+            "NOAA IBTrACS v04r01 tropical-cyclone tracks 1980–2025 (validated vs NOAA ISD station winds)",
         ] + (["Sentinel-1 RTC radar — Microsoft Planetary Computer"] if sar.get("available") else []) + (["Prithvi-EO-2.0-300M-TL-Sen1Floods11 (Hugging Face endpoint)"]
              if sat.get("prithvi_water_fraction") is not None else []),
         "caveats": [
@@ -535,6 +596,7 @@ def _headline(name: str, t: dict, s: dict, lc: dict, material: list[dict]) -> st
         "landslide": "Slope instability is the leading exposure",
         "wildfire": "Wildfire fuel load is the leading exposure",
         "urban_heat": "Urban heat amplification is the leading exposure",
+        "tropical_cyclone": "Tropical cyclone wind is the leading exposure",
     }.get(top["hazard"], f"{top['hazard']} is the leading exposure")
     others = [f["hazard"].replace("_", " ") for f in material[1:]]
     tail = f"; also {', '.join(others)}" if others else ""

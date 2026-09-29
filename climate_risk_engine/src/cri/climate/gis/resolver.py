@@ -671,6 +671,7 @@ class AssetGISAttributes:
     is_arid: bool = False                 # BWh/BWk/BSh/BSk or dryland box
     is_permafrost: bool = False           # permafrost zone
     is_cyclone_belt: bool = False         # TC track density zone
+    tc_rate_cat1: Optional[float] = None  # modelled annual rate of hurricane-force winds (IBTrACS + Holland)
     is_floodplain: bool = False           # low-elevation + near water
 
     # Temperatures
@@ -712,7 +713,16 @@ def resolve(
     mwt = _mean_winter_temp(lat, lon)
     arid = _in_arid_zone(lat, lon)
     pf = _in_permafrost(lat, lon)
-    cy = _in_cyclone_belt(lat, lon)
+    # Cyclone exposure from the validated track model (climate.tropical_cyclone);
+    # falls back to the coarse lat/lon boxes if the track file is unavailable.
+    tc_rate = None
+    try:
+        from ..tropical_cyclone import site_hazard as _tc_site
+        _h = _tc_site(lat, lon)
+        tc_rate = _h.annual_rate_ge_cat1
+        cy = _h.annual_rate_ge_ts >= 0.05          # ≥ 1 tropical-storm-force event per 20 yrs
+    except Exception:                               # noqa: BLE001
+        cy = _in_cyclone_belt(lat, lon)
     fp = _in_floodplain(lat, lon, elev, coast)
     sensitivity = get_equipment_sensitivity(equipment_type)
 
@@ -725,6 +735,7 @@ def resolve(
         is_arid=arid,
         is_permafrost=pf,
         is_cyclone_belt=cy,
+        tc_rate_cat1=tc_rate,
         is_floodplain=fp,
         mean_winter_temp=mwt,
         equipment_sensitivity=sensitivity,

@@ -1331,7 +1331,8 @@ def _wildfire(region: str, ssp: SSPScenario, year: int, lulc: str) -> HazardScor
 
 
 def _cyclone(region: str, ssp: SSPScenario, year: int, is_coastal: bool,
-             is_cyclone_belt_override: bool | None = None) -> HazardScore:
+             is_cyclone_belt_override: bool | None = None,
+             site_rate_cat1: float | None = None) -> HazardScore:
     """
     Tropical cyclone / hurricane intensity and track frequency.
     Source: IBTRACS historical + IPCC AR6 Ch11.7; Knutson et al. 2020.
@@ -1342,6 +1343,10 @@ def _cyclone(region: str, ssp: SSPScenario, year: int, is_coastal: bool,
     # GIS override: real lat/lon cyclone belt detection takes precedence
     in_belt = is_cyclone_belt_override if is_cyclone_belt_override is not None \
         else (region in CYCLONE_REGIONS)
+    # With a site-specific modelled rate (IBTrACS + Holland wind field, validated vs
+    # station winds) inland sites are handled by the track data itself — no coastal gate.
+    if site_rate_cat1 is not None:
+        is_coastal = True
     if not (in_belt and is_coastal):
         return HazardScore(
             hazard="cyclone", annual_probability=0.0, severity_index=0.0,
@@ -1359,6 +1364,9 @@ def _cyclone(region: str, ssp: SSPScenario, year: int, is_coastal: bool,
     met_cyclone_p = observed_cyclone_prob(region)
     # Blend: 60% IBTrACS table + 40% met baseline (convergence as met data quality improves)
     base_prob = 0.6 * _ibtracs_base + 0.4 * (met_cyclone_p if met_cyclone_p > 0 else _ibtracs_base)
+    if site_rate_cat1 is not None:
+        # annual rate of hurricane-force winds at this exact site, 1980–2025
+        base_prob = min(0.5, float(site_rate_cat1))
     warming = ssp.regional_warming(year, region)
     intensity_change = 1 + CYCLONE_INTENSITY_PCT_PER_DEG_C * warming / 100
     # Fewer but more intense (IPCC AR6 Ch11.7 — frequency -5% to -10% per °C,
@@ -1390,7 +1398,9 @@ def _cyclone(region: str, ssp: SSPScenario, year: int, is_coastal: bool,
         trend_2050=round(min(5.0, 3.0 * ic50), 2),
         data_source="IBTrACS v4 + WMO 1991-2020 observed landfall p + IPCC AR6 Ch11.7; Knutson et al. 2020; BSEE GoM shut-in data 2005-2024; SPE/JPT empirical storm production model",
         notes=(
-            f"Blended base prob {base_prob:.3f} (IBTrACS {_ibtracs_base:.2f} + met obs {met_cyclone_p:.2f}); "
+            (f"Site-modelled rate of hurricane-force winds {base_prob:.3f}/yr (IBTrACS 1980–2025 + Holland wind "
+             f"field, validated vs NOAA station winds); " if site_rate_cat1 is not None else
+             f"Blended base prob {base_prob:.3f} (IBTrACS {_ibtracs_base:.2f} + met obs {met_cyclone_p:.2f}); ") +
             f"intensity +{(intensity_change-1)*100:.1f}% vs baseline"
         ),
     )
@@ -2535,6 +2545,7 @@ class PhysicalHazardEngine:
         gis_mean_winter_temp: float | None = None
         gis_is_permafrost: bool | None = None
         gis_is_cyclone_belt: bool | None = None
+        gis_tc_rate: float | None = None
         gis_is_arid: bool | None = None
         gis_equipment_sensitivity: dict[str, float] = {}
 
@@ -2545,6 +2556,7 @@ class PhysicalHazardEngine:
                 gis_mean_winter_temp = gis_attrs.mean_winter_temp
                 gis_is_permafrost = gis_attrs.is_permafrost
                 gis_is_cyclone_belt = gis_attrs.is_cyclone_belt
+                gis_tc_rate = getattr(gis_attrs, "tc_rate_cat1", None)
                 gis_is_arid = gis_attrs.is_arid
                 gis_equipment_sensitivity = gis_attrs.equipment_sensitivity
                 # GIS elevation overrides region table when provided
@@ -2680,7 +2692,8 @@ class PhysicalHazardEngine:
             "wildfire":               _wildfire(region, scenario, year, lulc),
             # GIS: is_cyclone_belt_override enables risk when IBTrACS confirms belt
             "cyclone":                _cyclone(region, scenario, year, is_coastal,
-                                          is_cyclone_belt_override=gis_is_cyclone_belt),
+                                          is_cyclone_belt_override=gis_is_cyclone_belt,
+                                          site_rate_cat1=gis_tc_rate),
             "drought":                _drought(region, scenario, year,
                                           wri_drought_override=wri_drought_live),
             "water_stress":           _water_stress(region, scenario, year,

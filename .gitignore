@@ -8,3 +8,6 @@ climate_risk_engine/data/training/raw/
 
 # Backtest raw caches (rebuildable)
 climate_risk_engine/data/backtest/raw/
+
+# Runtime caches written by engine modules
+climate_risk_engine/src/cri/.cache/

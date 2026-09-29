@@ -1,0 +1,65 @@
+{
+ "n_storms": 26,
+ "calibration": {
+  "k_land_exposure": 0.57,
+  "note": "applied to symmetric Holland winds; fitted on all storms (reported metrics use leave-one-storm-out k)"
+ },
+ "model_calibrated_heldout": {
+  "n": 148,
+  "pearson_r": 0.525,
+  "median_ratio_model_over_obs": 1.006,
+  "within_30pct": 0.628,
+  "rmse_ms": 7.67,
+  "gale_hit_rate": 0.793,
+  "gale_false_alarm": 0.258
+ },
+ "model_with_asymmetry": {
+  "n": 148,
+  "pearson_r": 0.537,
+  "median_ratio_model_over_obs": 1.754,
+  "within_30pct": 0.182,
+  "rmse_ms": 17.48,
+  "gale_hit_rate": 0.989,
+  "gale_false_alarm": 0.394
+ },
+ "model_symmetric": {
+  "n": 148,
+  "pearson_r": 0.537,
+  "median_ratio_model_over_obs": 1.754,
+  "within_30pct": 0.182,
+  "rmse_ms": 17.48,
+  "gale_hit_rate": 0.989,
+  "gale_false_alarm": 0.394
+ },
+ "by_basin": {
+  "NA": {
+   "n": 76,
+   "pearson_r": 0.686,
+   "median_ratio": 1.087
+  },
+  "NI": {
+   "n": 4,
+   "pearson_r": 0.983,
+   "median_ratio": 0.99
+  },
+  "SI": {
+   "n": 1,
+   "pearson_r": null,
+   "median_ratio": 1.064
+  },
+  "SP": {
+   "n": 12,
+   "pearson_r": 0.36,
+   "median_ratio": 0.565
+  },
+  "WP": {
+   "n": 56,
+   "pearson_r": 0.312,
+   "median_ratio": 0.965
+  }
+ },
+ "notes": [
+  "Observations are hourly snapshots (2-min US, 10-min elsewhere); they miss short peaks and anemometers often fail in the strongest winds, so observed peaks are biased low.",
+  "Station exposure (buildings, trees) lowers measured winds relative to open terrain."
+ ]
+}
