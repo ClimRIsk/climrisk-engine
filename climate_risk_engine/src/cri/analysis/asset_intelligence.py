@@ -112,7 +112,8 @@ _ASSET_ADDONS = {
 
 # ── Hazard evaluators ────────────────────────────────────────────────────────
 
-def _flood(t: dict, s: dict, lc: dict, sar: Optional[dict] = None) -> dict:
+def _flood(t: dict, s: dict, lc: dict, sar: Optional[dict] = None,
+           belev: Optional[dict] = None) -> dict:
     sar = sar or {}
     pts, ev, mech = 0.0, [], []
     TER, S2, WC = "Terrain (AWS 10 m DEM, pysheds D8)", "Sentinel-2 L2A", "ESA WorldCover 2021"
@@ -177,6 +178,19 @@ def _flood(t: dict, s: dict, lc: dict, sar: Optional[dict] = None) -> dict:
         elif nw < 300:
             pts += 0.5
 
+    # ── Validated component: elevation of built-up land within 1 km ──────────
+    # 180 census tracts in 3 US coastal-plain counties vs 95k FEMA NFIP claims
+    # (scripts/backtest_flood_area.py): built-up land below 3 m → ~2.7× median
+    # claim rate, 67 % of such tracts in the top-claim fifth. 3–40 m: little signal.
+    if belev and belev.get("median_elev_m") is not None:
+        me = belev["median_elev_m"]
+        ev.append(_ev("Median elevation of built-up land within 1 km (validated signal)", me,
+                      f"AWS 10 m DEM × ESA WorldCover ({belev.get('basis')})", "m"))
+        if me < 3.0:
+            pts += 3; mech.append("low_lying_water")
+        elif me < 6.0:
+            pts += 1
+
     elev = t.get("elevation_m")
     if elev is not None and (s.get("permanent_water_fraction") or 0) > 0.02 and elev < 10:
         pts += 1; mech.append("low_lying_water")
@@ -193,9 +207,11 @@ def _flood(t: dict, s: dict, lc: dict, sar: Optional[dict] = None) -> dict:
         ev.append(_ev("Wetland / mangrove within 1 km", _pct(wl), WC, "%"))
 
     caveats = [
-        "Validation status: in a backtest against 75,000 FEMA flood-insurance claims (Harris County, TX, "
-        "60 census tracts) this flood rating did not separate high- from low-claim areas (AUC 0.44). "
-        "Treat it as screening evidence, not a loss predictor, until the area-based model is validated."
+        "Validation status (FEMA flood-insurance claims, 3 US coastal-plain counties, 180 census tracts): "
+        "the elevation of built-up land is the only component with demonstrated skill (held-out AUC 0.64–0.94); "
+        "terrain routing, drainage-height (HAND) and satellite observed-water components did not separate "
+        "high- from low-claim areas and are shown as supporting evidence only. Not yet validated inland or "
+        "outside the US."
     ]
     if not sar.get("available"):
         missing = sorted(set(f"{m:02d}" for m in range(1, 13)) - set(s.get("temporal_months_covered") or []))
@@ -373,7 +389,14 @@ def assess_asset(
     lc = results["land_cover"] or {}
     sar = results["radar"] or {}
 
-    findings = [_flood(terrain, sat, lc, sar), *_debris_landslide(terrain, sat),
+    belev = None
+    try:
+        from ..terrain.hand import built_elevation_stats
+        belev = built_elevation_stats(lat, lon, radius_km=radius_km)
+    except Exception as exc:                      # noqa: BLE001
+        errors["built_elevation"] = str(exc)
+
+    findings = [_flood(terrain, sat, lc, sar, belev), *_debris_landslide(terrain, sat),
                 _wildfire(terrain, sat, lc), _urban_heat(lat, lc)]
     for f in findings:
         acts = []

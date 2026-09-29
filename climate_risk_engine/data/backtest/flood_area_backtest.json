@@ -1,0 +1,241 @@
+{
+ "n_tracts": 180,
+ "by_county": {
+  "48201": {
+   "name": "Harris TX (pluvial)",
+   "n": 60,
+   "features": {
+    "share_built_hand_lt_0.5m_at_0.1km2": {
+     "spearman": -0.105,
+     "auc_q5_vs_q1": 0.361,
+     "n": 60
+    },
+    "share_built_hand_lt_1.0m_at_0.1km2": {
+     "spearman": -0.055,
+     "auc_q5_vs_q1": 0.417,
+     "n": 60
+    },
+    "share_built_hand_lt_2.0m_at_0.1km2": {
+     "spearman": -0.062,
+     "auc_q5_vs_q1": 0.42,
+     "n": 60
+    },
+    "share_built_hand_lt_5.0m_at_0.1km2": {
+     "spearman": -0.128,
+     "auc_q5_vs_q1": 0.42,
+     "n": 60
+    },
+    "share_built_hand_lt_0.5m_at_1.0km2": {
+     "spearman": -0.056,
+     "auc_q5_vs_q1": 0.34,
+     "n": 60
+    },
+    "share_built_hand_lt_1.0m_at_1.0km2": {
+     "spearman": -0.067,
+     "auc_q5_vs_q1": 0.354,
+     "n": 60
+    },
+    "share_built_hand_lt_2.0m_at_1.0km2": {
+     "spearman": -0.079,
+     "auc_q5_vs_q1": 0.326,
+     "n": 60
+    },
+    "share_built_hand_lt_5.0m_at_1.0km2": {
+     "spearman": -0.096,
+     "auc_q5_vs_q1": 0.319,
+     "n": 60
+    },
+    "neg_median_built_hand_at_0.1km2": {
+     "spearman": -0.129,
+     "auc_q5_vs_q1": 0.333,
+     "n": 60
+    },
+    "neg_median_built_hand_at_1.0km2": {
+     "spearman": -0.029,
+     "auc_q5_vs_q1": 0.34,
+     "n": 60
+    },
+    "neg_median_elev_built_m": {
+     "spearman": 0.294,
+     "auc_q5_vs_q1": 0.642,
+     "n": 60
+    }
+   }
+  },
+  "22033": {
+   "name": "East Baton Rouge LA (riverine)",
+   "n": 60,
+   "features": {
+    "share_built_hand_lt_0.5m_at_0.1km2": {
+     "spearman": -0.027,
+     "auc_q5_vs_q1": 0.576,
+     "n": 60
+    },
+    "share_built_hand_lt_1.0m_at_0.1km2": {
+     "spearman": 0.048,
+     "auc_q5_vs_q1": 0.639,
+     "n": 60
+    },
+    "share_built_hand_lt_2.0m_at_0.1km2": {
+     "spearman": 0.088,
+     "auc_q5_vs_q1": 0.632,
+     "n": 60
+    },
+    "share_built_hand_lt_5.0m_at_0.1km2": {
+     "spearman": 0.093,
+     "auc_q5_vs_q1": 0.576,
+     "n": 60
+    },
+    "share_built_hand_lt_0.5m_at_1.0km2": {
+     "spearman": -0.116,
+     "auc_q5_vs_q1": 0.562,
+     "n": 60
+    },
+    "share_built_hand_lt_1.0m_at_1.0km2": {
+     "spearman": -0.02,
+     "auc_q5_vs_q1": 0.611,
+     "n": 60
+    },
+    "share_built_hand_lt_2.0m_at_1.0km2": {
+     "spearman": 0.058,
+     "auc_q5_vs_q1": 0.66,
+     "n": 60
+    },
+    "share_built_hand_lt_5.0m_at_1.0km2": {
+     "spearman": 0.101,
+     "auc_q5_vs_q1": 0.639,
+     "n": 60
+    },
+    "neg_median_built_hand_at_0.1km2": {
+     "spearman": 0.041,
+     "auc_q5_vs_q1": 0.604,
+     "n": 60
+    },
+    "neg_median_built_hand_at_1.0km2": {
+     "spearman": 0.099,
+     "auc_q5_vs_q1": 0.691,
+     "n": 60
+    },
+    "neg_median_elev_built_m": {
+     "spearman": -0.007,
+     "auc_q5_vs_q1": 0.896,
+     "n": 60
+    }
+   }
+  },
+  "45019": {
+   "name": "Charleston SC (coastal)",
+   "n": 60,
+   "features": {
+    "share_built_hand_lt_0.5m_at_0.1km2": {
+     "spearman": 0.02,
+     "auc_q5_vs_q1": 0.583,
+     "n": 60
+    },
+    "share_built_hand_lt_1.0m_at_0.1km2": {
+     "spearman": 0.014,
+     "auc_q5_vs_q1": 0.639,
+     "n": 60
+    },
+    "share_built_hand_lt_2.0m_at_0.1km2": {
+     "spearman": 0.082,
+     "auc_q5_vs_q1": 0.764,
+     "n": 60
+    },
+    "share_built_hand_lt_5.0m_at_0.1km2": {
+     "spearman": 0.238,
+     "auc_q5_vs_q1": 0.927,
+     "n": 60
+    },
+    "share_built_hand_lt_0.5m_at_1.0km2": {
+     "spearman": -0.116,
+     "auc_q5_vs_q1": 0.556,
+     "n": 60
+    },
+    "share_built_hand_lt_1.0m_at_1.0km2": {
+     "spearman": -0.064,
+     "auc_q5_vs_q1": 0.618,
+     "n": 60
+    },
+    "share_built_hand_lt_2.0m_at_1.0km2": {
+     "spearman": 0.159,
+     "auc_q5_vs_q1": 0.736,
+     "n": 60
+    },
+    "share_built_hand_lt_5.0m_at_1.0km2": {
+     "spearman": 0.317,
+     "auc_q5_vs_q1": 0.944,
+     "n": 60
+    },
+    "neg_median_built_hand_at_0.1km2": {
+     "spearman": 0.006,
+     "auc_q5_vs_q1": 0.681,
+     "n": 60
+    },
+    "neg_median_built_hand_at_1.0km2": {
+     "spearman": 0.214,
+     "auc_q5_vs_q1": 0.799,
+     "n": 60
+    },
+    "neg_median_elev_built_m": {
+     "spearman": 0.49,
+     "auc_q5_vs_q1": 0.938,
+     "n": 60
+    }
+   }
+  }
+ },
+ "loco": {
+  "48201": {
+   "spearman_heldout": 0.197,
+   "auc_q5_vs_q1_heldout": 0.611,
+   "weights": {
+    "share_built_hand_lt_0.5m_at_0.1km2": -0.244,
+    "share_built_hand_lt_1.0m_at_0.1km2": 0.275,
+    "share_built_hand_lt_2.0m_at_0.1km2": 0.143,
+    "share_built_hand_lt_5.0m_at_0.1km2": 0.021,
+    "share_built_hand_lt_0.5m_at_1.0km2": 0.027,
+    "share_built_hand_lt_1.0m_at_1.0km2": -0.371,
+    "share_built_hand_lt_2.0m_at_1.0km2": 0.303,
+    "share_built_hand_lt_5.0m_at_1.0km2": 0.121,
+    "neg_median_built_hand_at_0.1km2": -0.351,
+    "neg_median_built_hand_at_1.0km2": 0.104,
+    "neg_median_elev_built_m": 0.127
+   }
+  },
+  "22033": {
+   "spearman_heldout": 0.168,
+   "auc_q5_vs_q1_heldout": 0.778,
+   "weights": {
+    "share_built_hand_lt_0.5m_at_0.1km2": 0.034,
+    "share_built_hand_lt_1.0m_at_0.1km2": -0.033,
+    "share_built_hand_lt_2.0m_at_0.1km2": 0.289,
+    "share_built_hand_lt_5.0m_at_0.1km2": -0.027,
+    "share_built_hand_lt_0.5m_at_1.0km2": 0.042,
+    "share_built_hand_lt_1.0m_at_1.0km2": -0.25,
+    "share_built_hand_lt_2.0m_at_1.0km2": 0.063,
+    "share_built_hand_lt_5.0m_at_1.0km2": 0.048,
+    "neg_median_built_hand_at_0.1km2": -0.225,
+    "neg_median_built_hand_at_1.0km2": 0.1,
+    "neg_median_elev_built_m": 0.181
+   }
+  },
+  "45019": {
+   "spearman_heldout": 0.284,
+   "auc_q5_vs_q1_heldout": 0.729,
+   "weights": {
+    "share_built_hand_lt_0.5m_at_0.1km2": -0.112,
+    "share_built_hand_lt_1.0m_at_0.1km2": 0.163,
+    "share_built_hand_lt_2.0m_at_0.1km2": 0.12,
+    "share_built_hand_lt_5.0m_at_0.1km2": 0.007,
+    "share_built_hand_lt_0.5m_at_1.0km2": -0.001,
+    "share_built_hand_lt_1.0m_at_1.0km2": -0.202,
+    "share_built_hand_lt_2.0m_at_1.0km2": -0.162,
+    "share_built_hand_lt_5.0m_at_1.0km2": -0.078,
+    "neg_median_built_hand_at_0.1km2": -0.155,
+    "neg_median_built_hand_at_1.0km2": 0.375,
+    "neg_median_elev_built_m": 0.159
+   }
+  }
+ }
+}

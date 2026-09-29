@@ -106,3 +106,20 @@ def test_pack_uint16_precision():
 def test_severity_thresholds():
     assert [ai._sev_from_points(x) for x in (0, 1, 2, 4, 6)] == \
         ["NEGLIGIBLE", "LOW", "MODERATE", "HIGH", "CRITICAL"]
+
+
+# ── Validated built-up elevation component (area backtest, 3 counties) ────────
+
+def test_low_builtup_elevation_drives_flood_score():
+    base = ai._flood({"elevation_m": 20}, {}, {}, {"available": False})
+    low = ai._flood({"elevation_m": 20}, {}, {}, {"available": False},
+                    {"median_elev_m": 2.1, "basis": "built-up land"})
+    mid = ai._flood({"elevation_m": 20}, {}, {}, {"available": False},
+                    {"median_elev_m": 4.5, "basis": "built-up land"})
+    high = ai._flood({"elevation_m": 20}, {}, {}, {"available": False},
+                     {"median_elev_m": 25.0, "basis": "built-up land"})
+    assert low["score"] - base["score"] == 3
+    assert mid["score"] - base["score"] == 1
+    assert high["score"] == base["score"]
+    assert any("validated" in e["metric"] for e in low["evidence"])
+    assert "Validation status" in low["caveat"]
