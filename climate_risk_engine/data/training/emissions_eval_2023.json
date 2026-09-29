@@ -1,0 +1,303 @@
+{
+ "dataset": "emissions_ghgrp_sec_2023.csv",
+ "year": 2023,
+ "trusted_sectors": [
+  "utilities",
+  "oil_gas",
+  "chemicals",
+  "cement",
+  "steel",
+  "mining",
+  "pulp_paper",
+  "coal"
+ ],
+ "n_companies": 163,
+ "overall": {
+  "A_parametric_table": {
+   "median_abs_log10_err": 0.55,
+   "within_2x": 0.307,
+   "within_3x": 0.436,
+   "median_bias_x": 1.02,
+   "n": 163
+  },
+  "B_xgb_synthetic": {
+   "median_abs_log10_err": 0.55,
+   "within_2x": 0.307,
+   "within_3x": 0.436,
+   "median_bias_x": 1.02,
+   "n": 163
+  },
+  "C_calibrated": {
+   "median_abs_log10_err": 0.584,
+   "within_2x": 0.276,
+   "within_3x": 0.417,
+   "median_bias_x": 0.82,
+   "n": 163
+  },
+  "D_calibrated_plus_size": {
+   "median_abs_log10_err": 0.555,
+   "within_2x": 0.27,
+   "within_3x": 0.423,
+   "median_bias_x": 0.76,
+   "n": 163
+  }
+ },
+ "by_sector": {
+  "utilities": {
+   "A_parametric_table": {
+    "median_abs_log10_err": 0.738,
+    "within_2x": 0.154,
+    "within_3x": 0.269,
+    "median_bias_x": 0.29,
+    "n": 52
+   },
+   "B_xgb_synthetic": {
+    "median_abs_log10_err": 0.738,
+    "within_2x": 0.154,
+    "within_3x": 0.269,
+    "median_bias_x": 0.29,
+    "n": 52
+   },
+   "C_calibrated": {
+    "median_abs_log10_err": 0.598,
+    "within_2x": 0.231,
+    "within_3x": 0.327,
+    "median_bias_x": 0.46,
+    "n": 52
+   },
+   "D_calibrated_plus_size": {
+    "median_abs_log10_err": 0.642,
+    "within_2x": 0.269,
+    "within_3x": 0.365,
+    "median_bias_x": 0.58,
+    "n": 52
+   }
+  },
+  "oil_gas": {
+   "A_parametric_table": {
+    "median_abs_log10_err": 0.251,
+    "within_2x": 0.622,
+    "within_3x": 0.784,
+    "median_bias_x": 1.4,
+    "n": 37
+   },
+   "B_xgb_synthetic": {
+    "median_abs_log10_err": 0.251,
+    "within_2x": 0.622,
+    "within_3x": 0.784,
+    "median_bias_x": 1.4,
+    "n": 37
+   },
+   "C_calibrated": {
+    "median_abs_log10_err": 0.309,
+    "within_2x": 0.486,
+    "within_3x": 0.73,
+    "median_bias_x": 0.91,
+    "n": 37
+   },
+   "D_calibrated_plus_size": {
+    "median_abs_log10_err": 0.385,
+    "within_2x": 0.378,
+    "within_3x": 0.649,
+    "median_bias_x": 0.76,
+    "n": 37
+   }
+  },
+  "chemicals": {
+   "A_parametric_table": {
+    "median_abs_log10_err": 0.689,
+    "within_2x": 0.318,
+    "within_3x": 0.432,
+    "median_bias_x": 1.56,
+    "n": 44
+   },
+   "B_xgb_synthetic": {
+    "median_abs_log10_err": 0.689,
+    "within_2x": 0.318,
+    "within_3x": 0.432,
+    "median_bias_x": 1.56,
+    "n": 44
+   },
+   "C_calibrated": {
+    "median_abs_log10_err": 0.691,
+    "within_2x": 0.136,
+    "within_3x": 0.273,
+    "median_bias_x": 0.74,
+    "n": 44
+   },
+   "D_calibrated_plus_size": {
+    "median_abs_log10_err": 0.63,
+    "within_2x": 0.25,
+    "within_3x": 0.318,
+    "median_bias_x": 0.97,
+    "n": 44
+   }
+  },
+  "steel": {
+   "A_parametric_table": {
+    "median_abs_log10_err": 0.686,
+    "within_2x": 0.0,
+    "within_3x": 0.143,
+    "median_bias_x": 4.86,
+    "n": 7
+   },
+   "B_xgb_synthetic": {
+    "median_abs_log10_err": 0.686,
+    "within_2x": 0.0,
+    "within_3x": 0.143,
+    "median_bias_x": 4.86,
+    "n": 7
+   },
+   "C_calibrated": {
+    "median_abs_log10_err": 0.299,
+    "within_2x": 0.571,
+    "within_3x": 0.571,
+    "median_bias_x": 1.83,
+    "n": 7
+   },
+   "D_calibrated_plus_size": {
+    "median_abs_log10_err": 0.428,
+    "within_2x": 0.286,
+    "within_3x": 0.571,
+    "median_bias_x": 1.45,
+    "n": 7
+   }
+  },
+  "mining": {
+   "A_parametric_table": {
+    "median_abs_log10_err": 0.633,
+    "within_2x": 0.182,
+    "within_3x": 0.273,
+    "median_bias_x": 1.25,
+    "n": 11
+   },
+   "B_xgb_synthetic": {
+    "median_abs_log10_err": 0.633,
+    "within_2x": 0.182,
+    "within_3x": 0.273,
+    "median_bias_x": 1.25,
+    "n": 11
+   },
+   "C_calibrated": {
+    "median_abs_log10_err": 0.7,
+    "within_2x": 0.091,
+    "within_3x": 0.273,
+    "median_bias_x": 1.66,
+    "n": 11
+   },
+   "D_calibrated_plus_size": {
+    "median_abs_log10_err": 0.724,
+    "within_2x": 0.0,
+    "within_3x": 0.182,
+    "median_bias_x": 2.82,
+    "n": 11
+   }
+  },
+  "pulp_paper": {
+   "A_parametric_table": {
+    "median_abs_log10_err": 0.343,
+    "within_2x": 0.429,
+    "within_3x": 0.714,
+    "median_bias_x": 0.54,
+    "n": 7
+   },
+   "B_xgb_synthetic": {
+    "median_abs_log10_err": 0.343,
+    "within_2x": 0.429,
+    "within_3x": 0.714,
+    "median_bias_x": 0.54,
+    "n": 7
+   },
+   "C_calibrated": {
+    "median_abs_log10_err": 0.401,
+    "within_2x": 0.429,
+    "within_3x": 0.571,
+    "median_bias_x": 0.64,
+    "n": 7
+   },
+   "D_calibrated_plus_size": {
+    "median_abs_log10_err": 0.346,
+    "within_2x": 0.429,
+    "within_3x": 0.714,
+    "median_bias_x": 0.58,
+    "n": 7
+   }
+  },
+  "coal": {
+   "A_parametric_table": {
+    "median_abs_log10_err": 0.817,
+    "within_2x": 0.0,
+    "within_3x": 0.0,
+    "median_bias_x": 6.56,
+    "n": 3
+   },
+   "B_xgb_synthetic": {
+    "median_abs_log10_err": 0.817,
+    "within_2x": 0.0,
+    "within_3x": 0.0,
+    "median_bias_x": 6.56,
+    "n": 3
+   },
+   "C_calibrated": {
+    "median_abs_log10_err": 0.487,
+    "within_2x": 0.333,
+    "within_3x": 0.333,
+    "median_bias_x": 3.07,
+    "n": 3
+   },
+   "D_calibrated_plus_size": {
+    "median_abs_log10_err": 0.535,
+    "within_2x": 0.0,
+    "within_3x": 0.333,
+    "median_bias_x": 3.43,
+    "n": 3
+   }
+  }
+ },
+ "final_calibration": {
+  "slope": -0.42149397136497707,
+  "log_rev_center": 3.743768606481653,
+  "sectors": {
+   "utilities": {
+    "log10_intensity": 2.757196597699863,
+    "n": 52,
+    "resid_sd": 0.8249125969220105
+   },
+   "oil_gas": {
+    "log10_intensity": 2.2931948873715378,
+    "n": 37,
+    "resid_sd": 0.5912407045526951
+   },
+   "chemicals": {
+    "log10_intensity": 1.9264145869757463,
+    "n": 44,
+    "resid_sd": 0.8327755706841927
+   },
+   "cement": {
+    "log10_intensity": 2.610018784577624,
+    "n": 2,
+    "resid_sd": 0.45
+   },
+   "steel": {
+    "log10_intensity": 2.198735402538164,
+    "n": 7,
+    "resid_sd": 0.9340304254151918
+   },
+   "mining": {
+    "log10_intensity": 2.154739795452609,
+    "n": 11,
+    "resid_sd": 0.7380894418359935
+   },
+   "pulp_paper": {
+    "log10_intensity": 2.010458792791932,
+    "n": 7,
+    "resid_sd": 0.36326009885712496
+   },
+   "coal": {
+    "log10_intensity": 2.975449812165656,
+    "n": 3,
+    "resid_sd": 0.5369002542369395
+   }
+  }
+ }
+}

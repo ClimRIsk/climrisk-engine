@@ -404,6 +404,8 @@ async def _run_extended_analyses(job: AssessmentJob, profile, risk_result: dict)
             scope1_known   = scope1_mt if scope1_mt else None,
             scope2_known   = scope2_mt if scope2_mt else None,
             employee_count = getattr(profile, "employee_count", None),
+            company_name   = job.company_name,
+            ticker         = ticker,
         )
         # Back-fill profile scope values if they were missing
         _s1 = scope1_mt if scope1_mt else em_est.scope1_mt_co2e
@@ -424,6 +426,9 @@ async def _run_extended_analyses(job: AssessmentJob, profile, risk_result: dict)
             "imputed_fields":    em_est.imputed_fields,
             "model_confidence":  em_est.model_confidence,
             "model_version":     em_est.model_version,
+            "scope1_source":     em_est.scope1_source,
+            "scope1_coverage":   em_est.scope1_coverage,
+            "notes":             em_est.notes,
         }
 
         # 2. Risk Predictor — 2025–2050 trajectory

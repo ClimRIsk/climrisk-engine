@@ -1,56 +1,49 @@
 """
-XGBoost Scope 1 / 2 / 3 Emissions Estimator
+Scope 1 / 2 / 3 Emissions Estimator — observed-data first, calibrated fallback
 ──────────────────────────────────────────────────────────────────────────────
-When a company's emissions data is absent, stale, or self-reported with low
-confidence, this module imputes plausible Scope 1/2/3 values using an XGBoost
-regression model trained on 14,000+ public CDP disclosures and EDGAR/EUTL
-verified submissions.
+Order of precedence for Scope 1
+  1. Caller-supplied value (scope1_known)                    → "verified"
+  2. Observed EPA GHGRP emissions for the company            → "verified"
+     (matched by ticker or name; 246 US companies, 2023)       coverage "complete"
+                                                              for US heavy industry,
+                                                              "lower_bound" otherwise
+  3. Sector intensity × revenue                              → "ai_estimated"
+     • 8 heavy-industry sectors: intensities fitted on observed company
+       emissions (EPA GHGRP 2023 + SEC revenue, n=163), shrunk toward the
+       literature prior, with a pooled revenue-size term
+     • other sectors: literature prior table (not yet validated)
 
-Far more accurate than EEIO sector averages for individual companies because
-it conditions on:
-  • Revenue (log-transformed) — proxy for production scale
-  • Sector                    — industry process intensity
-  • Jurisdiction              — grid carbon intensity (Scope 2), energy mix
-  • Employee count            — labour-intensity as activity proxy
-  • Year                      — decarbonisation trend
+Measured accuracy (5-fold held-out, 163 US heavy-industry companies)
+  Revenue × sector estimates are typically ~3.5× off for an individual company
+  (median |log10 error| ≈ 0.55; ~30 % of companies within 2×). The spread is
+  intrinsic — two utilities with the same revenue can run coal or nuclear
+  fleets — so confidence intervals are set from this measured spread, not
+  assumed. Accuracy comes from step 2: asset-level observed emissions.
 
-Output includes 80% confidence intervals and an explicit "AI-filled" flag so
-buyers know which fields were imputed vs. verified.
+History: versions before 2.0 trained an XGBoost model on 3,000 synthetic rows
+sampled from the prior table, and described themselves as "trained on CDP
+disclosures". That model could not beat the table it was sampled from and
+xgboost was not installed in production, so it was removed.
 
-EmissionsEstimate fields
-────────────────────────
-  scope1_mt_co2e      Point estimate
-  scope1_lo / hi      80% confidence interval
-  scope2_mt_co2e
-  scope2_lo / hi
-  scope3_mt_co2e
-  scope3_lo / hi
-  data_quality        "ai_estimated" | "hybrid" | "verified"
-  imputed_fields      list of fields that were estimated
-  model_confidence    0–1
-  model_version       str
+Scope 2 and Scope 3 remain parametric (grid factor × Scope 1 share; sector
+supply-chain multipliers) and are flagged as estimates.
 
-References
-──────────
-CDP Public Data: https://data.cdp.net
-EDGAR v8 (EU/JRC): https://edgar.jrc.ec.europa.eu
-EUTL: https://www.eea.europa.eu/data-and-maps/data/european-union-emissions-trading-scheme-12
-IPCC AR6 WG3 Annex III: Sector-level emission intensities
+Data build + evaluation: scripts/build_emissions_dataset.py,
+scripts/evaluate_emissions_models.py, scripts/export_emissions_runtime.py
 """
 
 from __future__ import annotations
 
+import json
 import math
-import random
-from dataclasses import dataclass
+import re
+from dataclasses import dataclass, field
+from functools import lru_cache
+from pathlib import Path
 from typing import Optional
 
-try:
-    import xgboost as xgb
-    import numpy as np
-    _HAS_XGB = True
-except ImportError:
-    _HAS_XGB = False
+_DATA = Path(__file__).resolve().parent.parent / "data"
+_Z80 = 1.2816          # two-sided 80 % interval, normal in log10 space
 
 
 # ── Result type ───────────────────────────────────────────────────────────────
@@ -70,11 +63,14 @@ class EmissionsEstimate:
     imputed_fields: list[str]
     model_confidence: float   # 0–1
     model_version:    str
+    scope1_source:    str = ""          # where the Scope 1 number came from
+    scope1_coverage:  str = ""          # "complete" | "lower_bound" | "estimate"
+    notes:            list[str] = field(default_factory=list)
 
 
-# ── Sector emission intensity lookup (IPCC AR6 WG3 Table A.III.2) ─────────────
-# Median Scope 1+2 intensity: t CO2e per $M revenue (USD 2020)
-# P10 / P90 bounds from CDP 2023 company distributions
+# Literature PRIOR — median t CO2e per $M revenue (USD 2020), with p10/p90.
+# Used directly only for sectors without observed calibration data, and as the
+# shrinkage prior for sectors that have it (see emissions_calibration.json).
 
 _SECTOR_INTENSITY: dict[str, tuple[float, float, float]] = {
     # (median, p10, p90)  — tCO2e per $M revenue
@@ -121,23 +117,116 @@ _SCOPE3_MULT: dict[str, float] = {
 }
 
 
+
 def _sector_lookup(sector: str) -> tuple[float, float, float]:
     s = sector.lower().replace(" ", "_").replace("-", "_")
-    # Try exact, then partial match
     if s in _SECTOR_INTENSITY:
         return _SECTOR_INTENSITY[s]
     for key in _SECTOR_INTENSITY:
         if key in s or s in key:
             return _SECTOR_INTENSITY[key]
-    # Default: generic manufacturing
-    return (95.0, 35.0, 250.0)
+    return (95.0, 35.0, 250.0)   # generic manufacturing
+
+
+def _canon_sector(sector: str) -> str:
+    s = sector.lower().replace(" ", "_").replace("-", "_")
+    if s in _SECTOR_INTENSITY:
+        return s
+    for key in _SECTOR_INTENSITY:
+        if key in s or s in key:
+            return key
+    return s
 
 
 def _grid_intensity(jurisdiction: str) -> float:
-    return _GRID_INTENSITY.get(jurisdiction.upper()[:2], 0.40)
+    return _GRID_INTENSITY.get((jurisdiction or "US").upper()[:2], 0.40)
 
 
-# ── Analytical fallback ───────────────────────────────────────────────────────
+# ── Runtime data (shipped in cri/data) ────────────────────────────────────────
+
+@lru_cache(maxsize=1)
+def _calibration() -> dict:
+    try:
+        return json.loads((_DATA / "emissions_calibration.json").read_text())
+    except Exception:           # noqa: BLE001 — fall back to prior table
+        return {}
+
+
+_SUFFIX = re.compile(
+    r"\b(the|inc|incorporated|corp|corporation|co|company|companies|llc|l\.l\.c|lp|l\.p|ltd|limited|plc|"
+    r"holdings?|group|sa|nv|ag|se|na|usa|us|trust|partners)\b")
+
+
+def _norm(name: str) -> str:
+    s = str(name).lower().replace("&", " and ")
+    s = re.sub(r"[^a-z0-9 ]", " ", s)
+    s = _SUFFIX.sub(" ", s)
+    return re.sub(r"\s+", " ", s).strip()
+
+
+@lru_cache(maxsize=1)
+def _observed_index() -> tuple[dict, dict, dict]:
+    try:
+        obs = json.loads((_DATA / "observed_emissions_us.json").read_text())
+    except Exception:           # noqa: BLE001
+        return {}, {}, {}
+    by_ticker, by_name = {}, {}
+    for r in obs.get("companies", []):
+        by_ticker[r["ticker"].upper()] = r
+        for n in r.get("names_norm", []):
+            by_name.setdefault(n, r)
+    return by_ticker, by_name, obs
+
+
+def observed_scope1(company_name: Optional[str] = None, ticker: Optional[str] = None) -> Optional[dict]:
+    """Observed EPA GHGRP Scope 1 record for a company, or None."""
+    by_ticker, by_name, meta = _observed_index()
+    rec = None
+    if ticker:
+        rec = by_ticker.get(ticker.upper().strip())
+    if rec is None and company_name:
+        rec = by_name.get(_norm(company_name))
+    if rec is None:
+        return None
+    return {**rec, "year": meta.get("year"), "source": meta.get("source")}
+
+
+def _default_sd() -> float:
+    """Log10 spread for sectors without calibration: from measured held-out error."""
+    acc = (_calibration().get("heldout_accuracy") or {}).get("A_parametric_table") or {}
+    mae = acc.get("median_abs_log10_err", 0.55)
+    return mae / 0.6745        # median |N(0, sd)| = 0.6745 sd
+
+
+def _scope1_estimate(revenue_usd_m: float, sector: str, year: int) -> tuple[float, float, float, str, float]:
+    """Return (point, lo80, hi80, method, sd_log10) in Mt CO2e."""
+    cal = _calibration()
+    sec = _canon_sector(sector)
+    trend = 0.97 ** (year - (cal.get("year") or 2020))
+    s = (cal.get("sectors") or {}).get(sec)
+    rev = max(revenue_usd_m, 1e-6)
+    if s:
+        li = s["log10_intensity"] + cal.get("size_slope_log10", 0.0) * (math.log10(rev) - cal.get("log_rev_center", 3.5))
+        sd = max(float(s.get("resid_sd", _default_sd())), 0.15)
+        method = f"calibrated on observed emissions (EPA GHGRP {cal.get('year')}, n={s.get('n')})"
+    else:
+        med, _, _ = _sector_lookup(sector)
+        li = math.log10(med * 0.97 ** (year - 2020)) - math.log10(trend or 1)   # table has own trend
+        sd = _default_sd()
+        method = "literature prior table (not validated on observed data for this sector)"
+    point = 10 ** li * trend * rev / 1e6
+    f = 10 ** (_Z80 * sd)
+    return point, point / f, point * f, method, sd
+
+
+def _table_estimate(revenue_usd_m, sector, jurisdiction, employee_count, year, scope1_known, scope2_known):
+    """Pre-2.0 literature-table method, kept for benchmarking in evaluate_emissions_models.py."""
+    med, p10, p90 = _sector_lookup(sector)
+    t = 0.97 ** (year - 2020)
+    s1 = med * t * revenue_usd_m / 1e6
+    return EmissionsEstimate(s1, p10 * t * revenue_usd_m / 1e6, p90 * t * revenue_usd_m / 1e6,
+                             0, 0, 0, 0, 0, 0, "ai_estimated", ["scope1"], 0.5, "table-1.x")
+
 
 def _analytical_estimate(
     revenue_usd_m: float,
@@ -147,265 +236,92 @@ def _analytical_estimate(
     year: int,
     scope1_known: Optional[float],
     scope2_known: Optional[float],
+    observed: Optional[dict] = None,
 ) -> EmissionsEstimate:
-    """Rule-based emissions estimation when XGBoost is unavailable."""
-    med, p10, p90 = _sector_lookup(sector)
-
-    # Decarbonisation trend: ~3% per year reduction from CDP trend analysis
-    trend_factor = 0.97 ** (year - 2020)
-    med  *= trend_factor
-    p10  *= trend_factor
-    p90  *= trend_factor
-
-    # Revenue-based Scope 1 estimate
-    # Units: (tCO2e / $M revenue) × ($M revenue) / 1_000_000 = Mt CO2e
-    s1_est  = med * revenue_usd_m / 1_000_000.0
-    s1_lo   = p10 * revenue_usd_m / 1_000_000.0
-    s1_hi   = p90 * revenue_usd_m / 1_000_000.0
-
-    # Scope 2: estimate from energy usage proxy
-    grid_factor = _grid_intensity(jurisdiction)
-    s2_est  = s1_est * 0.18 * (grid_factor / 0.40)     # 18% of S1 at avg grid
-    s2_lo   = s1_lo  * 0.10
-    s2_hi   = s1_hi  * 0.30
-
-    # Use known values if provided
+    notes: list[str] = []
     imputed: list[str] = []
+    est, lo, hi, method, sd = _scope1_estimate(revenue_usd_m, sector, year)
+
     if scope1_known is not None:
-        s1_est = scope1_known
-        # Still widen interval slightly (source uncertainty)
-        s1_lo  = scope1_known * 0.85
-        s1_hi  = scope1_known * 1.20
+        s1, s1_lo, s1_hi = scope1_known, scope1_known * 0.9, scope1_known * 1.1
+        src, cov = "caller-supplied", "complete"
+    elif observed is not None:
+        obs = observed["scope1_mt"]
+        if observed["coverage"] == "complete":
+            s1, s1_lo, s1_hi = obs, obs * 0.9, obs * 1.1
+            cov = "complete"
+        else:
+            # Observed = large US facilities only → a floor for the whole company.
+            # Point = the observed floor (transparent); the upper range stays open.
+            # (max(observed, sector estimate) was tried and overshot — e.g. GM 4.8 Mt
+            # vs ~1.5–2 Mt disclosed — because uncalibrated sector priors run high.)
+            s1 = obs
+            s1_lo, s1_hi = obs, obs * 3.0
+            cov = "lower_bound"
+            notes.append("Scope 1 shown is EPA-reported emissions from this company's large US "
+                         "facilities only; total company Scope 1 is higher.")
+        src = f"EPA GHGRP {observed.get('year')} ({observed['n_facilities']} US facilities, {observed['name']})"
     else:
+        s1, s1_lo, s1_hi = est, lo, hi
+        src, cov = method, "estimate"
         imputed.append("scope1")
 
+    grid = _grid_intensity(jurisdiction)
     if scope2_known is not None:
-        s2_est = scope2_known
-        s2_lo  = scope2_known * 0.80
-        s2_hi  = scope2_known * 1.25
+        s2, s2_lo, s2_hi = scope2_known, scope2_known * 0.85, scope2_known * 1.2
     else:
+        s2 = s1 * 0.18 * (grid / 0.40)
+        s2_lo, s2_hi = s2 / 3, s2 * 3
         imputed.append("scope2")
 
-    # Scope 3
-    s3_mult = _SCOPE3_MULT.get(sector.lower(), 2.0)
-    s3_est  = (s1_est + s2_est) * s3_mult
-    s3_lo   = s3_est * 0.50
-    s3_hi   = s3_est * 2.00
-    imputed.append("scope3")   # always estimated unless user provides
+    s3_mult = _SCOPE3_MULT.get(_canon_sector(sector), 2.0)
+    s3 = (s1 + s2) * s3_mult
+    imputed.append("scope3")
 
-    quality = "verified" if not imputed else ("hybrid" if len(imputed) < 3 else "ai_estimated")
-    conf    = 0.75 if quality == "hybrid" else (0.60 if quality == "ai_estimated" else 0.90)
+    n_est = len(imputed)
+    quality = "verified" if n_est == 1 and "scope1" not in imputed else ("hybrid" if n_est < 3 else "ai_estimated")
+    if "scope1" not in imputed and cov == "complete":
+        conf = 0.9
+    else:
+        conf = round(max(0.15, min(0.8, 1.0 - sd)), 2)   # sd≈0.6 log10 → 0.4
 
     return EmissionsEstimate(
-        scope1_mt_co2e=round(s1_est, 2),
-        scope1_lo=round(s1_lo, 2),
-        scope1_hi=round(s1_hi, 2),
-        scope2_mt_co2e=round(s2_est, 2),
-        scope2_lo=round(s2_lo, 2),
-        scope2_hi=round(s2_hi, 2),
-        scope3_mt_co2e=round(s3_est, 2),
-        scope3_lo=round(s3_lo, 2),
-        scope3_hi=round(s3_hi, 2),
-        data_quality=quality,
-        imputed_fields=imputed,
-        model_confidence=conf,
-        model_version="analytical_fallback",
+        scope1_mt_co2e=round(s1, 4), scope1_lo=round(s1_lo, 4), scope1_hi=round(s1_hi, 4),
+        scope2_mt_co2e=round(s2, 4), scope2_lo=round(s2_lo, 4), scope2_hi=round(s2_hi, 4),
+        scope3_mt_co2e=round(s3, 4), scope3_lo=round(s3 * 0.5, 4), scope3_hi=round(s3 * 2.0, 4),
+        data_quality=quality, imputed_fields=imputed, model_confidence=conf,
+        model_version=EmissionsEstimator.MODEL_VERSION,
+        scope1_source=src, scope1_coverage=cov, notes=notes,
     )
 
-
-# ── XGBoost estimator ─────────────────────────────────────────────────────────
 
 class EmissionsEstimator:
     """
-    Impute Scope 1/2/3 emissions when CDP/EUTL data is missing.
-
     Usage
     ─────
-    estimator = EmissionsEstimator()
-    result = estimator.estimate(
-        revenue_usd_m  = 12_500,
-        sector         = "steel",
-        jurisdiction   = "DE",
-        year           = 2025,
-        # Optionally pass known values — estimator fills the rest
-        scope1_known   = 18.2,   # Mt CO2e, or None if missing
-        scope2_known   = None,
-        employee_count = 45_000,
-    )
+    EmissionsEstimator().estimate(revenue_usd_m=12_500, sector="utilities",
+                                  jurisdiction="US", company_name="Duke Energy")
     """
 
-    MODEL_VERSION = "1.0.0-cdp-trained"
+    MODEL_VERSION = "2.0.0-ghgrp-calibrated"
 
-    def __init__(self, seed: int = 42):
-        self._seed     = seed
-        self._model1:  Optional[object] = None   # Scope 1 model
-        self._model2:  Optional[object] = None   # Scope 2 model
-        self._model3:  Optional[object] = None   # Scope 3 model
-        self._fitted   = False
-
-    # ── Feature vector ────────────────────────────────────────────────────────
-
-    @staticmethod
-    def _features(
-        revenue_usd_m: float,
-        sector: str,
-        jurisdiction: str,
-        employee_count: Optional[int],
-        year: int,
-    ) -> list[float]:
-        med, p10, p90  = _sector_lookup(sector)
-        grid           = _grid_intensity(jurisdiction)
-        emp            = employee_count or max(100, int(revenue_usd_m * 8))
-        rev_per_emp    = revenue_usd_m * 1e6 / emp   # $ per employee
-        log_rev        = math.log1p(revenue_usd_m)
-        log_emp        = math.log1p(emp)
-        yr_norm        = (year - 2020) / 10.0
-        s3_mult        = _SCOPE3_MULT.get(sector.lower(), 2.0)
-
-        return [
-            log_rev, log_emp, rev_per_emp / 1e5,
-            med, p10, p90,
-            grid, s3_mult,
-            yr_norm,
-        ]
-
-    # ── Training data ─────────────────────────────────────────────────────────
-
-    def _generate_training_data(self, n: int = 3000) -> tuple:
-        rng    = random.Random(self._seed)
-        _SECS  = list(_SECTOR_INTENSITY.keys())
-        _JURIS = list(_GRID_INTENSITY.keys())
-
-        X, y1, y2, y3 = [], [], [], []
-
-        for _ in range(n):
-            sec   = rng.choice(_SECS)
-            juris = rng.choice(_JURIS)
-            rev   = rng.uniform(100, 100_000)
-            emp   = int(rev * rng.uniform(3, 15))
-            yr    = rng.randint(2018, 2025)
-
-            # Ground truth from analytical model with added noise
-            result = _analytical_estimate(rev, sec, juris, emp, yr, None, None)
-            noise1 = rng.gauss(1.0, 0.12)
-            noise2 = rng.gauss(1.0, 0.18)
-            noise3 = rng.gauss(1.0, 0.30)
-
-            feat = self._features(rev, sec, juris, emp, yr)
-            X.append(feat)
-            y1.append(max(0.001, result.scope1_mt_co2e * noise1))
-            y2.append(max(0.001, result.scope2_mt_co2e * noise2))
-            y3.append(max(0.001, result.scope3_mt_co2e * noise3))
-
-        return X, y1, y2, y3
-
-    # ── Fit ───────────────────────────────────────────────────────────────────
-
-    def _fit(self) -> None:
-        if self._fitted or not _HAS_XGB:
-            self._fitted = True
-            return
-
-        import numpy as np
-        X_raw, y1, y2, y3 = self._generate_training_data(n=3000)
-        X = np.array(X_raw)
-
-        params = dict(
-            n_estimators=300,
-            max_depth=5,
-            learning_rate=0.05,
-            subsample=0.8,
-            colsample_bytree=0.8,
-            reg_alpha=0.1,
-            reg_lambda=1.0,
-            random_state=self._seed,
-        )
-        self._model1 = xgb.XGBRegressor(**params).fit(X, np.array(y1))
-        self._model2 = xgb.XGBRegressor(**params).fit(X, np.array(y2))
-        self._model3 = xgb.XGBRegressor(**params).fit(X, np.array(y3))
-        self._fitted = True
-
-    # ── Confidence interval via quantile residuals ────────────────────────────
-
-    @staticmethod
-    def _ci(val: float, pct: float = 0.30) -> tuple[float, float]:
-        """Simple ±pct confidence interval (log-scale symmetric)."""
-        lo = val * (1.0 - pct)
-        hi = val * (1.0 + pct)
-        return round(lo, 3), round(hi, 3)
-
-    # ── Public estimate ───────────────────────────────────────────────────────
+    def __init__(self, seed: int = 42):   # seed kept for API compatibility
+        self._seed = seed
 
     def estimate(
         self,
         revenue_usd_m: float,
         sector: str,
-        jurisdiction: str,
+        jurisdiction: str = "US",
         year: int = 2025,
         scope1_known: Optional[float] = None,
         scope2_known: Optional[float] = None,
         employee_count: Optional[int] = None,
+        company_name: Optional[str] = None,
+        ticker: Optional[str] = None,
     ) -> EmissionsEstimate:
-        """
-        Estimate or validate company emissions.
-
-        Pass known values via scope1_known / scope2_known — the estimator
-        will use them directly and only impute the missing scopes.
-        """
-        self._fit()
-
-        if not (_HAS_XGB and self._model1 is not None):
-            return _analytical_estimate(
-                revenue_usd_m, sector, jurisdiction,
-                employee_count, year, scope1_known, scope2_known,
-            )
-
-        import numpy as np
-        feat = np.array([self._features(
-            revenue_usd_m, sector, jurisdiction, employee_count, year,
-        )])
-
-        imputed: list[str] = []
-
-        if scope1_known is not None:
-            s1_est = scope1_known
-            s1_lo, s1_hi = self._ci(s1_est, 0.12)
-        else:
-            s1_est = float(self._model1.predict(feat)[0])
-            s1_lo, s1_hi = self._ci(s1_est, 0.30)
-            imputed.append("scope1")
-
-        if scope2_known is not None:
-            s2_est = scope2_known
-            s2_lo, s2_hi = self._ci(s2_est, 0.15)
-        else:
-            s2_est = float(self._model2.predict(feat)[0])
-            s2_lo, s2_hi = self._ci(s2_est, 0.35)
-            imputed.append("scope2")
-
-        s3_est = float(self._model3.predict(feat)[0])
-        s3_lo, s3_hi = self._ci(s3_est, 0.50)
-        imputed.append("scope3")
-
-        quality = (
-            "verified"     if len(imputed) == 1 else
-            "hybrid"       if len(imputed) == 2 else
-            "ai_estimated"
-        )
-        conf = 0.88 if quality == "verified" else (0.76 if quality == "hybrid" else 0.65)
-
-        return EmissionsEstimate(
-            scope1_mt_co2e=round(s1_est, 3),
-            scope1_lo=s1_lo,
-            scope1_hi=s1_hi,
-            scope2_mt_co2e=round(s2_est, 3),
-            scope2_lo=s2_lo,
-            scope2_hi=s2_hi,
-            scope3_mt_co2e=round(s3_est, 3),
-            scope3_lo=s3_lo,
-            scope3_hi=s3_hi,
-            data_quality=quality,
-            imputed_fields=imputed,
-            model_confidence=conf,
-            model_version=self.MODEL_VERSION,
-        )
+        observed = None
+        if scope1_known is None and (company_name or ticker):
+            observed = observed_scope1(company_name, ticker)
+        return _analytical_estimate(revenue_usd_m, sector, jurisdiction, employee_count,
+                                    year, scope1_known, scope2_known, observed)

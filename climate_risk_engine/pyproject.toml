@@ -72,3 +72,12 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+# Non-Python files that must ship inside the installed package (Docker does
+# `pip install ./climate_risk_engine`, which copies only .py files otherwise —
+# /asset/dashboard returned 500 on Render because the HTML was missing).
+[tool.setuptools.package-data]
+"cri.api" = ["*.html"]
+# carbontlens/ndgain lookups and the emissions calibration + observed-emissions
+# files were silently missing from installed builds before this line
+"cri.data" = ["*.json"]

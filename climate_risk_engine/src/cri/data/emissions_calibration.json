@@ -1,0 +1,91 @@
+{
+ "version": "ghgrp-sec-2023",
+ "year": 2023,
+ "unit": "t CO2e Scope 1 per $M revenue",
+ "trusted_sectors": [
+  "utilities",
+  "oil_gas",
+  "chemicals",
+  "cement",
+  "steel",
+  "mining",
+  "pulp_paper",
+  "coal"
+ ],
+ "size_slope_log10": -0.42149397136497707,
+ "log_rev_center": 3.743768606481653,
+ "sectors": {
+  "utilities": {
+   "log10_intensity": 2.757196597699863,
+   "n": 52,
+   "resid_sd": 0.8249125969220105
+  },
+  "oil_gas": {
+   "log10_intensity": 2.2931948873715378,
+   "n": 37,
+   "resid_sd": 0.5912407045526951
+  },
+  "chemicals": {
+   "log10_intensity": 1.9264145869757463,
+   "n": 44,
+   "resid_sd": 0.8327755706841927
+  },
+  "cement": {
+   "log10_intensity": 2.610018784577624,
+   "n": 2,
+   "resid_sd": 0.45
+  },
+  "steel": {
+   "log10_intensity": 2.198735402538164,
+   "n": 7,
+   "resid_sd": 0.9340304254151918
+  },
+  "mining": {
+   "log10_intensity": 2.154739795452609,
+   "n": 11,
+   "resid_sd": 0.7380894418359935
+  },
+  "pulp_paper": {
+   "log10_intensity": 2.010458792791932,
+   "n": 7,
+   "resid_sd": 0.36326009885712496
+  },
+  "coal": {
+   "log10_intensity": 2.975449812165656,
+   "n": 3,
+   "resid_sd": 0.5369002542369395
+  }
+ },
+ "heldout_accuracy": {
+  "A_parametric_table": {
+   "median_abs_log10_err": 0.55,
+   "within_2x": 0.307,
+   "within_3x": 0.436,
+   "median_bias_x": 1.02,
+   "n": 163
+  },
+  "B_xgb_synthetic": {
+   "median_abs_log10_err": 0.55,
+   "within_2x": 0.307,
+   "within_3x": 0.436,
+   "median_bias_x": 1.02,
+   "n": 163
+  },
+  "C_calibrated": {
+   "median_abs_log10_err": 0.584,
+   "within_2x": 0.276,
+   "within_3x": 0.417,
+   "median_bias_x": 0.82,
+   "n": 163
+  },
+  "D_calibrated_plus_size": {
+   "median_abs_log10_err": 0.555,
+   "within_2x": 0.27,
+   "within_3x": 0.423,
+   "median_bias_x": 0.76,
+   "n": 163
+  }
+ },
+ "n_companies": 163,
+ "source": "EPA GHGRP 2023 direct emitters (parent-company attributed) + SEC EDGAR revenue"
+}

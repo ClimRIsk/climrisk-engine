@@ -506,7 +506,7 @@ def agent_assess(request: AssessRequest) -> dict:
         }
 
     # ── Run full rating ────────────────────────────────────────────────────────
-    wp = WeightProfile("balanced")
+    wp = WeightProfile.EQUAL
     nze_r = run_engine(company=company, scenario=_scenarios_to_use["nze"])
     dt_r  = run_engine(company=company, scenario=_scenarios_to_use["delayed"])
     cp_r  = run_engine(company=company, scenario=_scenarios_to_use["cp"])
@@ -526,16 +526,24 @@ def agent_assess(request: AssessRequest) -> dict:
     s1 = s2 = s3 = None
     try:
         from ..ml.emissions_estimator import EmissionsEstimator
+        # NB: before this fix the call omitted `jurisdiction`, raised TypeError,
+        # and the bare except below hid it — emissions were never returned.
         em = EmissionsEstimator().estimate(
             sector=company.sector,
             revenue_usd_m=company.financials.revenue,
-            employee_count=5000,
+            jurisdiction=request.jurisdiction or "US",
+            company_name=company.name,
+            ticker=company.id,
         )
-        s1 = {"value": round(em.scope1_mt_co2e, 3), "tier": "estimated", "source": "CRI XGBoost emissions model"}
-        s2 = {"value": round(em.scope2_mt_co2e, 3), "tier": "estimated", "source": "Grid factor × energy intensity"}
-        s3 = {"value": round(em.scope3_mt_co2e, 3), "tier": "estimated", "source": "Sector supply-chain multiplier"}
-    except Exception:
-        pass
+        s1 = {"value": round(em.scope1_mt_co2e, 3),
+              "range_80pct": [em.scope1_lo, em.scope1_hi],
+              "tier": "verified" if em.scope1_coverage == "complete" else
+                      ("reported_lower_bound" if em.scope1_coverage == "lower_bound" else "estimated"),
+              "source": em.scope1_source}
+        s2 = {"value": round(em.scope2_mt_co2e, 3), "tier": "estimated", "source": "Grid factor × Scope 1 share (parametric)"}
+        s3 = {"value": round(em.scope3_mt_co2e, 3), "tier": "estimated", "source": "Sector supply-chain multiplier (parametric)"}
+    except Exception as exc:
+        logging.getLogger(__name__).warning("emissions estimate failed: %s", exc)
 
     # ── ML trajectory ─────────────────────────────────────────────────────────
     traj_nze = traj_delayed = traj_cp = None
@@ -1544,12 +1552,13 @@ def generate_physical_report(request: PhysicalReportRequest) -> PhysicalHazardRe
     summary="Download a 4-page PDF climate risk report",
     tags=["Client Reports"],
     dependencies=[_AUTH],
+    response_model=None,   # streams a PDF; a string return annotation here broke /openapi.json
 )
 def download_client_report(
     company_id: str,
     reporting_year: int = 2025,
-    weight_profile: str = "balanced",
-) -> "fastapi.responses.Response":
+    weight_profile: str = "equal",
+):
     """
     Generate and stream a 4-page branded PDF climate risk assessment for a company.
 
@@ -1579,7 +1588,7 @@ def download_client_report(
     try:
         wp = WeightProfile(weight_profile.lower())
     except ValueError:
-        wp = WeightProfile("balanced")
+        wp = WeightProfile.EQUAL
 
     nze_results = run_engine(company=company, scenario=SCENARIO_REGISTRY["nze_2050"])
     dt_results  = run_engine(company=company, scenario=SCENARIO_REGISTRY["delayed_transition"])
@@ -1625,7 +1634,9 @@ def download_client_report(
         em = est.estimate(
             sector=company.sector,
             revenue_usd_m=company.financials.revenue,
-            employee_count=5000,
+            jurisdiction=getattr(company, "jurisdiction", None) or "US",
+            company_name=company.name,
+            ticker=company.id,
         )
         scope1_mt = em.scope1_mt_co2e
         scope2_mt = em.scope2_mt_co2e

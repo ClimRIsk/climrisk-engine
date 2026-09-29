@@ -143,7 +143,7 @@
 
     <div>
       <div class="section-title">Connection</div>
-      <label for="apiKey">API key (X-API-Key)</label>
+      <label for="apiKey">API key (X-API-Key, if your server requires one)</label>
       <input id="apiKey" type="password" placeholder="ClimRisk API key">
     </div>
 
@@ -212,6 +212,7 @@ function busy(on, text) {
   document.getElementById('loading').classList.toggle('on', on);
   if (text) document.getElementById('loadingText').textContent = text;
 }
+const hdrs = key => Object.assign({'Content-Type':'application/json'}, key ? {'X-API-Key': key} : {});
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const fmt = v => typeof v === 'number' ? (Math.abs(v) >= 100 ? v.toFixed(0) : Math.abs(v) >= 10 ? v.toFixed(1) : v.toFixed(2).replace(/\.?0+$/,'') || '0') : esc(v);
 
@@ -223,7 +224,6 @@ async function analyze() {
   const name = document.getElementById('assetName').value || 'Asset', type = document.getElementById('assetType').value;
   const key = document.getElementById('apiKey').value;
   if (!isFinite(lat) || !isFinite(lon)) return setStatus('Enter a valid latitude and longitude.', 'error');
-  if (!key) return setStatus('Enter your API key.', 'error');
 
   document.getElementById('analyzeBtn').disabled = true; document.getElementById('aiBtn').disabled = true;
   const steps = ['Fetching 10 m terrain tiles from AWS…', 'Routing flow paths across the DEM…',
@@ -233,7 +233,7 @@ async function analyze() {
   const tick = setInterval(() => { i = Math.min(i + 1, steps.length - 1); busy(true, steps[i]); setStatus(steps[i], 'loading'); }, 5000);
 
   try {
-    const r = await fetch('/asset/assess', { method:'POST', headers:{'Content-Type':'application/json','X-API-Key':key},
+    const r = await fetch('/asset/assess', { method:'POST', headers: hdrs(key),
       body: JSON.stringify({ lat, lon, asset_name:name, asset_type:type, include_visuals:true }) });
     if (!r.ok) throw new Error(`API ${r.status}: ${(await r.text()).slice(0,200)}`);
     renderAssessment(await r.json());
@@ -558,12 +558,32 @@ document.getElementById('exag').addEventListener('input', e => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
+// Launch parameters from the host app (URL hash — never sent to the server)
+//   #key=<api key>&lat=..&lon=..&name=..&type=..&auto=1&embedded=1
+// ═══════════════════════════════════════════════════════════════════════════
+(function readLaunchParams() {
+  const h = new URLSearchParams(location.hash.slice(1));
+  if (h.get('key')) {
+    document.getElementById('apiKey').value = h.get('key');
+    const conn = document.getElementById('apiKey').closest('div');
+    if (conn) conn.style.display = 'none';
+  }
+  if (h.get('embedded') === '1') {
+    const hd = document.querySelector('.header'); if (hd) hd.style.display = 'none';
+    // Focus lives inside this iframe after any click, so forward Esc to the host app
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') parent.postMessage({ type: 'climrisk:close-asset-intel' }, '*'); });
+  }
+  if (h.get('lat') && h.get('lon')) preset(+h.get('lat'), +h.get('lon'), h.get('name') || 'Asset', h.get('type') || 'industrial');
+  if (h.get('auto') === '1' && h.get('lat')) setTimeout(analyze, 50);
+  history.replaceState(null, '', location.pathname);   // drop the key from the address bar
+})();
+
+// ═══════════════════════════════════════════════════════════════════════════
 // AI deep dive
 // ═══════════════════════════════════════════════════════════════════════════
 async function aiDeepDive() {
   if (!last) return;
   const key = document.getElementById('apiKey').value; const box = document.getElementById('aiBox');
-  if (!key) return setStatus('API key required.', 'error');
   box.className = 'ai loading'; box.textContent = 'Reasoning over the terrain, satellite and land-cover evidence…';
   document.getElementById('aiBtn').disabled = true;
   const summary = (last.findings || []).filter(f => f.severity !== 'NEGLIGIBLE').map(f =>
@@ -575,7 +595,7 @@ async function aiDeepDive() {
     `3) how exposure is likely to change by 2050 under NGFS Current Policies vs Net Zero 2050 (qualitative, say it is qualitative); ` +
     `4) the three highest-value actions, most urgent first. Evidence already computed:\n${summary}`;
   try {
-    const r = await fetch('/agent/chat', { method:'POST', headers:{'Content-Type':'application/json','X-API-Key':key},
+    const r = await fetch('/agent/chat', { method:'POST', headers: hdrs(key),
       body: JSON.stringify({ message, context:{ asset:last.asset_name, lat:last.lat, lon:last.lon, risk_signal:last.risk_signal }, max_rounds:2 }) });
     if (!r.ok) throw new Error(`API ${r.status}`);
     const d = await r.json(); box.className = 'ai'; box.textContent = d.narrative || 'No narrative returned.';

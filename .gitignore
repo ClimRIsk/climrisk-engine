@@ -2,3 +2,6 @@ __pycache__/
 *.pyc
 *.egg-info/
 .DS_Store
+
+# Raw API caches from scripts/build_emissions_dataset.py (18 MB; rebuildable)
+climate_risk_engine/data/training/raw/
