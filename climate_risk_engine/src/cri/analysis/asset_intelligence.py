@@ -192,7 +192,11 @@ def _flood(t: dict, s: dict, lc: dict, sar: Optional[dict] = None) -> dict:
         pts += 0.5
         ev.append(_ev("Wetland / mangrove within 1 km", _pct(wl), WC, "%"))
 
-    caveats = []
+    caveats = [
+        "Validation status: in a backtest against 75,000 FEMA flood-insurance claims (Harris County, TX, "
+        "60 census tracts) this flood rating did not separate high- from low-claim areas (AUC 0.44). "
+        "Treat it as screening evidence, not a loss predictor, until the area-based model is validated."
+    ]
     if not sar.get("available"):
         missing = sorted(set(f"{m:02d}" for m in range(1, 13)) - set(s.get("temporal_months_covered") or []))
         if len(missing) >= 3:

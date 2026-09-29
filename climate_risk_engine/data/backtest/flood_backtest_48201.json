@@ -1,0 +1,86 @@
+{
+ "county": "48201",
+ "n_scored": 60,
+ "n_high": 30,
+ "n_low": 30,
+ "n_tracts_county": 1107,
+ "n_claims_county": 75294,
+ "flood_score": {
+  "auc_high_vs_low": 0.444,
+  "spearman_vs_claims_per_builtup_km2": 0.005,
+  "n": 60
+ },
+ "components": {
+  "low_elevation (\u2212elev)": {
+   "auc_high_vs_low": 0.681,
+   "spearman_vs_claims_per_builtup_km2": 0.29,
+   "n": 60
+  },
+  "low_TPI (\u2212tpi)": {
+   "auc_high_vs_low": 0.427,
+   "spearman_vs_claims_per_builtup_km2": -0.079,
+   "n": 60
+  },
+  "upslope_area": {
+   "auc_high_vs_low": 0.49,
+   "spearman_vs_claims_per_builtup_km2": 0.025,
+   "n": 60
+  },
+  "near_water (\u2212dist)": {
+   "auc_high_vs_low": 0.449,
+   "spearman_vs_claims_per_builtup_km2": -0.123,
+   "n": 60
+  },
+  "optical_ephemeral_500m": {
+   "auc_high_vs_low": 0.396,
+   "spearman_vs_claims_per_builtup_km2": -0.249,
+   "n": 60
+  },
+  "radar_intermittent_500m": {
+   "auc_high_vs_low": 0.324,
+   "spearman_vs_claims_per_builtup_km2": -0.129,
+   "n": 60
+  },
+  "radar_ever_wet_500m": {
+   "auc_high_vs_low": 0.324,
+   "spearman_vs_claims_per_builtup_km2": -0.129,
+   "n": 60
+  },
+  "wetland_1km": {
+   "auc_high_vs_low": 0.415,
+   "spearman_vs_claims_per_builtup_km2": -0.031,
+   "n": 57
+  }
+ },
+ "severity_by_group": {
+  "high": {
+   "NEGLIGIBLE": 1,
+   "MODERATE": 12,
+   "LOW": 17
+  },
+  "low": {
+   "MODERATE": 13,
+   "LOW": 11,
+   "HIGH": 2,
+   "NEGLIGIBLE": 4
+  }
+ },
+ "caveats": [
+  "Tract-level test: centroid score stands in for all buildings in the tract.",
+  "NFIP claims also reflect insurance take-up (mandatory in FEMA SFHA zones).",
+  "Single county \u2014 results are not yet evidence of global skill."
+ ],
+ "hand_centroid_test": {
+  "note": "HAND (Height Above Nearest Drainage) at the tract centroid, AWS 10 m DEM, pysheds",
+  "auc_high_vs_low": {
+   "hand_0.1km2": 0.45,
+   "hand_median250_0.1km2": 0.49,
+   "hand_1km2": 0.49,
+   "hand_median250_1km2": 0.5,
+   "elev_percentile_in_window": 0.62,
+   "elev_minus_window_p10": 0.61,
+   "elevation_m": 0.68
+  },
+  "conclusion": "Point-at-centroid features have little skill at tract level; next: area-based features over tract polygons (share of built-up land with HAND < 1 m), multi-county."
+ }
+}
