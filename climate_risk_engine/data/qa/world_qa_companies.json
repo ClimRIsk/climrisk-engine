@@ -1,0 +1,1081 @@
+{
+ "register_load_s": 0.13,
+ "rows": [
+  {
+   "query": "NTPC",
+   "continent": "Asia",
+   "expect": "cyclone",
+   "found": true,
+   "search_ms": 7.7,
+   "entities": [
+    "All 'Ntpc' entities (3)",
+    "NTPC Ltd",
+    "NTPC-SAIL Power Company Ltd"
+   ],
+   "exposure_ms": 3.0,
+   "n_assets": 46,
+   "n_countries": 1,
+   "top_countries": [
+    "IND"
+   ],
+   "cyclone_cat1_share": 0.043,
+   "any_cyclone": true,
+   "low_lying_share": 0.0,
+   "by_level": {
+    "NEGLIGIBLE": 24,
+    "LOW": 19,
+    "MODERATE": 3,
+    "HIGH": 0,
+    "CRITICAL": 0
+   },
+   "worst": "Simhadri power station \u2014 MODERATE",
+   "sanity": "ok"
+  },
+  {
+   "query": "Adani Power",
+   "continent": "Asia",
+   "expect": null,
+   "found": true,
+   "search_ms": 8.0,
+   "entities": [
+    "Adani Power Ltd"
+   ],
+   "exposure_ms": 0.1,
+   "n_assets": 8,
+   "n_countries": 1,
+   "top_countries": [
+    "IND"
+   ],
+   "cyclone_cat1_share": 0.125,
+   "any_cyclone": true,
+   "low_lying_share": 0.0,
+   "by_level": {
+    "NEGLIGIBLE": 2,
+    "LOW": 5,
+    "MODERATE": 1,
+    "HIGH": 0,
+    "CRITICAL": 0
+   },
+   "worst": "Mundra Thermal Power Project (Adani) \u2014 MODERATE",
+   "sanity": "ok"
+  },
+  {
+   "query": "Tata Steel",
+   "continent": "Asia",
+   "expect": null,
+   "found": true,
+   "search_ms": 7.5,
+   "entities": [
+    "All 'Tata' entities (10)",
+    "Tata Steel Ltd",
+    "Tata Steel Minerals Canada Ltd"
+   ],
+   "exposure_ms": 2.8,
+   "n_assets": 39,
+   "n_countries": 8,
+   "top_countries": [
+    "IND",
+    "GBR",
+    "CAN",
+    "USA"
+   ],
+   "cyclone_cat1_share": 0.103,
+   "any_cyclone": true,
+   "low_lying_share": 0.0,
+   "by_level": {
+    "NEGLIGIBLE": 14,
+    "LOW": 20,
+    "MODERATE": 5,
+    "HIGH": 0,
+    "CRITICAL": 0
+   },
+   "worst": "Tata Mundra Ultra Mega Power Project \u2014 MODERATE",
+   "sanity": "ok"
+  },
+  {
+   "query": "China Huaneng",
+   "continent": "Asia",
+   "expect": "cyclone",
+   "found": true,
+   "search_ms": 8.6,
+   "entities": [
+    "All 'Huaneng' entities (96)",
+    "China Huaneng Group Co Ltd",
+    "China Huaneng Group Co Ltd North China Branch "
+   ],
+   "exposure_ms": 4.3,
+   "n_assets": 99,
+   "n_countries": 2,
+   "top_countries": [
+    "CHN",
+    "PAK"
+   ],
+   "cyclone_cat1_share": 0.192,
+   "any_cyclone": true,
+   "low_lying_share": 0.04,
+   "by_level": {
+    "NEGLIGIBLE": 50,
+    "LOW": 26,
+    "MODERATE": 10,
+    "HIGH": 11,
+    "CRITICAL": 2
+   },
+   "worst": "Huaneng Fuzhou power station \u2014 CRITICAL",
+   "sanity": "ok"
+  },
+  {
+   "query": "Anhui Conch",
+   "continent": "Asia",
+   "expect": "cyclone",
+   "found": true,
+   "search_ms": 8.2,
+   "entities": [
+    "All 'Anhui' entities (46)",
+    "Anhui Conch Cement Co Ltd",
+    "Anhui Tongling Conch Cement Co Ltd"
+   ],
+   "exposure_ms": 3.7,
+   "n_assets": 77,
+   "n_countries": 2,
+   "top_countries": [
+    "CHN",
+    "UZB"
+   ],
+   "cyclone_cat1_share": 0.0,
+   "any_cyclone": true,
+   "low_lying_share": 0.0,
+   "by_level": {
+    "NEGLIGIBLE": 35,
+    "LOW": 41,
+    "MODERATE": 1,
+    "HIGH": 0,
+    "CRITICAL": 0
+   },
+   "worst": "Ma'anshan Dangtu power station \u2014 MODERATE",
+   "sanity": "ok"
+  },
+  {
+   "query": "POSCO",
+   "continent": "Asia",
+   "expect": "cyclone",
+   "found": true,
+   "search_ms": 8.2,
+   "entities": [
+    "All 'Posco' entities (5)",
+    "POSCO Holdings Inc",
+    "Posco (Zhangjiagang) Stainless Steel Co Ltd"
+   ],
+   "exposure_ms": 3.1,
+   "n_assets": 10,
+   "n_countries": 4,
+   "top_countries": [
+    "KOR",
+    "IDN",
+    "CHN",
+    "VNM"
+   ],
+   "cyclone_cat1_share": 0.6,
+   "any_cyclone": true,
+   "low_lying_share": 0.2,
+   "by_level": {
+    "NEGLIGIBLE": 0,
+    "LOW": 2,
+    "MODERATE": 4,
+    "HIGH": 4,
+    "CRITICAL": 0
+   },
+   "worst": "POSCO Gwangyang steel plant \u2014 HIGH",
+   "sanity": "ok"
+  },
+  {
+   "query": "JERA",
+   "continent": "Asia",
+   "expect": "cyclone",
+   "found": true,
+   "search_ms": 7.3,
+   "entities": [
+    "All 'Jera' entities (4)",
+    "JERA Co Inc",
+    "JERA POWER LINDEN LLC"
+   ],
+   "exposure_ms": 2.7,
+   "n_assets": 28,
+   "n_countries": 2,
+   "top_countries": [
+    "JPN",
+    "USA"
+   ],
+   "cyclone_cat1_share": 1.0,
+   "any_cyclone": true,
+   "low_lying_share": 0.179,
+   "by_level": {
+    "NEGLIGIBLE": 0,
+    "LOW": 0,
+    "MODERATE": 4,
+    "HIGH": 11,
+    "CRITICAL": 13
+   },
+   "worst": "Futtsu thermal power station \u2014 CRITICAL",
+   "sanity": "ok"
+  },
+  {
+   "query": "Nippon Steel",
+   "continent": "Asia",
+   "expect": "cyclone",
+   "found": true,
+   "search_ms": 8.6,
+   "entities": [
+    "All 'Nippon' entities (12)",
+    "Nippon Steel Corp",
+    "Nippon Steel Cement Co Ltd"
+   ],
+   "exposure_ms": 3.8,
+   "n_assets": 38,
+   "n_countries": 4,
+   "top_countries": [
+    "JPN",
+    "USA",
+    "IND",
+    "AUS"
+   ],
+   "cyclone_cat1_share": 0.763,
+   "any_cyclone": true,
+   "low_lying_share": 0.079,
+   "by_level": {
+    "NEGLIGIBLE": 3,
+    "LOW": 5,
+    "MODERATE": 8,
+    "HIGH": 11,
+    "CRITICAL": 11
+   },
+   "worst": "Nippon Kyushu Works (Oita Area, Oita) steel plant \u2014 CRITICAL",
+   "sanity": "ok"
+  },
+  {
+   "query": "Semen Indonesia",
+   "continent": "Asia",
+   "expect": null,
+   "found": true,
+   "search_ms": 7.9,
+   "entities": [
+    "All 'Semen' entities (7)",
+    "PT Semen Indonesia (Persero) Tbk"
+   ],
+   "exposure_ms": 3.1,
+   "n_assets": 8,
+   "n_countries": 1,
+   "top_countries": [
+    "IDN"
+   ],
+   "cyclone_cat1_share": 0.0,
+   "any_cyclone": true,
+   "low_lying_share": 0.0,
+   "by_level": {
+    "NEGLIGIBLE": 5,
+    "LOW": 2,
+    "MODERATE": 1,
+    "HIGH": 0,
+    "CRITICAL": 0
+   },
+   "worst": "Tonasa Cement Plant power station \u2014 MODERATE",
+   "sanity": "ok"
+  },
+  {
+   "query": "Petronas",
+   "continent": "Asia",
+   "expect": null,
+   "found": true,
+   "search_ms": 8.3,
+   "entities": [
+    "All 'Petronas' entities (2)",
+    "Petronas Carigali Sdn Bhd",
+    "PETRONAS Chemicals Group Bhd"
+   ],
+   "exposure_ms": 3.5,
+   "n_assets": 3,
+   "n_countries": 1,
+   "top_countries": [
+    "MYS"
+   ],
+   "cyclone_cat1_share": 0.0,
+   "any_cyclone": false,
+   "low_lying_share": 0.0,
+   "by_level": {
+    "NEGLIGIBLE": 1,
+    "LOW": 2,
+    "MODERATE": 0,
+    "HIGH": 0,
+    "CRITICAL": 0
+   },
+   "worst": "Malaysia_Malay_Conventional shelf \u2014 LOW",
+   "sanity": "ok"
+  },
+  {
+   "query": "San Miguel",
+   "continent": "Asia",
+   "expect": "cyclone",
+   "found": true,
+   "search_ms": 7.3,
+   "entities": [
+    "All 'San' entities (45)",
+    "San Miguel Global Power Holdings Corp",
+    "San Miguel Electric Cooperative Inc"
+   ],
+   "exposure_ms": 3.1,
+   "n_assets": 74,
+   "n_countries": 14,
+   "top_countries": [
+    "USA",
+    "CHL",
+    "MEX",
+    "PHL"
+   ],
+   "cyclone_cat1_share": 0.108,
+   "any_cyclone": true,
+   "low_lying_share": 0.041,
+   "by_level": {
+    "NEGLIGIBLE": 48,
+    "LOW": 16,
+    "MODERATE": 5,
+    "HIGH": 3,
+    "CRITICAL": 2
+   },
+   "worst": "Quezon power station \u2014 CRITICAL",
+   "sanity": "ok"
+  },
+  {
+   "query": "RWE",
+   "continent": "Europe",
+   "expect": "no_cyclone",
+   "found": true,
+   "search_ms": 7.4,
+   "entities": [
+    "All 'Rwe' entities (5)",
+    "RWE AG",
+    "RWE Generation UK PLC"
+   ],
+   "exposure_ms": 2.8,
+   "n_assets": 39,
+   "n_countries": 4,
+   "top_countries": [
+    "DEU",
+    "GBR",
+    "NLD",
+    "TUR"
+   ],
+   "cyclone_cat1_share": 0.0,
+   "any_cyclone": false,
+   "low_lying_share": 0.026,
+   "by_level": {
+    "NEGLIGIBLE": 31,
+    "LOW": 0,
+    "MODERATE": 7,
+    "HIGH": 1,
+    "CRITICAL": 0
+   },
+   "worst": "Magnum (Eemshaven) power station \u2014 HIGH",
+   "sanity": "ok"
+  },
+  {
+   "query": "Enel",
+   "continent": "Europe",
+   "expect": null,
+   "found": true,
+   "search_ms": 7.3,
+   "entities": [
+    "All 'Enel' entities (6)",
+    "Enel SpA",
+    "Enel Generaci\u00f3n Chile SA"
+   ],
+   "exposure_ms": 2.7,
+   "n_assets": 27,
+   "n_countries": 5,
+   "top_countries": [
+    "ITA",
+    "CHL",
+    "COL",
+    "PER"
+   ],
+   "cyclone_cat1_share": 0.0,
+   "any_cyclone": false,
+   "low_lying_share": 0.111,
+   "by_level": {
+    "NEGLIGIBLE": 22,
+    "LOW": 0,
+    "MODERATE": 2,
+    "HIGH": 3,
+    "CRITICAL": 0
+   },
+   "worst": "Porto Corsini power station \u2014 HIGH",
+   "sanity": "ok"
+  },
+  {
+   "query": "Heidelberg",
+   "continent": "Europe",
+   "expect": null,
+   "found": true,
+   "search_ms": 8.3,
+   "entities": [
+    "All 'Heidelberg' entities (19)",
+    "Heidelberg Materials US Inc",
+    "Heidelberg Materials Italia Cementi SpA"
+   ],
+   "exposure_ms": 3.9,
+   "n_assets": 56,
+   "n_countries": 18,
+   "top_countries": [
+    "USA",
+    "ITA",
+    "DEU",
+    "CHN"
+   ],
+   "cyclone_cat1_share": 0.089,
+   "any_cyclone": true,
+   "low_lying_share": 0.054,
+   "by_level": {
+    "NEGLIGIBLE": 45,
+    "LOW": 3,
+    "MODERATE": 5,
+    "HIGH": 3,
+    "CRITICAL": 0
+   },
+   "worst": "Guangzhou Heidelberg Yuexiu Cement Guangzhou Cement Plant \u2014 HIGH",
+   "sanity": "ok"
+  },
+  {
+   "query": "ArcelorMittal",
+   "continent": "Europe",
+   "expect": null,
+   "found": true,
+   "search_ms": 8.4,
+   "entities": [
+    "All 'Arcelormittal' entities (22)",
+    "ArcelorMittal SA",
+    "ArcelorMittal Brasil SA"
+   ],
+   "exposure_ms": 3.9,
+   "n_assets": 67,
+   "n_countries": 19,
+   "top_countries": [
+    "BRA",
+    "UKR",
+    "IND",
+    "DEU"
+   ],
+   "cyclone_cat1_share": 0.075,
+   "any_cyclone": true,
+   "low_lying_share": 0.045,
+   "by_level": {
+    "NEGLIGIBLE": 52,
+    "LOW": 7,
+    "MODERATE": 5,
+    "HIGH": 3,
+    "CRITICAL": 0
+   },
+   "worst": "Paradip power station \u2014 HIGH",
+   "sanity": "ok"
+  },
+  {
+   "query": "Uniper",
+   "continent": "Europe",
+   "expect": "no_cyclone",
+   "found": true,
+   "search_ms": 8.5,
+   "entities": [
+    "All 'Uniper' entities (4)",
+    "Uniper SE",
+    "Uniper UK Ltd"
+   ],
+   "exposure_ms": 3.8,
+   "n_assets": 25,
+   "n_countries": 5,
+   "top_countries": [
+    "DEU",
+    "GBR",
+    "NLD",
+    "SWE"
+   ],
+   "cyclone_cat1_share": 0.0,
+   "any_cyclone": false,
+   "low_lying_share": 0.28,
+   "by_level": {
+    "NEGLIGIBLE": 15,
+    "LOW": 0,
+    "MODERATE": 3,
+    "HIGH": 7,
+    "CRITICAL": 0
+   },
+   "worst": "Grain power station \u2014 HIGH",
+   "sanity": "ok"
+  },
+  {
+   "query": "Equinor",
+   "continent": "Europe",
+   "expect": null,
+   "found": true,
+   "search_ms": 8.4,
+   "entities": [
+    "All 'Equinor' entities (3)",
+    "Equinor ASA",
+    "Equinor Energy AS"
+   ],
+   "exposure_ms": 3.6,
+   "n_assets": 19,
+   "n_countries": 6,
+   "top_countries": [
+    "NOR",
+    "USA",
+    "BRA",
+    "AGO"
+   ],
+   "cyclone_cat1_share": 0.211,
+   "any_cyclone": true,
+   "low_lying_share": 0.158,
+   "by_level": {
+    "NEGLIGIBLE": 11,
+    "LOW": 1,
+    "MODERATE": 1,
+    "HIGH": 6,
+    "CRITICAL": 0
+   },
+   "worst": "Saltend power station \u2014 HIGH",
+   "sanity": "ok"
+  },
+  {
+   "query": "Duke Energy",
+   "continent": "North America",
+   "expect": "cyclone",
+   "found": true,
+   "search_ms": 7.5,
+   "entities": [
+    "All 'Duke' entities (8)",
+    "DUKE ENERGY CORP",
+    "Duke Energy Florida LLC"
+   ],
+   "exposure_ms": 3.3,
+   "n_assets": 106,
+   "n_countries": 1,
+   "top_countries": [
+    "USA"
+   ],
+   "cyclone_cat1_share": 0.462,
+   "any_cyclone": true,
+   "low_lying_share": 0.009,
+   "by_level": {
+    "NEGLIGIBLE": 21,
+    "LOW": 36,
+    "MODERATE": 39,
+    "HIGH": 8,
+    "CRITICAL": 2
+   },
+   "worst": "L V Sutton Steam Electric Plant \u2014 CRITICAL",
+   "sanity": "ok"
+  },
+  {
+   "query": "Exxon Mobil",
+   "continent": "North America",
+   "expect": "cyclone",
+   "found": true,
+   "search_ms": 8.0,
+   "entities": [
+    "All 'Exxon' entities (5)",
+    "Exxon Mobil Corp",
+    "Exxon Mobil Production Co"
+   ],
+   "exposure_ms": 4.5,
+   "n_assets": 165,
+   "n_countries": 15,
+   "top_countries": [
+    "USA",
+    "CAN",
+    "SAU",
+    "SGP"
+   ],
+   "cyclone_cat1_share": 0.224,
+   "any_cyclone": true,
+   "low_lying_share": 0.018,
+   "by_level": {
+    "NEGLIGIBLE": 73,
+    "LOW": 48,
+    "MODERATE": 16,
+    "HIGH": 24,
+    "CRITICAL": 4
+   },
+   "worst": "Fujian Refining and Petrochemical Refinery \u2014 CRITICAL",
+   "sanity": "ok"
+  },
+  {
+   "query": "Cemex",
+   "continent": "North America",
+   "expect": null,
+   "found": true,
+   "search_ms": 7.9,
+   "entities": [
+    "All 'Cemex' entities (9)",
+    "CEMEX Inc",
+    "CEMEX SAB de CV"
+   ],
+   "exposure_ms": 3.4,
+   "n_assets": 39,
+   "n_countries": 10,
+   "top_countries": [
+    "MEX",
+    "USA",
+    "HRV",
+    "POL"
+   ],
+   "cyclone_cat1_share": 0.205,
+   "any_cyclone": true,
+   "low_lying_share": 0.0,
+   "by_level": {
+    "NEGLIGIBLE": 11,
+    "LOW": 18,
+    "MODERATE": 9,
+    "HIGH": 1,
+    "CRITICAL": 0
+   },
+   "worst": "CEMEX de Puerto Rico, Inc. \u2014 HIGH",
+   "sanity": "ok"
+  },
+  {
+   "query": "Comision Federal de Electricidad",
+   "continent": "North America",
+   "expect": "cyclone",
+   "found": true,
+   "search_ms": 8.3,
+   "entities": [
+    "Comisi\u00f3n Federal de Electricidad EPE"
+   ],
+   "exposure_ms": 0.4,
+   "n_assets": 42,
+   "n_countries": 1,
+   "top_countries": [
+    "MEX"
+   ],
+   "cyclone_cat1_share": 0.333,
+   "any_cyclone": true,
+   "low_lying_share": 0.024,
+   "by_level": {
+    "NEGLIGIBLE": 4,
+    "LOW": 23,
+    "MODERATE": 8,
+    "HIGH": 5,
+    "CRITICAL": 2
+   },
+   "worst": "Amaunet power station \u2014 CRITICAL",
+   "sanity": "ok"
+  },
+  {
+   "query": "Petrobras",
+   "continent": "South America",
+   "expect": null,
+   "found": true,
+   "search_ms": 8.2,
+   "entities": [
+    "PETROBRAS AMERICA INC"
+   ],
+   "exposure_ms": 0.1,
+   "n_assets": 4,
+   "n_countries": 1,
+   "top_countries": [
+    "USA"
+   ],
+   "cyclone_cat1_share": 1.0,
+   "any_cyclone": true,
+   "low_lying_share": 0.0,
+   "by_level": {
+    "NEGLIGIBLE": 0,
+    "LOW": 0,
+    "MODERATE": 1,
+    "HIGH": 2,
+    "CRITICAL": 1
+   },
+   "worst": "Medusa \u2014 CRITICAL",
+   "sanity": "ok"
+  },
+  {
+   "query": "Vale",
+   "continent": "South America",
+   "expect": null,
+   "found": true,
+   "search_ms": 7.4,
+   "entities": [
+    "All 'Vale' entities (15)",
+    "Vale SA",
+    "Valero Energy Corp"
+   ],
+   "exposure_ms": 2.9,
+   "n_assets": 57,
+   "n_countries": 3,
+   "top_countries": [
+    "BRA",
+    "CAN",
+    "NZL"
+   ],
+   "cyclone_cat1_share": 0.0,
+   "any_cyclone": false,
+   "low_lying_share": 0.0,
+   "by_level": {
+    "NEGLIGIBLE": 56,
+    "LOW": 1,
+    "MODERATE": 0,
+    "HIGH": 0,
+    "CRITICAL": 0
+   },
+   "worst": "Wairaki Coal Mine \u2014 LOW",
+   "sanity": "ok"
+  },
+  {
+   "query": "Codelco",
+   "continent": "South America",
+   "expect": "no_cyclone",
+   "found": true,
+   "search_ms": 8.3,
+   "entities": [
+    "Codelco Corp"
+   ],
+   "exposure_ms": 0.1,
+   "n_assets": 7,
+   "n_countries": 1,
+   "top_countries": [
+    "CHL"
+   ],
+   "cyclone_cat1_share": 0.0,
+   "any_cyclone": false,
+   "low_lying_share": 0.0,
+   "by_level": {
+    "NEGLIGIBLE": 7,
+    "LOW": 0,
+    "MODERATE": 0,
+    "HIGH": 0,
+    "CRITICAL": 0
+   },
+   "worst": "Radomiro Tomic Mine \u2014 NEGLIGIBLE",
+   "sanity": "ok"
+  },
+  {
+   "query": "Eskom",
+   "continent": "Africa",
+   "expect": "no_cyclone",
+   "found": true,
+   "search_ms": 7.8,
+   "entities": [
+    "Eskom Holdings SOC Ltd"
+   ],
+   "exposure_ms": 0.2,
+   "n_assets": 19,
+   "n_countries": 1,
+   "top_countries": [
+    "ZAF"
+   ],
+   "cyclone_cat1_share": 0.0,
+   "any_cyclone": false,
+   "low_lying_share": 0.0,
+   "by_level": {
+    "NEGLIGIBLE": 19,
+    "LOW": 0,
+    "MODERATE": 0,
+    "HIGH": 0,
+    "CRITICAL": 0
+   },
+   "worst": "Majuba power station \u2014 NEGLIGIBLE",
+   "sanity": "ok"
+  },
+  {
+   "query": "Sasol",
+   "continent": "Africa",
+   "expect": null,
+   "found": true,
+   "search_ms": 7.9,
+   "entities": [
+    "All 'Sasol' entities (4)",
+    "Sasol ",
+    "Sasol Mining Pty Ltd"
+   ],
+   "exposure_ms": 3.2,
+   "n_assets": 15,
+   "n_countries": 3,
+   "top_countries": [
+    "ZAF",
+    "USA",
+    "ITA"
+   ],
+   "cyclone_cat1_share": 0.267,
+   "any_cyclone": true,
+   "low_lying_share": 0.0,
+   "by_level": {
+    "NEGLIGIBLE": 11,
+    "LOW": 0,
+    "MODERATE": 2,
+    "HIGH": 2,
+    "CRITICAL": 0
+   },
+   "worst": "Louisiana Integrated Polyethylene JV LLC \u2014 HIGH",
+   "sanity": "ok"
+  },
+  {
+   "query": "Dangote",
+   "continent": "Africa",
+   "expect": "no_cyclone",
+   "found": true,
+   "search_ms": 8.4,
+   "entities": [
+    "All 'Dangote' entities (3)",
+    "Dangote Cement PLC",
+    "Dangote Industries Ltd"
+   ],
+   "exposure_ms": 3.7,
+   "n_assets": 15,
+   "n_countries": 5,
+   "top_countries": [
+    "NGA",
+    "SEN",
+    "ZMB",
+    "ETH"
+   ],
+   "cyclone_cat1_share": 0.0,
+   "any_cyclone": false,
+   "low_lying_share": 0.0,
+   "by_level": {
+    "NEGLIGIBLE": 13,
+    "LOW": 2,
+    "MODERATE": 0,
+    "HIGH": 0,
+    "CRITICAL": 0
+   },
+   "worst": "Dangote Cement Pout Cement Plant \u2014 LOW",
+   "sanity": "ok"
+  },
+  {
+   "query": "OCP",
+   "continent": "Africa",
+   "expect": null,
+   "found": false,
+   "search_ms": 7.2,
+   "entities": [],
+   "sanity": "NOT FOUND"
+  },
+  {
+   "query": "AGL Energy",
+   "continent": "Oceania",
+   "expect": null,
+   "found": true,
+   "search_ms": 7.2,
+   "entities": [
+    "All 'Agl' entities (5)",
+    "AGL Energy Ltd"
+   ],
+   "exposure_ms": 2.5,
+   "n_assets": 10,
+   "n_countries": 2,
+   "top_countries": [
+    "AUS",
+    "USA"
+   ],
+   "cyclone_cat1_share": 0.0,
+   "any_cyclone": false,
+   "low_lying_share": 0.0,
+   "by_level": {
+    "NEGLIGIBLE": 9,
+    "LOW": 0,
+    "MODERATE": 1,
+    "HIGH": 0,
+    "CRITICAL": 0
+   },
+   "worst": "Torrens Island power station \u2014 MODERATE",
+   "sanity": "ok"
+  },
+  {
+   "query": "BHP",
+   "continent": "Oceania",
+   "expect": "cyclone",
+   "found": true,
+   "search_ms": 7.2,
+   "entities": [
+    "All 'Bhp' entities (4)",
+    "BHP Group Ltd",
+    "BHP BILLITON"
+   ],
+   "exposure_ms": 2.8,
+   "n_assets": 38,
+   "n_countries": 5,
+   "top_countries": [
+    "AUS",
+    "USA",
+    "CHL",
+    "BRA"
+   ],
+   "cyclone_cat1_share": 0.211,
+   "any_cyclone": true,
+   "low_lying_share": 0.0,
+   "by_level": {
+    "NEGLIGIBLE": 12,
+    "LOW": 18,
+    "MODERATE": 1,
+    "HIGH": 4,
+    "CRITICAL": 3
+   },
+   "worst": "Yarrie Mine \u2014 CRITICAL",
+   "sanity": "ok"
+  },
+  {
+   "query": "Rio Tinto",
+   "continent": "Oceania",
+   "expect": null,
+   "found": true,
+   "search_ms": 7.3,
+   "entities": [
+    "All 'Rio' entities (18)",
+    "Rio Tinto Ltd",
+    "RIO TINTO AMERICA INC"
+   ],
+   "exposure_ms": 2.9,
+   "n_assets": 60,
+   "n_countries": 11,
+   "top_countries": [
+    "AUS",
+    "USA",
+    "CAN",
+    "BRA"
+   ],
+   "cyclone_cat1_share": 0.433,
+   "any_cyclone": true,
+   "low_lying_share": 0.0,
+   "by_level": {
+    "NEGLIGIBLE": 23,
+    "LOW": 11,
+    "MODERATE": 21,
+    "HIGH": 4,
+    "CRITICAL": 1
+   },
+   "worst": "Robe Valley Operation \u2014 CRITICAL",
+   "sanity": "ok"
+  },
+  {
+   "query": "Fortescue",
+   "continent": "Oceania",
+   "expect": "cyclone",
+   "found": true,
+   "search_ms": 8.3,
+   "entities": [
+    "All 'Fortescue' entities (2)",
+    "Fortescue Ltd",
+    "Fortescue Metals Group Ltd"
+   ],
+   "exposure_ms": 3.5,
+   "n_assets": 7,
+   "n_countries": 1,
+   "top_countries": [
+    "AUS"
+   ],
+   "cyclone_cat1_share": 1.0,
+   "any_cyclone": true,
+   "low_lying_share": 0.0,
+   "by_level": {
+    "NEGLIGIBLE": 0,
+    "LOW": 0,
+    "MODERATE": 5,
+    "HIGH": 2,
+    "CRITICAL": 0
+   },
+   "worst": "Iron Bridge Mine \u2014 HIGH",
+   "sanity": "ok"
+  },
+  {
+   "query": "Saudi Arabian Oil",
+   "continent": "Middle East",
+   "expect": null,
+   "found": true,
+   "search_ms": 7.9,
+   "entities": [
+    "All 'Saudi' entities (10)",
+    "Saudi Arabian Oil Co"
+   ],
+   "exposure_ms": 3.8,
+   "n_assets": 98,
+   "n_countries": 8,
+   "top_countries": [
+    "SAU",
+    "USA",
+    "CHN",
+    "KOR"
+   ],
+   "cyclone_cat1_share": 0.092,
+   "any_cyclone": true,
+   "low_lying_share": 0.071,
+   "by_level": {
+    "NEGLIGIBLE": 67,
+    "LOW": 1,
+    "MODERATE": 17,
+    "HIGH": 12,
+    "CRITICAL": 1
+   },
+   "worst": "Fujian Refining and Petrochemical Refinery \u2014 CRITICAL",
+   "sanity": "ok"
+  },
+  {
+   "query": "Abu Dhabi National Oil",
+   "continent": "Middle East",
+   "expect": null,
+   "found": true,
+   "search_ms": 7.3,
+   "entities": [
+    "All 'Abu' entities (7)",
+    "Abu Dhabi National Oil Co"
+   ],
+   "exposure_ms": 2.5,
+   "n_assets": 8,
+   "n_countries": 6,
+   "top_countries": [
+    "ARE",
+    "EGY",
+    "SAU",
+    "USA"
+   ],
+   "cyclone_cat1_share": 0.0,
+   "any_cyclone": false,
+   "low_lying_share": 0.25,
+   "by_level": {
+    "NEGLIGIBLE": 4,
+    "LOW": 1,
+    "MODERATE": 1,
+    "HIGH": 2,
+    "CRITICAL": 0
+   },
+   "worst": "Abu Qir Fertilizer Complex \u2014 HIGH",
+   "sanity": "ok"
+  },
+  {
+   "query": "SABIC",
+   "continent": "Middle East",
+   "expect": null,
+   "found": true,
+   "search_ms": 7.9,
+   "entities": [
+    "All 'Sabic' entities (5)",
+    "SABIC US HOLDINGS LP",
+    "SABIC INNOVATIVE PLASTICS US LLC"
+   ],
+   "exposure_ms": 3.1,
+   "n_assets": 11,
+   "n_countries": 3,
+   "top_countries": [
+    "USA",
+    "NLD",
+    "ESP"
+   ],
+   "cyclone_cat1_share": 0.273,
+   "any_cyclone": true,
+   "low_lying_share": 0.0,
+   "by_level": {
+    "NEGLIGIBLE": 5,
+    "LOW": 3,
+    "MODERATE": 1,
+    "HIGH": 2,
+    "CRITICAL": 0
+   },
+   "worst": "NOVA CHEMICALS OLEFINS LLC \u2014 HIGH",
+   "sanity": "ok"
+  }
+ ]
+}

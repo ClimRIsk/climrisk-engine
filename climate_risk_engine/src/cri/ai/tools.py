@@ -692,6 +692,78 @@ def _exec_get_company_assets(args: dict) -> dict:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# 10. run_risk_analyst — physical → policy → transition → financial distribution
+# ─────────────────────────────────────────────────────────────────────────────
+
+_ANALYST_DEFINITION = {
+    "type": "function",
+    "function": {
+        "name": "run_risk_analyst",
+        "description": (
+            "Full four-stage analysis of ONE asset (by coordinates) or ONE company (by name): "
+            "(1) physical hazards — cyclone, river and coastal flood depths with local flood defences; "
+            "(2) carbon-pricing policies in force and in the pipeline for the asset's state/country and sector; "
+            "(3) NGFS Phase 5 transition projections (carbon price, sector output) for 7 scenarios; "
+            "(4) Monte Carlo financial loss distribution to 2050 (mean, median, 95th/99th percentile, "
+            "expected shortfall, % of asset value) plus findings and actions. Use for 'what is the "
+            "financial climate risk of X', 'how do current policies affect this plant', or loss distributions."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "lat": {"type": "number", "description": "Asset latitude (use with lon for a single asset)"},
+                "lon": {"type": "number", "description": "Asset longitude"},
+                "company_name": {"type": "string", "description": "Company name for a portfolio analysis (instead of lat/lon)"},
+                "value_usd": {"type": "number", "description": "Asset value in USD if known"},
+            },
+        },
+    },
+}
+
+
+def _compact_analysis(r: dict) -> dict:
+    fin = r["financial"]
+    scen = {v["label"]: {"total_mean": v["total_npv"]["mean"], "total_p95": v["total_npv"]["p95"],
+                         "carbon_cost_pv": v["transition_npv"]["mean"],
+                         "pct_of_value_mean": (v["total_npv"].get("pct_of_value") or {}).get("mean")}
+            for v in fin["scenarios"].values()}
+    return {"asset": {k: r["asset"][k] for k in ("name", "iso3", "admin1", "sector", "type", "emissions_t")}
+                     | {"value_basis": r["asset"]["value"].get("basis"), "value_usd": r["asset"]["value"].get("mode")},
+            "headline": r["headline"], "narrative": r["narrative"],
+            "physical_severity": {"cyclone": r["physical"]["cyclone"]["severity"],
+                                  "river_flood": r["physical"]["river_flood"].get("severity"),
+                                  "coastal_flood": r["physical"]["coastal_flood"].get("severity")},
+            "policies_in_force": [{k: p[k] for k in ("name", "type", "price_usd_t", "covers_asset_sector")}
+                                  for p in r["policy"]["in_force"]],
+            "policies_pipeline": [p["name"] for p in r["policy"]["pipeline"]],
+            "policy_notes": r["policy"]["notes"],
+            "scenarios_pv_usd_2026_2050": scen, "actions": r["actions"], "caveats": r["caveats"]}
+
+
+def _exec_run_risk_analyst(args: dict) -> dict:
+    try:
+        from ..finance.analyst import analyse_asset, analyse_company
+        if args.get("lat") is not None and args.get("lon") is not None:
+            return _compact_analysis(analyse_asset(float(args["lat"]), float(args["lon"]), value_usd=args.get("value_usd"), n=2000))
+        if args.get("company_name"):
+            from ..data.asset_register import search
+            res = search(args["company_name"], limit=10)
+            if not res:
+                return {"found": False, "note": "Company not in the asset register (heavy industry only)."}
+            keys = [r["key"] for r in res if r["match"] == "group"] or [res[0]["key"]]
+            c = analyse_company(keys, top_n=15, n=1500)
+            return {"companies": c.get("companies"), "n_assets": c.get("n_assets"),
+                    "portfolio_value_usd": c.get("portfolio_value_mode"),
+                    "scenarios_pv_usd_2026_2050": {v["label"]: {k: v["total_npv"][k] for k in ("mean", "p50", "p95", "es95")}
+                                                   for v in c.get("scenarios", {}).values()},
+                    "top_assets": c.get("assets", [])[:8], "method": c.get("method")}
+        return {"error": "Give lat/lon for an asset or company_name for a portfolio."}
+    except Exception as exc:
+        logger.exception("run_risk_analyst failed")
+        return {"error": str(exc)}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Tool Registry
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -705,6 +777,7 @@ TOOL_REGISTRY: dict[str, dict] = {
     "get_country_risk":        {"definition": _COUNTRY_DEFINITION,    "executor": _exec_get_country_risk},
     "assess_physical_asset":   {"definition": _ASSET_DEFINITION,     "executor": _exec_assess_physical_asset},
     "get_company_assets":      {"definition": _COMPANY_ASSETS_DEFINITION, "executor": _exec_get_company_assets},
+    "run_risk_analyst":        {"definition": _ANALYST_DEFINITION,   "executor": _exec_run_risk_analyst},
 }
 
 

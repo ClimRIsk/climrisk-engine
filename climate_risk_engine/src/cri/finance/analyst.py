@@ -1,0 +1,460 @@
+"""
+finance/analyst.py — the Risk Analyst agent: one asset (or a company's assets) through
+four stages, each grounded in data the engine holds locally or reads from open sources.
+
+  1. Physical risk   cyclone (IBTrACS + Holland), river flood (JRC 90 m, RP 10–500),
+                     coastal flood (Deltares 90 m, 2018 & 2050 sea level), flood
+                     defences (FLOPROS) + the satellite site analysis when available
+  2. Policy          carbon-pricing instruments in force / in the pipeline for the
+                     asset's state/province and country and its sector (World Bank)
+  3. Transition      NGFS Phase 5 carbon price and sector-activity paths, 7 scenarios,
+                     3 models, combined with today's policy design
+  4. Financial       Monte Carlo loss distribution to 2050 (physical damage, carbon
+                     cost, stranded capital) — mean, median, 95th/99th percentiles,
+                     expected shortfall, as money and as % of asset value
+
+It then writes findings and actions ("this asset has this problem; it can be resolved
+through this"). Every number comes from the engine; the optional LLM (Groq) only turns
+the structured result into prose and never invents figures.
+"""
+from __future__ import annotations
+
+import math
+import time
+from concurrent.futures import ThreadPoolExecutor
+from functools import lru_cache
+from typing import Optional
+
+import numpy as np
+
+from . import asset_value, geo, policy, transition, vulnerability
+from .distribution import PASS_THROUGH, STRANDING_KEYS, simulate
+from .flood_hazard import site_flood
+
+MAIN_SCENARIOS = ["Net Zero 2050", "Delayed transition", "Current Policies"]
+
+
+def _fmt_usd(x: Optional[float]) -> str:
+    if x is None or not np.isfinite(x):
+        return "n/a"
+    a = abs(x)
+    if a >= 1e9:
+        return f"${x/1e9:,.2f}bn"
+    if a >= 1e6:
+        return f"${x/1e6:,.1f}m"
+    if a >= 1e3:
+        return f"${x/1e3:,.0f}k"
+    return f"${x:,.0f}"
+
+
+# ── register lookups ─────────────────────────────────────────────────────────
+
+def _register():
+    from ..data.asset_register import _load
+    return _load()
+
+
+def nearest_register_asset(lat: float, lon: float, max_km: float = 1.0) -> Optional[int]:
+    R = _register()
+    d = np.hypot((R["lat"] - lat) * 111.0, (R["lon"] - lon) * 111.0 * math.cos(math.radians(lat)))
+    i = int(np.argmin(d))
+    return i if d[i] <= max_km else None
+
+
+def register_asset(i: int) -> dict:
+    R = _register()
+    f = lambda a: None if not np.isfinite(a) else float(a)      # noqa: E731
+    return {"register_index": int(i), "name": str(R["name"][i]), "lat": float(R["lat"][i]), "lon": float(R["lon"][i]),
+            "iso3": str(R["countries"][R["country"][i]]), "sector": str(R["sectors"][R["sector"][i]]),
+            "atype": str(R["atype"][i]), "capacity": f(R["capacity"][i]), "emissions_t": f(R["emissions_t"][i]),
+            "source": str(R["source"][i]), "elev_m": f(R["elev_m"][i]),
+            "tc_rate_ts": float(R["tc_rate_ts"][i]), "tc_rp100_ms": float(R["tc_rp100_ms"][i]),
+            "owners": _owners_of(int(i))}
+
+
+@lru_cache(maxsize=1)
+def _owner_index() -> dict:
+    R = _register()
+    idx: dict = {}
+    for k, c in R["_companies"].items():
+        for j in c["assets"]:
+            idx.setdefault(j, []).append(c["name"])
+    return idx
+
+
+def _owners_of(i: int) -> list:
+    return _owner_index().get(i, [])[:5]
+
+
+# ── stage 1: physical ────────────────────────────────────────────────────────
+
+def _tc_params(lat: float, lon: float, pre: Optional[dict] = None) -> dict:
+    """λ (storms/yr ≥ 17.5 m/s) and σ of the exponential wind tail, from the site model."""
+    if pre and pre.get("tc_rate_ts") is not None:
+        lam, v100, worst, top = pre["tc_rate_ts"], pre["tc_rp100_ms"], None, []
+    else:
+        from ..climate.tropical_cyclone import site_hazard
+        hz = site_hazard(lat, lon)
+        lam, v100 = hz.annual_rate_ge_ts, float(hz.rp_wind_ms.get(100, 0.0))
+        worst, top = hz.worst, hz.top_events[:3]
+    sigma = (v100 - 17.5) / math.log(lam * 100) if lam * 100 > 1.0 and v100 > 17.5 else None
+    return {"lam": float(lam), "sigma": sigma, "rp100_ms": v100, "worst": worst, "top_events": top,
+            "category_100yr": _saffir(v100)}
+
+
+def _saffir(v: float) -> str:
+    lab = "below tropical-storm force"
+    for thr, name in [(17.5, "tropical storm"), (33, "Cat 1"), (43, "Cat 2"), (50, "Cat 3"), (58, "Cat 4"), (70, "Cat 5")]:
+        if v >= thr:
+            lab = name
+    return lab
+
+
+def _flood_curves(fl: dict, cont: str) -> tuple[dict, dict]:
+    riv, cst = fl.get("river") or {}, fl.get("coastal") or {}
+    river = {"available": bool(riv.get("available")), "source": riv.get("source"),
+             "note": riv.get("note") or riv.get("reason")}
+    if riv.get("available") and not riv.get("footprint_on_water"):
+        rps = riv["rps"]
+        dep = [riv["depths"][str(rp)] for rp in rps]
+        river.update(rps=rps, mean_depth_m=[round(float(np.mean(d)), 2) if d else 0.0 for d in dep],
+                     wet_share=[round(float(np.mean(np.array(d) > 0.05)), 2) if d else 0.0 for d in dep],
+                     damage=[round(float(np.mean(vulnerability.flood_damage(d, cont))), 4) if d else 0.0 for d in dep])
+    coast = {"available": bool(cst.get("available")), "source": cst.get("source"), "note": cst.get("reason")}
+    if cst.get("available"):
+        rps = cst["rps"]
+        for y, tag in ((2018, ""), (2050, "_2050")):
+            dep = [cst["depths"].get(f"{y}_{rp}") or [] for rp in rps]
+            coast["mean_depth_m" + tag] = [round(float(np.mean(d)), 2) if d else 0.0 for d in dep]
+            coast["damage" + tag] = [round(float(np.mean(vulnerability.flood_damage(d, cont))), 4) if d else 0.0 for d in dep]
+        coast["rps"] = rps
+    return river, coast
+
+
+def _severity(aal_pct: float, rp100_ratio: float) -> str:
+    if aal_pct >= 1.0 or rp100_ratio >= 0.4:
+        return "HIGH"
+    if aal_pct >= 0.2 or rp100_ratio >= 0.15:
+        return "MODERATE"
+    if aal_pct >= 0.02 or rp100_ratio >= 0.03:
+        return "LOW"
+    return "NEGLIGIBLE"
+
+
+# ── actions ──────────────────────────────────────────────────────────────────
+
+_ABATEMENT = {
+    "power:coal": "Set a dated retirement or conversion plan (biomass/ammonia co-firing only as a bridge); "
+                  "contract replacement renewables + storage; evaluate CCS only where storage is nearby.",
+    "power:gas": "Improve heat rate, prepare for hydrogen blending, and weigh CCS or conversion to peaking duty; "
+                 "hedge carbon exposure through power contracts with carbon pass-through clauses.",
+    "power:oil": "Switch to gas or renewables-plus-storage; oil-fired generation carries the highest cost per MWh.",
+    "cement": "Cut clinker ratio (calcined clay LC3, slag, fly ash), raise alternative-fuel share, and prepare "
+              "CCS readiness for process emissions; set up product-level embedded-emissions MRV for CBAM.",
+    "steel:BF/BOF": "Plan transition to scrap-EAF or DRI (gas → hydrogen) at the next relining; secure scrap and "
+                    "renewable power; build product-level MRV for CBAM.",
+    "steel:EAF": "Contract renewable power and raise scrap quality — EAF emissions are mostly from electricity.",
+    "steel:DRI": "Prepare for hydrogen-based DRI; source low-carbon power.",
+    "refining": "Electrify process heat, add CCS on hydrogen/SMR units, and plan throughput reduction in line "
+                "with falling oil demand.",
+    "chemicals:ammonia": "Capture the concentrated CO2 stream from ammonia production (lowest-cost CCS) and "
+                         "prepare for electrolytic hydrogen feed; CBAM applies to fertilisers.",
+    "aluminium:smelting": "Secure low-carbon power (PPAs) — power is the dominant emissions source; CBAM applies.",
+}
+
+
+def _actions(res: dict, cost_key: Optional[str], act_key: Optional[str]) -> list:
+    acts = []
+    ph = res["physical"]
+    fin = res["financial"]
+    tc = ph["cyclone"]
+    riv, cst = ph["river_flood"], ph["coastal_flood"]
+    hz = fin["physical"]["by_hazard_aal_pct"] if fin else {}
+    if tc["severity"] in ("MODERATE", "HIGH"):
+        acts.append({"hazard": "tropical_cyclone", "problem": f"1-in-100-year wind {tc['rp100_ms']:.0f} m/s ({tc['category_100yr']}) "
+                     f"— modelled average annual damage {hz.get('cyclone', 0):.2f}% of value.",
+                     "action": "Verify roof, cladding and door ratings against the 1-in-100 wind; anchor rooftop and "
+                               "yard equipment; storm-mode shutdown procedure; review windstorm insurance limits and deductibles."})
+    if riv.get("severity") in ("MODERATE", "HIGH"):
+        i100 = riv["rps"].index(100) if 100 in riv.get("rps", []) else -1
+        d100 = riv["mean_depth_m"][i100] if i100 >= 0 else None
+        acts.append({"hazard": "river_flood", "problem": f"Undefended 1-in-100 river flood ≈ {d100} m over the site; local "
+                     f"defence standard ≈ 1-in-{riv['protection_rp']:.0f} years (FLOPROS).",
+                     "action": f"Raise or wet-proof critical equipment (switchgear, MCCs, control rooms) above "
+                               f"{(d100 or 0) + 0.5:.1f} m; demountable barriers at openings; flood emergency plan; confirm "
+                               "the actual defence standard with the local water authority."})
+    if cst.get("severity") in ("MODERATE", "HIGH"):
+        acts.append({"hazard": "coastal_flood", "problem": "Storm-surge flooding modelled at the site; sea-level rise to 2050 "
+                     "raises depths and frequency.", "action": "Plan for the 2050 1-in-100 surge level in any "
+                     "capex on low-lying plant; check the design level of seawalls/levees; relocate critical stock."})
+    sc = fin["scenarios"].get("Delayed transition") or next(iter(fin["scenarios"].values()), None) if fin else None
+    if sc and res["transition"]["emissions_t"]:
+        tn = sc["transition_npv"]["mean"]
+        v = res["asset"]["value"]["mode"]
+        if v and tn > 0.02 * v or tn > 5e6:
+            acts.append({"hazard": "carbon_cost", "problem": f"Carbon cost to 2050 (delayed transition, present value) "
+                         f"{_fmt_usd(tn)} — {100 * tn / v:.0f}% of asset value." if v else
+                         f"Carbon cost to 2050 (delayed transition, present value) {_fmt_usd(tn)}.",
+                         "action": _ABATEMENT.get(cost_key or "", "Build a site decarbonisation plan (efficiency, "
+                                                  "electrification, fuel switch) and price carbon internally at the NGFS path.")})
+        if sc.get("stranded") and sc["stranded"]["mean"] > 0:
+            acts.append({"hazard": "stranding", "problem": f"Sector output falls under transition scenarios — expected "
+                         f"stranded capital {_fmt_usd(sc['stranded']['mean'])} (delayed transition).",
+                         "action": "Shorten depreciation lives, avoid life-extension capex, and test repurposing "
+                                   "(storage, grid services, conversion) before the next major outage."})
+    if res["policy"].get("cbam_exporter"):
+        acts.append({"hazard": "cbam", "problem": "Exports to the EU face the CBAM carbon charge from 2026 (payable 2027).",
+                     "action": "Measure verified embedded emissions per product now; defaults are punitive. Domestic "
+                               "carbon prices paid are deductible."})
+    return acts
+
+
+# ── orchestrator ─────────────────────────────────────────────────────────────
+
+def analyse_asset(lat: float, lon: float, name: Optional[str] = None, sector: Optional[str] = None,
+                  atype: Optional[str] = None, capacity: Optional[float] = None, emissions_t: Optional[float] = None,
+                  value_usd: Optional[float] = None, iso3: Optional[str] = None, register_index: Optional[int] = None,
+                  site: Optional[dict] = None, radius_m: float = 250.0, discount: float = 0.07, n: int = 4000,
+                  narrative_llm: bool = False, _flood: Optional[dict] = None, _common: Optional[dict] = None) -> dict:
+    t0 = time.time()
+    steps = []
+    reg = None
+    if register_index is None and not sector:
+        register_index = nearest_register_asset(lat, lon)
+    if register_index is not None:
+        reg = register_asset(register_index)
+        name = name or reg["name"]
+        sector = sector or reg["sector"]
+        atype = atype if atype is not None else reg["atype"]
+        capacity = capacity if capacity is not None else reg["capacity"]
+        emissions_t = emissions_t if emissions_t is not None else reg["emissions_t"]
+    adm = geo.admin_at(lat, lon)
+    iso3 = iso3 or (reg or {}).get("iso3") or adm.get("iso3")
+    cont, tcr = geo.continent(iso3), geo.tc_region(iso3)
+    ckey = asset_value.cost_key(sector or "", atype or "")
+    steps.append({"stage": "identify", "text": f"{name or 'Site'} — {sector or 'sector unknown'} {atype or ''} in "
+                  f"{adm.get('name') or '?'}, {iso3 or '?'}" + (f"; matched register asset ({reg['source']})" if reg else "")})
+
+    # 1 physical
+    tc = _tc_params(lat, lon, reg)
+    fl = _flood if _flood is not None else site_flood(lat, lon, radius_m, elev_m=(reg or {}).get("elev_m"))
+    river, coast = _flood_curves(fl, cont)
+    river["protection_rp"] = float(adm.get("prot_river_rp") or 0)
+    coast["protection_rp"] = float(adm.get("prot_coast_rp") or 0)
+    steps.append({"stage": "physical", "text": "Cyclone event set, JRC river and Deltares coastal flood depths, "
+                  "FLOPROS defences" + (", satellite site analysis" if site else "")})
+
+    # 2 policy
+    pol = policy.applicable(iso3, adm.get("name"), sector or "", atype or "", ckey)
+    steps.append({"stage": "policy", "text": f"{len(pol['in_force'])} instrument(s) in force, {len(pol['pipeline'])} in "
+                  f"the pipeline; effective price ${pol['effective_price_usd_t']}/t"})
+
+    # 3 transition
+    drv = transition.drivers(iso3, sector or "", atype or "", ckey)
+    cs_path = policy.charged_share_path(pol["charged_share"], transition.YEARS)
+    act_key = transition.activity_key(sector or "", atype or "", ckey)
+    pt_key = ("el" if pol["policy_sector"] == "el" else "refining" if ckey == "refining" else "cement" if ckey == "cement"
+              else "steel" if (ckey or "").startswith("steel") else "chemicals" if (ckey or "").startswith(("chemicals", "petro"))
+              else pol["policy_sector"])
+    central = transition.central_paths(drv, pol["effective_price_usd_t"])
+    steps.append({"stage": "transition", "text": f"NGFS Phase 5: {len(drv['price'])} scenarios × {len(drv['models'])} "
+                  f"models for {iso3 or 'World'}" + (f"; activity = {drv['activity_variable']}" if drv['activity_variable'] else "")})
+
+    # 4 financial
+    val = asset_value.estimate(sector or "", atype or "", capacity, emissions_t, iso3, value_usd)
+    case = {"value": val if val.get("mode") else None,
+            "tc": {"lam": tc["lam"], "sigma": tc["sigma"], "region": tcr},
+            "river": {"rps": river.get("rps"), "damage": river.get("damage"), "protection": river["protection_rp"]}
+            if river.get("damage") else None,
+            "coast": {"rps": coast.get("rps"), "damage": coast.get("damage"), "damage_2050": coast.get("damage_2050"),
+                      "protection": coast["protection_rp"]} if coast.get("damage") else None,
+            "transition": {"emissions_t": emissions_t or 0.0, "explicit_price": pol["effective_price_usd_t"],
+                           "charged_share_path": cs_path, "drivers": drv, "pass_through_key": pt_key,
+                           "activity_key": act_key}}
+    fin = simulate(case, n=n, discount=discount, common=_common)
+    steps.append({"stage": "financial", "text": f"Monte Carlo {n:,} draws × 25 years, discount {discount:.0%} real"})
+
+    # severities from the simulation
+    ph = fin["physical"]
+    by = ph["by_hazard_aal_pct"]
+
+    def rp100_ratio(key):
+        h = case.get(key) or {}
+        if not h.get("rps"):
+            return 0.0
+        d = np.interp(np.log(100), np.log(h["rps"]), h["damage"])
+        return float(d) if 100 > (h.get("protection") or 0) else 0.0
+    vh = vulnerability.V_HALF[tcr][0]
+    tc["severity"] = _severity(by.get("cyclone", 0.0), float(vulnerability.tc_damage(tc["rp100_ms"], vh)))
+    river["severity"] = _severity(by.get("river", 0.0), rp100_ratio("river")) if river.get("damage") else "NEGLIGIBLE"
+    coast["severity"] = _severity(by.get("coast", 0.0), rp100_ratio("coast")) if coast.get("damage") else "NEGLIGIBLE"
+
+    res = {
+        "asset": {"name": name, "lat": lat, "lon": lon, "iso3": iso3, "admin1": adm.get("name"), "sector": sector,
+                  "type": atype, "capacity": capacity, "emissions_t": emissions_t, "owners": (reg or {}).get("owners"),
+                  "register_source": (reg or {}).get("source"), "value": val},
+        "physical": {"cyclone": tc, "river_flood": river, "coastal_flood": coast,
+                     "defences": {"river_rp": river["protection_rp"], "coastal_rp": coast["protection_rp"],
+                                  "source": adm.get("source")},
+                     "site_analysis": None if not site else {"headline": site.get("headline"),
+                                                              "risk_signal": site.get("risk_signal"),
+                                                              "findings": [{"hazard": f["hazard"], "severity": f["severity"],
+                                                                            "summary": f.get("summary")} for f in site.get("findings", [])]},
+                     "vulnerability": vulnerability.describe(cont, tcr)},
+        "policy": pol,
+        "transition": {"emissions_t": emissions_t, "scenarios": central, "models": drv["models"],
+                       "regions": drv["regions"], "activity_variable": drv["activity_variable"],
+                       "assumptions": {"emissions": "held at today's level unless sector output falls (no abatement)",
+                                       "future_charged_share": transition.FUTURE_CS,
+                                       "pass_through": PASS_THROUGH.get(pt_key, PASS_THROUGH["ind"]),
+                                       "stranding": act_key in STRANDING_KEYS}},
+        "financial": fin,
+        "steps": steps,
+    }
+    res["actions"] = _actions(res, ckey, act_key)
+    res["headline"] = _headline(res)
+    res["narrative"] = _narrative(res)
+    if narrative_llm:
+        res["narrative_llm"] = _llm_narrative(res)
+    res["sources"] = ["NOAA IBTrACS v04r01", "JRC CEMS-GloFAS river flood hazard maps v2.1",
+                      "Deltares Global Flood Maps (Planetary Computer)", "FLOPROS v1 (Scussolini et al. 2016)",
+                      "Eberenz et al. 2021 / Emanuel 2011 wind damage", "JRC depth-damage (Huizinga et al. 2017)",
+                      "World Bank Carbon Pricing Dashboard (May 2026)", "NGFS Phase 5 via IIASA",
+                      "Climate TRACE v6 / EPA GHGRP 2023 (asset, owners, emissions)"]
+    res["caveats"] = [
+        "Screening-grade model: validate asset values, defence standards and emissions with the owner before decisions.",
+        "Direct physical damage only — business interruption and supply-chain losses are not included.",
+        "Cyclone and river-flood frequencies are historical (no climate-change uplift); coastal depths include "
+        "sea-level rise to 2050.",
+        "NGFS carbon prices are model shadow prices; how much reaches a plant depends on policy design (sampled).",
+    ]
+    res["elapsed_s"] = round(time.time() - t0, 1)
+    return res
+
+
+def _headline(r: dict) -> str:
+    a, fin = r["asset"], r["financial"]
+    sc = fin["scenarios"].get("Delayed transition") or next(iter(fin["scenarios"].values()), {})
+    v = a["value"].get("mode")
+    tot = sc.get("total_npv", {})
+    parts = [f"{a['name'] or 'This asset'}"]
+    ph = fin["physical"]
+    if not v and not a.get("emissions_t"):
+        parts.append(f"average annual physical damage {ph['aal_pct']:.2f}% of asset value, 1-in-100-year annual damage "
+                     f"{100 * ph['annual_damage_ratio_rp']['100']:.1f}% — no emissions or value on record here: enter "
+                     "the asset value and annual emissions for money figures and the transition analysis")
+    elif v:
+        parts.append(f"expected climate loss to 2050 {_fmt_usd(tot.get('mean'))} ({tot.get('pct_of_value', {}).get('mean', 0):.1f}% of "
+                     f"{_fmt_usd(v)} value) under a delayed transition; 1-in-20 outcome {_fmt_usd(tot.get('p95'))}")
+    else:
+        parts.append(f"carbon cost to 2050 {_fmt_usd(sc.get('transition_npv', {}).get('mean'))} (present value, delayed transition)")
+    top = max([("cyclone", r["physical"]["cyclone"]["severity"]), ("river flood", r["physical"]["river_flood"]["severity"]),
+               ("coastal flood", r["physical"]["coastal_flood"]["severity"])],
+              key=lambda x: ["NEGLIGIBLE", "LOW", "MODERATE", "HIGH"].index(x[1]))
+    if top[1] != "NEGLIGIBLE":
+        parts.append(f"leading physical hazard: {top[0]} ({top[1]})")
+    return "; ".join(parts) + "."
+
+
+def _narrative(r: dict) -> list:
+    a, ph, pol, fin = r["asset"], r["physical"], r["policy"], r["financial"]
+    out = []
+    tc = ph["cyclone"]
+    out.append(f"Physical: cyclone {tc['severity'].lower()} — {tc['lam']:.2f} tropical-storm-force events a year on "
+               f"average, 1-in-100-year wind {tc['rp100_ms']:.0f} m/s ({tc['category_100yr']}). River flood "
+               f"{ph['river_flood'].get('severity', 'n/a').lower()}, coastal flood {ph['coastal_flood'].get('severity', 'n/a').lower()}; "
+               f"defences ≈ 1-in-{ph['defences']['river_rp']:.0f} (river) and 1-in-{ph['defences']['coastal_rp']:.0f} "
+               f"(coast). Modelled average annual damage {fin['physical']['aal_pct']:.2f}% of value.")
+    if pol["in_force"]:
+        out.append(f"Policy: {pol['price_setting_instrument']} sets an effective ${pol['effective_price_usd_t']}/t today "
+                   f"({(pol['charged_share'] or {}).get('rule', '')}). " + " ".join(pol["notes"][:2]))
+    else:
+        out.append("Policy: no explicit carbon price covers this asset today. " + " ".join(pol["notes"][1:3]))
+    rows = []
+    for s in MAIN_SCENARIOS:
+        sc = fin["scenarios"].get(s)
+        if sc:
+            rows.append(f"{sc['label']}: {_fmt_usd(sc['transition_npv']['mean'])} carbon cost PV"
+                        + (f", stranded {_fmt_usd(sc['stranded']['mean'])}" if sc.get("stranded") else ""))
+    if rows and a.get("emissions_t"):
+        out.append(f"Transition ({a['emissions_t']:,.0f} tCO2e/yr): " + "; ".join(rows) + ".")
+    if a["value"].get("mode"):
+        sc = fin["scenarios"].get("Delayed transition") or {}
+        t = sc.get("total_npv") or {}
+        out.append(f"Financial: total loss to 2050 (PV) mean {_fmt_usd(t.get('mean'))}, median {_fmt_usd(t.get('p50'))}, "
+                   f"95th percentile {_fmt_usd(t.get('p95'))}, expected shortfall (worst 5%) {_fmt_usd(t.get('es95'))}. "
+                   f"Asset value basis: {a['value']['basis']}.")
+    return out
+
+
+def _llm_narrative(r: dict) -> Optional[str]:
+    try:
+        from ..ai.narrator import _call_llm
+    except Exception:                                      # noqa: BLE001
+        return None
+    facts = "\n".join(r["narrative"]) + "\nActions:\n" + "\n".join(f"- {x['problem']} → {x['action']}" for x in r["actions"])
+    return _call_llm("You are a climate risk analyst writing for a credit committee. Use ONLY the numbers given. "
+                     "Four short paragraphs: physical risk, policy, transition, financial impact; then 3 prioritised "
+                     "actions. No new figures.", facts, max_tokens=700)
+
+
+# ── company / portfolio ──────────────────────────────────────────────────────
+
+def analyse_company(keys: list, top_n: int = 30, n: int = 2000, discount: float = 0.07,
+                    values: Optional[dict] = None) -> dict:
+    """Run every asset of a company (from the register) and aggregate the loss distribution."""
+    from ..data.asset_register import company_exposure
+    t0 = time.time()
+    exp = company_exposure(keys)
+    if not exp.get("found"):
+        return {"found": False, "keys": keys}
+    assets = exp["assets"]
+    order = sorted(range(len(assets)), key=lambda k: -(assets[k]["emissions_t"] or 0))
+    live = set(order[:top_n])
+    floods = {}
+    with ThreadPoolExecutor(8) as pool:
+        futs = {k: pool.submit(site_flood, assets[k]["lat"], assets[k]["lon"], 250.0, None, assets[k]["elev_m"]) for k in live}
+        for k, f in futs.items():
+            try:
+                floods[k] = f.result(timeout=90)
+            except Exception:                              # noqa: BLE001
+                floods[k] = {"river": {"available": False}, "coastal": {"available": False}}
+    common = {"u_model": np.random.default_rng(11).uniform(0, 1, n)}
+    per, tot = [], {}
+    for k in order:
+        a = assets[k]
+        r = analyse_asset(a["lat"], a["lon"], name=a["name"], register_index=a["i"], n=n, discount=discount,
+                          value_usd=(values or {}).get(str(a["i"])),
+                          _flood=floods.get(k, {"river": {"available": False, "reason": "not fetched (outside top assets)"},
+                                                "coastal": {"available": False, "reason": "not fetched"}}),
+                          _common=dict(common, seed=1000 + k))
+        for s, sc in r["financial"]["scenarios"].items():
+            tot.setdefault(s, []).append(sc.pop("_total_draws"))
+        per.append({"i": a["i"], "name": a["name"], "country": a["country"], "sector": a["sector"],
+                    "emissions_t": a["emissions_t"], "value_mode": r["asset"]["value"].get("mode"),
+                    "value_quality": r["asset"]["value"].get("quality"),
+                    "flood_assessed": k in live, "physical_aal_pct": r["financial"]["physical"]["aal_pct"],
+                    "cyclone": r["physical"]["cyclone"]["severity"], "river": r["physical"]["river_flood"].get("severity"),
+                    "coast": r["physical"]["coastal_flood"].get("severity"),
+                    "carbon_price_now": r["policy"]["effective_price_usd_t"],
+                    "instrument": r["policy"]["price_setting_instrument"],
+                    "npv_delayed_mean": (r["financial"]["scenarios"].get("Delayed transition") or {}).get("total_npv", {}).get("mean"),
+                    "npv_nz_mean": (r["financial"]["scenarios"].get("Net Zero 2050") or {}).get("total_npv", {}).get("mean"),
+                    "npv_cp_mean": (r["financial"]["scenarios"].get("Current Policies") or {}).get("total_npv", {}).get("mean"),
+                    "top_action": (r["actions"][0]["action"] if r["actions"] else None)})
+    V = sum((p["value_mode"] or 0) for p in per)
+    from .distribution import _stats
+    port = {}
+    for s, arrs in tot.items():
+        x = np.sum(np.stack(arrs), axis=0)
+        hist_hi = float(np.percentile(x, 99.5)) or 1.0
+        counts, edges = np.histogram(np.clip(x, 0, hist_hi), bins=40, range=(0, hist_hi))
+        port[s] = {"label": transition.label(s), "total_npv": _stats(x, V or None),
+                   "histogram": {"edges": np.round(edges, 0).tolist(), "counts": counts.tolist()}}
+    per.sort(key=lambda p: -(p["npv_delayed_mean"] or 0))
+    return {"found": True, "companies": exp["companies"], "n_assets": len(per), "portfolio_value_mode": V,
+            "flood_assessed_assets": len(live), "scenarios": port, "assets": per,
+            "method": "Each asset run through the four-stage analyst; flood depths fetched live for the top "
+                      f"{top_n} assets by emissions (others: cyclone + policy + transition only). Transition model "
+                      "draws are shared across assets (common scenario uncertainty); physical events independent.",
+            "elapsed_s": round(time.time() - t0, 1)}

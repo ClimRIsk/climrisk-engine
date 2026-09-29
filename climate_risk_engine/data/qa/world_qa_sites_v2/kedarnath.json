@@ -1,0 +1,35 @@
+{
+ "id": "kedarnath",
+ "name": "Kedarnath valley",
+ "stress": "debris-flow valley",
+ "check": "debris_high",
+ "ok": true,
+ "elapsed_s": 17.6,
+ "risk_signal": "HIGH",
+ "headline": "Kedarnath valley sits at 3541 m on flat terrain in bare sparse land cover. Debris flow from upslope terrain is the leading exposure (HIGH).",
+ "findings": {
+  "debris_flow": "HIGH",
+  "wildfire": "LOW",
+  "flood": "NEGLIGIBLE",
+  "landslide": "NEGLIGIBLE",
+  "urban_heat": "NEGLIGIBLE",
+  "tropical_cyclone": "NEGLIGIBLE"
+ },
+ "errors": {},
+ "scene_date": "2025-12-06",
+ "radar_dates": 10,
+ "has_dem": true,
+ "has_texture": true,
+ "layers": [
+  "flow_acc",
+  "land_cover",
+  "mndwi",
+  "ndbi",
+  "ndvi",
+  "sar_water",
+  "slope",
+  "water_freq"
+ ],
+ "payload_kb": 462,
+ "sanity": "ok"
+}

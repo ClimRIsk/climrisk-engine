@@ -1,0 +1,2143 @@
+{
+"source": "World Bank Carbon Pricing Dashboard, data release 'Download_data_May_2026.xlsx' (data last updated 1 April 2026), sheet Compliance_Gen Info. Prices are nominal US$/tCO2e on 1 April of each year. Licence CC BY 4.0. 'recent' notes summarise the dashboard's 'Recent developments' column, supplemented for a few instruments with widely reported official announcements (e.g. China ETS sector expansion, UK CBAM start, Singapore 2030 range); check the dashboard before relying on them.",
+"url": "https://carbonpricingdashboard.worldbank.org/",
+"price_years": [
+2021,
+2022,
+2023,
+2024,
+2025,
+2026
+],
+"sector_codes": {
+"el": "Electricity and heat",
+"ind": "Industry",
+"min": "Mining and extractives",
+"tra": "Transport",
+"avi": "Aviation",
+"bld": "Buildings",
+"agf": "Agriculture/forestry/fishing fuel use",
+"agr": "Agricultural emissions",
+"was": "Waste",
+"lul": "LULUCF"
+},
+"eu27": [
+"AUT",
+"BEL",
+"BGR",
+"HRV",
+"CYP",
+"CZE",
+"DNK",
+"EST",
+"FIN",
+"FRA",
+"DEU",
+"GRC",
+"HUN",
+"IRL",
+"ITA",
+"LVA",
+"LTU",
+"LUX",
+"MLT",
+"NLD",
+"POL",
+"PRT",
+"ROU",
+"SVK",
+"SVN",
+"ESP",
+"SWE"
+],
+"rggi_states": [
+"Connecticut",
+"Delaware",
+"Maine",
+"Maryland",
+"Massachusetts",
+"New Hampshire",
+"New Jersey",
+"New York",
+"Rhode Island",
+"Vermont"
+],
+"instruments": [
+{
+"id": "Tax_AL",
+"name": "Albania carbon tax",
+"type": "Carbon tax",
+"status": "Implemented",
+"iso3": [
+"ALB"
+],
+"share": "73% of jurisdiction emissions",
+"prices": [
+null,
+null,
+null,
+13.1,
+13.7,
+16.9
+],
+"sectors": "",
+"allocation": "",
+"recent": "Increase of the tax on coal postponed to 1 January 2026."
+},
+{
+"id": "ETS_CA_Alberta",
+"name": "Alberta TIER",
+"type": "ETS",
+"status": "Implemented",
+"iso3": [
+"CAN"
+],
+"admin1": [
+"Alberta"
+],
+"share": "63% of jurisdiction emissions",
+"prices": [
+31.8,
+40,
+48,
+58.9,
+66.2,
+68.4
+],
+"sectors": "el,ind,min,was",
+"allocation": "Free allocation (intensity-based), set price",
+"recent": "May 2025: TIER fund price frozen at CAD 95/t instead of scheduled increases."
+},
+{
+"id": "Tax_AN",
+"name": "Andorra carbon tax",
+"type": "Carbon tax",
+"status": "Implemented",
+"iso3": [
+"AND"
+],
+"share": "95% of jurisdiction emissions",
+"prices": [
+null,
+33.2,
+32.6,
+32.2,
+32.4,
+34.8
+],
+"sectors": "",
+"allocation": "",
+"recent": ""
+},
+{
+"id": "Tax_AR",
+"name": "Argentina carbon tax",
+"type": "Carbon tax",
+"status": "Implemented",
+"iso3": [
+"ARG"
+],
+"share": "38% of jurisdiction emissions",
+"prices": [
+5.3,
+5,
+3.2,
+0.8,
+5.3,
+4
+],
+"sectors": "ind,min,tra,avi,agf",
+"allocation": "Set price",
+"recent": "Tax raised 44% (gasoline) and 52% (gasoil) Dec 2024–Dec 2025."
+},
+{
+"id": "ETS_AU2",
+"name": "Australia Safeguard Mechanism",
+"type": "ETS",
+"status": "Implemented",
+"iso3": [
+"AUS"
+],
+"share": "26% of jurisdiction emissions",
+"prices": [
+null,
+null,
+null,
+21.9,
+21.8,
+24.7
+],
+"sectors": "ind,min,tra,avi",
+"allocation": "Baselines declining ~4.9%/yr to 2030 (intensity-based)",
+"recent": "Covered emissions fell ~2% FY2023→FY2024."
+},
+{
+"id": "ETS_AT",
+"name": "Austria national ETS",
+"type": "ETS",
+"status": "Implemented",
+"iso3": [
+"AUT"
+],
+"share": "47% of jurisdiction emissions",
+"prices": [
+null,
+null,
+35.3,
+48.4,
+48.5,
+63.8
+],
+"sectors": "tra,bld,agf",
+"allocation": "Set price",
+"recent": "Continues to 2027, then replaced by EU ETS2."
+},
+{
+"id": "ETS_CN_Beijing",
+"name": "Beijing pilot ETS",
+"type": "ETS",
+"status": "Implemented",
+"iso3": [
+"CHN"
+],
+"admin1": [
+"Beijing"
+],
+"share": "17% of jurisdiction emissions",
+"prices": [
+4.3,
+6.5,
+13,
+14.5,
+12.2,
+15.4
+],
+"sectors": "ind,min,tra,bld",
+"allocation": "Free allocation (grandfathering, intensity-based)",
+"recent": ""
+},
+{
+"id": "ETS_BR",
+"name": "Brazil ETS (SBCE)",
+"type": "ETS",
+"status": "Under development",
+"iso3": [
+"BRA"
+],
+"prices": [
+null,
+null,
+null,
+null,
+null,
+null
+],
+"sectors": "",
+"allocation": "",
+"recent": "Law 15.042/2024 establishes the ETS for phased implementation within 5–6 years."
+},
+{
+"id": "ETS_CA_BC",
+"name": "BC OBPS",
+"type": "ETS",
+"status": "Implemented",
+"iso3": [
+"CAN"
+],
+"admin1": [
+"British Columbia"
+],
+"share": "26% of jurisdiction emissions",
+"prices": [
+19.9,
+20,
+18.5,
+58.9,
+66.2,
+68.4
+],
+"sectors": "ind,min",
+"allocation": "Free allocation (intensity-based), set price",
+"recent": "BC consumer carbon tax abolished 2025; industrial OBPS continues."
+},
+{
+"id": "ETS_US_California",
+"name": "California Cap-and-Invest",
+"type": "ETS",
+"status": "Implemented",
+"iso3": [
+"USA"
+],
+"admin1": [
+"California"
+],
+"share": "76% of jurisdiction emissions",
+"prices": [
+17.9,
+30.8,
+29.8,
+38.6,
+29.3,
+29.1
+],
+"sectors": "el,ind,min,tra,bld,agf",
+"allocation": "Free allocation (intensity-based), auctioning",
+"recent": "Extended through 2045 by AB 1207 (Sept 2025)."
+},
+{
+"id": "ETS_CA2",
+"name": "Canada oil & gas emissions cap",
+"type": "ETS",
+"status": "Under development",
+"iso3": [
+"CAN"
+],
+"prices": [
+null,
+null,
+null,
+null,
+null,
+null
+],
+"sectors": "min",
+"allocation": "",
+"recent": "Draft regulations (Nov 2024) propose cap-and-trade for upstream oil and gas."
+},
+{
+"id": "ETS_CA",
+"name": "Canada federal OBPS",
+"type": "ETS",
+"status": "Implemented",
+"iso3": [
+"CAN"
+],
+"admin1": [
+"Manitoba",
+"Prince Edward Island",
+"Yukon",
+"Nunavut"
+],
+"share": "3% of jurisdiction emissions",
+"prices": [
+31.8,
+40,
+48,
+58.9,
+66.2,
+68.4
+],
+"sectors": "ind,min",
+"allocation": "Free allocation (intensity-based)",
+"recent": "Federal consumer fuel charge abolished 2025; industrial pricing benchmark under review."
+},
+{
+"id": "Tax_CL",
+"name": "Chile carbon tax",
+"type": "Carbon tax",
+"status": "Implemented",
+"iso3": [
+"CHL"
+],
+"share": "22% of jurisdiction emissions",
+"prices": [
+5,
+5,
+5,
+5,
+5,
+5
+],
+"sectors": "el,ind,min,agf",
+"allocation": "Set price",
+"recent": "Pilot ETS for the energy sector expected 2026–27 (voluntary at first)."
+},
+{
+"id": "ETS_CN",
+"name": "China national ETS",
+"type": "ETS",
+"status": "Implemented",
+"iso3": [
+"CHN"
+],
+"share": "52% of jurisdiction emissions",
+"prices": [
+null,
+9.2,
+8.2,
+12.6,
+11.8,
+11.6
+],
+"sectors": "el,ind",
+"allocation": "Free allocation (intensity-based)",
+"recent": "Expanded from power to steel, cement and aluminium (2025); new GHG inventory guidelines."
+},
+{
+"id": "ETS_CN_Chongqing",
+"name": "Chongqing pilot ETS",
+"type": "ETS",
+"status": "Implemented",
+"iso3": [
+"CHN"
+],
+"admin1": [
+"Chongqing"
+],
+"share": "14% of jurisdiction emissions",
+"prices": [
+3.7,
+5.7,
+4.7,
+6,
+5.5,
+5.2
+],
+"sectors": "ind,was",
+"allocation": "Free allocation",
+"recent": ""
+},
+{
+"id": "Tax_MX_Colima",
+"name": "Colima carbon tax",
+"type": "Carbon tax",
+"status": "Implemented",
+"iso3": [
+"MEX"
+],
+"admin1": [
+"Colima"
+],
+"share": "54% of jurisdiction emissions",
+"prices": [
+null,
+null,
+null,
+null,
+27.8,
+32.9
+],
+"sectors": "el,ind,min,bld,agf",
+"allocation": "Set price",
+"recent": ""
+},
+{
+"id": "Tax_CO",
+"name": "Colombia carbon tax",
+"type": "Carbon tax",
+"status": "Implemented",
+"iso3": [
+"COL"
+],
+"share": "20% of jurisdiction emissions",
+"prices": [
+4.6,
+5,
+5,
+6.7,
+6.5,
+7.9
+],
+"sectors": "ind,min,tra,avi,bld,agf",
+"allocation": "Set price",
+"recent": "Draft bill (Sept 2024) proposed a near-threefold rate increase; national ETS under development."
+},
+{
+"id": "ETS_US_CO",
+"name": "Colorado GHG crediting & trading",
+"type": "ETS",
+"status": "Implemented",
+"iso3": [
+"USA"
+],
+"admin1": [
+"Colorado"
+],
+"share": "3% of jurisdiction emissions",
+"prices": [
+null,
+null,
+null,
+null,
+null,
+24.9
+],
+"sectors": "ind",
+"allocation": "Free allocation (output-based)",
+"recent": "Coverage expanded to oil and gas (Dec 2024)."
+},
+{
+"id": "Tax_DK",
+"name": "Denmark carbon tax",
+"type": "Carbon tax",
+"status": "Implemented",
+"iso3": [
+"DNK"
+],
+"share": "64% of jurisdiction emissions",
+"prices": [
+27.9,
+26.4,
+26.3,
+28.4,
+1.1,
+116.5
+],
+"sectors": "el,ind,min,tra,bld,agf",
+"allocation": "Set price",
+"recent": "2022 green tax reform: higher carbon tax from 2025 (DKK 750/t non-ETS; top-up for ETS firms)."
+},
+{
+"id": "Tax_MX_Durango",
+"name": "Durango carbon tax",
+"type": "Carbon tax",
+"status": "Implemented",
+"iso3": [
+"MEX"
+],
+"admin1": [
+"Durango"
+],
+"share": "34% of jurisdiction emissions",
+"prices": [
+null,
+null,
+null,
+6,
+4.9,
+5.6
+],
+"sectors": "el,ind,min,bld,agf",
+"allocation": "Set price",
+"recent": ""
+},
+{
+"id": "Tax_EE",
+"name": "Estonia carbon tax",
+"type": "Carbon tax",
+"status": "Implemented",
+"iso3": [
+"EST"
+],
+"share": "10% of jurisdiction emissions",
+"prices": [
+2.3,
+2.2,
+2.2,
+2.1,
+27,
+2.3
+],
+"sectors": "el,ind,min",
+"allocation": "Set price",
+"recent": "Pollution charge €25/t for non-ETS installations from July 2024."
+},
+{
+"id": "ETS_EU",
+"name": "EU ETS",
+"type": "ETS",
+"status": "Implemented",
+"iso3": [
+"EU27",
+"ISL",
+"NOR",
+"LIE"
+],
+"share": "36% of jurisdiction emissions",
+"prices": [
+49.8,
+86.5,
+96.3,
+61.3,
+73.9,
+84.9
+],
+"sectors": "el,ind,min,tra,avi",
+"allocation": "Auctioning (power); free allocation (benchmarks) for industry phasing out 2026–2034 as CBAM phases in",
+"recent": "CBAM definitive phase began January 2026; first CBAM payments due by 30 Sept 2027."
+},
+{
+"id": "ETS_EU2",
+"name": "EU ETS2 (buildings, road transport)",
+"type": "ETS",
+"status": "Under development",
+"iso3": [
+"EU27"
+],
+"prices": [
+null,
+null,
+null,
+null,
+null,
+null
+],
+"sectors": "tra,bld",
+"allocation": "",
+"recent": "Full operation delayed to 2028 (provisional agreement Sept 2025)."
+},
+{
+"id": "Tax_FI",
+"name": "Finland carbon tax",
+"type": "Carbon tax",
+"status": "Implemented",
+"iso3": [
+"FIN"
+],
+"share": "45% of jurisdiction emissions",
+"prices": [
+90.4,
+85.1,
+83.7,
+100,
+66.9,
+59.5
+],
+"sectors": "ind,min,tra,bld,agf",
+"allocation": "Set price",
+"recent": "Transport fuel carbon tax cut from €62 to €56.8/t in 2026."
+},
+{
+"id": "Tax_FR",
+"name": "France carbon tax",
+"type": "Carbon tax",
+"status": "Implemented",
+"iso3": [
+"FRA"
+],
+"share": "41% of jurisdiction emissions",
+"prices": [
+52.4,
+49.3,
+48.5,
+47.9,
+48.1,
+51.8
+],
+"sectors": "ind,min,tra,bld",
+"allocation": "Set price",
+"recent": "Contribution Climat-Énergie unchanged."
+},
+{
+"id": "ETS_CN_Fujian",
+"name": "Fujian pilot ETS",
+"type": "ETS",
+"status": "Implemented",
+"iso3": [
+"CHN"
+],
+"admin1": [
+"Fujian"
+],
+"share": "16% of jurisdiction emissions",
+"prices": [
+1.2,
+1.8,
+4.7,
+3.7,
+4.7,
+3
+],
+"sectors": "ind,min,avi",
+"allocation": "Free allocation",
+"recent": ""
+},
+{
+"id": "ETS_DE",
+"name": "Germany national ETS (nEHS)",
+"type": "ETS",
+"status": "Implemented",
+"iso3": [
+"DEU"
+],
+"share": "42% of jurisdiction emissions",
+"prices": [
+29.4,
+33.2,
+32.6,
+48.4,
+48.5,
+63.8
+],
+"sectors": "min,tra,bld,agf,was",
+"allocation": "Set price",
+"recent": "Transitions into EU ETS2 once operational."
+},
+{
+"id": "Tax_MX_Guanajuato",
+"name": "Guanajuato carbon tax",
+"type": "Carbon tax",
+"status": "Implemented",
+"iso3": [
+"MEX"
+],
+"admin1": [
+"Guanajuato"
+],
+"share": "36% of jurisdiction emissions",
+"prices": [
+null,
+null,
+null,
+2.7,
+4.9,
+5.6
+],
+"sectors": "el,ind,min,bld,agf",
+"allocation": "Set price",
+"recent": ""
+},
+{
+"id": "ETS_CN_Guangdong",
+"name": "Guangdong pilot ETS",
+"type": "ETS",
+"status": "Implemented",
+"iso3": [
+"CHN"
+],
+"admin1": [
+"Guangdong"
+],
+"share": "12% of jurisdiction emissions",
+"prices": [
+5.7,
+12.5,
+12.3,
+8.9,
+5.4,
+5.7
+],
+"sectors": "ind,min,avi",
+"allocation": "Free allocation, auctioning",
+"recent": "2024 cap cut from ~300 to 94 MtCO2 as sectors moved to the national ETS."
+},
+{
+"id": "ETS_CN_Hubei",
+"name": "Hubei pilot ETS",
+"type": "ETS",
+"status": "Implemented",
+"iso3": [
+"CHN"
+],
+"admin1": [
+"Hubei"
+],
+"share": "20% of jurisdiction emissions",
+"prices": [
+4.4,
+7.2,
+7,
+5.6,
+5.3,
+5.7
+],
+"sectors": "ind,min,bld",
+"allocation": "Free allocation, auctioning",
+"recent": ""
+},
+{
+"id": "Tax_HU",
+"name": "Hungary carbon tax",
+"type": "Carbon tax",
+"status": "Implemented",
+"iso3": [
+"HUN"
+],
+"share": "32% of jurisdiction emissions",
+"prices": [
+null,
+null,
+null,
+38.7,
+38.8,
+41.8
+],
+"sectors": "el,ind,min,tra,avi",
+"allocation": "",
+"recent": "CO2 quota tax €36/t unchanged."
+},
+{
+"id": "Tax_IS",
+"name": "Iceland carbon tax",
+"type": "Carbon tax",
+"status": "Implemented",
+"iso3": [
+"ISL"
+],
+"share": "37% of jurisdiction emissions",
+"prices": [
+35.4,
+35.6,
+36.1,
+36.5,
+60.1,
+82.2
+],
+"sectors": "el,ind,min,tra,bld,agf",
+"allocation": "Set price",
+"recent": ""
+},
+{
+"id": "ETS_IN",
+"name": "India Carbon Credit Trading Scheme",
+"type": "ETS",
+"status": "Implemented",
+"iso3": [
+"IND"
+],
+"share": "11% of jurisdiction emissions",
+"prices": [
+null,
+null,
+null,
+null,
+null,
+null
+],
+"sectors": "ind,min",
+"allocation": "Intensity-based baseline-and-credit",
+"recent": "Compliance mechanism regulations adopted July 2024; intensity targets for aluminium, cement, chlor-alkali, pulp & paper, refineries, petrochemicals, textiles, iron & steel."
+},
+{
+"id": "Tax_ID",
+"name": "Indonesia carbon tax",
+"type": "Carbon tax",
+"status": "Under development",
+"iso3": [
+"IDN"
+],
+"prices": [
+null,
+null,
+null,
+null,
+null,
+null
+],
+"sectors": "",
+"allocation": "",
+"recent": ""
+},
+{
+"id": "ETS_ID",
+"name": "Indonesia ETS (NEK)",
+"type": "ETS",
+"status": "Implemented",
+"iso3": [
+"IDN"
+],
+"share": "21% of jurisdiction emissions",
+"prices": [
+null,
+null,
+null,
+0.6,
+0.7,
+0.7
+],
+"sectors": "el",
+"allocation": "Free allocation (intensity-based)",
+"recent": "Phase 2 (2025) expands from 146 grid coal plants to 563 installations incl. captive coal."
+},
+{
+"id": "Tax_IE",
+"name": "Ireland carbon tax",
+"type": "Carbon tax",
+"status": "Implemented",
+"iso3": [
+"IRL"
+],
+"share": "34% of jurisdiction emissions",
+"prices": [
+39.7,
+45.7,
+53.2,
+52.6,
+68.5,
+73.7
+],
+"sectors": "el,ind,min,tra,bld,agf",
+"allocation": "Set price",
+"recent": "Legislated path to €100/t by 2030."
+},
+{
+"id": "Tax_IL",
+"name": "Israel carbon tax",
+"type": "Carbon tax",
+"status": "Implemented",
+"iso3": [
+"ISR"
+],
+"share": "73% of jurisdiction emissions",
+"prices": [
+null,
+null,
+null,
+null,
+1.5,
+1.5
+],
+"sectors": "",
+"allocation": "Industrial adaptation support, 2.1%/yr reduction",
+"recent": "Phasing in on coal, gas and oil via excise from 2025."
+},
+{
+"id": "Tax_JP",
+"name": "Japan carbon tax (Global Warming Countermeasures Tax)",
+"type": "Carbon tax",
+"status": "Implemented",
+"iso3": [
+"JPN"
+],
+"share": "80% of jurisdiction emissions",
+"prices": [
+2.4,
+2.2,
+2,
+1.9,
+1.9,
+1.8
+],
+"sectors": "el,ind,min,tra,bld",
+"allocation": "Set price",
+"recent": "A fossil-fuel levy under the GX framework is scheduled from 2028."
+},
+{
+"id": "ETS_JP",
+"name": "Japan GX-ETS",
+"type": "ETS",
+"status": "Implemented",
+"iso3": [
+"JPN"
+],
+"share": "60% of jurisdiction emissions",
+"prices": [
+null,
+null,
+null,
+null,
+null,
+null
+],
+"sectors": "el,ind,min,tra,avi",
+"allocation": "Free allocation (grandfathering and benchmarking)",
+"recent": "Mandatory GX-ETS commenced April 2026 for emitters >100 kt; power-sector auctioning from 2033."
+},
+{
+"id": "ETS_KZ",
+"name": "Kazakhstan ETS",
+"type": "ETS",
+"status": "Implemented",
+"iso3": [
+"KAZ"
+],
+"share": "44% of jurisdiction emissions",
+"prices": [
+1.2,
+1.1,
+1.1,
+1.1,
+0.9,
+1
+],
+"sectors": "el,ind,min",
+"allocation": "Free allocation (intensity-based)",
+"recent": "Draft Phase 6 plan (2026–2030) with annual cap cuts."
+},
+{
+"id": "ETS_KR",
+"name": "Korea ETS",
+"type": "ETS",
+"status": "Implemented",
+"iso3": [
+"KOR"
+],
+"share": "78% of jurisdiction emissions",
+"prices": [
+15.9,
+18.7,
+11.2,
+6.3,
+6.5,
+10.2
+],
+"sectors": "el,ind,min,tra,avi,bld,was",
+"allocation": "Free allocation (intensity-based), auctioning",
+"recent": "4th allocation plan (2026–2030) approved Nov 2025, higher auctioning share."
+},
+{
+"id": "Tax_LV",
+"name": "Latvia carbon tax",
+"type": "Carbon tax",
+"status": "Implemented",
+"iso3": [
+"LVA"
+],
+"share": "2% of jurisdiction emissions",
+"prices": [
+14.1,
+16.6,
+16.3,
+16.1,
+16.2,
+17.4
+],
+"sectors": "ind,min",
+"allocation": "Set price",
+"recent": ""
+},
+{
+"id": "Tax_LI",
+"name": "Liechtenstein carbon tax",
+"type": "Carbon tax",
+"status": "Implemented",
+"iso3": [
+"LIE"
+],
+"share": "72% of jurisdiction emissions",
+"prices": [
+101.5,
+129.9,
+130.8,
+132.1,
+136,
+149.8
+],
+"sectors": "ind,min,tra,bld",
+"allocation": "Set price",
+"recent": ""
+},
+{
+"id": "Tax_LU",
+"name": "Luxembourg carbon tax",
+"type": "Carbon tax",
+"status": "Implemented",
+"iso3": [
+"LUX"
+],
+"share": "72% of jurisdiction emissions",
+"prices": [
+40.1,
+43.3,
+45,
+49.9,
+58.5,
+46.4
+],
+"sectors": "ind,min,tra,bld",
+"allocation": "Set price",
+"recent": ""
+},
+{
+"id": "ETS_MY",
+"name": "Malaysia carbon tax / ETS",
+"type": "Carbon tax",
+"status": "Under development",
+"iso3": [
+"MYS"
+],
+"prices": [
+null,
+null,
+null,
+null,
+null,
+null
+],
+"sectors": "el,ind",
+"allocation": "",
+"recent": "Carbon tax on iron & steel and energy planned (announced for 2026); ETS under consideration."
+},
+{
+"id": "ETS_US_MA",
+"name": "Massachusetts power-sector ETS",
+"type": "ETS",
+"status": "Implemented",
+"iso3": [
+"USA"
+],
+"admin1": [
+"Massachusetts"
+],
+"share": "9% of jurisdiction emissions",
+"prices": [
+6.5,
+0.5,
+12.1,
+2.3,
+9.3,
+30
+],
+"sectors": "el",
+"allocation": "Auctioning",
+"recent": ""
+},
+{
+"id": "Tax_MR",
+"name": "Mauritania carbon tax",
+"type": "Carbon tax",
+"status": "Implemented",
+"iso3": [
+"MRT"
+],
+"share": "5% of jurisdiction emissions",
+"prices": [
+null,
+null,
+null,
+null,
+null,
+20
+],
+"sectors": "min",
+"allocation": "",
+"recent": "New tax on mining emissions (Aug 2025)."
+},
+{
+"id": "Tax_MX",
+"name": "Mexico carbon tax (IEPS)",
+"type": "Carbon tax",
+"status": "Implemented",
+"iso3": [
+"MEX"
+],
+"share": "42% of jurisdiction emissions",
+"prices": [
+2.9,
+3.2,
+3.8,
+4.3,
+3.9,
+3.8
+],
+"sectors": "el,ind,min,tra,avi,bld,agf",
+"allocation": "Set price",
+"recent": ""
+},
+{
+"id": "ETS_MX",
+"name": "Mexico ETS",
+"type": "ETS",
+"status": "Implemented",
+"iso3": [
+"MEX"
+],
+"share": "36% of jurisdiction emissions",
+"prices": [
+null,
+null,
+null,
+null,
+null,
+null
+],
+"sectors": "el,ind,min",
+"allocation": "Free allocation (grandfathering)",
+"recent": "Operational phase began 2025 (~300 entities)."
+},
+{
+"id": "Tax_MX_MC",
+"name": "Mexico City carbon tax",
+"type": "Carbon tax",
+"status": "Implemented",
+"iso3": [
+"MEX"
+],
+"admin1": [
+"Distrito Federal"
+],
+"share": "18% of jurisdiction emissions",
+"prices": [
+null,
+null,
+null,
+null,
+2.8,
+3.4
+],
+"sectors": "el,ind,min,bld,agf",
+"allocation": "Set price",
+"recent": ""
+},
+{
+"id": "ETS_MO",
+"name": "Montenegro ETS",
+"type": "ETS",
+"status": "Implemented",
+"iso3": [
+"MNE"
+],
+"share": "43% of jurisdiction emissions",
+"prices": [
+null,
+null,
+null,
+25.8,
+25.9,
+27.9
+],
+"sectors": "el,ind,min",
+"allocation": "Free allocation, auctioning",
+"recent": "Only Pljevlja coal plant still operating in scope."
+},
+{
+"id": "Tax_MX_MO",
+"name": "Morelos carbon tax",
+"type": "Carbon tax",
+"status": "Implemented",
+"iso3": [
+"MEX"
+],
+"admin1": [
+"Morelos"
+],
+"share": "31% of jurisdiction emissions",
+"prices": [
+null,
+null,
+null,
+null,
+12.3,
+5.8
+],
+"sectors": "el,ind,min,bld,agf",
+"allocation": "Set price",
+"recent": ""
+},
+{
+"id": "Tax_NL",
+"name": "Netherlands industrial CO2 levy",
+"type": "Carbon tax",
+"status": "Implemented",
+"iso3": [
+"NLD"
+],
+"share": "45% of jurisdiction emissions",
+"prices": [
+35.2,
+46.1,
+60.8,
+71.5,
+94.8,
+102
+],
+"sectors": "el,ind,min",
+"allocation": "Set price above EU ETS with dispensation rights",
+"recent": "Levy held at €87.90/t from April 2025; earlier plans to steepen the path dropped."
+},
+{
+"id": "ETS_CA_NB",
+"name": "New Brunswick OBPS",
+"type": "ETS",
+"status": "Implemented",
+"iso3": [
+"CAN"
+],
+"admin1": [
+"New Brunswick"
+],
+"share": "54% of jurisdiction emissions",
+"prices": [
+null,
+40,
+48,
+58.9,
+66.2,
+68.4
+],
+"sectors": "el,ind,min",
+"allocation": "Free allocation (intensity-based)",
+"recent": ""
+},
+{
+"id": "ETS_US_NY",
+"name": "New York cap-and-invest",
+"type": "ETS",
+"status": "Under development",
+"iso3": [
+"USA"
+],
+"admin1": [
+"New York"
+],
+"prices": [
+null,
+null,
+null,
+null,
+null,
+null
+],
+"sectors": "",
+"allocation": "",
+"recent": "Design consultations ongoing."
+},
+{
+"id": "ETS_NZ",
+"name": "New Zealand ETS",
+"type": "ETS",
+"status": "Implemented",
+"iso3": [
+"NZL"
+],
+"share": "44% of jurisdiction emissions",
+"prices": [
+25.8,
+52.6,
+34.2,
+35.1,
+32,
+24
+],
+"sectors": "el,ind,min,tra,avi,bld,agf,was,lul",
+"allocation": "Free allocation (intensity-based), auctioning",
+"recent": "Auction volumes decline 2026–2030."
+},
+{
+"id": "ETS_CA_NL",
+"name": "Newfoundland and Labrador PSS",
+"type": "ETS",
+"status": "Implemented",
+"iso3": [
+"CAN"
+],
+"admin1": [
+"Newfoundland and Labrador"
+],
+"share": "39% of jurisdiction emissions",
+"prices": [
+23.9,
+40,
+48,
+58.9,
+66.2,
+68.4
+],
+"sectors": "el,ind,min",
+"allocation": "Free allocation (intensity-based)",
+"recent": ""
+},
+{
+"id": "Tax_NO",
+"name": "Norway carbon tax",
+"type": "Carbon tax",
+"status": "Implemented",
+"iso3": [
+"NOR"
+],
+"share": "65% of jurisdiction emissions",
+"prices": [
+80.4,
+96.3,
+94.5,
+107.8,
+133.9,
+169.7
+],
+"sectors": "el,ind,min,tra,avi,bld,agf,was",
+"allocation": "Set price (on top of EU ETS for offshore oil & gas)",
+"recent": "Non-ETS taxes up 14% above inflation from Jan 2026."
+},
+{
+"id": "ETS_CA_NS",
+"name": "Nova Scotia OBPS",
+"type": "ETS",
+"status": "Implemented",
+"iso3": [
+"CAN"
+],
+"admin1": [
+"Nova Scotia"
+],
+"share": "35% of jurisdiction emissions",
+"prices": [
+19.7,
+23.1,
+20.9,
+58.9,
+66.2,
+68.4
+],
+"sectors": "el,ind,min",
+"allocation": "Free allocation (intensity-based)",
+"recent": ""
+},
+{
+"id": "ETS_CA_Ontario2",
+"name": "Ontario EPS",
+"type": "ETS",
+"status": "Implemented",
+"iso3": [
+"CAN"
+],
+"admin1": [
+"Ontario"
+],
+"share": "24% of jurisdiction emissions",
+"prices": [
+null,
+32,
+48,
+58.9,
+66.2,
+68.4
+],
+"sectors": "el,ind,min",
+"allocation": "Free allocation (intensity-based)",
+"recent": ""
+},
+{
+"id": "ETS_US_Oregon",
+"name": "Oregon Climate Protection Program",
+"type": "ETS",
+"status": "Implemented",
+"iso3": [
+"USA"
+],
+"admin1": [
+"Oregon"
+],
+"share": "50% of jurisdiction emissions",
+"prices": [
+null,
+null,
+null,
+null,
+null,
+null
+],
+"sectors": "ind,min,tra,bld,agf,was",
+"allocation": "Free allocation, auctioning",
+"recent": "First compliance period began 2025."
+},
+{
+"id": "ETS_PH",
+"name": "Philippines ETS",
+"type": "ETS",
+"status": "Under consideration",
+"iso3": [
+"PHL"
+],
+"prices": [
+null,
+null,
+null,
+null,
+null,
+null
+],
+"sectors": "",
+"allocation": "",
+"recent": "House approved the Low Carbon Economy bill (June 2025)."
+},
+{
+"id": "Tax_PL",
+"name": "Poland carbon tax",
+"type": "Carbon tax",
+"status": "Implemented",
+"iso3": [
+"POL"
+],
+"share": "24% of jurisdiction emissions",
+"prices": [
+0.1,
+0.1,
+0.1,
+0.1,
+0.1,
+0.1
+],
+"sectors": "ind,min,tra,bld,agf",
+"allocation": "Set price",
+"recent": ""
+},
+{
+"id": "Tax_PT",
+"name": "Portugal carbon tax",
+"type": "Carbon tax",
+"status": "Implemented",
+"iso3": [
+"PRT"
+],
+"share": "40% of jurisdiction emissions",
+"prices": [
+27.8,
+26.2,
+25.8,
+25.5,
+72.7,
+78.2
+],
+"sectors": "",
+"allocation": "Set price, rebates",
+"recent": ""
+},
+{
+"id": "ETS_CA_Quebec",
+"name": "Quebec cap-and-trade",
+"type": "ETS",
+"status": "Implemented",
+"iso3": [
+"CAN"
+],
+"admin1": [
+"Québec"
+],
+"share": "79% of jurisdiction emissions",
+"prices": [
+17.9,
+38.6,
+29.8,
+38.6,
+41.5,
+29
+],
+"sectors": "el,ind,min,tra,bld,agf",
+"allocation": "Free allocation (intensity-based), auctioning",
+"recent": "Linked with California."
+},
+{
+"id": "Tax_MX_Queretaro",
+"name": "Querétaro carbon tax",
+"type": "Carbon tax",
+"status": "Implemented",
+"iso3": [
+"MEX"
+],
+"admin1": [
+"Querétaro"
+],
+"share": "18% of jurisdiction emissions",
+"prices": [
+null,
+null,
+32.2,
+36.7,
+32.8,
+38.9
+],
+"sectors": "ind,min,bld,agf",
+"allocation": "Set price",
+"recent": ""
+},
+{
+"id": "ETS_RGGI",
+"name": "RGGI (Regional Greenhouse Gas Initiative)",
+"type": "ETS",
+"status": "Implemented",
+"iso3": [
+"USA"
+],
+"admin1": [
+"RGGI"
+],
+"share": "14% of jurisdiction emissions",
+"prices": [
+8.7,
+13.9,
+15.4,
+17.6,
+23.3,
+26.4
+],
+"sectors": "el",
+"allocation": "Auctioning",
+"recent": "Third Program Review (July 2025): tighter cap from 2027. Pennsylvania ended participation (June 2025)."
+},
+{
+"id": "ETS_JP_Saitama",
+"name": "Saitama ETS",
+"type": "ETS",
+"status": "Implemented",
+"iso3": [
+"JPN"
+],
+"admin1": [
+"Saitama"
+],
+"share": "16% of jurisdiction emissions",
+"prices": [
+5.4,
+3.8,
+1.1,
+0.9,
+1,
+1
+],
+"sectors": "ind,bld,agf",
+"allocation": "Free allocation (grandfathering)",
+"recent": "4th compliance period FY2025–2029, 48% reduction factor for factories."
+},
+{
+"id": "Tax_MX_SLP",
+"name": "San Luis Potosí carbon tax",
+"type": "Carbon tax",
+"status": "Implemented",
+"iso3": [
+"MEX"
+],
+"admin1": [
+"San Luis Potosí"
+],
+"share": "68% of jurisdiction emissions",
+"prices": [
+null,
+null,
+null,
+null,
+16.7,
+19.8
+],
+"sectors": "el,ind,min,bld,agf",
+"allocation": "Set price",
+"recent": ""
+},
+{
+"id": "Tax_RS",
+"name": "Serbia carbon tax",
+"type": "Carbon tax",
+"status": "Implemented",
+"iso3": [
+"SRB"
+],
+"share": "55% of jurisdiction emissions",
+"prices": [
+null,
+null,
+null,
+null,
+null,
+4.6
+],
+"sectors": "el,ind",
+"allocation": "",
+"recent": "GHG emissions tax and carbon-intensive import tax adopted Dec 2025."
+},
+{
+"id": "ETS_CN_Shanghai",
+"name": "Shanghai pilot ETS",
+"type": "ETS",
+"status": "Implemented",
+"iso3": [
+"CHN"
+],
+"admin1": [
+"Shanghai"
+],
+"share": "21% of jurisdiction emissions",
+"prices": [
+6.3,
+9.3,
+8.7,
+10.1,
+10.8,
+9.1
+],
+"sectors": "ind,min,tra,avi,bld,agf",
+"allocation": "Free allocation, auctioning",
+"recent": ""
+},
+{
+"id": "Tax_SG",
+"name": "Singapore carbon tax",
+"type": "Carbon tax",
+"status": "Implemented",
+"iso3": [
+"SGP"
+],
+"share": "70% of jurisdiction emissions",
+"prices": [
+3.7,
+3.7,
+3.8,
+18.5,
+18.6,
+35
+],
+"sectors": "el,ind,min,was",
+"allocation": "Fixed price; transitionary allowances for trade-exposed sectors",
+"recent": "Rate raised from S$25 to S$45/t on 1 Jan 2026; S$50–80/t by 2030."
+},
+{
+"id": "Tax_SI",
+"name": "Slovenia carbon tax",
+"type": "Carbon tax",
+"status": "Implemented",
+"iso3": [
+"SVN"
+],
+"share": "46% of jurisdiction emissions",
+"prices": [
+20.3,
+19.1,
+null,
+18.6,
+33.3,
+35.8
+],
+"sectors": "tra,bld",
+"allocation": "Set price",
+"recent": ""
+},
+{
+"id": "Tax_ZA",
+"name": "South Africa carbon tax",
+"type": "Carbon tax",
+"status": "Implemented",
+"iso3": [
+"ZAF"
+],
+"share": "82% of jurisdiction emissions",
+"prices": [
+9.2,
+9.8,
+8.9,
+10.1,
+12.8,
+18.3
+],
+"sectors": "el,ind,min,tra,avi,bld,agf",
+"allocation": "Set price with basic tax-free allowances (60–95%)",
+"recent": "Rate R236/t (2025) → R308/t (2026) on a legislated escalation path."
+},
+{
+"id": "Tax_ES",
+"name": "Spain F-gas tax",
+"type": "Carbon tax",
+"status": "Implemented",
+"iso3": [
+"ESP"
+],
+"share": "2% of jurisdiction emissions",
+"prices": [
+17.6,
+16.6,
+16.3,
+16.1,
+16.2,
+17.4
+],
+"sectors": "ind",
+"allocation": "Set price",
+"recent": "Applies to fluorinated gases only."
+},
+{
+"id": "Tax_MX_SoMexico",
+"name": "State of Mexico carbon tax",
+"type": "Carbon tax",
+"status": "Implemented",
+"iso3": [
+"MEX"
+],
+"admin1": [
+"México"
+],
+"share": "48% of jurisdiction emissions",
+"prices": [
+null,
+null,
+2.4,
+3.5,
+2.8,
+2.4
+],
+"sectors": "el,ind,min,bld,agf",
+"allocation": "",
+"recent": ""
+},
+{
+"id": "Tax_SE",
+"name": "Sweden carbon tax",
+"type": "Carbon tax",
+"status": "Implemented",
+"iso3": [
+"SWE"
+],
+"share": "40% of jurisdiction emissions",
+"prices": [
+136.1,
+129.9,
+125.6,
+123.7,
+144.6,
+154.5
+],
+"sectors": "el,ind,min,tra,bld,agf",
+"allocation": "Set price",
+"recent": ""
+},
+{
+"id": "Tax_CH",
+"name": "Switzerland CO2 levy",
+"type": "Carbon tax",
+"status": "Implemented",
+"iso3": [
+"CHE"
+],
+"share": "38% of jurisdiction emissions",
+"prices": [
+101.5,
+129.9,
+130.8,
+132.1,
+136,
+149.8
+],
+"sectors": "bld",
+"allocation": "Set price, rebates",
+"recent": "Revised CO2 Act in force 2025 (targets to 2030)."
+},
+{
+"id": "ETS_CH",
+"name": "Switzerland ETS",
+"type": "ETS",
+"status": "Implemented",
+"iso3": [
+"CHE"
+],
+"share": "12% of jurisdiction emissions",
+"prices": [
+46.1,
+65.6,
+93.8,
+59.2,
+64.7,
+99.3
+],
+"sectors": "el,ind,min,avi",
+"allocation": "Free allocation (benchmarks), auctioning; linked with EU ETS",
+"recent": "Same linear reduction factors as EU ETS from 2025."
+},
+{
+"id": "Tax_TW",
+"name": "Taiwan carbon fee",
+"type": "Carbon tax",
+"status": "Implemented",
+"iso3": [
+"TWN"
+],
+"share": "80% of jurisdiction emissions",
+"prices": [
+null,
+null,
+null,
+9.1,
+9.1,
+9.4
+],
+"sectors": "el,ind",
+"allocation": "Preferential rates for firms with approved reduction plans",
+"recent": "Draft fee reductions for high-leakage-risk industries (Dec 2025)."
+},
+{
+"id": "Tax_MX_TA",
+"name": "Tamaulipas carbon tax",
+"type": "Carbon tax",
+"status": "Implemented",
+"iso3": [
+"MEX"
+],
+"admin1": [
+"Tamaulipas"
+],
+"share": "59% of jurisdiction emissions",
+"prices": [
+null,
+13.1,
+17.3,
+19.7,
+16.7,
+19.8
+],
+"sectors": "el,ind,min,bld,agf",
+"allocation": "Set price",
+"recent": ""
+},
+{
+"id": "Tax_TH",
+"name": "Thailand carbon tax / ETS",
+"type": "Carbon tax",
+"status": "Under development",
+"iso3": [
+"THA"
+],
+"prices": [
+null,
+null,
+null,
+null,
+null,
+null
+],
+"sectors": "",
+"allocation": "",
+"recent": "Cabinet approved the draft Climate Change Act (Dec 2025) establishing an ETS and carbon tax."
+},
+{
+"id": "ETS_CN_Tianjin",
+"name": "Tianjin pilot ETS",
+"type": "ETS",
+"status": "Implemented",
+"iso3": [
+"CHN"
+],
+"admin1": [
+"Tianjin"
+],
+"share": "18% of jurisdiction emissions",
+"prices": [
+3.8,
+4.4,
+4.6,
+4.7,
+5.3,
+4.4
+],
+"sectors": "ind,min",
+"allocation": "Free allocation, auctioning",
+"recent": ""
+},
+{
+"id": "ETS_JP_Tokyo",
+"name": "Tokyo cap-and-trade",
+"type": "ETS",
+"status": "Implemented",
+"iso3": [
+"JPN"
+],
+"admin1": [
+"Tokyo"
+],
+"share": "20% of jurisdiction emissions",
+"prices": [
+4.9,
+4.4,
+5.2,
+36.9,
+4,
+3.7
+],
+"sectors": "ind,min,was",
+"allocation": "Free allocation (grandfathering)",
+"recent": "4th compliance period FY2025–2029, 50% reduction factor for offices."
+},
+{
+"id": "ETS_TR",
+"name": "Türkiye ETS",
+"type": "ETS",
+"status": "Under development",
+"iso3": [
+"TUR"
+],
+"prices": [
+null,
+null,
+null,
+null,
+null,
+null
+],
+"sectors": "el,ind",
+"allocation": "",
+"recent": "Climate Law (July 2025) provides the legal basis; pilot phase expected 2026."
+},
+{
+"id": "Tax_UA",
+"name": "Ukraine carbon tax",
+"type": "Carbon tax",
+"status": "Implemented",
+"iso3": [
+"UKR"
+],
+"share": "32% of jurisdiction emissions",
+"prices": [
+0.4,
+1,
+0.8,
+0.8,
+0.7,
+0.7
+],
+"sectors": "el,ind,min,bld",
+"allocation": "Set price",
+"recent": "National ETS mandated (Oct 2024 law)."
+},
+{
+"id": "Tax_UK",
+"name": "UK Carbon Price Support",
+"type": "Carbon tax",
+"status": "Implemented",
+"iso3": [
+"GBR"
+],
+"share": "10% of jurisdiction emissions",
+"prices": [
+24.8,
+23.7,
+22.3,
+22.6,
+23.2,
+23.9
+],
+"sectors": "el",
+"allocation": "",
+"recent": "Top-up on fossil fuels for power generation in Great Britain."
+},
+{
+"id": "ETS_UK",
+"name": "UK ETS",
+"type": "ETS",
+"status": "Implemented",
+"iso3": [
+"GBR"
+],
+"share": "25% of jurisdiction emissions",
+"prices": [
+null,
+98.6,
+88.1,
+45.1,
+57.2,
+54.8
+],
+"sectors": "el,ind,min,avi",
+"allocation": "Free allocation (benchmarks), auctioning",
+"recent": "UK CBAM from January 2027; scope expansions and free-allocation review in progress."
+},
+{
+"id": "Tax_UY",
+"name": "Uruguay CO2 tax",
+"type": "Carbon tax",
+"status": "Implemented",
+"iso3": [
+"URY"
+],
+"share": "5% of jurisdiction emissions",
+"prices": [
+null,
+137.3,
+155.9,
+167.2,
+158.8,
+165.6
+],
+"sectors": "min,tra",
+"allocation": "Set price",
+"recent": ""
+},
+{
+"id": "ETS_VN",
+"name": "Viet Nam pilot ETS",
+"type": "ETS",
+"status": "Implemented",
+"iso3": [
+"VNM"
+],
+"share": "46% of jurisdiction emissions",
+"prices": [
+null,
+null,
+null,
+null,
+null,
+null
+],
+"sectors": "el,ind",
+"allocation": "Free allocation (output-based benchmarks)",
+"recent": "Decree 119/2025 operationalises the pilot ETS (thermal power, steel, cement)."
+},
+{
+"id": "ETS_US_Washington",
+"name": "Washington Cap-and-Invest (CCA)",
+"type": "ETS",
+"status": "Implemented",
+"iso3": [
+"USA"
+],
+"admin1": [
+"Washington"
+],
+"share": "71% of jurisdiction emissions",
+"prices": [
+null,
+null,
+22.2,
+25.8,
+50,
+65.3
+],
+"sectors": "el,ind,min,tra,avi,bld,agf,agr",
+"allocation": "Free allocation (benchmarks) for EITE, auctioning",
+"recent": "HB 1975 (2025) directs review of allocation; linkage with California–Québec being pursued."
+},
+{
+"id": "Tax_MX_Yucatan",
+"name": "Yucatán carbon tax",
+"type": "Carbon tax",
+"status": "Implemented",
+"iso3": [
+"MEX"
+],
+"admin1": [
+"Yucatán"
+],
+"share": "37% of jurisdiction emissions",
+"prices": [
+null,
+null,
+15.5,
+17.7,
+15,
+17.7
+],
+"sectors": "el,ind,min,bld,agf",
+"allocation": "Set price",
+"recent": ""
+},
+{
+"id": "Tax_MX_ZA",
+"name": "Zacatecas carbon tax",
+"type": "Carbon tax",
+"status": "Implemented",
+"iso3": [
+"MEX"
+],
+"admin1": [
+"Zacatecas"
+],
+"share": "50% of jurisdiction emissions",
+"prices": [
+14.1,
+12.6,
+13.9,
+15.1,
+12.3,
+14
+],
+"sectors": "",
+"allocation": "Set price",
+"recent": ""
+},
+{
+"id": "Tax_NG",
+"name": "Nigeria carbon tax",
+"type": "Carbon tax",
+"status": "Implemented",
+"iso3": [
+"NGA"
+],
+"share": "5% of jurisdiction emissions",
+"prices": [
+null,
+null,
+null,
+null,
+null,
+6.9
+],
+"sectors": "min",
+"allocation": "",
+"recent": "Climate Change Act (2021) requires a carbon tax and ETS; applies to extractives first."
+}
+]
+}

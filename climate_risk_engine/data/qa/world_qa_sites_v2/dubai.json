@@ -1,0 +1,35 @@
+{
+ "id": "dubai",
+ "name": "Dubai Jebel Ali",
+ "stress": "desert heat",
+ "check": "no_cyclone",
+ "ok": true,
+ "elapsed_s": 34.9,
+ "risk_signal": "MODERATE",
+ "headline": "Dubai Jebel Ali sits at 9 m on flat terrain in built up land cover. Urban heat amplification is the leading exposure (MODERATE).",
+ "findings": {
+  "urban_heat": "MODERATE",
+  "debris_flow": "LOW",
+  "flood": "NEGLIGIBLE",
+  "landslide": "NEGLIGIBLE",
+  "wildfire": "NEGLIGIBLE",
+  "tropical_cyclone": "NEGLIGIBLE"
+ },
+ "errors": {},
+ "scene_date": "2026-05-22",
+ "radar_dates": 10,
+ "has_dem": true,
+ "has_texture": true,
+ "layers": [
+  "flow_acc",
+  "land_cover",
+  "mndwi",
+  "ndbi",
+  "ndvi",
+  "sar_water",
+  "slope",
+  "water_freq"
+ ],
+ "payload_kb": 413,
+ "sanity": "ok"
+}

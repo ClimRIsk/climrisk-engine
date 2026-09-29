@@ -36,8 +36,21 @@ SAFFIR = [(17.5, "tropical storm"), (33.0, "Cat 1"), (43.0, "Cat 2"), (50.0, "Ca
 LEVELS = ["NEGLIGIBLE", "LOW", "MODERATE", "HIGH", "CRITICAL"]
 
 
+# Words too common to identify a company group on their own
+_GENERIC = set("""china chinese national power energy generation generating electric electricity cement steel
+iron oil gas coal mining mine company corporation international group industries industry resources
+development thermal plant petroleum petrochemical chemical chemicals holdings the of and de la el del pt jsc
+ojsc pjsc ao oao inc new city state province provincial investment general first united global""".split())
+
+
+def _fold(s: str) -> str:
+    """Strip accents so 'Comisión' and 'Comision' match."""
+    import unicodedata
+    return "".join(c for c in unicodedata.normalize("NFKD", s) if not unicodedata.combining(c))
+
+
 def norm(name: str) -> str:
-    s = str(name).lower().replace("&", " and ")
+    s = _fold(str(name)).lower().replace("&", " and ")
     s = re.sub(r"\(.*?\)", " ", s)
     s = re.sub(r"[^a-z0-9 ]", " ", s)
     s = _SUFFIX.sub(" ", s)
@@ -50,7 +63,16 @@ def _load() -> dict:
     z = np.load(_DATA / "asset_register.npz", allow_pickle=False)
     a = {k: z[k] for k in z.files}
     meta = json.loads((_DATA / "asset_register_companies.json").read_text())
-    comps = meta["companies"]
+    comps: dict = {}
+    for c in meta["companies"].values():
+        k = norm(c["name"])
+        if not k:
+            continue
+        if k in comps:                                   # merge entities that now normalise alike
+            comps[k]["assets"] = sorted(set(comps[k]["assets"]) | set(c["assets"]))
+            comps[k]["aliases"] = sorted(set(comps[k]["aliases"]) | set(c["aliases"]))[:8]
+        else:
+            comps[k] = dict(c)
     keys = list(comps.keys())
     a["_companies"] = comps
     a["_keys"] = keys
@@ -89,12 +111,38 @@ def search(query: str, limit: int = 12) -> list[dict]:
         scored.append((s, int(R["_nassets"][i]), k))
     scored.sort(key=lambda x: (-x[0], -x[1]))
     out = []
+    # One-click group: all owners containing a distinctive query word (e.g. 'huaneng'),
+    # which is how state-owned groups and multinationals appear in the sources.
+    for tok in [t for t in toks if t not in _GENERIC and len(t) >= 3][:1]:
+        members = _group_members(tok)
+        if len(members) >= 2:
+            ii = sorted({j for k in members for j in R["_companies"][k]["assets"]})
+            countries = sorted({str(R["countries"][j]) for j in R["country"][np.array(ii)]})
+            out.append({"key": "group:" + tok, "name": f"All '{tok.title()}' entities ({len(members)})",
+                        "n_assets": len(ii), "countries": countries[:8], "n_countries": len(countries),
+                        "match": "group", "n_entities": len(members)})
     for s, n, k in scored[:limit]:
         c = R["_companies"][k]
         idx = np.array(c["assets"])
         countries = sorted({str(R["countries"][j]) for j in R["country"][idx]})
         out.append({"key": k, "name": c["name"], "n_assets": n, "countries": countries[:8],
                     "n_countries": len(countries), "match": ["", "words", "prefix", "exact"][s]})
+    return out
+
+
+def _group_members(tok: str) -> list[str]:
+    """
+    Owner keys belonging to a name group:
+      • the word appears as a whole word ('conch' in 'anhui conch cement'), or
+      • for words of 5+ letters, the name starts with it ('exxon' → 'exxonmobil corp'), or
+      • for words of 6+ letters, anywhere (run-together names: 'guangdongdatanginternational').
+    Stops 'semen' (Indonesian for cement) matching Norwegian 'sement', and 'vale' matching 'valero'.
+    """
+    R = _load()
+    out = []
+    for k in R["_keys"]:
+        if tok in k.split() or (len(tok) >= 5 and k.startswith(tok)) or (len(tok) >= 6 and tok in k):
+            out.append(k)
     return out
 
 
@@ -127,7 +175,13 @@ def company_exposure(keys: list[str], max_assets: int = 2000) -> dict:
     R = _load()
     idx: list[int] = []
     names = []
+    expanded: list[str] = []
     for k in keys:
+        if str(k).startswith("group:"):
+            expanded += _group_members(k.split(":", 1)[1])
+        else:
+            expanded.append(k)
+    for k in dict.fromkeys(expanded):
         c = R["_companies"].get(k) or R["_companies"].get(norm(k))
         if c:
             idx += c["assets"]

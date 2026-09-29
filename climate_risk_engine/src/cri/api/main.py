@@ -2480,3 +2480,69 @@ def world_land() -> dict:
     """Natural Earth 1:110m land outline (public domain) for the offline portfolio map."""
     import json as _json
     return {"rings": _json.loads((Path(__file__).parent / "world_land_110m.json").read_text())}
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# RISK ANALYST — physical → policy → transition → financial distribution
+# ──────────────────────────────────────────────────────────────────────────────
+
+class AnalystAssetRequest(BaseModel):
+    lat:          float = Field(..., ge=-90, le=90)
+    lon:          float = Field(..., ge=-180, le=180)
+    name:         Optional[str] = None
+    sector:       Optional[str] = Field(None, description="Register sector, e.g. electricity-generation, cement, iron-and-steel")
+    asset_type:   Optional[str] = Field(None, description="Register asset type, e.g. coal, gas, BF/BOF, integrated dry")
+    capacity:     Optional[float] = Field(None, description="Capacity in register units (MW, t/yr, bbl/d)")
+    emissions_t:  Optional[float] = Field(None, ge=0, description="Annual scope-1 emissions, tCO2e")
+    value_usd:    Optional[float] = Field(None, gt=0, description="Replacement / book value, USD (overrides the estimate)")
+    register_index: Optional[int] = Field(None, description="Asset index from /company/exposure")
+    discount_rate: float = Field(0.07, ge=0.0, le=0.2)
+    narrative_llm: bool = Field(False, description="Also write an LLM narrative (Groq) from the computed numbers")
+    site:         Optional[dict] = Field(None, description="Optional /asset/assess result to fold satellite findings in")
+
+
+class AnalystCompanyRequest(BaseModel):
+    keys:          list[str] = Field(..., min_length=1, max_length=50)
+    top_n:         int = Field(30, ge=1, le=80, description="Assets (by emissions) that get live flood-depth reads")
+    discount_rate: float = Field(0.07, ge=0.0, le=0.2)
+
+
+def _jsonable(x):
+    import numpy as _np
+    if isinstance(x, dict):
+        return {k: _jsonable(v) for k, v in x.items() if not str(k).startswith("_")}
+    if isinstance(x, (list, tuple)):
+        return [_jsonable(v) for v in x]
+    if isinstance(x, _np.ndarray):
+        return _jsonable(x.tolist())
+    if isinstance(x, (_np.floating,)):
+        return None if not _np.isfinite(x) else float(x)
+    if isinstance(x, (_np.integer,)):
+        return int(x)
+    if isinstance(x, float) and x != x:
+        return None
+    return x
+
+
+@app.post("/analyst/asset", dependencies=[_AUTH], tags=["Risk Analyst"])
+def analyst_asset(request: AnalystAssetRequest) -> dict:
+    """
+    Four-stage Risk Analyst for one asset: physical hazards (cyclone, river and coastal
+    flood with defences) → carbon-pricing policies in force → NGFS Phase 5 transition
+    paths → Monte Carlo loss distribution to 2050, with findings and actions.
+    Unknown sector/emissions are filled from the nearest register asset (≤ 1 km).
+    Typical latency: < 1 s cached, 3–30 s on first visit (flood depths are range-read).
+    """
+    from ..finance.analyst import analyse_asset
+    r = analyse_asset(request.lat, request.lon, name=request.name, sector=request.sector,
+                      atype=request.asset_type, capacity=request.capacity, emissions_t=request.emissions_t,
+                      value_usd=request.value_usd, register_index=request.register_index, site=request.site,
+                      discount=request.discount_rate, narrative_llm=request.narrative_llm)
+    return _jsonable(r)
+
+
+@app.post("/analyst/company", dependencies=[_AUTH], tags=["Risk Analyst"])
+def analyst_company(request: AnalystCompanyRequest) -> dict:
+    """Run every register asset of the selected owners through the analyst and aggregate the distribution."""
+    from ..finance.analyst import analyse_company
+    return _jsonable(analyse_company(request.keys, top_n=request.top_n, discount=request.discount_rate))

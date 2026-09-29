@@ -120,6 +120,39 @@
   .atable tr { cursor: pointer; } .atable tr:hover td { background: #0e1a2c; }
   .atable .sub { color: var(--muted); font-size: 10px; }
   .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; }
+
+  /* Risk Analyst report */
+  .layout { position: relative; }
+  #analyst { position: absolute; top: 0; bottom: 0; left: 250px; right: 0; background: var(--bg); z-index: 20; display: none; overflow-y: auto; padding: 18px 22px 40px; }
+  #analyst.on { display: block; }
+  .an-head { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 12px; }
+  .an-head h2 { font-size: 17px; font-weight: 700; }
+  .an-close { margin-left: auto; background: transparent; border: 1px solid var(--border); color: var(--muted); border-radius: 6px; padding: 6px 12px; cursor: pointer; font: inherit; }
+  .an-steps { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0 14px; }
+  .an-step { font-size: 11px; padding: 5px 10px; border-radius: 14px; border: 1px solid var(--border); color: var(--muted); background: var(--surface); }
+  .an-step.done { border-color: var(--low); color: var(--text); }
+  .an-step.run { border-color: var(--primary); color: var(--primary); animation: pulse 1.2s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .5; } }
+  .an-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .an-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px; min-width: 0; }
+  .an-card.wide { grid-column: 1 / -1; }
+  .an-card h3 { font-size: 12px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--primary); margin-bottom: 10px; display: flex; gap: 8px; align-items: center; }
+  .an-card h3 .n { background: var(--primary); color: #04121d; border-radius: 50%; width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; }
+  .an-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 10px; }
+  .an-kpis .kpi .v { font-size: 16px; }
+  .an-tbl { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+  .an-tbl th { text-align: left; color: var(--muted); font-weight: 600; font-size: 10.5px; padding: 4px 6px; border-bottom: 1px solid var(--border); }
+  .an-tbl td { padding: 6px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  .an-tbl td.r, .an-tbl th.r { text-align: right; font-family: var(--mono); white-space: nowrap; }
+  .an-note { font-size: 11px; color: var(--muted); line-height: 1.55; margin-top: 8px; }
+  .an-chips { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 8px; }
+  .an-chart { width: 100%; height: 190px; display: block; }
+  .an-act { display: grid; grid-template-columns: 110px 1fr 1fr; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 12px; line-height: 1.5; }
+  .an-act .h { font-weight: 700; text-transform: capitalize; color: var(--high); }
+  .an-act .pr { color: var(--text); } .an-act .ac { color: #b9f3d0; }
+  .an-ask { display: flex; gap: 8px; margin-top: 10px; } .an-ask input { flex: 1; }
+  .an-ask button { width: auto; padding: 8px 14px; }
+  .an-val { display: flex; gap: 8px; align-items: center; margin-top: 8px; } .an-val input { width: 160px; } .an-val button { width: auto; padding: 7px 12px; }
 </style>
 </head>
 <body>
@@ -142,6 +175,7 @@
       <input id="coQuery" placeholder="Search e.g. Holcim, NTPC, Exxon" autocomplete="off">
       <div class="results" id="coResults"></div>
       <button class="btn btn-primary" id="coBtn" style="margin-top:10px" onclick="loadExposure()" disabled>Show exposure</button>
+      <button class="btn btn-ghost" id="coAnBtn" style="margin-top:8px;border-color:#a78bfa;color:#c4b5fd" onclick="runAnalystCompany()" disabled>Risk Analyst: portfolio loss distribution</button>
       <div class="status" id="coStatus" style="margin-top:10px">Search a company, tick every entity that belongs to it (subsidiaries are listed separately), then press <b>Show exposure</b>.</div>
     </div>
 
@@ -184,6 +218,7 @@
 
     <button class="btn btn-primary" id="analyzeBtn" onclick="analyze()">Analyse asset</button>
     <button class="btn btn-ghost" id="aiBtn" onclick="aiDeepDive()" disabled>AI deep dive</button>
+    <button class="btn btn-ghost" id="anBtn" onclick="runAnalystSite()" style="border-color:#a78bfa;color:#c4b5fd">Risk Analyst: policy · transition · finance</button>
 
     <div>
       <div class="status" id="status">Enter coordinates, or pick an example site, then press <b>Analyse asset</b>.</div>
@@ -217,6 +252,7 @@
   </main>
 
   <!-- Findings -->
+  <section id="analyst"></section>
   <aside class="panel" id="panel">
     <div class="section-title">Assessment</div>
     <div class="headline" style="color:var(--muted)">No site analysed yet.</div>
@@ -667,6 +703,7 @@ async function loadExposure() {
     CO.data = await r.json(); CO.pick = -1;
     if (!CO.data.found) throw new Error('no assets for the selected entities');
     st.className = 'status';
+    document.getElementById('coAnBtn').disabled = false;
     st.innerHTML = `<b>${CO.data.n_assets}</b> assets loaded in ${Math.round(performance.now() - t0)} ms. Click a dot or a row to inspect; open any asset in 3D.`;
     fitView(); drawWorld(); renderCompanyPanel();
   } catch (e) { st.className = 'status error'; st.textContent = 'Error: ' + e.message; }
@@ -774,14 +811,16 @@ function renderCompanyPanel() {
         <tr><td class="m" colspan="2">Worst storm at this site<span class="vv">${esc(a.cyclone.worst || 'none recorded')}</span></td></tr>
         <tr><td class="m">Ground elevation (screen)</td><td class="v">${a.elev_m != null ? a.elev_m + ' m' : '—'}</td></tr>
       </table>
-      <button class="btn btn-primary" onclick="openSite(${CO.pick})">Open 3D site analysis</button></div>`;
+      <button class="btn btn-primary" onclick="openSite(${CO.pick})">Open 3D site analysis</button>
+      <button class="btn btn-ghost" style="margin-top:6px;border-color:#a78bfa;color:#c4b5fd" onclick="runAnalystRegister(${CO.pick})">Risk Analyst for this asset</button></div>`;
   }
   const rows = d.assets.slice(0, 200).map((a, i) => `<tr onclick="selectAsset(${i})"><td><span class="dot" style="background:${SEV_COLOR[a.screen_level]}"></span></td>
       <td>${esc(a.name)}<div class="sub">${esc(a.sector)} · ${esc(a.country)}</div></td>
       <td style="text-align:right;white-space:nowrap">${esc(a.cyclone.rp100_category === 'below tropical-storm force' ? '—' : a.cyclone.rp100_category)}<div class="sub">${a.elev_m != null ? a.elev_m + ' m' : ''}</div></td></tr>`).join('');
   document.getElementById('panel').innerHTML = `
     <div class="section-title">Company exposure</div>
-    <div class="headline"><b>${esc(d.companies.slice(0, 3).join(' + '))}</b>${d.companies.length > 3 ? ` <span style="color:var(--muted)">and ${d.companies.length - 3} more entities</span>` : ''}</div>
+    <div class="headline"><b>${esc(d.companies.slice(0, 3).join(' + '))}</b>${d.companies.length > 3 ? ` <a href="#" style="color:var(--primary)" onclick="this.outerHTML='<b> + ' + ${JSON.stringify(esc(d.companies.slice(3).join(' + ')))} + '</b>';return false">and ${d.companies.length - 3} more entities (show all)</a>` : ''}
+      <div class="meta">All ${d.companies.length} selected entities are included in the figures, map and list below.</div></div>
     <div class="kpis">
       <div class="kpi"><div class="v">${d.n_assets}</div><div class="l">assets in ${Object.keys(S.countries).length} countries</div></div>
       <div class="kpi"><div class="v" style="color:${SEV_COLOR.HIGH}">${pct(S.share_assets_high_or_critical)}</div><div class="l">of assets HIGH or CRITICAL${S.share_emissions_high_or_critical != null ? ' · ' + pct(S.share_emissions_high_or_critical) + ' of emissions' : ''}</div></div>
@@ -815,9 +854,15 @@ function renderCompanyPanel() {
   }
   if (h.get('lat') && h.get('lon')) preset(+h.get('lat'), +h.get('lon'), h.get('name') || 'Asset', h.get('type') || 'industrial');
   if (h.get('auto') === '1' && h.get('lat')) setTimeout(analyze, 50);
+  if (h.get('analyst') === '1' && h.get('lat')) setTimeout(() => runAnalystSite(), 80);
   if (h.get('mode') === 'company') setTimeout(() => {
     setMode('company');
     if (h.get('company')) { document.getElementById('coQuery').value = h.get('company'); searchCompanies(h.get('company')); }
+    if (h.get('analyst') === '1') {
+      document.getElementById('coStatus').innerHTML = '<b>AI Risk Analyst</b> — search a company and press <b>Show exposure</b>, then ' +
+        '<b>Risk Analyst: portfolio loss distribution</b>. For one site, pick an asset on the map and press <b>Risk Analyst for this asset</b>, ' +
+        'or switch to <b>Site</b>, enter coordinates and press the purple button.';
+    }
   }, 30);
   history.replaceState(null, '', location.pathname);   // drop the key from the address bar
 })();
@@ -847,6 +892,232 @@ async function aiDeepDive() {
   } catch (e) { box.className = 'ai'; box.textContent = 'AI brief unavailable: ' + e.message; }
   finally { document.getElementById('aiBtn').disabled = false; }
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// RISK ANALYST — physical → policy → transition → financial distribution
+// ═══════════════════════════════════════════════════════════════════════════
+const AN = { data: null, kind: null, req: null, scen: 'Delayed transition', timer: null };
+const SC_COLOR = { 'Net Zero 2050': '#22c55e', 'Below 2?C': '#84cc16', 'Low demand': '#14b8a6', 'Delayed transition': '#f97316',
+                   'Fragmented World': '#a855f7', 'Nationally Determined Contributions (NDCs)': '#eab308', 'Current Policies': '#ef4444' };
+const SC_ORDER = ['Net Zero 2050', 'Below 2?C', 'Low demand', 'Delayed transition', 'Nationally Determined Contributions (NDCs)', 'Fragmented World', 'Current Policies'];
+const usd = x => x == null || !isFinite(x) ? '—' : Math.abs(x) >= 1e9 ? '$' + (x / 1e9).toFixed(2) + 'bn' : Math.abs(x) >= 1e6 ? '$' + (x / 1e6).toFixed(1) + 'm' : Math.abs(x) >= 1e3 ? '$' + (x / 1e3).toFixed(0) + 'k' : '$' + Math.round(x);
+const scLabel = s => ({ 'Below 2?C': 'Below 2°C', 'Nationally Determined Contributions (NDCs)': 'NDCs' })[s] || s;
+
+function anOpen(title) {
+  const el = document.getElementById('analyst'); el.classList.add('on');
+  const stages = ['Identify asset', 'Physical risk', 'Policies in force', 'Transition (NGFS)', 'Loss distribution', 'Findings & actions'];
+  el.innerHTML = `<div class="an-head"><div><h2>${esc(title)}</h2><div class="meta">Risk Analyst · every number computed by the engine from open data</div></div>
+      <button class="an-close" onclick="anClose()">Close ✕</button></div>
+    <div class="an-steps">${stages.map((s, i) => `<span class="an-step ${i ? '' : 'run'}" id="ans${i}">${s}</span>`).join('')}</div>
+    <div class="headline" id="anHead" style="color:var(--muted)">Working…</div>`;
+  let k = 0; clearInterval(AN.timer);
+  AN.timer = setInterval(() => { if (k < stages.length - 1) { document.getElementById('ans' + k).className = 'an-step done'; k++; const e = document.getElementById('ans' + k); if (e) e.className = 'an-step run'; } }, 1400);
+}
+function anDone() { clearInterval(AN.timer); document.querySelectorAll('.an-step').forEach(e => e.className = 'an-step done'); }
+function anClose() { clearInterval(AN.timer); document.getElementById('analyst').classList.remove('on'); }
+
+async function anPost(path, body) {
+  const r = await fetch(path, { method: 'POST', headers: hdrs(document.getElementById('apiKey').value), body: JSON.stringify(body) });
+  if (!r.ok) throw new Error(`API ${r.status}: ${(await r.text()).slice(0, 200)}`);
+  return r.json();
+}
+
+async function runAnalystSite(valueUsd) {
+  const lat = parseFloat(document.getElementById('lat').value), lon = parseFloat(document.getElementById('lon').value);
+  if (!isFinite(lat) || !isFinite(lon)) return setStatus('Enter a valid latitude and longitude first.', 'error');
+  const name = document.getElementById('assetName').value || null;
+  const site = last && Math.abs(last.lat - lat) < 1e-4 && Math.abs(last.lon - lon) < 1e-4
+    ? { headline: last.headline, risk_signal: last.risk_signal, findings: (last.findings || []).map(f => ({ hazard: f.hazard, severity: f.severity, summary: f.summary })) } : null;
+  AN.req = { lat, lon, name, site, value_usd: valueUsd || null };
+  return anRunAsset(name || `${lat.toFixed(3)}, ${lon.toFixed(3)}`);
+}
+async function runAnalystRegister(i, valueUsd) {
+  const a = CO.data.assets[i];
+  AN.req = { lat: a.lat, lon: a.lon, name: a.name, register_index: a.i, value_usd: valueUsd || null };
+  return anRunAsset(a.name);
+}
+async function anRunAsset(title) {
+  anOpen(title); AN.kind = 'asset';
+  try { AN.data = await anPost('/analyst/asset', AN.req); anDone(); renderAnalyst(); }
+  catch (e) { anDone(); document.getElementById('anHead').innerHTML = `<span style="color:var(--critical)">Error: ${esc(e.message)}</span>`; }
+}
+async function runAnalystCompany() {
+  if (!CO.selected.size) return;
+  anOpen('Portfolio: ' + (CO.data ? CO.data.companies.slice(0, 2).join(' + ') + (CO.data.companies.length > 2 ? ' …' : '') : '')); AN.kind = 'company';
+  try { AN.data = await anPost('/analyst/company', { keys: [...CO.selected], top_n: 30 }); anDone(); renderPortfolio(); }
+  catch (e) { anDone(); document.getElementById('anHead').innerHTML = `<span style="color:var(--critical)">Error: ${esc(e.message)}</span>`; }
+}
+
+// ── tiny canvas charts ──
+function chartCanvas(id) {
+  const c = document.getElementById(id); if (!c) return null;
+  const dpr = Math.min(devicePixelRatio, 2); c.width = c.clientWidth * dpr; c.height = c.clientHeight * dpr;
+  const ctx = c.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, c.clientWidth, c.clientHeight);
+  ctx.font = '10px sans-serif'; return { ctx, W: c.clientWidth, H: c.clientHeight };
+}
+function axes(g, x0, x1, y1, fy, xl) {
+  const { ctx, W, H } = g, L = 46, B = 20, T = 8, R = 8;
+  ctx.strokeStyle = '#1c2a44'; ctx.fillStyle = '#8a9bbd'; ctx.lineWidth = 1;
+  for (let k = 0; k <= 4; k++) { const y = T + (H - T - B) * (1 - k / 4); ctx.beginPath(); ctx.moveTo(L, y); ctx.lineTo(W - R, y); ctx.stroke(); ctx.fillText(fy(y1 * k / 4), 2, y + 3); }
+  (xl || []).forEach(([v, t]) => { const x = L + (W - L - R) * (v - x0) / (x1 - x0); const tw = ctx.measureText(t).width; ctx.fillText(t, Math.min(Math.max(x - tw / 2, L), W - tw - 2), H - 6); });
+  return { X: v => L + (W - L - R) * (v - x0) / (x1 - x0), Y: v => T + (H - T - B) * (1 - v / (y1 || 1)) };
+}
+function lineChart(id, years, series, fy) {
+  const g = chartCanvas(id); if (!g) return;
+  const y1 = Math.max(1e-9, ...series.flatMap(s => s.v.filter(isFinite))) * 1.08;
+  const a = axes(g, years[0], years[years.length - 1], y1, fy, [2026, 2030, 2035, 2040, 2045, 2050].map(y => [y, String(y)]));
+  series.forEach(s => { const c = g.ctx; c.strokeStyle = s.c; c.lineWidth = s.w || 2; c.beginPath(); s.v.forEach((v, i) => { const X = a.X(years[i]), Y = a.Y(v); i ? c.lineTo(X, Y) : c.moveTo(X, Y); }); c.stroke(); });
+}
+function histChart(id, h, color, marks) {
+  const g = chartCanvas(id); if (!g || !h) return;
+  const e = h.edges, n = h.counts, y1 = Math.max(...n) * 1.1;
+  const a = axes(g, e[0], e[e.length - 1], y1, v => '', [[e[0], usd(e[0])], [e[20], usd(e[20])], [e[40], usd(e[40])]]);
+  const c = g.ctx; c.fillStyle = color;
+  n.forEach((v, i) => { const x0 = a.X(e[i]), x1 = a.X(e[i + 1]); c.fillRect(x0 + 0.5, a.Y(v), Math.max(1, x1 - x0 - 1), a.Y(0) - a.Y(v)); });
+  (marks || []).forEach(([v, t, col]) => { const X = a.X(Math.min(v, e[e.length - 1])); c.strokeStyle = col; c.setLineDash([4, 3]); c.beginPath(); c.moveTo(X, 8); c.lineTo(X, g.H - 20); c.stroke(); c.setLineDash([]); c.fillStyle = col; c.fillText(t, X + 3, 18); });
+}
+
+function anScenChips(active, fn) {
+  const S = (AN.kind === 'company' ? AN.data.scenarios : AN.data.financial.scenarios);
+  return `<div class="an-chips">${SC_ORDER.filter(s => S[s]).map(s => `<span class="chip ${s === active ? 'on' : ''}" onclick="${fn}('${s.replace(/'/g, "\\'")}')" style="border-color:${s === active ? SC_COLOR[s] : ''}">${esc(scLabel(s))}</span>`).join('')}</div>`;
+}
+function setScen(s) { AN.scen = s; AN.kind === 'company' ? renderPortfolio() : renderAnalyst(); }
+
+function renderAnalyst() {
+  const d = AN.data, A = d.asset, P = d.physical, pol = d.policy, T = d.transition, F = d.financial;
+  const S = F.scenarios[AN.scen] || Object.values(F.scenarios)[0]; const t = S.total_npv, pv = t.pct_of_value || {};
+  const sev = x => `<span class="pill sev-${x || 'NEGLIGIBLE'}">${x || 'n/a'}</span>`;
+  const tc = P.cyclone, rv = P.river_flood, cs = P.coastal_flood;
+  const rp = (h, k, r) => h[k] && h.rps ? h[k][h.rps.indexOf(r)] : null;
+  const sat = P.site_analysis ? `<div class="an-note"><b>Satellite site analysis:</b> ${esc(P.site_analysis.headline)}<br>${P.site_analysis.findings.filter(f => f.severity !== 'NEGLIGIBLE').map(f => `${esc(HAZARD_LABEL[f.hazard] || f.hazard)} ${sev(f.severity)}`).join(' · ')}</div>` : '';
+  const inst = pol.in_force.map(p => `<tr><td>${esc(p.name)}<div class="sub" style="color:var(--muted);font-size:10px">${esc(p.type)} · ${esc(p.share_of_jurisdiction_emissions || '')}</div></td>
+      <td class="r">${p.price_usd_t != null ? '$' + p.price_usd_t.toFixed(1) : '—'}<div style="color:var(--muted);font-size:10px">${p.price_year || ''}</div></td>
+      <td>${p.covers_asset_sector === true ? 'Yes' : p.covers_asset_sector === false ? 'No' : 'Unclear'}</td>
+      <td style="font-size:11px">${esc((p.charged_share || {}).rule || p.allocation || '')}<div style="color:var(--muted);font-size:10.5px;margin-top:3px">${esc(p.recent || '')}</div></td></tr>`).join('');
+  const pipe = pol.pipeline.map(p => `<li>${esc(p.name)} — <i>${esc(p.status)}</i>. ${esc(p.recent || '')}</li>`).join('');
+  const scRows = SC_ORDER.filter(s => F.scenarios[s]).map(s => { const x = F.scenarios[s]; return `<tr style="cursor:pointer" onclick="setScen('${s.replace(/'/g, "\\'")}')">
+      <td><span class="dot" style="background:${SC_COLOR[s]}"></span>${esc(scLabel(s))}</td>
+      <td class="r">${x.price_median ? '$' + x.price_median[4].toFixed(0) : '—'}</td><td class="r">${x.price_median ? '$' + x.price_median[24].toFixed(0) : '—'}</td>
+      <td class="r">${usd(x.transition_npv.mean)}</td><td class="r">${x.stranded ? usd(x.stranded.mean) : '—'}</td>
+      <td class="r">${usd(x.total_npv.mean)}</td><td class="r">${usd(x.total_npv.p95)}</td></tr>`; }).join('');
+  const acts = d.actions.map(a => `<div class="an-act"><div class="h">${esc(a.hazard.replace(/_/g, ' '))}</div><div class="pr">${esc(a.problem)}</div><div class="ac">→ ${esc(a.action)}</div></div>`).join('') || '<div class="an-note">No material issues found at screening level.</div>';
+  const V = A.value || {};
+  document.getElementById('analyst').innerHTML = `
+    <div class="an-head"><div><h2>${esc(A.name || 'Asset')}</h2>
+      <div class="meta">${esc(A.sector || '')} ${esc(A.type || '')} · ${esc(A.admin1 || '')}, ${esc(A.iso3 || '')} · ${A.lat.toFixed(4)}, ${A.lon.toFixed(4)}
+      ${A.emissions_t ? ' · ' + (A.emissions_t / 1e6).toFixed(2) + ' Mt CO₂e/yr' : ''}${A.owners && A.owners.length ? ' · owners: ' + esc(A.owners.slice(0, 3).join(', ')) : ''} · ${d.elapsed_s}s</div></div>
+      <button class="an-close" onclick="anClose()">Close ✕</button></div>
+    <div class="an-steps">${d.steps.map(s => `<span class="an-step done" title="${esc(s.text)}">✓ ${esc(s.stage)}</span>`).join('')}</div>
+    <div class="headline" style="margin-bottom:14px">${esc(d.headline)}</div>
+    <div class="an-grid">
+      <div class="an-card"><h3><span class="n">1</span>Physical risk</h3>
+        <table class="an-tbl"><tr><th>Hazard</th><th title="Expected damage to this asset after its vulnerability and flood defences — the 3D site view rates raw hazard intensity instead">Impact</th><th class="r">Key numbers</th></tr>
+          <tr><td>Tropical cyclone</td><td>${sev(tc.severity)}</td><td class="r">${tc.lam.toFixed(2)} storms/yr · 1-in-100 ${tc.rp100_ms.toFixed(0)} m/s (${esc(tc.category_100yr)})</td></tr>
+          <tr><td>River flood</td><td>${sev(rv.severity)}</td><td class="r">${rv.rps ? `1-in-100 depth ${rp(rv, 'mean_depth_m', 100)} m · defended to 1-in-${rv.protection_rp.toFixed(0)}` : esc(rv.note || 'n/a')}</td></tr>
+          <tr><td>Coastal flood</td><td>${sev(cs.severity)}</td><td class="r">${cs.rps ? `1-in-100 depth ${rp(cs, 'mean_depth_m', 100)} m → ${rp(cs, 'mean_depth_m_2050', 100)} m (2050) · defended to 1-in-${cs.protection_rp.toFixed(0)}` : esc(cs.note || 'n/a')}</td></tr>
+        </table>
+        <div class="an-kpis" style="grid-template-columns:repeat(3,1fr);margin-top:10px">
+          <div class="kpi"><div class="v">${F.physical.aal_pct.toFixed(2)}%</div><div class="l">average annual damage (of value)</div></div>
+          <div class="kpi"><div class="v">${usd(F.physical.aal_usd)}</div><div class="l">average annual loss</div></div>
+          <div class="kpi"><div class="v">${F.physical.annual_loss_rp ? usd(F.physical.annual_loss_rp['100']) : (100 * F.physical.annual_damage_ratio_rp['100']).toFixed(1) + '%'}</div><div class="l">1-in-100-year annual loss</div></div></div>
+        ${sat}<div class="an-note">${esc(P.vulnerability.wind_curve)}; ${esc(P.vulnerability.flood_curve)}. Defences: FLOPROS.</div></div>
+      <div class="an-card"><h3><span class="n">2</span>Current policies</h3>
+        <div class="meta" style="margin-bottom:8px">Jurisdiction: ${esc(A.admin1 || '')}, ${esc(A.iso3 || '')} · policy sector <b>${esc(pol.policy_sector)}</b> · effective price today <b style="color:var(--text)">$${pol.effective_price_usd_t}/t</b>${pol.price_setting_instrument ? ' (' + esc(pol.price_setting_instrument) + ')' : ''}</div>
+        ${inst ? `<table class="an-tbl"><tr><th>In force</th><th class="r">US$/t</th><th>Covers</th><th>How it bites</th></tr>${inst}</table>` : '<div class="an-note">No carbon price covers this asset today.</div>'}
+        ${pipe ? `<div class="section-title" style="margin-top:10px">Pipeline</div><ul class="actions">${pipe}</ul>` : ''}
+        ${pol.notes.filter(n => inst || !/^No carbon price/.test(n)).length ? `<div class="an-note">${pol.notes.filter(n => inst || !/^No carbon price/.test(n)).map(esc).join('<br>')}</div>` : ''}
+        <div class="an-note">Source: World Bank Carbon Pricing Dashboard (May 2026).</div></div>
+      <div class="an-card wide"><h3><span class="n">3</span>Transition projection — NGFS Phase 5</h3>
+        ${anScenChips(AN.scen, 'setScen')}
+        <div class="an-grid"><div><div class="meta">Effective carbon price, US$2024/t (median of ${T.models.length} models)</div><canvas class="an-chart" id="anPrice"></canvas></div>
+          <div><div class="meta">${T.activity_variable ? 'Sector output index (2025 = 1): ' + esc(T.activity_variable) : 'Annual carbon cost after pass-through, median and 5–95%'}</div><canvas class="an-chart" id="anAct"></canvas></div></div>
+        <table class="an-tbl" style="margin-top:10px"><tr><th>Scenario</th><th class="r">Price 2030</th><th class="r">Price 2050</th><th class="r">Carbon cost PV</th><th class="r">Stranded</th><th class="r">Total loss PV</th><th class="r">95th pct</th></tr>${scRows}</table>
+        <div class="an-note">Emissions held at today's level (${A.emissions_t ? A.emissions_t.toLocaleString() + ' t/yr' : 'unknown'}) — the cost of not abating. Future carbon price reaches the plant at a sampled 30–100% (free allocation, benchmarks); pass-through ${T.assumptions.pass_through.join('/')} (low/mode/high).</div></div>
+      <div class="an-card wide"><h3><span class="n">4</span>Financial loss distribution 2026–2050 · ${esc(scLabel(AN.scen))}</h3>
+        <div class="an-kpis">
+          <div class="kpi"><div class="v">${usd(t.mean)}</div><div class="l">expected loss (PV)${pv.mean != null ? ' · ' + pv.mean.toFixed(1) + '% of value' : ''}</div></div>
+          <div class="kpi"><div class="v">${usd(t.p50)}</div><div class="l">median</div></div>
+          <div class="kpi"><div class="v" style="color:var(--high)">${usd(t.p95)}</div><div class="l">95th percentile (1-in-20)${pv.p95 != null ? ' · ' + pv.p95.toFixed(1) + '%' : ''}</div></div>
+          <div class="kpi"><div class="v" style="color:var(--critical)">${usd(t.es95)}</div><div class="l">expected shortfall, worst 5%</div></div></div>
+        <canvas class="an-chart" id="anHist" style="height:210px"></canvas>
+        <div class="an-note">${F.n_draws.toLocaleString()} Monte Carlo draws · real discount ${(100 * F.discount_rate).toFixed(0)}% · physical share of expected loss ${(100 * S.share_physical).toFixed(0)}%${S.closure_share > 0 ? ` · in ${(100 * S.closure_share).toFixed(0)}% of draws transition costs exceed the asset's value (closure assumed)` : ''}.<br>
+          Asset value ${usd(V.mode)} (range ${usd(V.low)}–${usd(V.high)}): ${esc(V.basis || '')}</div>
+        <div class="an-val" style="flex-wrap:wrap"><label style="margin:0">Asset value (USD)</label><input id="anValue" type="number" placeholder="${V.mode ? Math.round(V.mode) : 'e.g. 850000000'}">
+          <label style="margin:0">Emissions (tCO₂e/yr)</label><input id="anEm" type="number" placeholder="${A.emissions_t ? Math.round(A.emissions_t) : 'e.g. 450000'}">
+          <select id="anSec" style="width:190px">${AN_SECTORS.map(([k, l]) => `<option value="${k}" ${k === (A.sector + '|' + (A.type || '')) ? 'selected' : ''}>${l}</option>`).join('')}</select>
+          <button class="btn btn-ghost" onclick="anRerunValue()">Re-run</button></div>
+        <div class="an-note">Override any input with the owner's figures — the whole chain (policy, transition, distribution) re-runs.</div></div>
+      <div class="an-card wide"><h3><span class="n">5</span>Findings &amp; actions — problem → resolution</h3>${acts}
+        <div class="section-title" style="margin-top:12px">Ask the analyst</div>
+        <div class="an-ask"><input id="anQ" placeholder="e.g. What would CCS do to the Net Zero loss? Which policy matters most?"><button class="btn btn-primary" onclick="anAsk()">Ask</button></div>
+        <div class="ai" id="anAns" style="margin-top:8px">${d.narrative.map(esc).join('\n\n')}</div></div>
+    </div>
+    <div class="foot" style="margin-top:14px"><b>Sources</b> ${d.sources.map(esc).join(' · ')}<br><b>Caveats</b> ${d.caveats.map(esc).join(' ')}</div>`;
+  const yrs = F.years;
+  lineChart('anPrice', yrs, SC_ORDER.filter(s => F.scenarios[s]).map(s => ({ v: F.scenarios[s].price_median, c: SC_COLOR[s], w: s === AN.scen ? 3 : 1.3 })), v => '$' + Math.round(v));
+  if (T.activity_variable) lineChart('anAct', yrs, SC_ORDER.filter(s => F.scenarios[s]).map(s => ({ v: F.scenarios[s].activity_median, c: SC_COLOR[s], w: s === AN.scen ? 3 : 1.3 })), v => v.toFixed(2));
+  else lineChart('anAct', yrs, [{ v: S.annual_cost_p95, c: '#475569', w: 1 }, { v: S.annual_cost_median, c: SC_COLOR[AN.scen], w: 2.5 }, { v: S.annual_cost_p5, c: '#475569', w: 1 }], usd);
+  histChart('anHist', S.histogram, SC_COLOR[AN.scen] || '#38bdf8', [[t.mean, 'mean', '#e2eaf8'], [t.p95, 'P95', '#f97316']]);
+}
+
+const AN_SECTORS = [['|', 'Sector: as registered / unknown'], ['electricity-generation|coal', 'Coal power'], ['electricity-generation|gas', 'Gas power'],
+  ['electricity-generation|oil', 'Oil power'], ['cement|integrated dry', 'Cement'], ['iron-and-steel|BF/BOF', 'Steel (BF-BOF)'],
+  ['iron-and-steel|EAF', 'Steel (EAF)'], ['oil-and-gas-refining|Deep Conversion', 'Oil refining'], ['chemicals|ammonia', 'Ammonia / fertiliser'],
+  ['aluminum|Smelting', 'Aluminium smelting'], ['coal-mining|Surface', 'Coal mining'], ['oil-and-gas-production|', 'Oil & gas production'],
+  ['other-manufacturing|manufacturing', 'Other manufacturing'], ['buildings|', 'Buildings / logistics (no process emissions)']];
+function anRerunValue() {
+  const v = parseFloat(document.getElementById('anValue').value), em = parseFloat(document.getElementById('anEm').value);
+  const [sec, typ] = document.getElementById('anSec').value.split('|');
+  if (v > 0) AN.req.value_usd = v;
+  if (em >= 0) AN.req.emissions_t = em;
+  if (sec) { AN.req.sector = sec; AN.req.asset_type = typ; delete AN.req.register_index; }
+  anRunAsset(AN.data.asset.name || 'Asset');
+}
+
+async function anAsk() {
+  const q = document.getElementById('anQ').value.trim(); if (!q) return;
+  const box = document.getElementById('anAns'); box.className = 'ai loading'; box.textContent = 'Thinking with the computed results…';
+  const d = AN.data, F = d.financial;
+  const ctx = { asset: d.asset.name, headline: d.headline, narrative: d.narrative, actions: d.actions,
+    scenarios: Object.fromEntries(Object.entries(F.scenarios).map(([k, v]) => [scLabel(k), { total_mean: v.total_npv.mean, total_p95: v.total_npv.p95, carbon_cost_pv: v.transition_npv.mean, stranded: v.stranded && v.stranded.mean }])),
+    policies: d.policy.in_force.map(p => ({ name: p.name, price: p.price_usd_t, covers: p.covers_asset_sector, rule: (p.charged_share || {}).rule })), pipeline: d.policy.pipeline.map(p => p.name) };
+  try {
+    const r = await anPost('/agent/chat', { message: `Question about the Risk Analyst result for ${d.asset.name}: ${q}\nAnswer ONLY from these computed results (USD, present value 2026–2050); say clearly when something is outside them.\n${JSON.stringify(ctx).slice(0, 6000)}`, context: { analyst: true }, max_rounds: 1 });
+    box.className = 'ai'; box.textContent = r.narrative || 'No answer returned.';
+  } catch (e) { box.className = 'ai'; box.textContent = 'Analyst chat unavailable: ' + e.message + '\n\n' + d.narrative.join('\n\n'); }
+}
+
+function renderPortfolio() {
+  const d = AN.data; if (!d.found) { document.getElementById('anHead').textContent = 'No assets found.'; return; }
+  const S = d.scenarios[AN.scen] || Object.values(d.scenarios)[0], t = S.total_npv, pv = t.pct_of_value || {};
+  const scRows = SC_ORDER.filter(s => d.scenarios[s]).map(s => { const x = d.scenarios[s].total_npv; return `<tr style="cursor:pointer" onclick="setScen('${s.replace(/'/g, "\\'")}')"><td><span class="dot" style="background:${SC_COLOR[s]}"></span>${esc(scLabel(s))}</td><td class="r">${usd(x.mean)}</td><td class="r">${usd(x.p50)}</td><td class="r">${usd(x.p95)}</td><td class="r">${usd(x.es95)}</td><td class="r">${x.pct_of_value ? x.pct_of_value.mean.toFixed(1) + '%' : '—'}</td></tr>`; }).join('');
+  const sv = x => `<span class="sev-${x || 'NEGLIGIBLE'}">${(x || '—').slice(0, 3)}</span>`;
+  const rows = d.assets.slice(0, 60).map(a => `<tr><td>${esc(a.name)}<div style="color:var(--muted);font-size:10px">${esc(a.sector)} · ${esc(a.country)}${a.flood_assessed ? '' : ' · flood not fetched'}</div></td>
+      <td class="r">${usd(a.value_mode)}<div style="color:var(--muted);font-size:10px">${esc(a.value_quality || '')}</div></td>
+      <td>${sv(a.cyclone)} ${sv(a.river)} ${sv(a.coast)}</td><td class="r">${a.carbon_price_now ? '$' + a.carbon_price_now : '—'}</td>
+      <td class="r">${usd(a.npv_nz_mean)}</td><td class="r">${usd(a.npv_delayed_mean)}</td><td class="r">${usd(a.npv_cp_mean)}</td>
+      <td style="font-size:10.5px;color:#b9f3d0;max-width:280px">${esc((a.top_action || '').slice(0, 150))}</td></tr>`).join('');
+  document.getElementById('analyst').innerHTML = `
+    <div class="an-head"><div><h2>Portfolio: ${esc(d.companies.slice(0, 3).join(' + '))}${d.companies.length > 3 ? ' + ' + (d.companies.length - 3) + ' more' : ''}</h2>
+      <div class="meta">${d.n_assets} assets · portfolio value ${usd(d.portfolio_value_mode)} (estimated) · flood depths read for ${d.flood_assessed_assets} largest emitters · ${d.elapsed_s}s</div></div>
+      <button class="an-close" onclick="anClose()">Close ✕</button></div>
+    <div class="an-grid">
+      <div class="an-card wide"><h3><span class="n">4</span>Portfolio loss distribution 2026–2050 · ${esc(scLabel(AN.scen))}</h3>
+        ${anScenChips(AN.scen, 'setScen')}
+        <div class="an-kpis"><div class="kpi"><div class="v">${usd(t.mean)}</div><div class="l">expected loss (PV)${pv.mean != null ? ' · ' + pv.mean.toFixed(1) + '% of value' : ''}</div></div>
+          <div class="kpi"><div class="v">${usd(t.p50)}</div><div class="l">median</div></div>
+          <div class="kpi"><div class="v" style="color:var(--high)">${usd(t.p95)}</div><div class="l">95th percentile</div></div>
+          <div class="kpi"><div class="v" style="color:var(--critical)">${usd(t.es95)}</div><div class="l">expected shortfall, worst 5%</div></div></div>
+        <canvas class="an-chart" id="anHist" style="height:210px"></canvas>
+        <table class="an-tbl" style="margin-top:10px"><tr><th>Scenario</th><th class="r">Mean</th><th class="r">Median</th><th class="r">P95</th><th class="r">ES95</th><th class="r">% value</th></tr>${scRows}</table>
+        <div class="an-note">${esc(d.method)} Emissions unabated (cost of inaction); transition loss per asset capped at its value.</div></div>
+      <div class="an-card wide"><h3><span class="n">5</span>Assets ranked by expected loss (delayed transition)</h3>
+        <table class="an-tbl"><tr><th>Asset</th><th class="r">Value</th><th>Cyc · River · Coast</th><th class="r">CO₂ price now</th><th class="r">NZ 2050</th><th class="r">Delayed</th><th class="r">Current pol.</th><th>Top action</th></tr>${rows}</table>
+        ${d.assets.length > 60 ? `<div class="meta">Showing 60 of ${d.assets.length}.</div>` : ''}</div>
+    </div>`;
+  histChart('anHist', S.histogram, SC_COLOR[AN.scen] || '#38bdf8', [[t.mean, 'mean', '#e2eaf8'], [t.p95, 'P95', '#f97316']]);
+}
+window.addEventListener('resize', () => { if (document.getElementById('analyst').classList.contains('on') && AN.data) AN.kind === 'company' ? renderPortfolio() : renderAnalyst(); });
 </script>
 </body>
 </html>

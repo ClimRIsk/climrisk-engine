@@ -1,0 +1,35 @@
+{
+ "id": "singapore",
+ "name": "Singapore Jurong Island",
+ "stress": "equator, no cyclones",
+ "check": "no_cyclone",
+ "ok": true,
+ "elapsed_s": 36.3,
+ "risk_signal": "HIGH",
+ "headline": "Singapore Jurong Island sits at 1 m on footslope terrain in bare sparse land cover. Debris flow from upslope terrain is the leading exposure (HIGH); also urban heat, flood.",
+ "findings": {
+  "debris_flow": "HIGH",
+  "urban_heat": "HIGH",
+  "flood": "MODERATE",
+  "tropical_cyclone": "LOW",
+  "landslide": "NEGLIGIBLE",
+  "wildfire": "NEGLIGIBLE"
+ },
+ "errors": {},
+ "scene_date": "2026-03-25",
+ "radar_dates": 10,
+ "has_dem": true,
+ "has_texture": true,
+ "layers": [
+  "flow_acc",
+  "land_cover",
+  "mndwi",
+  "ndbi",
+  "ndvi",
+  "sar_water",
+  "slope",
+  "water_freq"
+ ],
+ "payload_kb": 411,
+ "sanity": "ok"
+}

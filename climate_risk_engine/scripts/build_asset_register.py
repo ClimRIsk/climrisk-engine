@@ -54,7 +54,9 @@ _SUFFIX = re.compile(
 
 
 def norm(name: str) -> str:
-    s = str(name).lower().replace("&", " and ")
+    import unicodedata
+    s = "".join(c for c in unicodedata.normalize("NFKD", str(name)) if not unicodedata.combining(c))
+    s = s.lower().replace("&", " and ")
     s = re.sub(r"\(.*?\)", " ", s)
     s = re.sub(r"[^a-z0-9 ]", " ", s)
     s = _SUFFIX.sub(" ", s)

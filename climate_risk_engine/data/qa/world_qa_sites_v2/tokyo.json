@@ -1,0 +1,35 @@
+{
+ "id": "tokyo",
+ "name": "Kawasaki, Tokyo Bay",
+ "stress": "typhoon coast, dense city",
+ "check": "cyclone",
+ "ok": true,
+ "elapsed_s": 55.3,
+ "risk_signal": "CRITICAL",
+ "headline": "Kawasaki, Tokyo Bay sits at 4 m on flat terrain in permanent water land cover. Tropical cyclone wind is the leading exposure (CRITICAL); also flood, urban heat.",
+ "findings": {
+  "tropical_cyclone": "CRITICAL",
+  "flood": "HIGH",
+  "urban_heat": "MODERATE",
+  "debris_flow": "LOW",
+  "landslide": "NEGLIGIBLE",
+  "wildfire": "NEGLIGIBLE"
+ },
+ "errors": {},
+ "scene_date": "2025-11-22",
+ "radar_dates": 10,
+ "has_dem": true,
+ "has_texture": true,
+ "layers": [
+  "flow_acc",
+  "land_cover",
+  "mndwi",
+  "ndbi",
+  "ndvi",
+  "sar_water",
+  "slope",
+  "water_freq"
+ ],
+ "payload_kb": 384,
+ "sanity": "ok"
+}

@@ -1,0 +1,35 @@
+{
+ "id": "lagos",
+ "name": "Lagos Apapa",
+ "stress": "tropical coast, Africa",
+ "check": "no_cyclone",
+ "ok": true,
+ "elapsed_s": 29.4,
+ "risk_signal": "MODERATE",
+ "headline": "Lagos Apapa sits at 5 m on flat terrain in built up land cover. Urban heat amplification is the leading exposure (MODERATE); also flood.",
+ "findings": {
+  "urban_heat": "MODERATE",
+  "flood": "MODERATE",
+  "debris_flow": "LOW",
+  "landslide": "NEGLIGIBLE",
+  "wildfire": "NEGLIGIBLE",
+  "tropical_cyclone": "NEGLIGIBLE"
+ },
+ "errors": {},
+ "scene_date": "2026-01-24",
+ "radar_dates": 10,
+ "has_dem": true,
+ "has_texture": true,
+ "layers": [
+  "flow_acc",
+  "land_cover",
+  "mndwi",
+  "ndbi",
+  "ndvi",
+  "sar_water",
+  "slope",
+  "water_freq"
+ ],
+ "payload_kb": 383,
+ "sanity": "ok"
+}

@@ -127,12 +127,11 @@ def _flood(t: dict, s: dict, lc: dict, sar: Optional[dict] = None,
 
     tr = t.get("flood_exposure")
     if tr:
-        pts += {"HIGH": 2, "MEDIUM": 1}.get(tr, 0)
+        # evidence only — terrain routing showed no skill against FEMA claims
         ev.append(_ev("Terrain flood routing rating", tr, TER))
         ev.append(_ev("Terrain position", t.get("terrain_position"), TER))
         ev.append(_ev("Upstream drainage area", t.get("upslope_area_km2"), TER, "km²"))
-        if tr in ("HIGH", "MEDIUM"):
-            mech.append("fluvial")
+        pass
 
     # ── Observed inundation: optical (Sentinel-2) and radar (Sentinel-1) ──────
     # Scored per sensor, then the stronger one counts (no double counting).
@@ -171,19 +170,25 @@ def _flood(t: dict, s: dict, lc: dict, sar: Optional[dict] = None,
         if high_alt:
             ev.append(_ev("Radar flood signal discounted", "site > 2,500 m: wet snow mimics water", S1))
         else:
-            sar_pts = _obs_pts(sar.get("water_freq_at_asset"), sar.get("intermittent_water_within_500m"))
+            at_asset = sar.get("water_freq_at_asset")
+            # Pin dropped on open water (optical sees water most clear dates) with no radar
+            # flooding of the land around it: radar misses wind-roughened water on some dates,
+            # so its at-pixel frequency is the sea/lake, not land flooding (Kwinana pin in
+            # Cockburn Sound). A river char that goes under (Jamuna) keeps its signal.
+            if (s.get("water_freq_at_asset") or 0) >= 0.5 and (sar.get("intermittent_water_within_500m") or 0) < 0.01:
+                at_asset = None
+                ev.append(_ev("Radar at-pixel signal ignored", "pin is on open water — move it onto the site", S1))
+            sar_pts = _obs_pts(at_asset, sar.get("intermittent_water_within_500m"))
 
-    inund = max(opt_pts, sar_pts)
-    if inund > 0:
-        pts += inund; mech.append("observed_inundation")
+    # Only radar-observed inundation scores. Optical "water" is evidence only: dark roofs,
+    # shadows (Johannesburg) and snow/slag (Norilsk) produced false water in the world test.
+    if sar_pts > 0:
+        pts += sar_pts; mech.append("observed_inundation")
 
     nw = s.get("nearest_water_m")
     if nw is not None:
         ev.append(_ev("Distance to nearest open water", nw, f"{S2} ({s.get('water_method')})", "m"))
-        if nw < 100:
-            pts += 1
-        elif nw < 300:
-            pts += 0.5
+        # evidence only (MNDWI water can be dark roofs / asphalt)
 
     # ── Validated component: elevation of built-up land within 1 km ──────────
     # 180 census tracts in 3 US coastal-plain counties vs 95k FEMA NFIP claims
@@ -193,32 +198,36 @@ def _flood(t: dict, s: dict, lc: dict, sar: Optional[dict] = None,
         me = belev["median_elev_m"]
         ev.append(_ev("Median elevation of built-up land within 1 km (validated signal)", me,
                       f"AWS 10 m DEM × ESA WorldCover ({belev.get('basis')})", "m"))
-        if me < 3.0:
-            pts += 3; mech.append("low_lying_water")
+        if me < -2.0:
+            # Below sea level: dike-protected polder (Rotterdam) or inland basin (Caspian) —
+            # outside the validated range; flag for survey rather than score as coastal.
+            pts += 2; mech.append("low_lying_water")
+            ev.append(_ev("Below sea level", "protected polder or inland basin — needs site survey",
+                          "AWS 10 m DEM"))
+        elif me < 3.0:
+            pts += 4; mech.append("low_lying_water"); mech.append("fluvial")
         elif me < 6.0:
-            pts += 1
+            pts += 2; mech.append("low_lying_water")
 
     elev = t.get("elevation_m")
     if elev is not None and (s.get("permanent_water_fraction") or 0) > 0.02 and elev < 10:
-        pts += 1; mech.append("low_lying_water")
         ev.append(_ev("Site elevation next to permanent water", elev, TER, "m"))
 
     bu = lc.get("built_up_within_250m")
     if bu is not None:
         ev.append(_ev("Built-up / impervious cover within 250 m", _pct(bu), WC, "%"))
         if bu > 0.6:
-            pts += 0.5; mech.append("pluvial")
+            mech.append("pluvial")
     wl = lc.get("wetland_within_1km")
     if wl and wl > 0.1:
-        pts += 0.5
         ev.append(_ev("Wetland / mangrove within 1 km", _pct(wl), WC, "%"))
 
     caveats = [
         "Validation status (FEMA flood-insurance claims, 3 US coastal-plain counties, 180 census tracts): "
-        "the elevation of built-up land is the only component with demonstrated skill (held-out AUC 0.64–0.94); "
-        "terrain routing, drainage-height (HAND) and satellite observed-water components did not separate "
-        "high- from low-claim areas and are shown as supporting evidence only. Not yet validated inland or "
-        "outside the US."
+        "severity comes from the elevation of built-up land (held-out AUC 0.64–0.94) plus radar-observed "
+        "flooding; terrain routing, drainage height, optical water and distance to water did not separate "
+        "high- from low-claim areas and are shown as supporting evidence only (no points). Not yet validated "
+        "inland or outside the US."
     ]
     if not sar.get("available"):
         missing = sorted(set(f"{m:02d}" for m in range(1, 13)) - set(s.get("temporal_months_covered") or []))
@@ -239,6 +248,12 @@ def _debris_landslide(t: dict, s: dict) -> list[dict]:
     df = t.get("debris_flow_risk")
     if df:
         sev = _TERRAIN_TO_SEV.get(df, "LOW")
+        # The DEM is a surface model: tanks, chimneys and buildings look like cliffs
+        # (flat reclaimed Jurong Island, Singapore, scored HIGH in the world test).
+        # Require real natural relief before rating debris flow above LOW.
+        pct25 = t.get("upslope_pct_over_25deg") or 0.0
+        head = t.get("elevation_head_m") or 0.0
+        artefact = sev in ("MODERATE", "HIGH") and pct25 < 3.0 and head < 100.0
         out.append({
             "hazard": "debris_flow", "severity": sev,
             "score": {"NEGLIGIBLE": 0, "LOW": 1, "MODERATE": 2.5, "HIGH": 4.5}.get(sev, 0),
@@ -248,8 +263,12 @@ def _debris_landslide(t: dict, s: dict) -> list[dict]:
                 _ev("Upslope area steeper than 25°", t.get("upslope_pct_over_25deg"), TER, "%"),
                 _ev("Elevation head above site", t.get("elevation_head_m"), TER, "m"),
                 _ev("Effective upstream catchment", t.get("upslope_area_km2"), TER, "km²"),
-            ],
+            ] + ([_ev("Steep cells likely structures, not hillslopes",
+                      f"only {pct25:.1f}% of upslope area > 25° and {head:.0f} m relief — capped at LOW", TER)]
+                 if artefact else []),
         })
+        if artefact:
+            out[-1].update(severity="LOW", score=1, mechanisms=[])
     ls = t.get("landslide_susceptibility")
     if ls:
         sev = _TERRAIN_TO_SEV.get(ls, "LOW")
@@ -373,10 +392,12 @@ def _urban_heat(lat: float, lc: dict) -> dict:
         pts += 1
         ev.append(_ev("Latitude band", f"{abs(lat):.1f}° (warm climate)", "Asset coordinates"))
     sev = _sev_from_points(pts)
+    if sev in ("HIGH", "CRITICAL"):                  # land-cover proxy only — no temperatures yet
+        sev, pts = "MODERATE", min(pts, 3.0)
     return {"hazard": "urban_heat", "score": round(pts, 1), "severity": sev,
             "mechanisms": ["urban_heat"] if sev in ("MODERATE", "HIGH", "CRITICAL") else [],
             "evidence": ev,
-            "caveat": "Land-cover amplification only; pair with CMIP6 heat projections for absolute temperatures."}
+            "caveat": "Land-cover amplification only (capped at MODERATE); the temperature-based heat model is the next build."}
 
 
 # ── Orchestrator ─────────────────────────────────────────────────────────────
@@ -464,7 +485,10 @@ def assess_asset(
             acts.append("Site floods repeatedly on satellite record: treat as unsuitable for permanent high-value "
                         "assets without major engineered protection — evaluate relocation or elevated construction "
                         "(plinth above the largest observed flood extent) before further capex.")
-        for m in f.get("mechanisms", []):
+        mechs = f.get("mechanisms", [])
+        if f["hazard"] == "flood" and f["severity"] in ("NEGLIGIBLE", "LOW"):
+            mechs = []                                  # no flood actions for immaterial flood
+        for m in mechs:
             acts.extend(_ACTIONS.get(m, []))
         f["actions"] = list(dict.fromkeys(acts))
     findings.sort(key=lambda f: (SEVERITY_ORDER.index(f["severity"]), f.get("score", 0)), reverse=True)

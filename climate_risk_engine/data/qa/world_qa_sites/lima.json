@@ -1,0 +1,35 @@
+{
+ "id": "lima",
+ "name": "Callao, Lima (desert coast)",
+ "stress": "hyper-arid coast",
+ "check": "no_cyclone",
+ "ok": true,
+ "elapsed_s": 27.1,
+ "risk_signal": "HIGH",
+ "headline": "Callao, Lima (desert coast) sits at 6 m on flat terrain in built up land cover. Flood is the leading exposure (HIGH); also urban heat.",
+ "findings": {
+  "flood": "HIGH",
+  "urban_heat": "HIGH",
+  "debris_flow": "LOW",
+  "landslide": "NEGLIGIBLE",
+  "wildfire": "NEGLIGIBLE",
+  "tropical_cyclone": "NEGLIGIBLE"
+ },
+ "errors": {},
+ "scene_date": "2026-06-13",
+ "radar_dates": 10,
+ "has_dem": true,
+ "has_texture": true,
+ "layers": [
+  "flow_acc",
+  "land_cover",
+  "mndwi",
+  "ndbi",
+  "ndvi",
+  "sar_water",
+  "slope",
+  "water_freq"
+ ],
+ "payload_kb": 406,
+ "sanity": "ok"
+}

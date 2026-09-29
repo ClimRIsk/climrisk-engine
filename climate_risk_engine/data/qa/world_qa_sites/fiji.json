@@ -1,0 +1,35 @@
+{
+ "id": "fiji",
+ "name": "Suva, Fiji (dateline region)",
+ "stress": "near 180\u00b0, S. Pacific cyclones",
+ "check": "cyclone",
+ "ok": true,
+ "elapsed_s": 27.0,
+ "risk_signal": "HIGH",
+ "headline": "Suva, Fiji (dateline region) sits at 53 m on mid slope terrain in tree cover land cover. Tropical cyclone wind is the leading exposure (HIGH); also wildfire, urban heat.",
+ "findings": {
+  "tropical_cyclone": "HIGH",
+  "wildfire": "MODERATE",
+  "urban_heat": "MODERATE",
+  "debris_flow": "LOW",
+  "landslide": "LOW",
+  "flood": "NEGLIGIBLE"
+ },
+ "errors": {},
+ "scene_date": "2025-12-03",
+ "radar_dates": 10,
+ "has_dem": true,
+ "has_texture": true,
+ "layers": [
+  "flow_acc",
+  "land_cover",
+  "mndwi",
+  "ndbi",
+  "ndvi",
+  "sar_water",
+  "slope",
+  "water_freq"
+ ],
+ "payload_kb": 420,
+ "sanity": "ok"
+}

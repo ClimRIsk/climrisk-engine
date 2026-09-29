@@ -14,3 +14,5 @@ climate_risk_engine/src/cri/.cache/
 
 # Asset register download caches (rebuildable with scripts/build_asset_register.py)
 climate_risk_engine/data/asset_register/raw/
+# Risk Analyst build caches (rebuildable with scripts/build_finance_data.py)
+climate_risk_engine/data/finance/raw/

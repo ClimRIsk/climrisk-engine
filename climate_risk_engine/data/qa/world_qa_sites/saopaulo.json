@@ -1,0 +1,35 @@
+{
+ "id": "saopaulo",
+ "name": "Cubat\u00e3o, S\u00e3o Paulo",
+ "stress": "S. America escarpment",
+ "check": "no_cyclone",
+ "ok": true,
+ "elapsed_s": 31.8,
+ "risk_signal": "HIGH",
+ "headline": "Cubat\u00e3o, S\u00e3o Paulo sits at 8 m on flat terrain in built up land cover. Debris flow from upslope terrain is the leading exposure (HIGH); also flood, urban heat.",
+ "findings": {
+  "debris_flow": "HIGH",
+  "flood": "MODERATE",
+  "urban_heat": "MODERATE",
+  "landslide": "NEGLIGIBLE",
+  "wildfire": "NEGLIGIBLE",
+  "tropical_cyclone": "NEGLIGIBLE"
+ },
+ "errors": {},
+ "scene_date": "2026-07-19",
+ "radar_dates": 10,
+ "has_dem": true,
+ "has_texture": true,
+ "layers": [
+  "flow_acc",
+  "land_cover",
+  "mndwi",
+  "ndbi",
+  "ndvi",
+  "sar_water",
+  "slope",
+  "water_freq"
+ ],
+ "payload_kb": 434,
+ "sanity": "ok"
+}

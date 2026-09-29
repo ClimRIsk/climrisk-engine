@@ -1,0 +1,35 @@
+{
+ "id": "charleston",
+ "name": "Charleston peninsula (2.6 m)",
+ "stress": "validated low-lying coast",
+ "check": "flood_not_negligible",
+ "ok": true,
+ "elapsed_s": 28.5,
+ "risk_signal": "HIGH",
+ "headline": "Charleston peninsula (2.6 m) sits at 3 m on flat terrain in built up land cover. Tropical cyclone wind is the leading exposure (HIGH); also flood, urban heat.",
+ "findings": {
+  "tropical_cyclone": "HIGH",
+  "flood": "HIGH",
+  "urban_heat": "MODERATE",
+  "debris_flow": "LOW",
+  "landslide": "NEGLIGIBLE",
+  "wildfire": "NEGLIGIBLE"
+ },
+ "errors": {},
+ "scene_date": "2026-02-06",
+ "radar_dates": 10,
+ "has_dem": true,
+ "has_texture": true,
+ "layers": [
+  "flow_acc",
+  "land_cover",
+  "mndwi",
+  "ndbi",
+  "ndvi",
+  "sar_water",
+  "slope",
+  "water_freq"
+ ],
+ "payload_kb": 397,
+ "sanity": "ok"
+}
