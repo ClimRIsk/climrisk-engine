@@ -48,6 +48,7 @@ Usage
 from __future__ import annotations
 
 import math
+import re
 from typing import Dict, List, Optional, Tuple
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -505,14 +506,24 @@ SECTOR_ALIASES: Dict[str, str] = {
 }
 
 
+# GICS-style sector hints used by the website/app selectors
+_GICS_HINTS = {"materials": "mining", "materials & mining": "mining", "industrials": "construction",
+               "consumer staples": "food_beverage", "consumer discretionary": "consumer", "energy": "oil_gas",
+               "information technology": "technology", "communication services": "telecom",
+               "health care": "healthcare"}
+
+
 def normalise_sector(sector_str: str) -> str:
     """Return the canonical sector key from a free-text sector description."""
-    s = sector_str.lower().strip()
-    if s in SECTOR_PHYSICAL_SENSITIVITY:
-        return s
-    # Try alias lookup
+    s = sector_str.lower().strip().replace("_", " ")
+    if s.replace(" ", "_") in SECTOR_PHYSICAL_SENSITIVITY:
+        return s.replace(" ", "_")
+    if s in _GICS_HINTS:
+        return _GICS_HINTS[s]
+    words = set(re.findall(r"[a-z]+", s))
+    # Alias lookup — short aliases ("it", "air", "car") must match a whole word, longer ones a substring
     for alias, canonical in SECTOR_ALIASES.items():
-        if alias in s:
+        if (len(alias) <= 3 and alias in words) or (len(alias) > 3 and alias in s):
             return canonical
     # Partial match on canonical keys
     for key in SECTOR_PHYSICAL_SENSITIVITY:

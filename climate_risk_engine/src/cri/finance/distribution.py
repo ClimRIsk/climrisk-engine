@@ -163,7 +163,9 @@ def simulate(case: dict, n: int = 4000, discount: float = 0.07, seed: int = 7,
         # asset would shut it — the transition loss to the asset is capped at its value.
         trans = np.minimum(npv_cost + strand, V) if has_value else npv_cost + strand
         capped = float(np.mean(npv_cost + strand > V)) if has_value else 0.0
-        total = npv_phys + trans
+        # An asset cannot lose more than it is worth: once physical damage plus transition cost exceed
+        # its value the rational owner closes it, so the total loss is capped at the asset value too.
+        total = np.minimum(npv_phys + trans, V) if has_value else npv_phys + trans
         per_scen[s] = {"label": label(s), "total": total, "cost": npv_cost, "strand": strand, "trans": trans,
                        "capped_share": capped,
                        "annual_cost": cost, "price": P, "activity": A}

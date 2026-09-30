@@ -112,3 +112,18 @@ def test_cli_lca_and_water(capsys):
     assert main(["lca", "aluminium", "--kwh", "14000", "--country", "NOR"]) == 0
     assert "kg CO2e" in capsys.readouterr().out
     assert main(["water", "13.08", "80.27"]) == 0
+
+
+def test_public_company_risk_not_found_is_honest():
+    r = c.get("/public/company-risk", params={"q": "Zzqx Nonexistent Retail"}).json()
+    assert r["found"] is False and "register covers" in r["note"]
+    assert c.get("/public/company-risk", params={"q": "ab"}).status_code == 422
+
+
+def test_agent_assess_has_no_placeholders():
+    d = c.post("/agent/assess", json={"company_name": "Acme Software Labs", "sector_hint": "technology",
+                                       "jurisdiction": "US", "revenue_usd_m": 800}).json()
+    assert d["company_profile"]["resolved_name"] == "Acme Software Labs"          # no silent substitution
+    assert d["extended_risk"]["paris_alignment"] is None
+    assert "eal_p50_usd_m" not in d["extended_risk"]["physical_risk"]
+    assert d["risk_assessment"]["scenarios"]["cp"]["npv_impact_pct"] == 0.0

@@ -479,19 +479,11 @@ def agent_assess(request: AssessRequest) -> dict:
     if query in COMPANY_REGISTRY:
         company = COMPANY_REGISTRY[query]
         _use_registry = True
-    else:
-        # Substring match on name
+    # Substring match on the registered name — only for queries long enough to be unambiguous.
+    # (A first-word match used to map e.g. "Rio Grande Foods" onto Rio Tinto; removed.)
+    elif len(query) >= 4:
         for cid, c in COMPANY_REGISTRY.items():
             if query in c.name.lower() or c.name.lower() in query:
-                company = c
-                _use_registry = True
-                break
-
-    # First-word match
-    if company is None:
-        first_word = query.split()[0] if query.split() else ""
-        for cid, c in COMPANY_REGISTRY.items():
-            if first_word and first_word in c.name.lower():
                 company = c
                 _use_registry = True
                 break
@@ -518,11 +510,26 @@ def agent_assess(request: AssessRequest) -> dict:
             _data_source = "parametric_ipcc_ngfs"
             _climate_zone = built.climate_zone
             _data_notes = built.data_notes
+            # Ground the synthetic company's Scope 1/2 in the emissions estimator trained on observed
+            # (EPA GHGRP) data instead of the generic sector-intensity table.
+            try:
+                from ..ml.emissions_estimator import EmissionsEstimator
+                _em0 = EmissionsEstimator().estimate(sector=request.sector_hint, revenue_usd_m=request.revenue_usd_m,
+                                                     jurisdiction=request.jurisdiction or "US",
+                                                     company_name=request.company_name, ticker=company.id)
+                _a = company.assets[0]
+                if _a.baseline_production > 0 and _em0.scope1_mt_co2e > 0:
+                    _a.emissions.scope1_intensity = _em0.scope1_mt_co2e / _a.baseline_production
+                    _a.emissions.scope2_intensity = _em0.scope2_mt_co2e / _a.baseline_production
+                    _a.emissions.scope3_intensity = _em0.scope3_mt_co2e / _a.baseline_production
+                    _data_notes.append("Scope 1/2/3: emissions estimator (EPA GHGRP-trained; median error ~3.5×)")
+            except Exception as _ee:
+                logging.getLogger("cri.api").warning("emissions override failed: %s", _ee)
         except Exception as _e:
             import logging
             logging.getLogger("cri.api").error(f"profile_builder failed: {_e}")
-            # Hard fallback: first registry company
-            company = next(iter(COMPANY_REGISTRY.values()))
+            # Never substitute another company's results — fail loudly instead.
+            raise HTTPException(status_code=502, detail=f"Could not build a profile for '{request.company_name}': {_e}")
 
     # Use registry scenarios for known companies; augmented scenarios for synthetic
     if not _scenarios_to_use:
@@ -592,98 +599,90 @@ def agent_assess(request: AssessRequest) -> dict:
         pass
 
     # ── Build AssessmentData shape ─────────────────────────────────────────────
-    base_ev = company.financials.revenue * 2.5   # rough EV proxy
+    def _score(x): return round(x, 1) if x is not None else None
 
-    # Numeric scores (available from Analyst tier internally — always include here)
-    def _score(x): return round(x, 1) if x is not None else 50.0
+    def _ev(r): return round(float(r.enterprise_value), 1)
+
+    ev_cp = _ev(cp_r)
+
+    def _vs_cp(r):
+        return round((_ev(r) / ev_cp - 1.0) * 100, 2) if ev_cp else None
+
+    # Implied temperature rise is not reported here: the budget-allocation ITR module
+    # (cri.climate.paris_alignment) is under recalibration — its sector budgets are too small, so it
+    # rated even fast-decarbonising companies above 2 °C. Use POST /sbti/alignment for target checks.
+    paris = None
+
+    def _phys(r, year):
+        y = next((y for y in r.years if y.year == year), None)
+        return round(float(y.physical_loss_cost), 2) if y else None
+
+    peak_year = None
+    if traj_cp and traj_cp.get("scores"):
+        sc = traj_cp["scores"]
+        peak_year = 2025 + max(range(len(sc)), key=lambda k: sc[k])
 
     return {
         "company_profile": {
             "resolved_name": company.name,
             "sector": company.sector,
             "jurisdiction": getattr(company, "hq_region", "US"),
-            "revenue_usd_m": {"value": company.financials.revenue, "tier": "reported"},
+            "revenue_usd_m": {"value": company.financials.revenue,
+                              "tier": "reported" if _data_source == "registry" else "user-supplied"},
             "scope1_mt_co2e": s1,
             "scope2_mt_co2e": s2,
             "scope3_mt_co2e": s3,
-            "data_gaps": [],
+            "data_gaps": list(_data_notes),
         },
         "risk_assessment": {
             "scenarios": {
                 "nze": {
-                    "enterprise_value_usd_m": round(base_ev * (1 - abs(nze_r.npv_impact_pct or 0) / 100), 1),
-                    "npv_impact_pct": round(nze_r.npv_impact_pct or 0, 2),
+                    "enterprise_value_usd_m": _ev(nze_r),
+                    "npv_impact_pct": _vs_cp(nze_r),
                     "exposure_score":    _score(rr.physical.score),
                     "transition_score":  _score(rr.transition.score),
                     "financial_score":   _score(rr.financial.score),
-                    "adaptive_score":    50.0,
                 },
-                "delayed": {
-                    "enterprise_value_usd_m": round(base_ev * (1 - abs(dt_r.npv_impact_pct or 0) / 100), 1),
-                    "npv_impact_pct": round(dt_r.npv_impact_pct or 0, 2),
-                },
-                "cp": {
-                    "enterprise_value_usd_m": round(base_ev * (1 - abs(cp_r.npv_impact_pct or 0) / 100), 1),
-                    "npv_impact_pct": round(cp_r.npv_impact_pct or 0, 2),
-                },
+                "delayed": {"enterprise_value_usd_m": _ev(dt_r), "npv_impact_pct": _vs_cp(dt_r)},
+                "cp": {"enterprise_value_usd_m": ev_cp, "npv_impact_pct": 0.0},
+                "npv_impact_basis": "enterprise value vs the Current Policies run of the same model",
             },
             "rating": {
                 "rating": str(rr.rating),
                 "physical_pillar":    _score(rr.physical.score),
                 "transition_pillar":  _score(rr.transition.score),
                 "financial_pillar":   _score(rr.financial.score),
-                "adaptive_pillar":    50.0,
             },
         },
         "extended_risk": {
-            "paris_alignment": {
-                "implied_temperature_rise": 2.4,
-                "itr_label": "Above 2°C",
-                "itr_color": "#f59e0b",
-                "trajectory_years": list(range(2025, 2051)),
-                "trajectory_scope12_mt": [
-                    round((s1["value"] if s1 else 2.0) * (1 - 0.02 * i), 3)
-                    for i in range(26)
-                ],
-                "trajectory_1_5_budget": [
-                    round(2.0 * (1 - 0.058 * i), 3) for i in range(26)
-                ],
-                "trajectory_2_0_budget": [
-                    round(2.0 * (1 - 0.038 * i), 3) for i in range(26)
-                ],
-                "decision_tier": "WATCH",
-                "composite_risk_score": _score(rr.composite_score),
-                "decision_rationale": rr.summary[:120] if rr.summary else "",
-                "interim_2030_on_track": False,
-            },
+            "paris_alignment": paris,
+            "paris_alignment_note": "ITR withheld pending recalibration; SBTi target check: POST /sbti/alignment",
             "physical_risk": {
-                "eal_p10_usd_m": round(base_ev * 0.01, 1),
-                "eal_p50_usd_m": round(base_ev * 0.025, 1),
-                "eal_p90_usd_m": round(base_ev * 0.06, 1),
+                "annual_physical_loss_usd_m": {str(yr): {"nze": _phys(nze_r, yr), "delayed": _phys(dt_r, yr),
+                                                         "cp": _phys(cp_r, yr)} for yr in (2030, 2040, 2050)},
+                "basis": "Engine physical-loss cost per year (USD m) by scenario",
             },
         },
         "trajectory": {
             "nze":     traj_nze,
             "delayed": traj_delayed,
             "cp":      traj_cp,
-            "peak_risk_year":  2045,
-            "inflection_year": 2035,
+            "peak_risk_year": peak_year,
         },
-        "ml_intelligence": {
-            "disclosure_commitment_score":   0.0,
-            "disclosure_specificity":        0.0,
-            "credibility_gap_flag":          False,
-            "itr_adjustment_c":              0.0,
-            "evidence_quotes":               [],
-        },
-        "model_used": "cri-engine-v0.5-parametric",
+        "ml_intelligence": None,
+        "ml_intelligence_note": "Disclosure scoring runs on a company document — use POST /agent/disclosure.",
+        "model_status": ("Legacy CRI rating model: company-level screening from a registry or sector-average "
+                         "parametric profile. For asset-level physical, policy and transition results use the "
+                         "Risk Analyst (/analyst/company, /public/company-risk)."),
+        "model_used": "cri-engine-registry" if _data_source == "registry" else "cri-engine-parametric",
         "company_id": company.id,
         "data_provenance": {
             "source": _data_source,
             "climate_zone": _climate_zone,
             "notes": _data_notes,
             "methodology": (
-                "IPCC AR6 Ch12 physical hazard profiles × NGFS Phase 4 transition pathways"
+                "IPCC AR6 Ch12 physical hazard profiles × NGFS Phase 4 carbon-price pathways (sector/jurisdiction "
+                "parametric build — not company-specific asset data)"
                 if _data_source == "parametric_ipcc_ngfs"
                 else "CRI company registry with reported asset-level data"
             ),
@@ -6056,3 +6055,302 @@ def portfolio_export_csv(req: PortfolioExportRequest):
     csv_text = to_csv(analyse_rows(rows, n=req.draws))
     return Response(content=csv_text, media_type="text/csv",
                     headers={"Content-Disposition": 'attachment; filename="climrisk_portfolio.csv"'})
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# CARBON ACCOUNTING — GHG inventory (GHG Protocol / ISO 14064-1) and assurance pack
+# ──────────────────────────────────────────────────────────────────────────────
+
+def _carbon_calc(payload: dict):
+    from ..carbon.inventory import InventoryError, calculate, from_dict
+    try:
+        inv = from_dict(payload)
+        return inv, calculate(inv)
+    except (InventoryError, KeyError, TypeError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc).strip("'\""))
+
+
+@app.get("/carbon/factors", tags=["Carbon Accounting"])
+def carbon_factors(q: str = "", scope: Optional[str] = None, limit: int = 50) -> dict:
+    """Search the emission-factor library (UK DESNZ 2026 activity factors)."""
+    from ..carbon.factors import lib, search
+    L = lib()
+    return {"results": search(q, scope, min(max(limit, 1), 500)),
+            "library": {"version": L["version"], "desnz": L["desnz"]["source"],
+                        "electricity": ["UK DESNZ 2026", L["electricity"]["us_egrid"]["source"],
+                                        L["electricity"]["us_egrid"]["residual_mix"]["source"],
+                                        L["electricity"]["europe_aib"]["source"], L["electricity"]["ember_derived"]["source"],
+                                        L["electricity"]["td_losses"]["source"]],
+                        "spend": L["spend"]["source"]}}
+
+
+@app.get("/carbon/grid-factor", tags=["Carbon Accounting"])
+def carbon_grid_factor(country: str, us_state: Optional[str] = None, egrid_subregion: Optional[str] = None) -> dict:
+    """Location-based and residual-mix grid factors for a country / US state / eGRID subregion."""
+    from ..carbon import factors as F
+    try:
+        loc = F.electricity_location(country, us_state, egrid_subregion)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc).strip("'\""))
+    return {"location": loc, "residual_mix": F.electricity_residual(country, egrid_subregion or loc.get("subregion")),
+            "td_losses": F.td_loss_share(country, egrid_subregion or loc.get("subregion"))}
+
+
+@app.post("/carbon/inventory", dependencies=[_AUTH], tags=["Carbon Accounting"])
+def carbon_inventory(payload: dict) -> dict:
+    """Calculate a corporate GHG inventory from activity data (Scope 1, Scope 2 location + market, Scope 3 by category)."""
+    _, res = _carbon_calc(payload)
+    return res
+
+
+@app.post("/carbon/inventory/report", dependencies=[_AUTH], tags=["Carbon Accounting"])
+def carbon_inventory_report(payload: dict) -> dict:
+    """ISO 14064-1:2018 clause 9 GHG report content for the inventory."""
+    from ..carbon.assurance import report_sections
+    inv, res = _carbon_calc(payload)
+    return {"report": report_sections(res, inv), "totals_t": res["totals_t"], "fingerprint": res["fingerprint"]}
+
+
+@app.post("/carbon/inventory/assurance.xlsx", dependencies=[_AUTH], tags=["Carbon Accounting"])
+def carbon_inventory_assurance(payload: dict):
+    """Assurance pack: audit trail from every input to every reported number, factors, completeness and checks."""
+    from fastapi.responses import Response
+    from ..carbon.assurance import assurance_workbook
+    inv, res = _carbon_calc(payload)
+    name = f"GHG_inventory_{inv.organisation.replace(' ', '_')[:40]}_{inv.reporting_year}.xlsx"
+    return Response(content=assurance_workbook(res, inv),
+                    media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    headers={"Content-Disposition": f'attachment; filename="{name}"'})
+
+
+@app.get("/carbon/template.xlsx", tags=["Carbon Accounting"])
+def carbon_template():
+    """Blank intake workbook (entities, activities, electricity, spend, supplier data, exclusions)."""
+    from fastapi.responses import Response
+    from ..carbon.assurance import template_workbook
+    return Response(content=template_workbook(),
+                    media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    headers={"Content-Disposition": 'attachment; filename="ClimRisk_GHG_inventory_template.xlsx"'})
+
+
+@app.post("/carbon/inventory/upload", dependencies=[_AUTH], tags=["Carbon Accounting"])
+async def carbon_inventory_upload(file: UploadFile = File(...), organisation: str = Form(...),
+                                  reporting_year: int = Form(...), consolidation: str = Form("operational_control"),
+                                  gwp: str = Form("AR6"), revenue_musd: Optional[float] = Form(None),
+                                  employees: Optional[float] = Form(None)) -> dict:
+    """Parse a filled intake template and return {payload, result} (the payload can be edited and re-posted)."""
+    from ..carbon.assurance import parse_workbook
+    try:
+        payload = parse_workbook(await file.read(), organisation, reporting_year, consolidation, gwp, revenue_musd, employees)
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=f"could not read the workbook: {exc}")
+    _, res = _carbon_calc(payload)
+    return {"payload": payload, "result": res}
+
+
+class BaseYearRequest(BaseModel):
+    base_year_total_t: float = Field(..., gt=0)
+    changes: list[dict] = Field(default_factory=list, description="[{type, description, base_year_effect_t}]")
+    threshold: float = Field(0.05, gt=0, lt=1)
+
+
+@app.post("/carbon/base-year", tags=["Carbon Accounting"])
+def carbon_base_year(req: BaseYearRequest) -> dict:
+    """GHG Protocol base-year recalculation test for structural and methodology changes."""
+    from ..carbon.inventory import base_year_recalculation
+    return base_year_recalculation(req.base_year_total_t, req.changes, req.threshold)
+
+
+@app.get("/carbon/dashboard", tags=["Carbon Accounting"])
+def carbon_dashboard():
+    """Carbon accounting workbench — served by the local engine."""
+    from fastapi.responses import HTMLResponse
+    return HTMLResponse((Path(__file__).parent / "carbon_dashboard.html").read_text(encoding="utf-8"))
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# PUBLIC live company check (website widget) — Risk Analyst on the company's mapped assets
+# ──────────────────────────────────────────────────────────────────────────────
+
+_PUBLIC_CACHE: dict = {}
+
+
+@app.get("/public/company-risk", tags=["Risk Analyst"])
+def public_company_risk(q: str) -> dict:
+    """Find a company in the global asset register and run its largest assets through the Risk Analyst.
+    Returns only what the model actually computed; companies without mapped assets get found=false."""
+    import time as _t
+    from ..data.asset_register import search
+    from ..finance.analyst import analyse_company
+    q = (q or "").strip()
+    if len(q) < 3:
+        raise HTTPException(status_code=422, detail="Type at least 3 characters")
+    hits = search(q, limit=10)
+    if not hits:
+        return {"found": False, "query": q,
+                "note": "No mapped physical assets for this name. The register covers heavy-industry and power "
+                        "facilities (Climate TRACE, EPA GHGRP): power, oil & gas, cement, steel, aluminium, "
+                        "chemicals, mining, refining and similar."}
+    pick = next((h for h in hits if h["match"] == "group"), None) or next((h for h in hits if h["match"] == "exact"), hits[0])
+    keys = [pick["key"]]
+    ck = tuple(keys)
+    if ck in _PUBLIC_CACHE and _t.time() - _PUBLIC_CACHE[ck][0] < 86400:
+        return _PUBLIC_CACHE[ck][1]
+    c = analyse_company(keys, top_n=10, n=1500)
+    if not c.get("found"):
+        return {"found": False, "query": q, "note": "Company matched but no assets could be analysed."}
+    scen = {v["label"]: {"mean": v["total_npv"]["mean"], "p95": v["total_npv"]["p95"],
+                         "pct_of_value_mean": (v["total_npv"].get("pct_of_value") or {}).get("mean")}
+            for v in c["scenarios"].values()}
+    assets = c["assets"]
+    val = sum(a["value_mode"] or 0 for a in assets)
+    aal = sum((a["physical_aal_pct"] or 0) / 100 * (a["value_mode"] or 0) for a in assets)
+    priced = [a for a in assets if (a["carbon_price_now"] or 0) > 0]
+    out = {"found": True, "query": q, "matched": pick.get("name") or pick["key"], "match_type": pick["match"],
+           "companies": c["companies"], "n_assets": c["n_assets"], "flood_assessed_assets": c["flood_assessed_assets"],
+           "portfolio_value_usd": val, "value_note": "Asset values are replacement-cost estimates from capacity (screening grade).",
+           "physical_aal_usd": aal, "physical_aal_pct": (aal / val * 100) if val else None,
+           "assets_under_carbon_price": len(priced),
+           "scenarios_pv_loss_2026_2050_usd": scen,
+           "top_assets": [{k: a[k] for k in ("name", "country", "sector", "physical_aal_pct", "cyclone", "river", "coast",
+                                             "carbon_price_now", "instrument", "npv_delayed_mean")} for a in assets[:6]],
+           "method": c["method"], "elapsed_s": c["elapsed_s"],
+           "sources": ["Climate TRACE / EPA GHGRP asset register", "NOAA IBTrACS", "JRC & Deltares flood maps",
+                       "FLOPROS", "World Bank Carbon Pricing Dashboard", "NGFS Phase 5"]}
+    out = _jsonable(out)
+    _PUBLIC_CACHE[ck] = (_t.time(), out)
+    return out
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# TRANSITION PLAN BUILDER (ESRS E1-1 / TPT / IFRS S2)
+# ──────────────────────────────────────────────────────────────────────────────
+
+@app.post("/transition-plan", dependencies=[_AUTH], tags=["Transition Plan"])
+def transition_plan(payload: dict) -> dict:
+    """Targets → levers → capex/opex → year-by-year emissions path, MACC, SBTi check and ESRS E1-1 fields.
+    Pass `inventory` (a /carbon/inventory payload) instead of base_emissions_t to seed the base year from it."""
+    from ..transition_plan import PlanError, build, from_dict
+    d = dict(payload)
+    if "inventory" in d and not d.get("base_emissions_t"):
+        _, inv_res = _carbon_calc(d.pop("inventory"))
+        T = inv_res["totals_t"]
+        d["base_emissions_t"] = {"scope1": T["scope1"], "scope2": T["scope2_market"], "scope3": T["scope3"]}
+        d.setdefault("base_year", inv_res["reporting_year"])
+        d.setdefault("organisation", inv_res["organisation"])
+    try:
+        return _jsonable(build(from_dict(d)))
+    except (PlanError, KeyError, TypeError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc).strip("'\""))
+
+
+@app.get("/transition-plan/dashboard", tags=["Transition Plan"])
+def transition_plan_dashboard():
+    from fastapi.responses import HTMLResponse
+    return HTMLResponse((Path(__file__).parent / "transition_plan_dashboard.html").read_text(encoding="utf-8"))
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# REAL ESTATE — operational carbon, stranding vs a supplied pathway (e.g. CRREM), regulatory checks
+# ──────────────────────────────────────────────────────────────────────────────
+
+class RealEstateRequest(BaseModel):
+    buildings: list[dict] = Field(..., min_length=1, max_length=2000)
+    pathways: dict = Field(default_factory=dict,
+                           description='{"NLD|Office": {"source": "CRREM V2.04 1.5°C (licensed)", "kgco2e_m2": {"2025": 40, ...}}}; key "*" applies to all')
+    scenario: str = "Current Policies"
+    carbon_price_usd_t: float = Field(0.0, ge=0)
+    annual_improvement_pct: float = Field(0.0, ge=0, le=20)
+
+
+@app.post("/real-estate/assess", dependencies=[_AUTH], tags=["Real Estate"])
+def real_estate_assess(req: RealEstateRequest) -> dict:
+    """EUI and operational carbon per building, 2050 trajectory with grid decarbonisation and retrofits,
+    stranding year against the supplied pathway, and EPC/MEPS regulatory checks."""
+    from ..real_estate import REError, assess_portfolio, from_dict
+    try:
+        bs = [from_dict(b) for b in req.buildings]
+        return _jsonable(assess_portfolio(bs, req.pathways, req.scenario, req.carbon_price_usd_t, req.annual_improvement_pct))
+    except (REError, TypeError, KeyError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc).strip("'\""))
+
+
+@app.get("/real-estate/dashboard", tags=["Real Estate"])
+def real_estate_dashboard():
+    from fastapi.responses import HTMLResponse
+    return HTMLResponse((Path(__file__).parent / "real_estate_dashboard.html").read_text(encoding="utf-8"))
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# CSRD DOUBLE MATERIALITY (IRO register) and CARBON MARKETS (EU ETS position, credit screen)
+# ──────────────────────────────────────────────────────────────────────────────
+
+class MaterialityRequest(BaseModel):
+    iros: list[dict] = Field(..., min_length=1)
+    threshold: float = Field(3.0, ge=1, le=5)
+
+
+@app.post("/materiality/assess", dependencies=[_AUTH], tags=["CSRD"])
+def materiality_assess(req: MaterialityRequest) -> dict:
+    """Score an IRO register for impact and financial materiality (ESRS 1 ch.3) and list material topics."""
+    from ..materiality import MaterialityError, assess, from_dict
+    try:
+        return assess([from_dict(i) for i in req.iros], req.threshold)
+    except (MaterialityError, TypeError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+
+
+@app.post("/materiality/suggest-e1", tags=["CSRD"])
+def materiality_suggest(payload: dict) -> dict:
+    """Starter climate (E1) IROs pre-filled from engine results (inventory totals, physical AAL, carbon price)."""
+    from ..materiality import suggest_e1
+    return {"iros": suggest_e1(payload.get("inventory_totals_t"), payload.get("physical_aal_pct"),
+                               payload.get("carbon_price_usd_t"))}
+
+
+class ETSRequest(BaseModel):
+    installations: list[dict] = Field(..., min_length=1)
+    compliance_year: int = Field(..., ge=2013, le=2035)
+    eua_price: Optional[float] = Field(None, gt=0, description="EUA price per tonne (EUR); default: World Bank latest (USD)")
+    projection_to: int = Field(2034, ge=2025, le=2040)
+    emissions_change_pct_per_year: float = 0.0
+    allocation_decline_pct_per_year: float = Field(0.0, ge=0, le=50)
+
+
+@app.post("/carbon-markets/ets-position", dependencies=[_AUTH], tags=["Carbon Markets"])
+def carbon_markets_ets(req: ETSRequest) -> dict:
+    """EU ETS compliance balance per installation and projected shortfall as CBAM phases out free allocation."""
+    from ..carbon_markets import MarketError, ets_position
+    try:
+        return ets_position(req.installations, req.compliance_year, req.eua_price, "EUR", req.projection_to,
+                            req.emissions_change_pct_per_year, req.allocation_decline_pct_per_year)
+    except MarketError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+
+
+class CreditsRequest(BaseModel):
+    lots: list[dict] = Field(..., min_length=1)
+    current_year: int = Field(2026, ge=2015, le=2050)
+    max_vintage_age: int = Field(5, ge=1, le=30)
+
+
+@app.post("/carbon-markets/credits", dependencies=[_AUTH], tags=["Carbon Markets"])
+def carbon_markets_credits(req: CreditsRequest) -> dict:
+    """Carbon-credit quality and usage screen (ICVCM CCP label, removals, vintage, SBTi and EU claim rules)."""
+    from ..carbon_markets import MarketError, screen_credits
+    try:
+        return screen_credits(req.lots, req.current_year, req.max_vintage_age)
+    except (MarketError, KeyError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+
+
+@app.get("/materiality/dashboard", tags=["CSRD"])
+def materiality_dashboard():
+    from fastapi.responses import HTMLResponse
+    return HTMLResponse((Path(__file__).parent / "materiality_dashboard.html").read_text(encoding="utf-8"))
+
+
+@app.get("/carbon-markets/dashboard", tags=["Carbon Markets"])
+def carbon_markets_dashboard():
+    from fastapi.responses import HTMLResponse
+    return HTMLResponse((Path(__file__).parent / "carbon_markets_dashboard.html").read_text(encoding="utf-8"))

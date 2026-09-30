@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClimRisk — Transition Plan</title>
+<style>
+  *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+  :root { --bg:#070b14; --surface:#0d1524; --border:#1c2a44; --primary:#38bdf8; --muted:#8a9bbd; --text:#e2eaf8;
+          --critical:#ef4444; --moderate:#eab308; --low:#22c55e; --mono:ui-monospace,'SF Mono',Menlo,monospace;
+          --sans:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',sans-serif; }
+  body { font-family:var(--sans); background:var(--bg); color:var(--text); font-size:13px; }
+  .header { display:flex; align-items:center; gap:14px; padding:10px 18px; background:var(--surface); border-bottom:1px solid var(--border); }
+  .logo { font-weight:800; letter-spacing:3px; color:var(--primary); font-size:16px; }
+  .sub { font-size:11px; color:var(--muted); }
+  .pill { margin-left:auto; font-size:10px; color:var(--muted); border:1px solid var(--border); border-radius:20px; padding:3px 10px; font-family:var(--mono); }
+  .wrap { padding:16px 20px; max-width:1500px; }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:14px; margin-bottom:14px; }
+  .card h3 { font-size:12px; letter-spacing:1px; text-transform:uppercase; color:var(--muted); margin-bottom:10px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:8px; }
+  label { font-size:11px; color:var(--muted); display:block; margin:4px 0 3px; }
+  input, select { width:100%; background:var(--bg); border:1px solid var(--border); border-radius:6px; color:var(--text); font:inherit; padding:5px 7px; outline:none; }
+  table { width:100%; border-collapse:collapse; font-size:11.5px; }
+  #lev select { min-width:96px; }
+  th, td { text-align:left; padding:4px 5px; border-bottom:1px solid var(--border); vertical-align:middle; }
+  th { color:var(--muted); font-weight:600; font-size:10.5px; }
+  td.n { text-align:right; font-family:var(--mono); white-space:nowrap; }
+  .btn { padding:8px 14px; border:none; border-radius:6px; font:inherit; font-weight:700; cursor:pointer; background:var(--primary); color:#04121d; }
+  .btn.ghost { background:transparent; border:1px solid var(--primary); color:var(--primary); }
+  .x { background:none; border:1px solid var(--border); color:var(--muted); border-radius:5px; cursor:pointer; padding:2px 7px; }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .status { font-size:11px; color:var(--muted); }
+  .status.error { color:var(--critical); }
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:10px; margin-bottom:14px; }
+  .kpi { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:12px; }
+  .kpi .v { font-size:20px; font-weight:800; font-family:var(--mono); }
+  .kpi .l { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-top:3px; }
+  .ok { color:var(--low); } .bad { color:var(--critical); } .warn { color:var(--moderate); }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  @media (max-width:1100px) { .grid2 { grid-template-columns:1fr; } }
+  .legend { display:flex; gap:12px; flex-wrap:wrap; font-size:10.5px; color:var(--muted); margin-top:6px; }
+  .legend i { display:inline-block; width:10px; height:3px; margin-right:4px; vertical-align:middle; }
+  .foot { font-size:10.5px; color:var(--muted); line-height:1.6; }
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="logo">CLIMRISK</div>
+  <div class="sub">Transition Plan · targets → levers → capex → emissions path</div>
+  <div class="pill">ESRS E1-1 · UK TPT · IFRS S2 · SBTi</div>
+</div>
+<div class="wrap">
+  <div class="card"><h3>Organisation & targets</h3>
+    <div class="grid">
+      <div><label>Organisation *</label><input id="org" type="text"></div>
+      <div><label>Country (ISO3, for NGFS prices)</label><input id="country" type="text" placeholder="DEU"></div>
+      <div><label>Sector</label><input id="sector" type="text" placeholder="cement"></div>
+      <div><label>Base year *</label><input id="by" type="number" value="2024"></div>
+      <div><label>Base Scope 1 (t) *</label><input id="s1" type="number"></div>
+      <div><label>Base Scope 2 market (t)</label><input id="s2" type="number"></div>
+      <div><label>Base Scope 3 (t)</label><input id="s3" type="number"></div>
+      <div><label>BAU growth S1/S2 (%/yr)</label><input id="g12" type="number" step="any" value="0"></div>
+      <div><label>BAU growth S3 (%/yr)</label><input id="g3" type="number" step="any" value="0"></div>
+      <div><label>Near-term year *</label><input id="nty" type="number" value="2030"></div>
+      <div><label>Near-term cut % *</label><input id="ntp" type="number" step="any" value="42"></div>
+      <div><label>Near-term scopes</label><select id="nts"><option value="scope1,scope2">Scope 1+2</option><option value="scope1,scope2,scope3">Scope 1+2+3</option><option value="scope3">Scope 3</option></select></div>
+      <div><label>Net-zero year</label><input id="nzy" type="number" value="2050"></div>
+      <div><label>Net-zero cut %</label><input id="nzp" type="number" step="any" value="90"></div>
+      <div><label>Discount rate</label><input id="dr" type="number" step="any" value="0.07"></div>
+      <div><label>Offsets (t/yr, reported only)</label><input id="off" type="number" value="0"></div>
+    </div>
+  </div>
+  <div class="card"><h3>Decarbonisation levers</h3>
+    <table id="lev"><thead><tr><th>Name</th><th>Scope</th><th>Abatement t/yr</th><th>Start</th><th>Ramp yrs</th><th>Capex USD</th><th>Opex Δ USD/yr</th><th>Life yrs</th><th>Category</th><th>Status</th><th></th></tr></thead><tbody></tbody></table>
+    <div class="row" style="margin-top:10px">
+      <button class="btn ghost" id="add">+ lever</button>
+      <button class="btn ghost" id="ex">Load worked example</button>
+      <button class="btn" id="run">Build plan</button>
+      <span class="status" id="status"></span>
+    </div>
+    <div class="foot" style="margin-top:8px">Opex Δ: negative = saving. Abatement is measured against BAU and assumed to persist after a lever's life, with like-for-like reinvestment added to capex. Offsets are never counted towards targets.</div>
+  </div>
+  <div id="out"></div>
+</div>
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt = (v, d = 0) => v == null ? '—' : Number(v).toLocaleString('en-US', {maximumFractionDigits: d, minimumFractionDigits: d});
+const usd = v => v == null ? '—' : (Math.abs(v) >= 1e9 ? '$' + fmt(v / 1e9, 2) + 'bn' : Math.abs(v) >= 1e6 ? '$' + fmt(v / 1e6, 1) + 'm' : '$' + fmt(v));
+let LAST = null;
+const CATS = ['efficiency','electrification','renewables','fuel_switch','process','ccs','fleet','supplier','other'];
+function levRow(l = {}) {
+  const tr = document.createElement('tr');
+  const sel = (opts, v) => `<select>${opts.map(o => `<option${o === v ? ' selected' : ''}>${o}</option>`).join('')}</select>`;
+  tr.innerHTML = `<td><input value="${esc(l.name || '')}"></td><td>${sel(['scope1','scope2','scope3'], l.scope || 'scope1')}</td>
+    <td><input type="number" value="${l.abatement_t_per_year ?? ''}"></td><td><input type="number" value="${l.start_year ?? 2026}"></td>
+    <td><input type="number" value="${l.ramp_years ?? 1}"></td><td><input type="number" value="${l.capex_usd ?? 0}"></td>
+    <td><input type="number" value="${l.opex_change_usd_per_year ?? 0}"></td><td><input type="number" value="${l.lifetime_years ?? 20}"></td>
+    <td>${sel(CATS, l.category || 'other')}</td><td>${sel(['committed','planned','exploratory'], l.status || 'planned')}</td><td><button class="x">×</button></td>`;
+  tr.querySelector('.x').onclick = () => tr.remove();
+  $('lev').querySelector('tbody').append(tr);
+}
+function levers() {
+  return Array.from($('lev').querySelectorAll('tbody tr')).map(tr => {
+    const f = tr.querySelectorAll('input,select'), v = i => f[i].value;
+    return {name: v(0).trim(), scope: v(1), abatement_t_per_year: Number(v(2)), start_year: Number(v(3)), ramp_years: Number(v(4)),
+            capex_usd: Number(v(5)), opex_change_usd_per_year: Number(v(6)), lifetime_years: Number(v(7)), category: v(8), status: v(9)};
+  }).filter(l => l.name && l.abatement_t_per_year > 0);
+}
+function payload() {
+  const n = id => $(id).value === '' ? null : Number($(id).value);
+  if (!$('org').value.trim()) throw new Error('Enter the organisation');
+  if (!n('s1') && !n('s2') && !n('s3')) throw new Error('Enter base-year emissions');
+  return {organisation: $('org').value.trim(), base_year: n('by'), country: $('country').value.trim().toUpperCase() || null,
+    sector: $('sector').value.trim(), base_emissions_t: {scope1: n('s1') || 0, scope2: n('s2') || 0, scope3: n('s3') || 0},
+    growth_pct_per_year: {scope1: n('g12') || 0, scope2: n('g12') || 0, scope3: n('g3') || 0},
+    near_term_year: n('nty'), near_term_reduction_pct: n('ntp'), near_term_scopes: $('nts').value.split(','),
+    net_zero_year: n('nzy'), net_zero_reduction_pct: n('nzp'), discount_rate: n('dr') ?? 0.07, offsets_t_per_year: n('off') || 0,
+    levers: levers()};
+}
+async function run() {
+  let body; try { body = payload(); } catch (e) { $('status').className = 'status error'; $('status').textContent = e.message; return; }
+  $('status').className = 'status'; $('status').textContent = 'Building…';
+  const k = new URLSearchParams(location.hash.slice(1)).get('key');
+  const r = await fetch('/transition-plan', {method: 'POST', headers: Object.assign({'Content-Type': 'application/json'}, k ? {'X-API-Key': k} : {}), body: JSON.stringify(body)});
+  const j = await r.json();
+  if (!r.ok) { $('status').className = 'status error'; $('status').textContent = typeof j.detail === 'string' ? j.detail : JSON.stringify(j.detail); return; }
+  LAST = j; $('status').textContent = 'Done.'; render(j);
+}
+function chart(years, series) {
+  const W = 760, H = 260, L = 60, R = 10, T = 10, B = 24;
+  const all = series.flatMap(s => s.v), max = Math.max(...all) * 1.08 || 1;
+  const x = i => L + (W - L - R) * i / (years.length - 1), y = v => T + (H - T - B) * (1 - v / max);
+  let s = `<svg viewBox="0 0 ${W} ${H}" width="100%">`;
+  for (let k = 0; k <= 4; k++) { const v = max * k / 4; s += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="#1c2a44"/><text x="${L - 6}" y="${y(v) + 3}" fill="#8a9bbd" font-size="10" text-anchor="end">${fmt(v)}</text>`; }
+  years.forEach((yr, i) => { if (yr % 5 === 0) s += `<text x="${x(i)}" y="${H - 6}" fill="#8a9bbd" font-size="10" text-anchor="middle">${yr}</text>`; });
+  series.forEach(se => s += `<polyline fill="none" stroke="${se.c}" stroke-width="${se.w || 1.8}" ${se.d ? 'stroke-dasharray="5 4"' : ''} points="${se.v.map((p, i) => `${x(i)},${y(p)}`).join(' ')}"/>`);
+  return s + '</svg><div class="legend">' + series.map(se => `<span><i style="background:${se.c}"></i>${esc(se.n)}</span>`).join('') + '</div>';
+}
+function render(r) {
+  const nt = r.near_term, tot = i => ['scope1','scope2','scope3'].reduce((a, s) => a + r.planned_t[s][i], 0);
+  const bau = i => ['scope1','scope2','scope3'].reduce((a, s) => a + r.bau_t[s][i], 0);
+  const macmax = Math.max(1, ...r.macc.map(m => Math.abs(m.abatement_cost_usd_per_t)));
+  const capmax = Math.max(1, ...r.capex_usd_by_year);
+  let h = `<div class="kpis">
+    <div class="kpi"><div class="v ${nt.met ? 'ok' : 'bad'}">${nt.met ? 'On track' : 'Gap'}</div><div class="l">${nt.year} target (${esc(r.target_scopes.join('+'))})</div></div>
+    <div class="kpi"><div class="v">${fmt(nt.planned_t)}</div><div class="l">planned t in ${nt.year}</div></div>
+    <div class="kpi"><div class="v">${fmt(nt.target_t)}</div><div class="l">target t in ${nt.year}</div></div>
+    <div class="kpi"><div class="v">${usd(r.total_capex_usd)}</div><div class="l">capex to ${r.years[r.years.length - 1]}</div></div>
+    <div class="kpi"><div class="v ${r.sbti.ambition_aligned ? 'ok' : 'bad'}">${r.sbti.implied_linear_rate_pct_per_yr}%/yr</div><div class="l">target ambition (SBTi min ${r.sbti.sbti_minimum_rate_pct_per_yr}%)</div></div>
+  </div>
+  <div class="card"><h3>Emissions path · t CO₂e</h3>${chart(r.years, [
+      {n: 'BAU all scopes', c: '#64748b', v: r.years.map((_, i) => bau(i)), d: true},
+      {n: 'Planned all scopes', c: '#38bdf8', v: r.years.map((_, i) => tot(i))},
+      {n: 'Planned ' + r.target_scopes.join('+'), c: '#22c55e', v: r.planned_target_scopes_t},
+      {n: 'Target path ' + r.target_scopes.join('+'), c: '#eab308', v: r.target_path_t, d: true}])}</div>
+  <div class="card"><h3>Checks</h3>${r.checks.length ? `<table>${r.checks.map(c => `<tr><td class="${c.level === 'error' ? 'bad' : c.level === 'warning' ? 'warn' : ''}" style="width:70px">${c.level}</td><td>${esc(c.message)}</td></tr>`).join('')}</table>` : '<p class="foot">No issues.</p>'}</div>
+  <div class="grid2">
+    <div class="card"><h3>Marginal abatement cost · USD/t</h3><table>${r.macc.map(m => `<tr><td style="width:40%">${esc(m.name)}</td><td><div style="height:10px;width:${Math.abs(m.abatement_cost_usd_per_t) / macmax * 100}%;background:${m.abatement_cost_usd_per_t < 0 ? '#22c55e' : '#38bdf8'};border-radius:2px"></div></td><td class="n">${fmt(m.abatement_cost_usd_per_t, 1)}</td><td class="n">${fmt(m.abatement_t_per_year)} t</td></tr>`).join('')}</table>
+      <div class="foot" style="margin-top:6px">(capex × capital recovery factor + annual opex change) ÷ annual abatement, at ${r.levers.length ? '' : ''}the plan's discount rate.</div></div>
+    <div class="card"><h3>Capex by year</h3><table>${r.years.map((y, i) => r.capex_usd_by_year[i] ? `<tr><td style="width:50px">${y}</td><td><div style="height:10px;width:${r.capex_usd_by_year[i] / capmax * 100}%;background:#38bdf8;border-radius:2px"></div></td><td class="n">${usd(r.capex_usd_by_year[i])}</td></tr>` : '').join('')}</table></div>
+  </div>
+  <div class="card"><h3>Levers</h3><table><tr><th>Lever</th><th>Scope</th><th>Status</th><th class="n">t/yr</th><th class="n">Capex</th><th class="n">USD/t</th><th class="n">NPV cost</th>${Object.keys(r.carbon_price_paths_usd_t).slice(0, 3).map(k => `<th class="n">Avoided carbon cost (${esc(k)})</th>`).join('')}</tr>
+    ${r.levers.map(l => `<tr><td>${esc(l.name)}</td><td>${esc(l.scope)}</td><td>${esc(l.status)}</td><td class="n">${fmt(l.abatement_t_per_year)}</td><td class="n">${usd(l.capex_usd)}</td><td class="n">${fmt(l.abatement_cost_usd_per_t, 1)}</td><td class="n">${usd(l.npv_cost_usd)}</td>${Object.keys(r.carbon_price_paths_usd_t).slice(0, 3).map(k => `<td class="n">${usd(l.npv_avoided_carbon_cost_usd[k])}</td>`).join('')}</tr>`).join('')}</table>
+    <div class="foot" style="margin-top:6px">Carbon price basis: ${esc(r.carbon_price_basis)}.</div></div>
+  <div class="card"><div class="row"><button class="btn ghost" id="dl">Download ESRS E1-1 / TPT data (.json)</button></div></div>`;
+  $('out').innerHTML = h;
+  $('dl').onclick = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify({esrs_e1_1: r.esrs_e1_1, tpt_mapping: r.tpt_mapping, sbti: r.sbti, plan: r}, null, 2)], {type: 'application/json'})); a.download = 'transition_plan.json'; a.click(); };
+}
+$('add').onclick = () => levRow();
+$('run').onclick = run;
+$('ex').onclick = () => {
+  Object.entries({org: 'Worked example — cement producer', country: 'DEU', sector: 'cement', by: 2024, s1: 100000, s2: 50000, s3: 400000, g12: 1, g3: 2, nty: 2030, ntp: 42, nzy: 2050, nzp: 90, dr: 0.07, off: 0}).forEach(([k, v]) => $(k).value = v);
+  $('lev').querySelector('tbody').innerHTML = '';
+  [{name: 'Renewable PPA', scope: 'scope2', abatement_t_per_year: 45000, start_year: 2026, ramp_years: 2, capex_usd: 0, opex_change_usd_per_year: 500000, lifetime_years: 15, category: 'renewables', status: 'committed'},
+   {name: 'Kiln efficiency upgrade', scope: 'scope1', abatement_t_per_year: 15000, start_year: 2026, ramp_years: 3, capex_usd: 30000000, opex_change_usd_per_year: -1000000, lifetime_years: 20, category: 'efficiency', status: 'committed'},
+   {name: 'Biomass fuel switch', scope: 'scope1', abatement_t_per_year: 20000, start_year: 2027, ramp_years: 3, capex_usd: 15000000, opex_change_usd_per_year: 2000000, lifetime_years: 20, category: 'fuel_switch', status: 'planned'},
+   {name: 'Carbon capture', scope: 'scope1', abatement_t_per_year: 60000, start_year: 2035, ramp_years: 5, capex_usd: 400000000, opex_change_usd_per_year: 6000000, lifetime_years: 25, category: 'ccs', status: 'exploratory'},
+   {name: 'Supplier clinker programme', scope: 'scope3', abatement_t_per_year: 120000, start_year: 2027, ramp_years: 6, capex_usd: 0, opex_change_usd_per_year: 1500000, lifetime_years: 20, category: 'supplier', status: 'planned'}].forEach(levRow);
+  run();
+};
+levRow();
+</script>
+</body>
+</html>

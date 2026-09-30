@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClimRisk — Carbon Accounting</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root { --bg:#070b14; --surface:#0d1524; --border:#1c2a44; --primary:#38bdf8; --muted:#8a9bbd; --text:#e2eaf8;
+          --critical:#ef4444; --moderate:#eab308; --low:#22c55e; --mono:ui-monospace,'SF Mono',Menlo,monospace;
+          --sans:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',sans-serif; }
+  body { font-family:var(--sans); background:var(--bg); color:var(--text); font-size:13px; }
+  .header { display:flex; align-items:center; gap:14px; padding:10px 18px; background:var(--surface); border-bottom:1px solid var(--border); }
+  .logo { font-weight:800; letter-spacing:3px; color:var(--primary); font-size:16px; }
+  .sub { font-size:11px; color:var(--muted); }
+  .pill { margin-left:auto; font-size:10px; color:var(--muted); border:1px solid var(--border); border-radius:20px; padding:3px 10px; font-family:var(--mono); }
+  .layout { display:grid; grid-template-columns:340px 1fr; min-height:calc(100vh - 46px); }
+  .side { background:var(--surface); border-right:1px solid var(--border); padding:14px; overflow-y:auto; max-height:calc(100vh - 46px); }
+  .main { padding:18px 22px; overflow-y:auto; max-height:calc(100vh - 46px); }
+  .section-title { font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); margin:14px 0 6px; font-weight:600; }
+  label { font-size:11px; color:var(--muted); display:block; margin:8px 0 3px; }
+  input, select { width:100%; background:var(--bg); border:1px solid var(--border); border-radius:6px; color:var(--text); font:inherit; padding:6px 8px; outline:none; }
+  .row2 { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .btn { width:100%; padding:9px; border:none; border-radius:6px; font:inherit; font-weight:700; cursor:pointer; margin-top:8px; background:var(--primary); color:#04121d; }
+  .btn.ghost { background:transparent; border:1px solid var(--primary); color:var(--primary); }
+  .btn:disabled { opacity:.4; cursor:wait; }
+  .status { font-size:11px; color:var(--muted); margin-top:8px; min-height:16px; line-height:1.5; }
+  .status.error { color:var(--critical); }
+  .hint { font-size:10.5px; color:var(--muted); line-height:1.5; margin-top:4px; }
+  .fres { max-height:220px; overflow-y:auto; margin-top:6px; }
+  .fres div { padding:5px 6px; border-bottom:1px solid var(--border); font-size:11px; cursor:pointer; }
+  .fres div:hover { background:#0c2233; }
+  .fres code { font-family:var(--mono); font-size:10px; color:var(--primary); word-break:break-all; }
+  .empty { color:var(--muted); line-height:1.8; max-width:700px; margin-top:40px; }
+  .empty h2 { color:var(--text); font-size:18px; margin-bottom:8px; }
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:10px; margin-bottom:16px; }
+  .kpi { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:12px; }
+  .kpi .v { font-size:21px; font-weight:800; font-family:var(--mono); }
+  .kpi .l { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-top:3px; }
+  .kpi .s { font-size:11px; color:var(--muted); margin-top:4px; }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:14px; margin-bottom:14px; }
+  .card h3 { font-size:12px; letter-spacing:1px; text-transform:uppercase; color:var(--muted); margin-bottom:10px; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  @media (max-width:1100px) { .grid2 { grid-template-columns:1fr; } }
+  table { width:100%; border-collapse:collapse; font-size:11.5px; }
+  th, td { text-align:left; padding:5px 6px; border-bottom:1px solid var(--border); vertical-align:top; }
+  th { color:var(--muted); font-weight:600; font-size:10.5px; }
+  td.n { text-align:right; font-family:var(--mono); white-space:nowrap; }
+  .bar { height:10px; background:var(--primary); border-radius:2px; }
+  .lvl-error { color:var(--critical); } .lvl-warning { color:var(--moderate); }
+  .st-reported { color:var(--low); } .st-missing { color:var(--critical); } .st-excluded, .st-not_relevant, .st-none { color:var(--muted); }
+  .dl { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+  .dl button { width:auto; padding:7px 12px; margin:0; }
+  .foot { font-size:10.5px; color:var(--muted); line-height:1.6; }
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="logo">CLIMRISK</div>
+  <div class="sub">Carbon Accounting · GHG inventory & assurance pack</div>
+  <div class="pill">GHG Protocol · Scope 2 Guidance · Scope 3 Standard · ISO 14064-1</div>
+</div>
+<div class="layout">
+  <aside class="side">
+    <div class="section-title">Organisation</div>
+    <label>Name <span style="color:#f97316">*</span></label><input id="org" type="text" placeholder="Legal name of the reporting group">
+    <div class="row2">
+      <div><label>Reporting year *</label><input id="year" type="number" value="2025"></div>
+      <div><label>GWP basis</label><select id="gwp"><option value="AR6">IPCC AR6</option><option value="AR5">IPCC AR5 (UK SECR)</option></select></div>
+    </div>
+    <label>Consolidation approach</label>
+    <select id="cons"><option value="operational_control">Operational control</option><option value="financial_control">Financial control</option><option value="equity_share">Equity share</option></select>
+    <div class="row2">
+      <div><label>Revenue (USD m)</label><input id="rev" type="number" step="any"></div>
+      <div><label>Employees (FTE)</label><input id="fte" type="number" step="any"></div>
+    </div>
+
+    <div class="section-title">Data</div>
+    <button class="btn ghost" id="tpl">Download intake template (.xlsx)</button>
+    <label>Upload filled template</label><input id="file" type="file" accept=".xlsx">
+    <button class="btn" id="run">Calculate inventory</button>
+    <button class="btn ghost" id="demo">Load worked example</button>
+    <div class="status" id="status"></div>
+
+    <div class="section-title">Factor library</div>
+    <input id="fq" type="text" placeholder="search e.g. natural gas kWh gross, R410A, long-haul economy">
+    <div class="fres" id="fres"></div>
+    <div class="hint">Click a result to copy its factor_id into your template's Activities sheet.</div>
+    <details style="margin-top:10px"><summary style="font-size:11px;color:var(--primary);cursor:pointer">API key (only if required)</summary>
+      <input id="apiKey" type="password" placeholder="X-API-Key" style="margin-top:6px"></details>
+  </aside>
+  <main class="main" id="out">
+    <div class="empty">
+      <h2>From invoices to an assurance-ready GHG inventory</h2>
+      Download the template, fill in your entities and activity data — fuel and electricity invoices, refrigerant top-ups,
+      travel, waste, supplier data and spend — and upload it. The engine calculates Scope 1, Scope 2 both
+      location-based and market-based, and all 15 Scope 3 categories, consolidated by the boundary you choose.<br><br>
+      Every reported number keeps its input, factor, working, evidence reference and data-quality score. The
+      assurance pack (.xlsx) lets an auditor re-perform each line. Scope 3 categories without data must be
+      excluded with a reason — nothing drops out silently.<br><br>
+      Factors: UK DESNZ 2026 · US EPA eGRID2023 · Green-e 2025 residual mix · AIB 2025 European residual mix ·
+      Ember · World Bank T&amp;D losses · US EPA USEEIO v1.3.
+    </div>
+  </main>
+</div>
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt = (v, d = 1) => v == null ? '—' : Number(v).toLocaleString('en-US', {maximumFractionDigits: d, minimumFractionDigits: d});
+const hdrs = (json = true) => Object.assign(json ? {'Content-Type': 'application/json'} : {}, $('apiKey').value ? {'X-API-Key': $('apiKey').value} : {});
+let PAYLOAD = null;
+
+const DEMO = {"organisation":"Worked example — Demo Manufacturing Group","reporting_year":2025,"consolidation":"equity_share","revenue_musd":420,"employees":1800,
+ "entities":[{"id":"UK1","name":"Demo UK Ltd","country":"GBR"},{"id":"DE1","name":"Demo GmbH (60%)","country":"DEU","equity_pct":60},{"id":"US1","name":"Demo Inc (Texas)","country":"USA"},{"id":"IN1","name":"Demo India Pvt","country":"IND"}],
+ "records":[
+  {"entity":"UK1","year":2025,"category":"s1_stationary","method":"factor","factor_id":"desnz26:fuels-gaseous-fuels-natural-gas-kwh-gross-cv","quantity":5200000,"unit":"kWh (Gross CV)","description":"Boilers","evidence":"Gas invoices 2025","dq":1},
+  {"entity":"UK1","year":2025,"category":"s1_mobile","method":"factor","factor_id":"desnz26:fuels-liquid-fuels-diesel-average-biofuel-blend-litres","quantity":84000,"description":"Fleet diesel","evidence":"Fuel-card export"},
+  {"entity":"DE1","year":2025,"category":"s1_fugitive","method":"factor","factor_id":"desnz26:refrigerant-other-blends-r410a-emissions-including-only-kyoto-products-kg","quantity":42,"description":"Chiller top-ups","evidence":"F-gas log"},
+  {"entity":"UK1","year":2025,"category":"s2_electricity","method":"electricity","kwh":3100000,"instruments":[{"type":"REGO","mwh":1500,"g_per_kwh":0,"certificate":"REGO batch 2025-44"}],"description":"Site electricity","evidence":"Half-hourly meter data"},
+  {"entity":"DE1","year":2025,"category":"s2_electricity","method":"electricity","kwh":2400000,"description":"Plant electricity","evidence":"Stadtwerke invoices"},
+  {"entity":"US1","year":2025,"category":"s2_electricity","method":"electricity","kwh":6800000,"us_state":"TX","description":"Plant electricity","evidence":"Retailer invoices"},
+  {"entity":"IN1","year":2025,"category":"s2_electricity","method":"electricity","kwh":9000000,"description":"Plant electricity","evidence":"DISCOM bills"},
+  {"entity":"US1","year":2025,"category":"s3_c1","method":"spend","naics":"331110","amount":12000000,"currency":"USD","spend_year":2025,"description":"Steel purchases","evidence":"AP ledger"},
+  {"entity":"UK1","year":2025,"category":"s3_c6","method":"factor","factor_id":"desnz26:business-travel-air-flights-long-haul-to-from-uk-economy-class-without-rf-passenger-km","quantity":1250000,"description":"Long-haul flights","evidence":"Travel agency report"},
+  {"entity":"UK1","year":2025,"category":"s3_c4","method":"direct","kgco2e":185000,"factor_source":"Carrier-reported (GLEC Framework)","description":"Inbound freight","evidence":"Carrier emissions report","dq":2}
+ ],
+ "category_status":{"s3_c2":{"status":"excluded","reason":"Capex data collection in progress"},"s3_c5":{"status":"excluded","reason":"Waste contractor data due Q1"},"s3_c7":{"status":"excluded","reason":"Commuting survey planned 2026"},"s3_c8":{"status":"not_relevant","reason":"No upstream leased assets"},"s3_c9":{"status":"excluded","reason":"Customers collect"},"s3_c10":{"status":"not_relevant","reason":"Finished goods"},"s3_c11":{"status":"not_relevant","reason":"Products use no energy"},"s3_c12":{"status":"excluded","reason":"To be estimated 2026"},"s3_c13":{"status":"not_relevant","reason":"None"},"s3_c14":{"status":"not_relevant","reason":"No franchises"},"s3_c15":{"status":"not_relevant","reason":"No investments"}}};
+
+function meta() {
+  return {organisation: $('org').value.trim(), reporting_year: Number($('year').value), consolidation: $('cons').value,
+          gwp: $('gwp').value, revenue_musd: $('rev').value ? Number($('rev').value) : null,
+          employees: $('fte').value ? Number($('fte').value) : null};
+}
+function status(msg, err) { $('status').className = 'status' + (err ? ' error' : ''); $('status').textContent = msg; }
+
+async function run() {
+  const m = meta();
+  if (!m.organisation) return status('Enter the organisation name', true);
+  if (!m.reporting_year) return status('Enter the reporting year', true);
+  $('run').disabled = true;
+  try {
+    let res;
+    if ($('file').files[0]) {
+      const fd = new FormData();
+      fd.append('file', $('file').files[0]);
+      for (const [k, v] of Object.entries(m)) if (v != null) fd.append(k, v);
+      status('Reading workbook and calculating…');
+      const r = await fetch('/carbon/inventory/upload', {method: 'POST', headers: hdrs(false), body: fd});
+      const j = await r.json();
+      if (!r.ok) throw new Error(typeof j.detail === 'string' ? j.detail : JSON.stringify(j.detail));
+      PAYLOAD = j.payload; res = j.result;
+    } else if (PAYLOAD) {
+      PAYLOAD = Object.assign({}, PAYLOAD, m);
+      status('Calculating…');
+      const r = await fetch('/carbon/inventory', {method: 'POST', headers: hdrs(), body: JSON.stringify(PAYLOAD)});
+      res = await r.json();
+      if (!r.ok) throw new Error(typeof res.detail === 'string' ? res.detail : JSON.stringify(res.detail));
+    } else {
+      throw new Error('Upload a filled template, or load the worked example');
+    }
+    render(res); status('Done — ' + res.lines.length + ' calculated lines.');
+  } catch (e) { status(e.message, true); }
+  finally { $('run').disabled = false; }
+}
+
+async function download(path, filename, asJson) {
+  const r = await fetch(path, {method: 'POST', headers: hdrs(), body: JSON.stringify(PAYLOAD)});
+  if (!r.ok) { const j = await r.json(); return status(j.detail || 'download failed', true); }
+  const blob = asJson ? new Blob([JSON.stringify(await r.json(), null, 2)], {type: 'application/json'}) : await r.blob();
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename; a.click();
+}
+
+function render(r) {
+  const T = r.totals_t, dq = r.data_quality;
+  const s3 = Object.entries(r.scope3_by_category_t), s3max = Math.max(1, ...s3.map(([, v]) => v));
+  let h = `<div class="dl">
+      <button class="btn" onclick="download('/carbon/inventory/assurance.xlsx','GHG_inventory_assurance_pack.xlsx')">Assurance pack (.xlsx)</button>
+      <button class="btn ghost" onclick="download('/carbon/inventory/report','ISO14064_report.json',true)">ISO 14064-1 report (.json)</button>
+      <button class="btn ghost" onclick="(()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(PAYLOAD,null,2)],{type:'application/json'}));a.download='inventory_input.json';a.click()})()">Input data (.json)</button>
+    </div>
+    <div class="kpis">
+      <div class="kpi"><div class="v">${fmt(T.scope1)}</div><div class="l">Scope 1 · t CO₂e</div></div>
+      <div class="kpi"><div class="v">${fmt(T.scope2_location)}</div><div class="l">Scope 2 location · t</div></div>
+      <div class="kpi"><div class="v">${fmt(T.scope2_market)}</div><div class="l">Scope 2 market · t</div></div>
+      <div class="kpi"><div class="v">${fmt(T.scope3)}</div><div class="l">Scope 3 · t CO₂e</div></div>
+      <div class="kpi"><div class="v">${fmt(T.total_location)}</div><div class="l">Total (location) · t</div><div class="s">market-based: ${fmt(T.total_market)}</div></div>
+      <div class="kpi"><div class="v">${fmt(dq.weighted_score, 2)}</div><div class="l">Data quality (1 best · 5)</div><div class="s">${fmt((dq.share_primary || 0) * 100, 0)}% primary data</div></div>
+      ${r.intensity.t_per_musd_revenue != null ? `<div class="kpi"><div class="v">${fmt(r.intensity.t_per_musd_revenue)}</div><div class="l">t / USD m revenue</div><div class="s">${esc(r.intensity.basis)}</div></div>` : ''}
+    </div>
+    <div class="grid2">
+      <div class="card"><h3>Scope 3 by category · t CO₂e</h3><table>${s3.map(([k, v]) => `<tr><td style="width:45%">${esc(k)}</td><td><div class="bar" style="width:${v / s3max * 100}%"></div></td><td class="n">${fmt(v)}</td></tr>`).join('') || '<tr><td>none reported</td></tr>'}</table></div>
+      <div class="card"><h3>By entity · t CO₂e</h3><table><tr><th>Entity</th><th class="n">Scope 1</th><th class="n">Scope 2 (loc.)</th><th class="n">Scope 3</th></tr>${Object.entries(r.by_entity_t).map(([e, d]) => `<tr><td>${esc(e)}</td><td class="n">${fmt(d.scope1)}</td><td class="n">${fmt(d.scope2)}</td><td class="n">${fmt(d.scope3)}</td></tr>`).join('')}</table>
+        <div class="foot" style="margin-top:6px">Consolidation: ${esc(r.consolidation.replace('_', ' '))} · GWP ${esc(r.gwp)} · Scope 1 by gas: ${Object.entries(r.scope1_by_gas_t).map(([g, v]) => esc(g) + ' ' + fmt(v)).join(' · ')}</div></div>
+    </div>
+    <div class="card"><h3>Checks</h3>${r.checks.length ? `<table>${r.checks.map(c => `<tr><td class="lvl-${c.level}" style="width:70px">${c.level}</td><td style="width:90px">${esc(c.check)}</td><td>${esc(c.message)}</td></tr>`).join('')}</table>` : '<p class="foot">No issues found.</p>'}</div>
+    <div class="card"><h3>Completeness — every category reported or explained</h3><table><tr><th>Category</th><th>Status</th><th class="n">t CO₂e</th><th>Reason</th></tr>${r.completeness.map(c => `<tr><td>${esc(c.name)}</td><td class="st-${c.status}">${esc(c.status.replace('_', ' '))}</td><td class="n">${c.reported ? fmt(c.t_co2e) : ''}</td><td>${esc(c.reason || '')}</td></tr>`).join('')}</table></div>
+    <div class="card"><h3>Audit trail (first 200 lines — full trail in the assurance pack)</h3><table><tr><th>Rec.</th><th>Entity</th><th>Category</th><th>Working</th><th>Source</th><th class="n">t CO₂e</th><th>Evidence</th><th>DQ</th></tr>
+      ${r.lines.slice(0, 200).map(l => `<tr><td>${esc(l.record)}${l.derived_from ? ' ↳' : ''}</td><td>${esc(l.entity_name)}</td><td>${esc(l.category)}</td><td class="foot">${esc(l.working)}</td><td class="foot">${esc(l.factor.source || '')}</td><td class="n">${fmt(l.t_co2e, 2)}${l.t_co2e_market != null ? `<br><span class="foot">mkt ${fmt(l.t_co2e_market, 2)}</span>` : ''}</td><td class="foot">${esc(l.evidence || '')}</td><td>${l.dq}</td></tr>`).join('')}</table></div>
+    <div class="card foot">Fingerprint ${esc(r.fingerprint)} · factor library ${esc(r.factor_library)} · ${r.standards.map(esc).join(' · ')}</div>`;
+  $('out').innerHTML = h;
+}
+
+let ft;
+$('fq').oninput = () => { clearTimeout(ft); ft = setTimeout(async () => {
+  const q = $('fq').value.trim(); if (q.length < 2) { $('fres').innerHTML = ''; return; }
+  const j = await (await fetch('/carbon/factors?limit=40&q=' + encodeURIComponent(q))).json();
+  $('fres').innerHTML = j.results.map(f => `<div data-id="${esc(f.id)}"><b>${esc(f.label)}</b>${f.variant ? ' · ' + esc(f.variant) : ''}<br>${esc(f.scope)} · ${esc(f.unit)} · ${f.kgco2e_per_unit_ar5} kg (AR5)<br><code>${esc(f.id)}</code></div>`).join('') || '<div>No match</div>';
+  $('fres').querySelectorAll('[data-id]').forEach(d => d.onclick = () => { navigator.clipboard && navigator.clipboard.writeText(d.dataset.id); status('Copied ' + d.dataset.id); });
+}, 250); };
+$('tpl').onclick = () => { location.href = '/carbon/template.xlsx'; };
+$('demo').onclick = () => { PAYLOAD = JSON.parse(JSON.stringify(DEMO)); $('file').value = ''; $('org').value = DEMO.organisation; $('year').value = DEMO.reporting_year; $('cons').value = DEMO.consolidation; $('rev').value = DEMO.revenue_musd; $('fte').value = DEMO.employees; run(); };
+$('file').onchange = () => { PAYLOAD = null; };
+$('run').onclick = run;
+const k = new URLSearchParams(location.hash.slice(1)).get('key'); if (k) $('apiKey').value = k;
+</script>
+</body>
+</html>

@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClimRisk — Real Estate Decarbonisation</title>
+<style>
+  *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+  :root { --bg:#070b14; --surface:#0d1524; --border:#1c2a44; --primary:#38bdf8; --muted:#8a9bbd; --text:#e2eaf8;
+          --critical:#ef4444; --moderate:#eab308; --low:#22c55e; --mono:ui-monospace,'SF Mono',Menlo,monospace;
+          --sans:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',sans-serif; }
+  body { font-family:var(--sans); background:var(--bg); color:var(--text); font-size:13px; }
+  .header { display:flex; align-items:center; gap:14px; padding:10px 18px; background:var(--surface); border-bottom:1px solid var(--border); }
+  .logo { font-weight:800; letter-spacing:3px; color:var(--primary); font-size:16px; }
+  .sub { font-size:11px; color:var(--muted); }
+  .pill { margin-left:auto; font-size:10px; color:var(--muted); border:1px solid var(--border); border-radius:20px; padding:3px 10px; font-family:var(--mono); }
+  .wrap { padding:16px 20px; max-width:1500px; }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:14px; margin-bottom:14px; }
+  .card h3 { font-size:12px; letter-spacing:1px; text-transform:uppercase; color:var(--muted); margin-bottom:10px; }
+  input, select, textarea { width:100%; background:var(--bg); border:1px solid var(--border); border-radius:6px; color:var(--text); font:inherit; padding:5px 7px; outline:none; }
+  textarea { font-family:var(--mono); font-size:11px; min-height:110px; }
+  table { width:100%; border-collapse:collapse; font-size:11.5px; }
+  th, td { text-align:left; padding:4px 5px; border-bottom:1px solid var(--border); vertical-align:middle; }
+  th { color:var(--muted); font-weight:600; font-size:10.5px; }
+  td.n { text-align:right; font-family:var(--mono); white-space:nowrap; }
+  .btn { padding:8px 14px; border:none; border-radius:6px; font:inherit; font-weight:700; cursor:pointer; background:var(--primary); color:#04121d; }
+  .btn.ghost { background:transparent; border:1px solid var(--primary); color:var(--primary); }
+  .x { background:none; border:1px solid var(--border); color:var(--muted); border-radius:5px; cursor:pointer; padding:2px 7px; }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:8px; }
+  label { font-size:11px; color:var(--muted); display:block; margin:4px 0 3px; }
+  .status { font-size:11px; color:var(--muted); } .status.error { color:var(--critical); }
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:10px; margin-bottom:14px; }
+  .kpi { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:12px; }
+  .kpi .v { font-size:20px; font-weight:800; font-family:var(--mono); }
+  .kpi .l { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-top:3px; }
+  .bad { color:var(--critical); } .ok { color:var(--low); } .warn { color:var(--moderate); }
+  .foot { font-size:10.5px; color:var(--muted); line-height:1.6; }
+  .legend { display:flex; gap:12px; font-size:10.5px; color:var(--muted); margin-top:6px; }
+  .legend i { display:inline-block; width:10px; height:3px; margin-right:4px; vertical-align:middle; }
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="logo">CLIMRISK</div>
+  <div class="sub">Real Estate · operational carbon, stranding year, EPC & MEPS checks</div>
+  <div class="pill">CRREM-style · GHG Protocol · EPBD · MEES</div>
+</div>
+<div class="wrap">
+  <div class="card"><h3>Buildings (one year of metered energy)</h3>
+    <table id="bt"><thead><tr><th>ID</th><th>Name</th><th>Country</th><th>Type</th><th>Area m²</th><th>Electricity kWh</th><th>Gas kWh</th><th>Oil kWh</th><th>District heat kWh</th><th>DH kg/kWh</th><th>On-site PV kWh</th><th>EPC</th><th>US state</th><th></th></tr></thead><tbody></tbody></table>
+    <div class="row" style="margin-top:8px"><button class="btn ghost" id="add">+ building</button><button class="btn ghost" id="ex">Load worked example</button></div>
+  </div>
+  <div class="card"><h3>Decarbonisation pathway (paste CSV: country ISO3, property type, year, kg CO₂e/m²)</h3>
+    <div class="grid">
+      <div><label>Pathway source (shown in results)</label><input id="psrc" type="text" placeholder="e.g. CRREM Global Pathways V2.04, 1.5°C — used under CRREM data terms"></div>
+      <div><label>NGFS scenario for grid decarbonisation</label><select id="scen"><option>Current Policies</option><option>NDCs</option><option>Delayed transition</option><option>Below 2°C</option><option>Net Zero 2050</option><option>Fragmented World</option><option>Low demand</option></select></div>
+      <div><label>Carbon price for excess emissions (USD/t)</label><input id="cp" type="number" value="0"></div>
+      <div><label>Annual efficiency improvement (%)</label><input id="imp" type="number" step="any" value="0"></div>
+    </div>
+    <label style="margin-top:8px">Pathway rows — use * for any country/type</label>
+    <textarea id="pw" placeholder="NLD,Office,2025,40&#10;NLD,Office,2030,25&#10;NLD,Office,2050,3"></textarea>
+    <div class="foot">CRREM pathways are free for internal analysis with attribution; embedding them in a paid product needs a CRREM License Partner agreement, so they are not bundled — paste the values you are licensed to use, or your own pathway.</div>
+    <div class="row" style="margin-top:10px"><button class="btn" id="run">Assess portfolio</button><span class="status" id="status"></span></div>
+  </div>
+  <div id="out"></div>
+</div>
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt = (v, d = 0) => v == null ? '—' : Number(v).toLocaleString('en-US', {maximumFractionDigits: d, minimumFractionDigits: d});
+const COLS = ['id','name','country','property_type','floor_area_m2','electricity_kwh','natural_gas_kwh','fuel_oil_kwh','district_heat_kwh','district_heat_kgco2e_per_kwh','onsite_renewable_kwh','epc_rating','us_state'];
+const NUM = new Set(['floor_area_m2','electricity_kwh','natural_gas_kwh','fuel_oil_kwh','district_heat_kwh','district_heat_kgco2e_per_kwh','onsite_renewable_kwh']);
+function addRow(b = {}) {
+  const tr = document.createElement('tr');
+  tr.innerHTML = COLS.map(c => `<td><input ${NUM.has(c) ? 'type="number" step="any"' : ''} data-c="${c}" value="${esc(b[c] ?? '')}"></td>`).join('') + '<td><button class="x">×</button></td>';
+  tr.querySelector('.x').onclick = () => tr.remove();
+  $('bt').querySelector('tbody').append(tr);
+}
+function buildings() {
+  return Array.from($('bt').querySelectorAll('tbody tr')).map(tr => {
+    const o = {};
+    tr.querySelectorAll('input').forEach(i => { const c = i.dataset.c; if (i.value === '') return; o[c] = NUM.has(c) ? Number(i.value) : i.value.trim(); });
+    return o;
+  }).filter(o => o.id && o.floor_area_m2);
+}
+function pathways() {
+  const out = {}, src = $('psrc').value.trim();
+  $('pw').value.split(/\n/).map(l => l.trim()).filter(Boolean).forEach(l => {
+    const [c, t, y, v] = l.split(',').map(s => s.trim());
+    if (!y || v === undefined || isNaN(Number(y)) || isNaN(Number(v))) throw new Error('pathway row not understood: ' + l);
+    const key = (c === '*' ? '*' : `${c.toUpperCase()}|${t}`);
+    out[key] = out[key] || {source: src, kgco2e_m2: {}};
+    out[key].kgco2e_m2[y] = Number(v);
+  });
+  return out;
+}
+async function run() {
+  let body;
+  try { body = {buildings: buildings(), pathways: pathways(), scenario: $('scen').value, carbon_price_usd_t: Number($('cp').value || 0), annual_improvement_pct: Number($('imp').value || 0)}; }
+  catch (e) { $('status').className = 'status error'; $('status').textContent = e.message; return; }
+  if (!body.buildings.length) { $('status').className = 'status error'; $('status').textContent = 'Add at least one building with an ID and floor area'; return; }
+  $('status').className = 'status'; $('status').textContent = 'Assessing…';
+  const k = new URLSearchParams(location.hash.slice(1)).get('key');
+  const r = await fetch('/real-estate/assess', {method: 'POST', headers: Object.assign({'Content-Type': 'application/json'}, k ? {'X-API-Key': k} : {}), body: JSON.stringify(body)});
+  const j = await r.json();
+  if (!r.ok) { $('status').className = 'status error'; $('status').textContent = typeof j.detail === 'string' ? j.detail : JSON.stringify(j.detail); return; }
+  $('status').textContent = 'Done.'; render(j);
+}
+function chart(b) {
+  const W = 700, H = 220, L = 50, R = 10, T = 10, B = 22, ys = b.years;
+  const pw = b.stranding ? b.stranding.pathway_kgco2e_m2 : null;
+  const max = Math.max(...b.trajectory_kgco2e_m2, ...(pw || [0])) * 1.1 || 1;
+  const x = i => L + (W - L - R) * i / (ys.length - 1), y = v => T + (H - T - B) * (1 - v / max);
+  let s = `<svg viewBox="0 0 ${W} ${H}" width="100%">`;
+  for (let k = 0; k <= 4; k++) { const v = max * k / 4; s += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="#1c2a44"/><text x="${L - 5}" y="${y(v) + 3}" fill="#8a9bbd" font-size="10" text-anchor="end">${fmt(v, 0)}</text>`; }
+  ys.forEach((yr, i) => { if (yr % 5 === 0) s += `<text x="${x(i)}" y="${H - 6}" fill="#8a9bbd" font-size="10" text-anchor="middle">${yr}</text>`; });
+  s += `<polyline fill="none" stroke="#38bdf8" stroke-width="2" points="${b.trajectory_kgco2e_m2.map((v, i) => `${x(i)},${y(v)}`).join(' ')}"/>`;
+  if (pw) s += `<polyline fill="none" stroke="#22c55e" stroke-width="1.6" stroke-dasharray="5 4" points="${pw.map((v, i) => `${x(i)},${y(v)}`).join(' ')}"/>`;
+  if (b.stranding && b.stranding.stranding_year) { const i = ys.indexOf(b.stranding.stranding_year); s += `<line x1="${x(i)}" x2="${x(i)}" y1="${T}" y2="${H - B}" stroke="#ef4444" stroke-dasharray="3 3"/>`; }
+  return s + `</svg><div class="legend"><span><i style="background:#38bdf8"></i>Building kg CO₂e/m²</span><span><i style="background:#22c55e"></i>Pathway</span><span><i style="background:#ef4444"></i>Stranding year</span></div>`;
+}
+function render(r) {
+  const sa = Object.entries(r.share_of_area_stranded_by_year_pct);
+  let h = `<div class="kpis">
+    <div class="kpi"><div class="v">${fmt(r.n_buildings)}</div><div class="l">buildings · ${fmt(r.floor_area_m2)} m²</div></div>
+    <div class="kpi"><div class="v">${fmt(r.operational_tco2e, 0)}</div><div class="l">operational t CO₂e / yr</div></div>
+    <div class="kpi"><div class="v">${fmt(r.weighted_carbon_intensity_kgco2e_m2, 1)}</div><div class="l">kg CO₂e / m² (area-weighted)</div></div>
+    <div class="kpi"><div class="v">${fmt(r.weighted_eui_kwh_m2, 0)}</div><div class="l">kWh / m² EUI</div></div>
+    <div class="kpi"><div class="v ${sa.length ? 'bad' : 'ok'}">${sa.length ? sa[sa.length - 1][1] + '%' : '0%'}</div><div class="l">area stranded by 2050</div></div>
+    <div class="kpi"><div class="v ${r.regulatory_breaches.length ? 'bad' : 'ok'}">${r.regulatory_breaches.length}</div><div class="l">regulatory breaches / gaps</div></div>
+  </div>
+  <div class="card"><h3>Buildings</h3><table><tr><th>Building</th><th>Country · type</th><th class="n">EUI</th><th class="n">kg/m² now</th><th class="n">kg/m² 2050</th><th>Stranding year</th><th class="n">Excess t CO₂e</th><th>Regulation</th></tr>
+    ${r.buildings.map((b, i) => `<tr style="cursor:pointer" data-i="${i}"><td>${esc(b.name || b.id)}</td><td>${esc(b.country)} · ${esc(b.property_type)}</td><td class="n">${fmt(b.eui_kwh_m2)}</td><td class="n">${fmt(b.carbon_intensity_kgco2e_m2, 1)}</td><td class="n">${fmt(b.trajectory_kgco2e_m2[b.trajectory_kgco2e_m2.length - 1], 1)}</td>
+      <td class="${b.stranding ? (b.stranding.stranding_year ? 'bad' : 'ok') : ''}">${b.stranding ? (b.stranding.stranding_year || 'aligned to 2050') : 'no pathway'}</td><td class="n">${b.stranding ? fmt(b.stranding.cumulative_excess_tco2e) : '—'}</td>
+      <td>${b.regulatory.map(x => `<span class="${x.status === 'breach' || x.status === 'gap' ? 'bad' : x.status === 'ok' ? 'ok' : 'warn'}">${esc(x.rule.split(':')[0])}: ${esc(x.status)}</span>`).join('<br>')}</td></tr>`).join('')}</table>
+    <div class="foot" style="margin-top:6px">Click a building for its trajectory. Grid factor: location-based, decarbonised along ${esc(r.scenario)} (NGFS Phase 5). ${esc(r.note)}</div></div>
+  <div class="card" id="bchart"></div>`;
+  $('out').innerHTML = h;
+  const show = i => { const b = r.buildings[i]; $('bchart').innerHTML = `<h3>${esc(b.name || b.id)} — ${esc(b.grid.source)}${b.stranding ? ' · pathway: ' + esc(b.stranding.pathway_source) : ''}</h3>` + chart(b); };
+  $('out').querySelectorAll('tr[data-i]').forEach(tr => tr.onclick = () => show(Number(tr.dataset.i)));
+  if (r.buildings.length) show(0);
+}
+$('add').onclick = () => addRow();
+$('run').onclick = run;
+$('ex').onclick = () => {
+  $('bt').querySelector('tbody').innerHTML = '';
+  [{id: 'AMS-1', name: 'Amsterdam office', country: 'NLD', property_type: 'Office', floor_area_m2: 10000, electricity_kwh: 1200000, natural_gas_kwh: 800000, epc_rating: 'D'},
+   {id: 'LON-1', name: 'London office', country: 'GBR', property_type: 'Office', floor_area_m2: 8000, electricity_kwh: 900000, natural_gas_kwh: 400000, epc_rating: 'C'},
+   {id: 'HOU-1', name: 'Houston logistics', country: 'USA', property_type: 'Industrial', floor_area_m2: 25000, electricity_kwh: 1500000, us_state: 'TX'}].forEach(addRow);
+  $('psrc').value = 'Illustrative linear pathway (replace with licensed CRREM values)';
+  $('pw').value = '*,*,2025,45\n*,*,2030,30\n*,*,2040,12\n*,*,2050,3';
+  run();
+};
+addRow();
+</script>
+</body>
+</html>

@@ -22,3 +22,5 @@ climate_risk_engine/data/lca/raw/
 # Runtime forecast/storm caches
 climate_risk_engine/data/cache/forecast_*.json
 climate_risk_engine/data/cache/nhc_current_storms.json
+# Carbon factor build caches (rebuildable with scripts/build_carbon_factors.py)
+climate_risk_engine/data/carbon/raw/

@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClimRisk — Carbon Markets</title>
+<style>
+  *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+  :root { --bg:#070b14; --surface:#0d1524; --border:#1c2a44; --primary:#38bdf8; --muted:#8a9bbd; --text:#e2eaf8;
+          --critical:#ef4444; --moderate:#eab308; --low:#22c55e; --mono:ui-monospace,'SF Mono',Menlo,monospace;
+          --sans:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',sans-serif; }
+  body { font-family:var(--sans); background:var(--bg); color:var(--text); font-size:13px; }
+  .header { display:flex; align-items:center; gap:14px; padding:10px 18px; background:var(--surface); border-bottom:1px solid var(--border); }
+  .logo { font-weight:800; letter-spacing:3px; color:var(--primary); font-size:16px; }
+  .sub { font-size:11px; color:var(--muted); }
+  .pill { margin-left:auto; font-size:10px; color:var(--muted); border:1px solid var(--border); border-radius:20px; padding:3px 10px; font-family:var(--mono); }
+  .wrap { padding:16px 20px; max-width:1500px; }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:14px; margin-bottom:14px; overflow-x:auto; }
+  .card h3 { font-size:12px; letter-spacing:1px; text-transform:uppercase; color:var(--muted); margin-bottom:10px; }
+  input, select { width:100%; background:var(--bg); border:1px solid var(--border); border-radius:5px; color:var(--text); font:inherit; padding:4px 6px; outline:none; font-size:11.5px; }
+  table { width:100%; border-collapse:collapse; font-size:11.5px; }
+  th, td { text-align:left; padding:4px 5px; border-bottom:1px solid var(--border); vertical-align:top; }
+  th { color:var(--muted); font-weight:600; font-size:10.5px; }
+  td.n { text-align:right; font-family:var(--mono); white-space:nowrap; }
+  .btn { padding:8px 14px; border:none; border-radius:6px; font:inherit; font-weight:700; cursor:pointer; background:var(--primary); color:#04121d; }
+  .btn.ghost { background:transparent; border:1px solid var(--primary); color:var(--primary); }
+  .x { background:none; border:1px solid var(--border); color:var(--muted); border-radius:5px; cursor:pointer; padding:1px 6px; }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .status { font-size:11px; color:var(--muted); } .status.error { color:var(--critical); }
+  .bad { color:var(--critical); } .ok { color:var(--low); } .warn { color:var(--moderate); }
+  .foot { font-size:10.5px; color:var(--muted); line-height:1.6; }
+  .small { width:110px; }
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="logo">CLIMRISK</div>
+  <div class="sub">Carbon markets · EU ETS position · carbon-credit screen</div>
+  <div class="pill">EU ETS · CBAM · ICVCM CCP · SBTi · ESRS E1-7</div>
+</div>
+<div class="wrap">
+  <div class="card"><h3>EU ETS installations</h3>
+    <table id="it"><thead><tr><th>Installation</th><th>Sector</th><th>Verified emissions t</th><th>Free allocation t</th><th>Allowances held t</th><th></th></tr></thead><tbody></tbody></table>
+    <div class="row" style="margin-top:8px">
+      <button class="btn ghost" id="addi">+ installation</button>
+      <label class="foot">Compliance year</label><input id="cy" type="number" value="2025" class="small">
+      <label class="foot">EUA price (EUR/t, blank = World Bank latest)</label><input id="px" type="number" step="any" class="small">
+      <label class="foot">Emissions change %/yr</label><input id="ec" type="number" step="any" value="0" class="small">
+      <button class="btn" id="runi">Position</button><span class="status" id="si"></span>
+    </div>
+    <div id="oi"></div>
+  </div>
+  <div class="card"><h3>Carbon credits</h3>
+    <table id="ct"><thead><tr><th>Lot ID</th><th>Registry</th><th>Project type</th><th>Quantity t</th><th>Vintage</th><th>CCP label</th><th>Corr. adjustment</th><th>Retired</th><th>Intended use</th><th></th></tr></thead><tbody></tbody></table>
+    <div class="row" style="margin-top:8px"><button class="btn ghost" id="addc">+ lot</button><button class="btn ghost" id="ex">Load worked example</button><button class="btn" id="runc">Screen</button><span class="status" id="sc"></span></div>
+    <div class="foot" style="margin-top:6px">Project types recognised as removals: afforestation, reforestation, ARR, biochar, BECCS, DACCS/DAC, enhanced weathering, soil carbon, blue carbon restoration, mineralisation (durable: biochar, BECCS, DAC(CS), enhanced weathering, mineralisation).</div>
+    <div id="oc"></div>
+  </div>
+</div>
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt = (v, d = 0) => v == null ? '—' : Number(v).toLocaleString('en-US', {maximumFractionDigits: d, minimumFractionDigits: d});
+const hdr = () => { const k = new URLSearchParams(location.hash.slice(1)).get('key'); return Object.assign({'Content-Type': 'application/json'}, k ? {'X-API-Key': k} : {}); };
+const sel = (o, v) => `<select>${o.map(x => `<option${x === v ? ' selected' : ''}>${x}</option>`).join('')}</select>`;
+function addI(i = {}) { const tr = document.createElement('tr'); tr.innerHTML = `<td><input value="${esc(i.name || '')}"></td><td>${sel(['cement','iron_steel','aluminium','fertilisers','hydrogen','electricity','refining','chemicals','glass','paper','other'], i.sector || 'cement')}</td><td><input type="number" value="${i.verified_emissions_t ?? ''}"></td><td><input type="number" value="${i.free_allocation_t ?? ''}"></td><td><input type="number" value="${i.allowances_held_t ?? 0}"></td><td><button class="x">×</button></td>`; tr.querySelector('.x').onclick = () => tr.remove(); $('it').querySelector('tbody').append(tr); }
+function addC(l = {}) { const tr = document.createElement('tr'); tr.innerHTML = `<td><input value="${esc(l.id || '')}"></td><td><input value="${esc(l.registry || '')}"></td><td><input value="${esc(l.project_type || '')}"></td><td><input type="number" value="${l.quantity_t ?? ''}"></td><td><input type="number" value="${l.vintage ?? ''}"></td><td><input type="checkbox" ${l.ccp_label ? 'checked' : ''}></td><td><input type="checkbox" ${l.corresponding_adjustment ? 'checked' : ''}></td><td><input type="checkbox" ${l.retired ? 'checked' : ''}></td><td>${sel(['bvcm','neutralisation','target','product_claim','compliance'], l.intended_use || 'bvcm')}</td><td><button class="x">×</button></td>`; tr.querySelector('.x').onclick = () => tr.remove(); $('ct').querySelector('tbody').append(tr); }
+async function post(url, body, st) {
+  $(st).className = 'status'; $(st).textContent = 'Working…';
+  const r = await fetch(url, {method: 'POST', headers: hdr(), body: JSON.stringify(body)}); const j = await r.json();
+  if (!r.ok) { $(st).className = 'status error'; $(st).textContent = typeof j.detail === 'string' ? j.detail : JSON.stringify(j.detail); return null; }
+  $(st).textContent = 'Done.'; return j;
+}
+$('runi').onclick = async () => {
+  const inst = Array.from($('it').querySelectorAll('tbody tr')).map(tr => { const f = tr.querySelectorAll('input,select'); return {name: f[0].value, sector: f[1].value, verified_emissions_t: Number(f[2].value || 0), free_allocation_t: Number(f[3].value || 0), allowances_held_t: Number(f[4].value || 0)}; }).filter(i => i.name);
+  const j = await post('/carbon-markets/ets-position', {installations: inst, compliance_year: Number($('cy').value), eua_price: $('px').value ? Number($('px').value) : null, emissions_change_pct_per_year: Number($('ec').value || 0)}, 'si');
+  if (!j) return;
+  const T = j.totals, ys = j.installations[0].projection.map(p => p.year);
+  $('oi').innerHTML = `<p style="margin:10px 0">Balance ${j.compliance_year}: <b class="${T.balance_t > 0 ? 'bad' : 'ok'}">${T.balance_t > 0 ? 'short ' : 'long '}${fmt(Math.abs(T.balance_t))} t</b> · cost to cover ${fmt(T.cost_to_cover)} ${esc(j.currency)} at ${fmt(j.eua_price, 1)}/t · surrender by ${esc(j.surrender_deadline)}</p>
+    <table><tr><th>Installation</th><th>CBAM sector</th><th class="n">Balance t</th>${ys.map(y => `<th class="n">To buy ${y}</th>`).join('')}</tr>
+    ${j.installations.map(i => `<tr><td>${esc(i.name)}</td><td>${i.cbam_sector ? 'yes' : 'no'}</td><td class="n ${i.balance_t > 0 ? 'bad' : 'ok'}">${fmt(i.balance_t)}</td>${i.projection.map(p => `<td class="n">${fmt(p.shortfall_t)}</td>`).join('')}</tr>`).join('')}</table>
+    <div class="foot" style="margin-top:6px">Future years: emissions minus projected free allocation, before any purchases or banked allowances. ${esc(j.price_source)}. ${j.notes.map(esc).join(' ')}</div>`;
+};
+$('runc').onclick = async () => {
+  const lots = Array.from($('ct').querySelectorAll('tbody tr')).map(tr => { const f = tr.querySelectorAll('input,select'); return {id: f[0].value, registry: f[1].value, project_type: f[2].value, quantity_t: Number(f[3].value || 0), vintage: f[4].value ? Number(f[4].value) : null, ccp_label: f[5].checked, corresponding_adjustment: f[6].checked, retired: f[7].checked, intended_use: f[8].value}; }).filter(l => l.id);
+  const j = await post('/carbon-markets/credits', {lots}, 'sc');
+  if (!j) return;
+  $('oc').innerHTML = `<p style="margin:10px 0">${fmt(j.totals.quantity_t)} t · CCP-labelled ${fmt(j.shares.ccp_labelled * 100, 0)}% · removals ${fmt(j.shares.removals * 100, 0)}% · durable removals ${fmt(j.shares.durable_removals * 100, 0)}%</p>
+    <table><tr><th>Lot</th><th>Status</th><th>Suitable uses</th><th>Flags</th></tr>${j.lots.map(l => `<tr><td>${esc(l.id)} · ${esc(l.project_type)} · ${fmt(l.quantity_t)} t</td><td class="${l.status === 'ok' ? 'ok' : l.status === 'issue' ? 'bad' : 'warn'}">${esc(l.status)}</td><td>${l.suitable_uses.map(esc).join('; ')}</td><td class="foot">${l.flags.map(esc).join('<br>')}</td></tr>`).join('')}</table>
+    <div class="foot" style="margin-top:6px">${esc(j.disclosure)}</div>`;
+};
+$('addi').onclick = () => addI(); $('addc').onclick = () => addC();
+$('ex').onclick = () => {
+  $('it').querySelector('tbody').innerHTML = ''; $('ct').querySelector('tbody').innerHTML = '';
+  addI({name: 'Kiln line 1', sector: 'cement', verified_emissions_t: 800000, free_allocation_t: 650000, allowances_held_t: 100000});
+  addI({name: 'CHP plant', sector: 'electricity', verified_emissions_t: 120000, free_allocation_t: 0, allowances_held_t: 130000});
+  addC({id: 'L1', registry: 'Puro.earth', project_type: 'biochar', quantity_t: 2000, vintage: 2025, ccp_label: false, retired: true, intended_use: 'neutralisation'});
+  addC({id: 'L2', registry: 'Verra', project_type: 'renewable energy', quantity_t: 10000, vintage: 2018, intended_use: 'target'});
+  addC({id: 'L3', registry: 'Gold Standard', project_type: 'cookstoves', quantity_t: 5000, vintage: 2024, ccp_label: true, retired: true, intended_use: 'bvcm'});
+  $('runi').click(); $('runc').click();
+};
+addI(); addC();
+</script>
+</body>
+</html>

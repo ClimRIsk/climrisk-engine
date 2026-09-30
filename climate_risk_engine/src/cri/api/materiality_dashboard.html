@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClimRisk — Double Materiality</title>
+<style>
+  *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+  :root { --bg:#070b14; --surface:#0d1524; --border:#1c2a44; --primary:#38bdf8; --muted:#8a9bbd; --text:#e2eaf8;
+          --critical:#ef4444; --moderate:#eab308; --low:#22c55e; --mono:ui-monospace,'SF Mono',Menlo,monospace;
+          --sans:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',sans-serif; }
+  body { font-family:var(--sans); background:var(--bg); color:var(--text); font-size:13px; }
+  .header { display:flex; align-items:center; gap:14px; padding:10px 18px; background:var(--surface); border-bottom:1px solid var(--border); }
+  .logo { font-weight:800; letter-spacing:3px; color:var(--primary); font-size:16px; }
+  .sub { font-size:11px; color:var(--muted); }
+  .pill { margin-left:auto; font-size:10px; color:var(--muted); border:1px solid var(--border); border-radius:20px; padding:3px 10px; font-family:var(--mono); }
+  .wrap { padding:16px 20px; max-width:1600px; }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:14px; margin-bottom:14px; overflow-x:auto; }
+  .card h3 { font-size:12px; letter-spacing:1px; text-transform:uppercase; color:var(--muted); margin-bottom:10px; }
+  input, select { width:100%; background:var(--bg); border:1px solid var(--border); border-radius:5px; color:var(--text); font:inherit; padding:4px 5px; outline:none; font-size:11.5px; }
+  table { width:100%; border-collapse:collapse; font-size:11.5px; }
+  th, td { text-align:left; padding:3px 4px; border-bottom:1px solid var(--border); vertical-align:middle; }
+  th { color:var(--muted); font-weight:600; font-size:10px; }
+  .btn { padding:8px 14px; border:none; border-radius:6px; font:inherit; font-weight:700; cursor:pointer; background:var(--primary); color:#04121d; }
+  .btn.ghost { background:transparent; border:1px solid var(--primary); color:var(--primary); }
+  .x { background:none; border:1px solid var(--border); color:var(--muted); border-radius:5px; cursor:pointer; padding:1px 6px; }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .status { font-size:11px; color:var(--muted); } .status.error { color:var(--critical); }
+  .yes { color:var(--critical); font-weight:700; } .no { color:var(--muted); }
+  .foot { font-size:10.5px; color:var(--muted); line-height:1.6; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  @media (max-width:1100px) { .grid2 { grid-template-columns:1fr; } }
+  .n { width:48px; }
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="logo">CLIMRISK</div>
+  <div class="sub">Double materiality · IRO register</div>
+  <div class="pill">CSRD · ESRS 1 ch.3 · EFRAG IG 1</div>
+</div>
+<div class="wrap">
+  <div class="card"><h3>Impacts, risks and opportunities</h3>
+    <table id="t"><thead><tr><th>ID</th><th>Topic</th><th>Sub-topic</th><th>Type</th><th>Description</th><th>Actual</th><th>Human rights</th><th>Value chain</th><th>Horizon</th><th>Scale</th><th>Scope</th><th>Irremed.</th><th>Likelihood</th><th>Magnitude</th><th>Evidence</th><th>Stakeholder ratings (group:1–5; …)</th><th></th></tr></thead><tbody></tbody></table>
+    <div class="row" style="margin-top:8px">
+      <button class="btn ghost" id="add">+ IRO</button><button class="btn ghost" id="ex">Load worked example</button>
+      <label style="font-size:11px;color:var(--muted)">Threshold</label><input id="thr" type="number" value="3" step="0.1" style="width:70px">
+      <button class="btn" id="run">Assess</button><span class="status" id="status"></span>
+    </div>
+    <div class="foot" style="margin-top:6px">Scores 1–5. Impacts need scale and scope (and irremediability if negative); potential impacts also need likelihood. Risks and opportunities need magnitude and likelihood.</div>
+  </div>
+  <div id="out"></div>
+</div>
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const TOPICS = ['E1','E2','E3','E4','E5','S1','S2','S3','S4','G1'];
+const TYPES = ['negative_impact','positive_impact','risk','opportunity'];
+function sel(opts, v) { return `<select>${opts.map(o => `<option${o === v ? ' selected' : ''}>${o}</option>`).join('')}</select>`; }
+function add(i = {}) {
+  const tr = document.createElement('tr');
+  const num = (k) => `<input class="n" type="number" min="1" max="5" value="${i[k] ?? ''}">`;
+  tr.innerHTML = `<td><input class="n" value="${esc(i.id || '')}"></td><td>${sel(TOPICS, i.topic || 'E1')}</td><td><input value="${esc(i.subtopic || '')}"></td>
+    <td>${sel(TYPES, i.type || 'negative_impact')}</td><td><input value="${esc(i.description || '')}" style="min-width:220px"></td>
+    <td><input type="checkbox" ${i.actual ? 'checked' : ''}></td><td><input type="checkbox" ${i.human_rights ? 'checked' : ''}></td>
+    <td>${sel(['own_operations','upstream','downstream'], i.value_chain || 'own_operations')}</td><td>${sel(['short','medium','long'], i.time_horizon || 'medium')}</td>
+    <td>${num('scale')}</td><td>${num('scope')}</td><td>${num('irremediability')}</td><td>${num('likelihood')}</td><td>${num('magnitude')}</td>
+    <td><input value="${esc(i.evidence || '')}"></td><td><input value="${esc((i.stakeholder_ratings || []).map(r => r.group + ':' + r.rating).join('; '))}" style="min-width:160px"></td><td><button class="x">×</button></td>`;
+  tr.querySelector('.x').onclick = () => tr.remove();
+  $('t').querySelector('tbody').append(tr);
+}
+function iros() {
+  return Array.from($('t').querySelectorAll('tbody tr')).map(tr => {
+    const f = tr.querySelectorAll('input,select'); const v = k => f[k].value; const n = k => f[k].value === '' ? null : Number(f[k].value);
+    const sr = v(15).split(';').map(s => s.trim()).filter(Boolean).map(s => { const [g, r] = s.split(':'); return {group: (g || '').trim(), rating: Number(r)}; });
+    return {id: v(0).trim(), topic: v(1), subtopic: v(2), type: v(3), description: v(4), actual: f[5].checked, human_rights: f[6].checked,
+            value_chain: v(7), time_horizon: v(8), scale: n(9), scope: n(10), irremediability: n(11), likelihood: n(12), magnitude: n(13),
+            evidence: v(14), stakeholder_ratings: sr};
+  }).filter(i => i.id);
+}
+async function run() {
+  const body = {iros: iros(), threshold: Number($('thr').value || 3)};
+  if (!body.iros.length) { $('status').className = 'status error'; $('status').textContent = 'Add at least one IRO with an ID'; return; }
+  $('status').className = 'status'; $('status').textContent = 'Assessing…';
+  const k = new URLSearchParams(location.hash.slice(1)).get('key');
+  const r = await fetch('/materiality/assess', {method: 'POST', headers: Object.assign({'Content-Type': 'application/json'}, k ? {'X-API-Key': k} : {}), body: JSON.stringify(body)});
+  const j = await r.json();
+  if (!r.ok) { $('status').className = 'status error'; $('status').textContent = typeof j.detail === 'string' ? j.detail : JSON.stringify(j.detail); return; }
+  $('status').textContent = 'Done.'; render(j);
+}
+function matrix(r) {
+  const S = 360, P = 36, sc = v => P + (S - 2 * P) * (v - 1) / 4, sy = v => S - P - (S - 2 * P) * (v - 1) / 4, t = r.threshold;
+  let s = `<svg viewBox="0 0 ${S} ${S}" width="100%" style="max-width:${S + 40}px">
+    <rect x="${sc(t)}" y="${P}" width="${S - P - sc(t)}" height="${S - 2 * P}" fill="#ef444412"/><rect x="${P}" y="${P}" width="${S - 2 * P}" height="${sy(t) - P}" fill="#ef444412"/>
+    <line x1="${P}" y1="${S - P}" x2="${S - P}" y2="${S - P}" stroke="#8a9bbd"/><line x1="${P}" y1="${P}" x2="${P}" y2="${S - P}" stroke="#8a9bbd"/>
+    <text x="${S / 2}" y="${S - 8}" fill="#8a9bbd" font-size="10" text-anchor="middle">Financial materiality →</text>
+    <text x="10" y="${S / 2}" fill="#8a9bbd" font-size="10" transform="rotate(-90 10 ${S / 2})" text-anchor="middle">Impact materiality →</text>`;
+  r.iros.forEach(i => { const x = sc(i.financial_score || 1), y = sy(i.impact_score || 1);
+    s += `<circle cx="${x}" cy="${y}" r="6" fill="${i.material ? '#ef4444' : '#38bdf8'}"/><text x="${x + 8}" y="${y + 3}" fill="#e2eaf8" font-size="9">${esc(i.id)}</text>`; });
+  return s + '</svg><div class="foot">Shaded: at or above the threshold on either axis. Impacts have no financial score and vice versa (plotted at 1).</div>';
+}
+function render(r) {
+  $('out').innerHTML = `<div class="grid2">
+    <div class="card"><h3>Material topics</h3><table><tr><th>Topic</th><th>Material</th><th>Impact</th><th>Financial</th><th>IROs</th></tr>
+      ${r.topics.map(t => `<tr><td>${esc(t.topic)} — ${esc(t.name)}</td><td class="${t.material ? 'yes' : 'no'}">${t.material ? 'yes' : 'no'}</td><td>${t.impact ? '●' : ''}</td><td>${t.financial ? '●' : ''}</td><td>${t.iros.map(esc).join(', ')}</td></tr>`).join('')}</table>
+      <div class="foot" style="margin-top:8px">${esc(r.method)}</div></div>
+    <div class="card"><h3>Matrix</h3>${matrix(r)}</div></div>
+    <div class="card"><h3>Scores</h3><table><tr><th>ID</th><th>Type</th><th>Impact</th><th>Financial</th><th>Working</th><th>Stakeholders</th><th>Material</th></tr>
+      ${r.iros.map(i => `<tr><td>${esc(i.id)}</td><td>${esc(i.type)}</td><td>${i.impact_score ?? ''}</td><td>${i.financial_score ?? ''}</td><td class="foot">${esc(i.working)}</td><td>${i.stakeholder_mean ?? ''}${i.divergence ? ' ⚠' : ''}</td><td class="${i.material ? 'yes' : 'no'}">${i.material ? 'yes' : 'no'}</td></tr>`).join('')}</table></div>
+    <div class="card"><h3>Checks</h3>${r.checks.length ? r.checks.map(c => `<div class="foot">${esc(c.level)} — ${esc(c.message)}</div>`).join('') : '<div class="foot">No issues.</div>'}
+      <div class="row" style="margin-top:10px"><button class="btn ghost" id="dl">Download register (.json)</button></div></div>`;
+  $('dl').onclick = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(r, null, 2)], {type: 'application/json'})); a.download = 'materiality_register.json'; a.click(); };
+}
+$('add').onclick = () => add();
+$('run').onclick = run;
+$('ex').onclick = async () => {
+  $('t').querySelector('tbody').innerHTML = '';
+  const s = await (await fetch('/materiality/suggest-e1', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({inventory_totals_t: {total_market: 22114}, physical_aal_pct: 0.62, carbon_price_usd_t: 85})})).json();
+  const scores = {'E1-GHG': {scale: 4, scope: 3, irremediability: 4}, 'E1-PHYS': {magnitude: 3, likelihood: 3}, 'E1-PRICE': {magnitude: 4, likelihood: 4}, 'E1-ENERGY': {magnitude: 2, likelihood: 4}};
+  s.iros.forEach(i => add(Object.assign(i, scores[i.id] || {}, {evidence: i.evidence || 'Energy audit 2025', stakeholder_ratings: [{group: 'investors', rating: 4}, {group: 'employees', rating: 3}]})));
+  add({id: 'S1-HS', topic: 'S1', subtopic: 'Health and safety', type: 'negative_impact', description: 'Heat exposure of outdoor workers', human_rights: true, value_chain: 'own_operations', time_horizon: 'medium', scale: 4, scope: 2, irremediability: 4, evidence: 'Incident log', stakeholder_ratings: [{group: 'workers', rating: 5}]});
+  add({id: 'E3-WAT', topic: 'E3', subtopic: 'Water withdrawal', type: 'negative_impact', description: 'Withdrawal in an extremely high water-stress basin (WRI Aqueduct 4.0)', value_chain: 'own_operations', scale: 3, scope: 2, irremediability: 3, likelihood: 4, evidence: 'Aqueduct 4.0 lookup'});
+  run();
+};
+add();
+</script>
+</body>
+</html>

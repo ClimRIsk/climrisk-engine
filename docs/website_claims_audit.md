@@ -39,9 +39,25 @@ Legend: ✅ true in the engine · 🔧 built/fixed in this pass · ✏️ websit
 | Company page: LCA "accredited" | No accreditation exists | ✏️ removed |
 | ClimateBERT (4 classifiers), AI agent with email, PCAF 6 asset classes, SFDR 18 PAI, EU Taxonomy, DCF/WACC/MACC, VaR 95/99, 18 commodities, PD/LGD, SLR | Present in code | ✅ |
 
+## One-stop-shop gaps built in the second pass (30 Sep 2026)
+| Gap | What was there | Action |
+|---|---|---|
+| Carbon auditing (Practice 01) | Only revenue-based estimates (~3.5× median error) or reported figures; no inventory from client data | 🔧 `cri.carbon`: GHG Protocol / ISO 14064-1 inventory from activity data — Scope 1, Scope 2 location + market (instruments → supplier → residual mix → location, disclosed), 15 Scope 3 categories, cat. 3 derived automatically; operational/financial control or equity share; base-year recalculation test; completeness rule (every S3 category reported or excluded with a reason); assurance pack (.xlsx audit trail) and ISO 14064-1 report content; intake template upload. Factors: DESNZ 2026 (AR6-restated), eGRID2023, Green-e 2025, AIB 2025, Ember-derived fallback, World Bank T&D, USEEIO v1.3 + CPI. `/carbon/*`, workbench, app sidebar, 14 tests. ✏️ capabilities/home/frameworks/methodology copy |
+| Placeholder numbers in `/agent/assess` | ITR hard-coded 2.4 °C for every company; loss bands = 1/2.5/6 % of EV; decision always WATCH; disclosure scores 0; unknown companies silently replaced by the first registry company; first-word name matching | 🔧 all removed/replaced with engine outputs; no silent substitution (502); ITR withheld (see limitations); EV impacts vs Current Policies from the same model |
+| Legacy parametric builder bugs | Sector hints not recognised ("materials" → technology); zone hazard *severity* used as production-loss fraction (90 % of output lost by 2050); emissions per unit divided by price instead of multiplied (~25× error) | 🔧 GICS hint mapping + whole-word aliases; severity × sector sensitivity; unit fix; synthetic Scope 1–3 now from the GHGRP-trained estimator |
+| Homepage "live" widget | Ran the legacy parametric engine with hard-coded US jurisdiction and $5bn revenue for every company | 🔧 `/public/company-risk`: Risk Analyst on the company's mapped assets (asset register), honest "not mapped" answer otherwise; ✏️ widget + copy rewritten |
+| Risk Analyst totals | Physical + capped transition loss could exceed asset value (e.g. BHP 123 % of value) | 🔧 total loss per asset capped at its value (closure) |
+| Transition plan | MACC and SBTi check existed separately | 🔧 `cri.transition_plan` (targets → levers → capex/opex with reinvestment → path, gap, MACC, NGFS avoided carbon cost, SBTi check, ESRS E1-1 / TPT fields), can seed from the inventory; `/transition-plan`, workbench, 8 tests |
+| Real estate | None (pitched on use-cases page) | 🔧 `cri.real_estate`: EUI and operational carbon per building, grid decarbonisation + retrofits to 2050, stranding year vs a **user-supplied** pathway (CRREM is licence-restricted for paid software, so not embedded), NL/UK/FR/EU regulatory checks; `/real-estate/assess`, workbench, 6 tests |
+| Double materiality | Impact-side scoring module only | 🔧 `cri.materiality` IRO register (ESRS 1 ch.3 criteria, stated formula, stakeholder input, checks) + E1 starter IROs from engine results; `/materiality/*`, workbench |
+| Carbon markets | None | 🔧 `cri.carbon_markets`: EU ETS balance and CBAM free-allocation phase-out projection; carbon-credit screen (CCP label, removal/durability, vintage, SBTi and EU 2024/825 claim rules); `/carbon-markets/*`, workbench; 6 tests |
+
 ## Known limitations left as they are (documented, not advertised)
 | Item | Note |
 |---|---|
 | Portfolio loss model (`/portfolio/risk`) | Sector × region model; company physical/transition scores do not change EAL/VaR (schema now says so). Asset-level risk is in the Risk Analyst |
-| Legacy company engine | Some outputs are extreme (e.g. UltraTech EV negative under NZE); the Risk Analyst is the recommended path |
+| Legacy CRI rating / company engine | Still internally inconsistent for many companies (e.g. rating A with a large NZE EV loss; negative EVs). Kept for the app's existing assessment flow and labelled `model_status: legacy`; the Risk Analyst is the recommended path. Recommendation: rebuild the app's assessment flow on the Risk Analyst |
+| Implied temperature rise (`cri.climate.paris_alignment`) | Sector budget shares far too small — rated 12 %/yr reducers above 2 °C. Withheld from `/agent/assess`; still called by the batch job runner (`agent/job_runner.py`) — needs recalibration before any client use |
+| `data_acquisition/eutl_client.py` | Calls an EUTL API host that does not resolve (like the old Aqueduct "live API"); fails silently. Verified emissions must come from the client or the Union Registry downloads |
+| Public widget on Render | Needs the Render service redeployed with this engine version; until then the homepage widget cannot reach `/public/company-risk` |
 | Flood skill | Area model shows moderate skill in 3 US counties; no evidence yet outside the US |

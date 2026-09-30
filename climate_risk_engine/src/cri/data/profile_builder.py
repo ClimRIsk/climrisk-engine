@@ -227,9 +227,13 @@ class CompanyProfileBuilder:
         # trans_p already has 'carbon_intensity_t_per_m_rev' as Scope 1+2 combined;
         # split roughly 60/40 scope1/scope2 for most sectors.
         total_intensity = trans_p["carbon_intensity_t_per_m_rev"]
-        scope1_intensity_per_unit = (total_intensity * 0.60) / _MFG_PRICE
-        scope2_intensity_per_unit = (total_intensity * 0.40) / _MFG_PRICE
-        # Scope 3 ≈ 4× scope 1+2 for most sectors (CDP sectoral averages)
+        # Units: production is in M-units (revenue $M ÷ price $/unit) and the engine books emissions in Mt,
+        # so Mt per M-unit = (t per $M revenue) × ($ per unit) ÷ 1e6.  (Previously divided by the price,
+        # which overstated emissions by price² / 1e6 — ~25× for the $200 manufacturing proxy.)
+        _unit_price = _nominal_price_for_commodity(_resolve_commodity(canonical_sector).name)
+        scope1_intensity_per_unit = (total_intensity * 0.60) * _unit_price / 1e6
+        scope2_intensity_per_unit = (total_intensity * 0.40) * _unit_price / 1e6
+        # Scope 3 ≈ 4× scope 1 as a generic placeholder (CDP sectoral averages)
         scope3_intensity_per_unit = scope1_intensity_per_unit * 4.0
 
         data_notes.append(
@@ -309,7 +313,7 @@ class CompanyProfileBuilder:
         scenarios = {}
         for scen_key in ("nze", "delayed", "cp"):
             scenarios[scen_key] = cls._augment_scenario(
-                base_scenarios[scen_key], climate_zone, scen_key
+                base_scenarios[scen_key], climate_zone, scen_key, canonical_sector
             )
 
         data_notes.append(
@@ -337,7 +341,8 @@ class CompanyProfileBuilder:
         return re.sub(r"[^a-z0-9_]", "_", name.lower().strip())[:40]
 
     @staticmethod
-    def _augment_scenario(base_scenario: object, climate_zone: str, scen_key: str) -> object:
+    def _augment_scenario(base_scenario: object, climate_zone: str, scen_key: str,
+                          sector: str = "technology") -> object:
         """Return a copy of base_scenario with HazardPaths added for climate_zone.
 
         Uses Pydantic model_copy (v2) or copy (v1) to avoid mutating shared
@@ -357,6 +362,12 @@ class CompanyProfileBuilder:
 
         # Generate hazard paths for this zone × scenario
         raw_paths = generate_hazard_paths(climate_zone, climate_zone, scen_key)
+        # Zone paths are hazard *severity* indices (0–1); the production-loss fraction is severity ×
+        # the sector's operational sensitivity to that hazard (SECTOR_PHYSICAL_SENSITIVITY). Using the
+        # raw severity as a loss fraction overstated losses ~5–20× (e.g. 90 % of output lost by 2050).
+        from .parameters import SECTOR_PHYSICAL_SENSITIVITY
+        sens = SECTOR_PHYSICAL_SENSITIVITY.get(sector, SECTOR_PHYSICAL_SENSITIVITY["technology"])
+        raw_paths = [(h, r, {y: v * sens.get(h, 0.1) for y, v in path.items()}) for h, r, path in raw_paths]
 
         new_hazard_paths = []
         for hazard_name, region_code, path_dict in raw_paths:
