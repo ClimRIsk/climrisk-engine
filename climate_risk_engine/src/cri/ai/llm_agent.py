@@ -78,6 +78,9 @@ BEHAVIOUR RULES:
    name the scenario, and give its problem → action pairs.
 10. When the user message already contains computed Risk Analyst results, answer \
    from those numbers without calling tools, and say when a question goes beyond them.
+11. For the carbon footprint of a product (cement, steel, aluminium, ammonia), call \
+   product_carbon_footprint. If it returns needs_input, ask the user for exactly those \
+   plant values — never fill them in yourself. Always state the P5–P95 range and any exclusions.
 """
 
 

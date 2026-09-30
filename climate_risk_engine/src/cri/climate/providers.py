@@ -233,7 +233,7 @@ class EnrichedHazardProvider(PhysicalRiskProvider):
         )
 
         # Heat stress probability
-        baseline_heat = 0.015 * (water_risks.get("water_stress", 2.5) / 2.5)
+        baseline_heat = 0.015 * ((water_risks.get("water_stress") or 2.5) / 2.5)
         heat_prob = nasa_heat.heat_stress_probability(delta_c, baseline_heat)
 
         # Aggregate: treat scenario loss and heat stress as independent hazards

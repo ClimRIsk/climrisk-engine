@@ -7,8 +7,8 @@ assessment.
 
 Framework coverage
 ------------------
-L — Locate: proximity to Key Biodiversity Areas (KBAs), IUCN Protected Areas,
-    and high-integrity ecosystems using lat/lon bounding box lookup.
+L — Locate: protected areas mapped in OpenStreetMap (Overpass API, ODbL) containing the site or within
+    5 / 25 km, with IUCN category where tagged. KBAs are not included (licensed data).
 E — Evaluate: sector-level dependencies on and impacts on ecosystem services
     (ENCORE database mapping).
 A — Assess: nature risk score combining location sensitivity and sector profile.
@@ -42,8 +42,8 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 
-# ── Protected-area / KBA proximity database (simplified bounding boxes) ───────
-# In production: query WDPA REST API or IUCN Species API by lat/lon.
+# ── Offline fallback only: coarse bounding boxes for ~20 major areas ─────────
+# Used when OpenStreetMap / Overpass cannot be reached (see _osm_protected).
 
 _PROTECTED_AREAS: list[dict] = [
     # Format: {name, lat_min, lat_max, lon_min, lon_max, category, iucn_category}
@@ -217,6 +217,71 @@ class BiodiversityRiskResult:
     tnfd_disclosure_recommended: bool
     disclosure_metrics: list[str]        # recommended TNFD metrics to report
     notes: list[str] = field(default_factory=list)
+    location_source: str = "osm"             # "osm" | "fallback"
+
+
+# ── OpenStreetMap protected areas (live, ODbL) ────────────────────────────────
+# Protected areas mapped in OpenStreetMap (boundary=protected_area / national_park, leisure=nature_reserve),
+# queried through the Overpass API. Many national agencies' boundaries are imported into OSM, but OSM is not
+# the WDPA and KBAs are not in OSM: WDPA / KBA data require a licence from UNEP-WCMC / BirdLife.
+_OVERPASS = "https://overpass-api.de/api/interpreter"
+_OSM_CACHE = __import__("pathlib").Path.home() / ".climrisk" / "cache" / "osm_protected"
+_STRICT = {"1a", "1b", "1", "2", "3"}
+_IUCN = {"1a": "Ia", "1b": "Ib", "1": "I", "2": "II", "3": "III", "4": "IV", "5": "V", "6": "VI"}
+
+
+def _osm_protected(lat: float, lon: float, timeout: int = 45) -> Optional[dict]:
+    """{'within': [...], 'within_5km': [...], 'within_25km': [...]} or None when Overpass is unreachable."""
+    import json
+    import urllib.parse
+    import urllib.request
+    key = f"{lat:.3f}_{lon:.3f}"
+    f = _OSM_CACHE / f"{key}.json"
+    if f.exists():
+        try:
+            return json.loads(f.read_text())
+        except Exception:
+            pass
+    sel = lambda r: (f'(nwr(around:{r},{lat},{lon})["boundary"~"^(protected_area|national_park)$"];'
+                     f'nwr(around:{r},{lat},{lon})["leisure"="nature_reserve"];);out tags;')
+    q = (f'[out:json][timeout:{timeout - 5}];is_in({lat},{lon})->.a;'
+         '(area.a["boundary"~"^(protected_area|national_park)$"];area.a["leisure"="nature_reserve"];);out tags;'
+         'make marker name="near5";out;' + sel(5000) + 'make marker name="near25";out;' + sel(25000))
+    try:
+        req = urllib.request.Request(_OVERPASS, data=urllib.parse.urlencode({"data": q}).encode(),
+                                     headers={"User-Agent": "ClimRisk-engine/1.0 (+https://climrisk.io)"})
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            els = json.loads(r.read().decode())["elements"]
+    except Exception:
+        return None
+    out = {"within": [], "within_5km": [], "within_25km": []}
+    bucket, seen = "within", {}
+    for e in els:
+        if e["type"] == "marker":
+            bucket = {"near5": "within_5km", "near25": "within_25km"}[e["tags"]["name"]]
+            continue
+        t = e.get("tags", {})
+        name = t.get("name:en") or t.get("name")
+        if not name:
+            continue
+        osm_id = e["id"] - 3600000000 if e["type"] == "area" else e["id"]
+        pc = (t.get("protect_class") or "").lower()
+        rec = {"name": name, "designation": t.get("protection_title") or t.get("designation") or
+               ("National park" if t.get("boundary") == "national_park" else "Nature reserve"
+                if t.get("leisure") == "nature_reserve" else "Protected area"),
+               "iucn": _IUCN.get(pc), "strict": pc in _STRICT or t.get("boundary") == "national_park",
+               "osm": f"{'relation' if e['type'] in ('area', 'relation') else e['type']}/{osm_id}"}
+        k = (name, rec["osm"])
+        if k in seen:
+            continue
+        seen[k] = bucket
+        out[bucket].append(rec)
+    try:
+        _OSM_CACHE.mkdir(parents=True, exist_ok=True)
+        f.write_text(json.dumps(out))
+    except Exception:
+        pass
+    return out
 
 
 def compute_biodiversity_risk(
@@ -226,6 +291,7 @@ def compute_biodiversity_risk(
     asset_lat: float,
     asset_lon: float,
     revenue_usd_m: float = 100.0,
+    use_live: bool = True,
 ) -> BiodiversityRiskResult:
     """
     Compute nature-related risk for an asset using the TNFD LEAP approach.
@@ -249,40 +315,47 @@ def compute_biodiversity_risk(
     # ── L: Locate — protected area proximity ─────────────────────────────────
     nearby: list[dict] = []
     kba_within = False
-
-    for pa in _PROTECTED_AREAS:
-        # Check bounding box overlap (asset is a point)
-        if (pa["lat_min"] <= asset_lat <= pa["lat_max"] and
-                pa["lon_min"] <= asset_lon <= pa["lon_max"]):
-            nearby.append({
-                "name":     pa["name"],
-                "category": pa["category"],
-                "iucn":     pa["iucn"],
-                "overlap":  "within",
-            })
-            kba_within = True
+    osm = _osm_protected(asset_lat, asset_lon) if use_live else None
+    location_source = "osm"
+    if osm is not None:
+        for band, lab in (("within", "within"), ("within_5km", "within 5 km"), ("within_25km", "within 25 km")):
+            for pa in osm[band]:
+                nearby.append(dict(pa, overlap=lab))
+        within = [p for p in nearby if p["overlap"] == "within"]
+        near5 = [p for p in nearby if p["overlap"] == "within 5 km"]
+        near25 = [p for p in nearby if p["overlap"] == "within 25 km"]
+        kba_within = bool(within)
+        kba_proximity = "within" if within else ("adjacent" if near5 else ("nearby" if near25 else "none"))
+        # ── E: Evaluate — location sensitivity score ─────────────────────────
+        if within:
+            loc_score = 1.0 if any(p["strict"] for p in within) else 0.8
+        elif near5:
+            loc_score = 0.65 if any(p["strict"] for p in near5) else 0.5
+        elif near25:
+            loc_score = 0.35 if any(p["strict"] for p in near25) else 0.25
         else:
-            # 1° buffer ≈ 110 km at equator
-            buffer = 1.0
-            if (pa["lat_min"] - buffer <= asset_lat <= pa["lat_max"] + buffer and
-                    pa["lon_min"] - buffer <= asset_lon <= pa["lon_max"] + buffer):
-                nearby.append({
-                    "name":     pa["name"],
-                    "category": pa["category"],
-                    "iucn":     pa["iucn"],
-                    "overlap":  "adjacent",
-                })
-
-    kba_proximity = "within" if kba_within else ("adjacent" if nearby else "none")
-
-    # ── E: Evaluate — location sensitivity score ─────────────────────────────
-    if kba_proximity == "within":
-        loc_score = 1.0
-    elif kba_proximity == "adjacent":
-        loc_score = 0.55
+            loc_score = 0.15 if profile.dependency_score > 0.5 else 0.05
+        # keep the response compact: all 'within' and 5 km areas, the strictest 15 of the 25 km ring
+        near25_sorted = sorted(near25, key=lambda p: (not p["strict"], p["name"]))
+        nearby = within + near5 + near25_sorted[:15]
+        n25_total = len(near25)
     else:
-        # Still assign baseline based on sector's terrestrial footprint
-        loc_score = 0.15 if profile.dependency_score > 0.5 else 0.05
+        location_source = "fallback"
+        n25_total = 0
+        for pa in _PROTECTED_AREAS:
+            if (pa["lat_min"] <= asset_lat <= pa["lat_max"] and pa["lon_min"] <= asset_lon <= pa["lon_max"]):
+                nearby.append({"name": pa["name"], "category": pa["category"], "iucn": pa["iucn"], "overlap": "within"})
+                kba_within = True
+            elif (pa["lat_min"] - 1.0 <= asset_lat <= pa["lat_max"] + 1.0 and
+                  pa["lon_min"] - 1.0 <= asset_lon <= pa["lon_max"] + 1.0):
+                nearby.append({"name": pa["name"], "category": pa["category"], "iucn": pa["iucn"], "overlap": "adjacent"})
+        kba_proximity = "within" if kba_within else ("adjacent" if nearby else "none")
+        if kba_proximity == "within":
+            loc_score = 1.0
+        elif kba_proximity == "adjacent":
+            loc_score = 0.55
+        else:
+            loc_score = 0.15 if profile.dependency_score > 0.5 else 0.05
 
     # ── A: Assess — combined score ────────────────────────────────────────────
     combined = round(0.5 * loc_score + 0.5 * profile.dependency_score, 3)
@@ -319,8 +392,16 @@ def compute_biodiversity_risk(
         notes.append(f"Asset located WITHIN: {', '.join(names)}")
     if profile.sbtn_sector_flag:
         notes.append(f"Sector '{sector_key}' is an SBTn high-priority sector — nature targets expected by 2025-2030")
-    if not nearby:
-        notes.append("No major protected area within ~110 km — location sensitivity driven by sector profile only")
+    if location_source == "osm":
+        if not nearby:
+            notes.append("No protected area mapped in OpenStreetMap within 25 km — location sensitivity from sector profile only")
+        elif n25_total > 15:
+            notes.append(f"{n25_total} protected areas mapped within 25 km; the strictest 15 are listed")
+        notes.append("Protected areas from OpenStreetMap (© OpenStreetMap contributors, ODbL). OSM is not the WDPA; "
+                     "Key Biodiversity Areas are not included (KBA/WDPA data require a UNEP-WCMC / BirdLife licence).")
+    else:
+        notes.append("OpenStreetMap unreachable — coarse built-in bounding boxes for ~20 major areas used instead; "
+                     "re-run online for a site-level answer.")
 
     return BiodiversityRiskResult(
         company_id=company_id,
@@ -340,6 +421,7 @@ def compute_biodiversity_risk(
         tnfd_disclosure_recommended=tnfd_flag,
         disclosure_metrics=metrics,
         notes=notes,
+        location_source=location_source,
     )
 
 
@@ -352,7 +434,8 @@ def biodiversity_to_dict(result: BiodiversityRiskResult) -> dict:
         "location": {
             "lat":              result.asset_lat,
             "lon":              result.asset_lon,
-            "kba_proximity":    result.kba_proximity,
+            "protected_area_proximity": result.kba_proximity,
+            "source":           result.location_source,
             "nearby_protected_areas": result.nearby_protected_areas,
         },
         "nature_dependency": {
@@ -373,7 +456,10 @@ def biodiversity_to_dict(result: BiodiversityRiskResult) -> dict:
         "notes": result.notes,
         "methodology": (
             "TNFD LEAP (Locate, Evaluate, Assess, Prepare). "
-            "Location scored vs WDPA/KBA bounding boxes. "
+            + ("Location: protected areas mapped in OpenStreetMap (Overpass API, ODbL) — containing the site, "
+               "within 5 km and within 25 km; IUCN category from protect_class where tagged. KBAs not included. "
+               if result.location_source == "osm" else
+               "Location: offline fallback — coarse bounding boxes for ~20 major areas. ") +
             "Sector dependency from ENCORE v1.1. "
             "Combined score = 0.5 × location_sensitivity + 0.5 × sector_dependency."
         ),

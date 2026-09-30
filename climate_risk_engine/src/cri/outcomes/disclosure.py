@@ -344,7 +344,7 @@ def generate_tcfd(
 
     # Revenue trajectory
     def safe_rev(r):
-        return round(r.revenue / 1e6, 1) if r else None
+        return round(r.revenue, 1) if r else None
 
     # EV delta
     ev_nze_bn = round(nze.enterprise_value / 1e3, 1)
@@ -425,8 +425,8 @@ def generate_tcfd(
     if ebitda_2026 and ebitda_2030 and ebitda_2026 > 0:
         compression_2030_pct = round((ebitda_2026 - ebitda_2030) / ebitda_2026 * 100, 1)
 
-    carbon_cost_2030_m = round(nze_2030.carbon_cost / 1e6, 1) if nze_2030 else None
-    physical_loss_2030_m = round(nze_2030.physical_loss_cost / 1e6, 1) if nze_2030 else None
+    carbon_cost_2030_m = round(nze_2030.carbon_cost, 1) if nze_2030 else None
+    physical_loss_2030_m = round(nze_2030.physical_loss_cost, 1) if nze_2030 else None
 
     risk_management = {
         "identification_process": (
@@ -475,7 +475,7 @@ def generate_tcfd(
         if y is None:
             return None
         scope_key = {"scope1": "scope_1", "scope2": "scope_2", "scope3": "scope_3"}.get(scope, scope)
-        return round(y.emissions_by_scope.get(scope_key, 0.0), 0)
+        return round(y.emissions_by_scope.get(scope_key, 0.0) * 1e6, 0)
 
     metrics = {
         "emissions": {
@@ -590,9 +590,9 @@ def generate_issb(
     cross_industry_metrics = {
         "GHG_emissions": {
             "standard_ref": "IFRS S2 B14–B25",
-            "scope_1_tco2e": round(cp_2026.emissions_by_scope.get("scope_1", 0), 0) if cp_2026 else None,
-            "scope_2_location_tco2e": round(cp_2026.emissions_by_scope.get("scope_2", 0), 0) if cp_2026 else None,
-            "scope_3_tco2e": round(cp_2026.emissions_by_scope.get("scope_3", 0), 0) if cp_2026 else None,
+            "scope_1_tco2e": round(cp_2026.emissions_by_scope.get("scope_1", 0) * 1e6, 0) if cp_2026 else None,
+            "scope_2_location_tco2e": round(cp_2026.emissions_by_scope.get("scope_2", 0) * 1e6, 0) if cp_2026 else None,
+            "scope_3_tco2e": round(cp_2026.emissions_by_scope.get("scope_3", 0) * 1e6, 0) if cp_2026 else None,
             # Carbon intensity: (S1 + S2) / revenue — tCO2e per USD million revenue
             # Emissions stored in MtCO2e; ×1e6 converts to tCO2e for standard intensity unit
             "carbon_intensity_tco2e_per_usdm_revenue": (
@@ -610,20 +610,20 @@ def generate_issb(
         },
         "transition_risks": {
             "standard_ref": "IFRS S2 B26–B27",
-            "carbon_price_exposure_2030_usd_m": round(nze_2030.carbon_cost / 1e6, 1) if nze_2030 else None,
+            "carbon_price_exposure_2030_usd_m": round(nze_2030.carbon_cost, 1) if nze_2030 else None,
             "revenue_from_high_carbon_products_pct": _revenue_carbon_intensity(company, nze),
             "capex_in_low_carbon_usd_m": round(
-                sum(y.transition_capex for y in nze.years[:5]) / 1e6, 1
+                sum(y.transition_capex for y in nze.years[:5]), 1
             ),
         },
         "physical_risks": {
             "standard_ref": "IFRS S2 B28–B29",
             "assets_in_high_risk_regions_pct": _assets_in_high_risk(company),
             "annual_physical_loss_cost_2030_usd_m": round(
-                nze_2030.physical_loss_cost / 1e6, 1
+                nze_2030.physical_loss_cost, 1
             ) if nze_2030 else None,
             "adaptation_capex_planned_usd_m": round(
-                sum(y.adaptation_capex for y in nze.years[:5]) / 1e6, 1
+                sum(y.adaptation_capex for y in nze.years[:5]), 1
             ),
         },
         "climate_related_opportunities": {
@@ -634,10 +634,10 @@ def generate_issb(
         "capital_deployment": {
             "standard_ref": "IFRS S2 B31",
             "climate_related_capex_usd_m": round(
-                sum(y.adaptation_capex + y.transition_capex for y in nze.years[:5]) / 1e6, 1
+                sum(y.adaptation_capex + y.transition_capex for y in nze.years[:5]), 1
             ),
             "climate_related_opex_usd_m": round(
-                sum(y.carbon_cost for y in nze.years[:5]) / 1e6, 1
+                sum(y.carbon_cost for y in nze.years[:5]), 1
             ),
         },
         "internal_carbon_price": {
@@ -757,7 +757,7 @@ def generate_csrd(
 
     def emissions_2026(scope_key: str) -> Optional[float]:
         if cp_2026:
-            return round(cp_2026.emissions_by_scope.get(scope_key, 0.0), 0)
+            return round(cp_2026.emissions_by_scope.get(scope_key, 0.0) * 1e6, 0)
         return None
 
     sections = {
@@ -793,10 +793,10 @@ def generate_csrd(
         "E1-3_actions": {
             "esrs_ref": "ESRS E1-3",
             "planned_adaptation_capex_5yr_usd_m": round(
-                sum(y.adaptation_capex for y in nze.years[:5]) / 1e6, 1
+                sum(y.adaptation_capex for y in nze.years[:5]), 1
             ),
             "planned_transition_capex_5yr_usd_m": round(
-                sum(y.transition_capex for y in nze.years[:5]) / 1e6, 1
+                sum(y.transition_capex for y in nze.years[:5]), 1
             ),
         },
         "E1-4_targets": {
@@ -858,15 +858,15 @@ def generate_csrd(
         "E1-9_financial_effects": {
             "esrs_ref": "ESRS E1-9",
             "transition_risks": {
-                "carbon_cost_2030_usd_m_nze": round(nze_2030.carbon_cost / 1e6, 1) if nze_2030 else None,
+                "carbon_cost_2030_usd_m_nze": round(nze_2030.carbon_cost, 1) if nze_2030 else None,
                 "revenue_at_risk_nze_2030_usd_m": round(
-                    (yr(cp, 2030).revenue - nze_2030.revenue) / 1e6, 1
+                    (yr(cp, 2030).revenue - nze_2030.revenue), 1
                 ) if (yr(cp, 2030) and nze_2030) else None,
             },
             "physical_risks": {
-                "physical_loss_2030_usd_m_nze": round(nze_2030.physical_loss_cost / 1e6, 1) if nze_2030 else None,
+                "physical_loss_2030_usd_m_nze": round(nze_2030.physical_loss_cost, 1) if nze_2030 else None,
                 "adaptation_capex_5yr_usd_m": round(
-                    sum(y.adaptation_capex for y in nze.years[:5]) / 1e6, 1
+                    sum(y.adaptation_capex for y in nze.years[:5]), 1
                 ),
             },
             "ev_sensitivity_usd_bn": {
@@ -937,6 +937,9 @@ def generate_brsr(
     dt: RunResults,
     cp: RunResults,
     reporting_year: int | None = None,
+    usd_inr: float | None = None,
+    revenue_inr_crore: float | None = None,
+    ppp_inr_per_intl_usd: float | None = None,
 ) -> BRSRReport:
     """
     Generate a SEBI BRSR Core-aligned climate disclosure.
@@ -954,8 +957,18 @@ def generate_brsr(
     cp_2026  = yr(cp, 2026)
     nze_2030 = yr(nze, 2030)
 
+    # Turnover in INR crore: company-reported if given, else engine revenue (USD m) × INR/USD ÷ 10
+    rev_usd_m = cp_2026.revenue if cp_2026 else company.financials.revenue
+    turnover_cr = revenue_inr_crore if revenue_inr_crore else (rev_usd_m * usd_inr / 10 if usd_inr else None)
+    s12_t = ((cp_2026.emissions_by_scope.get("scope_1", 0.0) + cp_2026.emissions_by_scope.get("scope_2", 0.0)) * 1e6
+             if cp_2026 else None)
+    intensity_cr = round(s12_t / turnover_cr, 2) if (s12_t is not None and turnover_cr) else None
+    # BRSR Core: intensity per rupee of turnover adjusted for PPP → tCO2e per million international $ (PPP)
+    turnover_ppp_m = (turnover_cr * 1e7 / ppp_inr_per_intl_usd / 1e6) if (turnover_cr and ppp_inr_per_intl_usd) else None
+    intensity_ppp = round(s12_t / turnover_ppp_m, 2) if (s12_t is not None and turnover_ppp_m) else None
+
     def scope_val(scope_key: str) -> Optional[float]:
-        return round(cp_2026.emissions_by_scope.get(scope_key, 0.0), 0) if cp_2026 else None
+        return round(cp_2026.emissions_by_scope.get(scope_key, 0.0) * 1e6, 0) if cp_2026 else None
 
     # ── Section A — General Disclosures ─────────────────────────────────────
     section_a = {
@@ -1060,7 +1073,12 @@ def generate_brsr(
             "scope_1_tco2e": scope_val("scope_1"),
             "scope_2_tco2e": scope_val("scope_2"),
             "scope_3_tco2e": scope_val("scope_3"),
-            "ghg_emission_intensity_tco2e_per_crore_inr": None,   # needs revenue in INR
+            "ghg_emission_intensity_tco2e_per_crore_inr": intensity_cr,
+            "ghg_emission_intensity_tco2e_per_usd_m_ppp": intensity_ppp,
+            "turnover_inr_crore": round(turnover_cr, 1) if turnover_cr else None,
+            "intensity_basis": (
+                ("company-reported turnover" if revenue_inr_crore else f"engine revenue × {usd_inr} INR/USD")
+                if turnover_cr else "pass revenue_inr_crore or usd_inr to compute INR intensity"),
             "ghg_protocol_alignment": True,
             "methodology_note": (
                 "Scope 1 and 2 are estimated using CRI asset-level intensity factors. "
@@ -1088,9 +1106,9 @@ def generate_brsr(
             "cri_physical_risk_score_2030_nze": (
                 "Asset-level scores available in CRI engine — see physical risk module"
             ),
-            "adaptation_capex_5yr_inr_cr": round(
-                sum(y.adaptation_capex for y in nze.years[:5]) / 1e6 * 83 / 1e2, 1
-            ),   # USD → INR crore (approx 83 USD/INR, 1 crore = 10M)
+            "adaptation_capex_5yr_usd_m": round(sum(y.adaptation_capex for y in nze.years[:5]), 1),
+            "adaptation_capex_5yr_inr_cr": (round(sum(y.adaptation_capex for y in nze.years[:5]) * usd_inr / 10, 1)
+                                            if usd_inr else None),   # USD m × INR/USD ÷ 10 = INR crore
             "adaptation_measures": ctx["short_term_actions"][:2],
         },
         "P6_L2_climate_risk_transition": {
@@ -1098,7 +1116,7 @@ def generate_brsr(
             "description": "Climate-related transition risks and opportunities",
             "key_transition_risk": ctx["key_transition"],
             "key_opportunity": ctx["opportunity_text"],
-            "carbon_cost_2030_usd_m_nze": round(nze_2030.carbon_cost / 1e6, 1) if nze_2030 else None,
+            "carbon_cost_2030_usd_m_nze": round(nze_2030.carbon_cost, 1) if nze_2030 else None,
             "ev_range_nze_vs_cp_usd_bn": {
                 "nze_2050": round(nze.enterprise_value / 1e3, 1),
                 "current_policies": round(cp.enterprise_value / 1e3, 1),
@@ -1128,7 +1146,8 @@ def generate_brsr(
     caveats = [
         "BRSR Core is mandatory for India's top-1000 listed companies (by market cap, BSE+NSE) from FY2023-24.",
         "Energy, water, and waste data points (P6-E1, E2, E4) require company operational records — not modelled by CRI.",
-        "GHG intensity in INR terms requires company revenue data in INR — CRI operates in USD.",
+        "Scope 1-2 intensity per INR crore uses company-reported turnover when supplied, else engine revenue "
+        "converted at the INR/USD rate passed in; the PPP-adjusted BRSR Core KPI needs the PPP conversion factor.",
         "CRI physical risk scores use WRI Aqueduct and NASA proxies; site-level primary data is recommended for BRSR assurance.",
         "The Carbon Credit Trading Scheme (CCTS) is under phased implementation — monitor BEE guidance for designated consumers.",
     ]

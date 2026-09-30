@@ -1,285 +1,222 @@
-"""WRI Aqueduct water risk connector.
+"""WRI Aqueduct 4.0 water risk — the published dataset, shipped with the engine.
 
-Primary path: live point query to the WRI Aqueduct 4.0 API
-  https://aqueduct40.wri.org/api/v1/point?lat=...&lng=...
-Returns 0-5 risk scores for water_stress, riverine flood, coastal flood, drought.
+Data: WRI Aqueduct 4.0 (Y2023M07D05), CC BY 4.0. Kuzma, S. et al. 2023, "Aqueduct 4.0: Updated
+decision-relevant global water risk indicators", WRI Technical Note, doi:10.46830/writn.23.00061.
+Built by scripts/build_aqueduct_data.py into src/cri/data/aqueduct40.npz:
 
-Fallback hierarchy:
-  1. Disk cache (keyed by lat/lon rounded to 0.1°)
-  2. Live API query (https://aqueduct40.wri.org/api/v1/point)
-  3. Regional lookup table (REGIONAL_WATER_RISK dict below)
-  4. Global average defaults
+  * baseline (1979–2019) for 68,506 units (HydroBASINS level-6 basin × GADM admin-1), gridded at 0.05°:
+    13 indicator scores 0–5 with WRI's category labels — baseline water stress (bws), water depletion (bwd),
+    interannual variability (iav), seasonal variability (sev), groundwater table decline (gtd), riverine flood
+    (rfr), coastal flood (cfr), drought (drr), untreated connected wastewater (ucw), coastal eutrophication
+    potential (cep), unimproved/no drinking water (udw), unimproved/no sanitation (usa), peak RepRisk (rri);
+    overall water risk with WRI's default weights and the nine industry weightings
+  * future (per basin): water stress, depletion, interannual and seasonal variability for 2030 / 2050 / 2080
+    under optimistic (SSP1 RCP2.6), business-as-usual (SSP3 RCP7.0) and pessimistic (SSP5 RCP8.5)
 
-For year-adjusted projections, base scores are scaled by a +15 % / +22 % / +30 %
-climate stress multiplier at 2030 / 2040 / 2050 respectively (WRI Aqueduct 4.0
-"future scenarios" documentation, Mid-Year projections under SSP2-RCP4.5).
+No network calls. Points that fall just offshore snap to the nearest land cell within ~15 km.
 """
+from __future__ import annotations
 
+from functools import lru_cache
 from pathlib import Path
 from typing import Optional
-import json
-import urllib.request
+
+import numpy as np
 
 from .base import BaseConnector
 
-# WRI Aqueduct 4.0 live point API
-_WRI_API_URL = "https://aqueduct40.wri.org/api/v1/point"
+_DATA = Path(__file__).resolve().parents[1] / "data" / "aqueduct40.npz"
+SOURCE = "WRI Aqueduct 4.0 (Y2023M07D05, CC BY 4.0)"
 
-# Future stress multipliers vs current baseline (WRI Aqueduct 4.0 SSP2-RCP4.5 mid)
-_YEAR_STRESS_FACTOR = {2030: 1.15, 2040: 1.22, 2050: 1.30}
+INDICATORS = {
+    "bws": "Baseline water stress", "bwd": "Baseline water depletion", "iav": "Interannual variability",
+    "sev": "Seasonal variability", "gtd": "Groundwater table decline", "rfr": "Riverine flood risk",
+    "cfr": "Coastal flood risk", "drr": "Drought risk", "ucw": "Untreated connected wastewater",
+    "cep": "Coastal eutrophication potential", "udw": "Unimproved/no drinking water",
+    "usa": "Unimproved/no sanitation", "rri": "Peak RepRisk country ESG risk",
+}
+RAW_UNITS = {"bws": "withdrawal / available flow", "bwd": "consumption / available flow",
+             "gtd": "cm/year", "rfr": "% population exposed (annual expected)",
+             "cfr": "% population exposed (annual expected)", "drr": "drought risk index 0–1"}
+INDUSTRIES = {"def": "Default weighting", "agr": "Agriculture", "che": "Chemicals", "con": "Construction materials",
+              "elp": "Electric power", "fnb": "Food & beverage", "min": "Mining", "ong": "Oil & gas",
+              "smc": "Semiconductors", "tex": "Textiles"}
+FUTURE_IND = {"ws": "Water stress", "wd": "Water depletion", "iv": "Interannual variability", "sv": "Seasonal variability"}
+FUTURE_SCEN = {"opt": "Optimistic (SSP1 RCP2.6)", "bau": "Business as usual (SSP3 RCP7.0)",
+               "pes": "Pessimistic (SSP5 RCP8.5)"}
+FUTURE_YEARS = [2030, 2050, 2080]
+BASELINE_YEAR = 2019  # end of the 1979–2019 baseline period
 
-
-# Hardcoded WRI Aqueduct regional water risk scores (0-5 scale)
-# Based on publicly known WRI Aqueduct 4.0 data for common mining/energy regions
-REGIONAL_WATER_RISK = {
-    "AU-WA": {  # Western Australia (mining hub)
-        "water_stress": 2.1,
-        "flood_risk": 1.5,
-        "drought_risk": 3.2,
-    },
-    "CL-02": {  # Antofagasta Region, Chile (copper mining)
-        "water_stress": 3.5,
-        "flood_risk": 1.2,
-        "drought_risk": 4.1,
-    },
-    "CN-NM": {  # Inner Mongolia, China (coal/rare earths)
-        "water_stress": 3.8,
-        "flood_risk": 2.3,
-        "drought_risk": 3.9,
-    },
-    "IN-JH": {  # Jharkhand, India (coal/iron ore)
-        "water_stress": 3.2,
-        "flood_risk": 2.8,
-        "drought_risk": 2.6,
-    },
-    "ID-SN": {  # South Sumatra, Indonesia (coal)
-        "water_stress": 2.4,
-        "flood_risk": 3.5,
-        "drought_risk": 2.2,
-    },
-    "PE-JU": {  # Junín Region, Peru (copper mining)
-        "water_stress": 2.8,
-        "flood_risk": 2.1,
-        "drought_risk": 2.9,
-    },
-    "RU-KK": {  # Krasnoyarsk, Russia (aluminium/hydro)
-        "water_stress": 1.2,
-        "flood_risk": 1.8,
-        "drought_risk": 1.5,
-    },
-    "ZA-GP": {  # Gauteng, South Africa (mining)
-        "water_stress": 2.7,
-        "flood_risk": 1.6,
-        "drought_risk": 2.4,
-    },
-    "CA-BC": {  # British Columbia, Canada (mining)
-        "water_stress": 1.1,
-        "flood_risk": 2.2,
-        "drought_risk": 1.3,
-    },
-    "AU-QLD": {  # Queensland, Australia (coal/mining)
-        "water_stress": 2.5,
-        "flood_risk": 2.8,
-        "drought_risk": 2.9,
-    },
-    "BF-01": {  # Burkina Faso (gold mining)
-        "water_stress": 3.1,
-        "flood_risk": 1.9,
-        "drought_risk": 3.6,
-    },
-    "GH-01": {  # Ghana (gold mining)
-        "water_stress": 2.3,
-        "flood_risk": 2.4,
-        "drought_risk": 2.8,
-    },
-    "PH-03": {  # Mindanao, Philippines (mining)
-        "water_stress": 2.0,
-        "flood_risk": 3.7,
-        "drought_risk": 2.1,
-    },
-    "MX-DG": {  # Durango, Mexico (mining)
-        "water_stress": 3.4,
-        "flood_risk": 1.4,
-        "drought_risk": 3.8,
-    },
-    "KZ-KA": {  # Karaganda, Kazakhstan (coal)
-        "water_stress": 3.6,
-        "flood_risk": 1.1,
-        "drought_risk": 3.9,
-    },
-    "CL-I": {  # Tarapacá Region, Chile (lithium/copper)
-        "water_stress": 4.2,
-        "flood_risk": 0.9,
-        "drought_risk": 4.5,
-    },
-    "AR-JJ": {  # Jujuy, Argentina (lithium)
-        "water_stress": 3.9,
-        "flood_risk": 1.3,
-        "drought_risk": 4.2,
-    },
-    "BO-LP": {  # La Paz, Bolivia (mining)
-        "water_stress": 2.6,
-        "flood_risk": 2.2,
-        "drought_risk": 2.7,
-    },
-    "MM-01": {  # Myanmar (mining)
-        "water_stress": 2.1,
-        "flood_risk": 3.4,
-        "drought_risk": 2.0,
-    },
-    "VN-01": {  # Vietnam (coal/minerals)
-        "water_stress": 2.5,
-        "flood_risk": 3.6,
-        "drought_risk": 2.3,
-    },
+# engine sector slug → Aqueduct industry weighting
+SECTOR_TO_INDUSTRY = {
+    "agriculture": "agr", "food": "fnb", "beverages": "fnb", "food_beverage": "fnb", "chemicals": "che",
+    "cement": "con", "construction": "con", "steel": "con", "utilities": "elp", "power": "elp",
+    "electric_power": "elp", "coal": "min", "mining": "min", "metals_mining": "min", "aluminium": "min",
+    "oil_gas": "ong", "oil": "ong", "gas": "ong", "refining": "ong", "semiconductors": "smc",
+    "technology": "smc", "textiles": "tex", "apparel": "tex",
 }
 
 
+@lru_cache(maxsize=1)
+def _load() -> dict:
+    d = np.load(_DATA)
+    return {k: d[k] for k in d.files}
+
+
+def _score(v) -> Optional[float]:
+    v = int(v)
+    return None if v == 255 else round(v / 50.0, 2)
+
+
+def _cell(lat: float, lon: float) -> tuple[int, float]:
+    """Unit index (1-based, 0 = none) at a point; snaps to the nearest land cell within 3 cells."""
+    D = _load()
+    g, res = D["grid"], float(D["res"])
+    H, W = g.shape
+    r = int(np.clip((90.0 - lat) / res, 0, H - 1))
+    c = int(np.clip((lon + 180.0) / res, 0, W - 1))
+    if g[r, c]:
+        return int(g[r, c]), 0.0
+    best, bd = 0, 1e9
+    for dr in range(-3, 4):
+        for dc in range(-3, 4):
+            rr, cc = r + dr, (c + dc) % W
+            if 0 <= rr < H and g[rr, cc]:
+                d = dr * dr + dc * dc
+                if d < bd:
+                    best, bd = int(g[rr, cc]), d
+    return best, (np.sqrt(bd) * res * 111.0 if best else float("nan"))
+
+
+def point(lat: float, lon: float, sector: Optional[str] = None) -> dict:
+    """Full Aqueduct 4.0 record at a coordinate."""
+    D = _load()
+    idx, snap_km = _cell(lat, lon)
+    if not idx:
+        return {"found": False, "lat": lat, "lon": lon, "source": SOURCE,
+                "note": "No Aqueduct unit within ~15 km (open ocean or outside coverage)."}
+    i = idx - 1
+    labels = D["labels"]
+    lab = lambda k: (str(labels[k]) if k >= 0 else None)
+    names = list(INDICATORS)
+    raw_names = list(RAW_UNITS)
+    baseline = {}
+    for j, k in enumerate(names):
+        baseline[k] = {"name": INDICATORS[k], "score": _score(D["score"][i, j]), "label": lab(int(D["label"][i, j]))}
+    for j, k in enumerate(raw_names):
+        v = float(D["raw"][i, j])
+        baseline[k]["raw"] = None if np.isnan(v) else round(v, 4)
+        baseline[k]["raw_unit"] = RAW_UNITS[k]
+    overall = {k: _score(D["total"][i, j]) for j, k in enumerate(INDUSTRIES)}
+    ind = SECTOR_TO_INDUSTRY.get((sector or "").lower().replace(" ", "_").replace("&", ""))
+    pfaf = int(D["pfaf"][i])
+    future = None
+    fk = np.searchsorted(D["fut_pfaf"], pfaf)
+    if fk < len(D["fut_pfaf"]) and D["fut_pfaf"][fk] == pfaf:
+        F = D["future"][fk]
+        future = {sc: {k: {str(y): _score(F[a, b, c]) for b, y in enumerate(FUTURE_YEARS)}
+                       for c, k in enumerate(FUTURE_IND)} for a, sc in enumerate(FUTURE_SCEN)}
+    pl = int(D["place"][i])
+    return {
+        "found": True, "lat": lat, "lon": lon, "snapped_km": round(snap_km, 1),
+        "basin_pfaf_id": pfaf, "iso3": str(D["iso3"][i]), "country": str(D["place_country"][pl]),
+        "admin1": str(D["place_admin1"][pl]),
+        "baseline_period": "1979–2019", "baseline": baseline,
+        "overall_water_risk": {"score": overall["def"], "label": lab(int(D["total_label"][i])),
+                               "by_industry": {INDUSTRIES[k]: v for k, v in overall.items() if k != "def"},
+                               "sector_weighting": INDUSTRIES.get(ind) if ind else None,
+                               "sector_score": overall.get(ind) if ind else None},
+        "future": future, "future_scenarios": FUTURE_SCEN, "future_indicators": FUTURE_IND,
+        "source": SOURCE,
+        "caveat": "Aqueduct indicators are modelled and, per WRI, not directly validated; they describe the "
+                  "basin/admin-1 unit, not the site's own water supply.",
+    }
+
+
+def stress_path(rec: dict, scenario: str = "bau") -> dict:
+    """Water stress score path: baseline (2019) and the future scores for one Aqueduct scenario."""
+    out = {str(BASELINE_YEAR): rec["baseline"]["bws"]["score"]}
+    if rec.get("future"):
+        out.update(rec["future"][scenario]["ws"])
+    return out
+
+
+def _interp_year(rec: dict, key: str, year: int, scenario: str = "bau") -> Optional[float]:
+    base = rec["baseline"][{"ws": "bws", "wd": "bwd", "iv": "iav", "sv": "sev"}[key]]["score"]
+    if not rec.get("future") or year <= BASELINE_YEAR:
+        return base
+    pts = [(BASELINE_YEAR, base)] + [(int(y), v) for y, v in rec["future"][scenario][key].items() if v is not None]
+    pts = [(y, v) for y, v in pts if v is not None]
+    if not pts:
+        return None
+    xs, ys = zip(*pts)
+    return round(float(np.interp(year, xs, ys)), 2)
+
+
 class WRIAqueductConnector(BaseConnector):
-    """Connector for WRI Aqueduct 4.0 water risk data.
+    """WRI Aqueduct 4.0 lookups (offline, from the published dataset). Scores 0–5, 5 = highest risk."""
 
-    Primary path: live point query to https://aqueduct40.wri.org/api/v1/point
-    Fallback: regional lookup table for known mining/energy regions.
-    All scores on 0-5 scale (5 = highest risk).
-    """
-
-    BASE_URL = _WRI_API_URL
+    def __init__(self, cache_dir=None):
+        # no disk cache needed — the dataset ships with the engine
+        pass
 
     def fetch(self, **kwargs) -> dict:
-        """Not used directly; use get_water_risk or get_region_risk."""
-        raise NotImplementedError("Use get_water_risk() or get_region_risk()")
+        return point(kwargs["lat"], kwargs["lon"], kwargs.get("sector"))
 
-    def _fetch_live(self, lat: float, lon: float) -> dict | None:
-        """Query WRI Aqueduct 4.0 point API. Returns parsed scores or None on failure."""
-        try:
-            url = f"{_WRI_API_URL}?lat={lat:.6f}&lng={lon:.6f}&include_columns=bws,bwd,rfr,cfr,drr,gtd"
-            with urllib.request.urlopen(url, timeout=12) as resp:
-                raw = json.loads(resp.read().decode())
-            d = raw.get("data", raw)
-            # API returns scores in bws_score/rfr_score/etc. or bws/rfr/etc.
-            return {
-                "water_stress":   float(d.get("bws_score", d.get("bws", -1))),
-                "flood_riverine": float(d.get("rfr_score", d.get("rfr", -1))),
-                "flood_coastal":  float(d.get("cfr_score", d.get("cfr", -1))),
-                "drought":        float(d.get("drr_score", d.get("drr", -1))),
-                "groundwater":    float(d.get("gtd_score", d.get("gtd", -1))),
-                "source": "wri_aqueduct_live",
-            }
-        except Exception:
-            return None
+    def point(self, lat: float, lon: float, sector: Optional[str] = None) -> dict:
+        return point(lat, lon, sector)
 
-    def get_water_risk(self, lat: float, lon: float, year: int = 2030) -> dict:
-        """Get water risk for a lat/lon point with year-adjusted projections.
+    def get_water_risk(self, lat: float, lon: float, year: int = 2030, scenario: str = "bau") -> dict:
+        """Headline scores at a coordinate for a year.
 
-        Calls WRI Aqueduct 4.0 live API; falls back to regional lookup table.
-        Results are cached on disk (keyed by lat/lon at 0.1° precision).
-
-        Args:
-            lat:  Latitude
-            lon:  Longitude
-            year: Target horizon year (2026–2050). Base scores are current-period;
-                  a climate stress multiplier scales them for future years.
-
-        Returns:
-            Dict with keys: water_stress, flood_risk, drought_risk, source
-            All scores 0-5 (5 = highest risk).
+        water_stress: baseline water stress, interpolated to `year` along the Aqueduct future projection
+        (2030/2050/2080, default business-as-usual). flood_risk: max of riverine and coastal flood risk scores
+        (baseline — Aqueduct 4.0 publishes no future flood scores). drought_risk: baseline drought risk.
         """
-        # Cache key uses 0.1° resolution (≈11km) — adequate for watershed-level risk
-        cache_key = f"wri_live_{lat:.1f}_{lon:.1f}"
-        base = self._load_cache(cache_key)
-
-        if base is None:
-            base = self._fetch_live(lat, lon)
-            if base is not None and all(v >= 0 for k, v in base.items() if k != "source"):
-                self._save_cache(cache_key, base)
-            else:
-                base = None  # API returned missing/invalid scores
-
-        if base is None:
-            # Fallback to regional lookup by approximate reverse-geocoding
-            base = self._regional_fallback(lat, lon)
-
-        # Apply year-projection multiplier
-        stress_mult = _YEAR_STRESS_FACTOR.get(
-            min(_YEAR_STRESS_FACTOR, key=lambda y: abs(y - year)),
-            1.15
-        )
-        result = {
-            "water_stress": min(5.0, base.get("water_stress", 2.5) * stress_mult),
-            "flood_risk":   min(5.0, max(
-                base.get("flood_riverine", base.get("flood_risk", 2.0)),
-                base.get("flood_coastal", 1.5)
-            ) * (1.0 + (stress_mult - 1.0) * 0.5)),  # floods scale more slowly
-            "drought_risk": min(5.0, base.get("drought", base.get("drought_risk", 2.3)) * stress_mult),
-            "source": base.get("source", "regional_table"),
-        }
-        return result
-
-    def _regional_fallback(self, lat: float, lon: float) -> dict:
-        """Best-match regional water risk using lat/lon centroid distance."""
-        # Centroids for REGIONAL_WATER_RISK regions (approximate)
-        _CENTROIDS = {
-            "AU-WA":  (-25.0, 122.0), "AU-QLD": (-20.0, 146.0),
-            "CL-02":  (-24.0, -69.5), "CL-I":   (-20.0, -69.0),
-            "CN-NM":  (42.0,  112.0), "IN-JH":  (23.0,   85.0),
-            "ID-SN":  (-3.5,  104.5), "PE-JU":  (-11.0,  75.0),
-            "RU-KK":  (56.0,   92.0), "ZA-GP":  (-26.0,  28.0),
-            "CA-BC":  (53.0, -120.0), "BF-01":  (12.0,   -1.5),
-            "GH-01":  (7.0,   -1.5),  "PH-03":  (7.5,   125.0),
-            "MX-DG":  (24.5, -104.5), "KZ-KA":  (49.5,   73.0),
-            "AR-JJ":  (-23.0, -65.5), "BO-LP":  (-16.5,  -68.0),
-            "MM-01":  (19.0,   96.5), "VN-01":  (16.0,  107.0),
-        }
-        best_code, best_dist = "AU-WA", 1e9
-        for code, (clat, clon) in _CENTROIDS.items():
-            d = (lat - clat) ** 2 + (lon - clon) ** 2
-            if d < best_dist:
-                best_dist = d
-                best_code = code
-
-        region_data = REGIONAL_WATER_RISK.get(best_code, {
-            "water_stress": 2.5, "flood_risk": 2.0, "drought_risk": 2.3
-        })
+        rec = point(lat, lon)
+        if not rec["found"]:
+            return {"water_stress": None, "flood_risk": None, "drought_risk": None, "source": "wri_aqueduct_4.0:none",
+                    "note": rec["note"]}
+        b = rec["baseline"]
+        floods = [v for v in (b["rfr"]["score"], b["cfr"]["score"]) if v is not None]
         return {
-            "water_stress":   region_data.get("water_stress", 2.5),
-            "flood_riverine": region_data.get("flood_risk", 2.0),
-            "flood_coastal":  region_data.get("flood_risk", 2.0) * 0.7,
-            "drought":        region_data.get("drought_risk", 2.3),
-            "groundwater":    region_data.get("water_stress", 2.5) * 0.8,
-            "source": f"regional_table:{best_code}",
+            "water_stress": _interp_year(rec, "ws", year, scenario),
+            "flood_risk": max(floods) if floods else None,
+            "flood_riverine": b["rfr"]["score"], "flood_coastal": b["cfr"]["score"],
+            "drought_risk": b["drr"]["score"], "groundwater": b["gtd"]["score"],
+            "overall_water_risk": rec["overall_water_risk"]["score"],
+            "year": year, "scenario": FUTURE_SCEN.get(scenario),
+            "source": "wri_aqueduct_4.0",
         }
 
     def get_region_risk(self, region_code: str, year: int = 2030) -> dict:
-        """Get water risk for a region code (ISO format).
+        """Country-level median of Aqueduct units for an ISO 3166-2 code's country (admin-1 names are not
+        matched to ISO 3166-2 codes, so the result is explicitly country-level)."""
+        iso3 = _iso2_to_iso3((region_code or "")[:2])
+        D = _load()
+        if not iso3:
+            return {"water_stress": None, "flood_risk": None, "drought_risk": None,
+                    "source": "wri_aqueduct_4.0:unresolved", "note": f"Unknown region code {region_code!r}"}
+        m = D["iso3"] == iso3
+        if not m.any():
+            return {"water_stress": None, "flood_risk": None, "drought_risk": None,
+                    "source": "wri_aqueduct_4.0:none", "note": f"No Aqueduct units for {iso3}"}
+        names = list(INDICATORS)
 
-        Args:
-            region_code: Region code like 'AU-WA', 'CL-02'
-            year: Target year (2030, 2040, 2050)
+        def med(k):
+            s = D["score"][m, names.index(k)]
+            s = s[s != 255]
+            return round(float(np.median(s)) / 50.0, 2) if s.size else None
+        fl = [v for v in (med("rfr"), med("cfr")) if v is not None]
+        return {"water_stress": med("bws"), "flood_risk": max(fl) if fl else None, "drought_risk": med("drr"),
+                "source": f"wri_aqueduct_4.0:country_median:{iso3}", "year_note": "baseline 1979–2019"}
 
-        Returns:
-            Dict with keys: water_stress, flood_risk, drought_risk (0-5 scale)
-        """
-        cache_key = f"region_risk_{region_code}_{year}"
-        cached = self._load_cache(cache_key)
-        if cached:
-            return cached
 
-        # Lookup in hardcoded table
-        base_risk = REGIONAL_WATER_RISK.get(region_code)
-        if not base_risk:
-            # Default for unknown regions
-            base_risk = {
-                "water_stress": 2.5,
-                "flood_risk": 2.0,
-                "drought_risk": 2.3,
-            }
+@lru_cache(maxsize=1)
+def _iso_table() -> dict:
+    import json
+    return json.loads((_DATA.parent / "iso2_iso3.json").read_text())
 
-        # Scale risk slightly upward over time (simplified climate change effect)
-        year_factor = (year - 2026) / 24  # 0 at 2026, 1 at 2050
-        result = {
-            "water_stress": min(5.0, base_risk["water_stress"] + year_factor * 0.6),
-            "flood_risk": min(5.0, base_risk["flood_risk"] + year_factor * 0.5),
-            "drought_risk": min(5.0, base_risk["drought_risk"] + year_factor * 0.8),
-        }
-        self._save_cache(cache_key, result)
-        return result
+
+def _iso2_to_iso3(a2: str) -> Optional[str]:
+    return _iso_table().get(a2.upper()) if a2 else None

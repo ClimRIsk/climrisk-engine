@@ -16,3 +16,9 @@ climate_risk_engine/src/cri/.cache/
 climate_risk_engine/data/asset_register/raw/
 # Risk Analyst build caches (rebuildable with scripts/build_finance_data.py)
 climate_risk_engine/data/finance/raw/
+
+# LCA build caches (rebuildable with scripts/build_lca_data.py)
+climate_risk_engine/data/lca/raw/
+# Runtime forecast/storm caches
+climate_risk_engine/data/cache/forecast_*.json
+climate_risk_engine/data/cache/nhc_current_storms.json

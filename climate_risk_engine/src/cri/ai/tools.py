@@ -764,6 +764,95 @@ def _exec_run_risk_analyst(args: dict) -> dict:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# 11. product_carbon_footprint — cradle-to-gate LCA (cri.lca)
+# ─────────────────────────────────────────────────────────────────────────────
+
+_LCA_DEFINITION = {
+    "type": "function",
+    "function": {
+        "name": "product_carbon_footprint",
+        "description": (
+            "Cradle-to-gate (A1–A3) product carbon footprint per tonne, ISO 14067-aligned, with a P5–P95 "
+            "uncertainty band, exclusions, a 2025–2050 trajectory under NGFS grid pathways and (cement) an EU CBAM "
+            "cost view. Needs the plant's own data — ask the user for any required input you do not have; never guess. "
+            "cement: clinker_ratio, kiln_thermal_gj_per_t_clinker, fuel_mix (shares summing to 1; keys e.g. "
+            "coal_bituminous, petcoke, natural_gas, fuel_oil, tyres, industrial_waste, wood, biomass_other), "
+            "kwh_per_t_clinker, kwh_per_t_cement_grinding. steel: route (bf_bof|eaf|dri_eaf), kwh_per_t. "
+            "aluminium: kwh_per_t. ammonia: kwh_per_t (gas_gj_per_t optional)."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "product": {"type": "string", "enum": ["cement", "steel", "aluminium", "ammonia"]},
+                "country": {"type": "string", "description": "ISO3 country code of the plant"},
+                "clinker_ratio": {"type": "number"},
+                "kiln_thermal_gj_per_t_clinker": {"type": "number"},
+                "fuel_mix": {"type": "object", "description": "fuel key → share of kiln energy"},
+                "kwh_per_t_clinker": {"type": "number"},
+                "kwh_per_t_cement_grinding": {"type": "number"},
+                "route": {"type": "string", "enum": ["bf_bof", "eaf", "dri_eaf"]},
+                "kwh_per_t": {"type": "number"},
+                "gas_gj_per_t": {"type": "number"},
+                "g_per_kwh": {"type": "number", "description": "supplier-specific electricity factor, if any"},
+                "cbam_year": {"type": "integer"},
+            },
+            "required": ["product", "country"],
+        },
+    },
+}
+
+
+def _exec_product_carbon_footprint(args: dict) -> dict:
+    try:
+        prod = args.get("product")
+        country = (args.get("country") or "").upper() or None
+        if prod == "cement":
+            from ..lca.cement import CementPlant, assess
+            need = ["clinker_ratio", "kiln_thermal_gj_per_t_clinker", "fuel_mix", "kwh_per_t_clinker", "kwh_per_t_cement_grinding"]
+            missing = [k for k in need if args.get(k) in (None, {}, "")]
+            if missing:
+                return {"needs_input": missing, "note": "Ask the user for these plant values; no defaults are used."}
+            r = assess(CementPlant(name="Plant", country=country, clinker_ratio=float(args["clinker_ratio"]),
+                                   kiln_thermal_gj_per_t_clinker=float(args["kiln_thermal_gj_per_t_clinker"]),
+                                   fuel_mix={k: float(v) for k, v in args["fuel_mix"].items()},
+                                   kwh_per_t_clinker=float(args["kwh_per_t_clinker"]),
+                                   kwh_per_t_cement_grinding=float(args["kwh_per_t_cement_grinding"]),
+                                   electricity_g_per_kwh=args.get("g_per_kwh")),
+                       n=2000, cbam_year=int(args.get("cbam_year") or 2026))
+        else:
+            from ..lca import products
+            if args.get("kwh_per_t") is None:
+                return {"needs_input": ["kwh_per_t"], "note": "Ask the user for plant electricity use per tonne."}
+            kw = dict(kwh_per_t=float(args["kwh_per_t"]), country=country, g_per_kwh=args.get("g_per_kwh"), n=2000)
+            if prod == "steel":
+                if not args.get("route"):
+                    return {"needs_input": ["route"], "note": "Ask whether the plant is BF-BOF, EAF or DRI-EAF."}
+                r = products.steel(args["route"], **kw)
+            elif prod == "aluminium":
+                r = products.aluminium(**kw)
+            elif prod == "ammonia":
+                r = products.ammonia(gas_gj_per_t=args.get("gas_gj_per_t"), **kw)
+            else:
+                return {"error": "product must be cement, steel, aluminium or ammonia (use the LCA workbench for others)"}
+        traj = r["trajectory"]
+        last = {s: v[-1] for s, v in traj["scenarios"].items()}
+        out = {k: r[k] for k in ("product", "country", "declared_unit", "footprint_kg_co2e_per_t", "by_stage",
+                                 "biogenic_co2_kg_per_t", "data_quality", "exclusions", "notes", "standard")}
+        out["uncertainty_p5_p95"] = [r["uncertainty"]["p5"], r["uncertainty"]["p95"]]
+        out["footprint_2050_by_scenario_grid_only"] = last
+        if r.get("cbam"):
+            out["cbam"] = r["cbam"]
+        if r.get("clinker"):
+            out["clinker"] = r["clinker"]
+        return out
+    except ValueError as exc:
+        return {"error": str(exc)}
+    except Exception as exc:
+        logger.exception("product_carbon_footprint failed")
+        return {"error": str(exc)}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Tool Registry
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -778,6 +867,7 @@ TOOL_REGISTRY: dict[str, dict] = {
     "assess_physical_asset":   {"definition": _ASSET_DEFINITION,     "executor": _exec_assess_physical_asset},
     "get_company_assets":      {"definition": _COMPANY_ASSETS_DEFINITION, "executor": _exec_get_company_assets},
     "run_risk_analyst":        {"definition": _ANALYST_DEFINITION,   "executor": _exec_run_risk_analyst},
+    "product_carbon_footprint":{"definition": _LCA_DEFINITION,       "executor": _exec_product_carbon_footprint},
 }
 
 

@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClimRisk — Product Carbon Footprint (LCA)</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #070b14; --surface: #0d1524; --surface2: #111c30; --border: #1c2a44;
+    --primary: #38bdf8; --muted: #8a9bbd; --text: #e2eaf8;
+    --critical: #ef4444; --high: #f97316; --moderate: #eab308; --low: #22c55e;
+    --mono: ui-monospace, 'SF Mono', Menlo, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+  }
+  body { font-family: var(--sans); background: var(--bg); color: var(--text); font-size: 13px; min-height: 100vh; }
+  .header { display: flex; align-items: center; gap: 14px; padding: 10px 18px; background: var(--surface); border-bottom: 1px solid var(--border); }
+  .logo { font-weight: 800; letter-spacing: 3px; color: var(--primary); font-size: 16px; }
+  .sub { font-size: 11px; color: var(--muted); }
+  .pill { margin-left: auto; font-size: 10px; color: var(--muted); border: 1px solid var(--border); border-radius: 20px; padding: 3px 10px; font-family: var(--mono); }
+  .layout { display: grid; grid-template-columns: 360px 1fr; min-height: calc(100vh - 46px); }
+  .side { background: var(--surface); border-right: 1px solid var(--border); padding: 14px; overflow-y: auto; max-height: calc(100vh - 46px); }
+  .main { padding: 18px 22px; overflow-y: auto; max-height: calc(100vh - 46px); }
+  .tabs { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 12px; }
+  .tab { font-size: 11px; padding: 5px 10px; border-radius: 14px; border: 1px solid var(--border); color: var(--muted); cursor: pointer; background: var(--bg); }
+  .tab.on { border-color: var(--primary); color: var(--text); background: #0c2233; }
+  .section-title { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin: 14px 0 6px; font-weight: 600; }
+  label { font-size: 11px; color: var(--muted); display: block; margin: 8px 0 3px; }
+  label .req { color: var(--high); }
+  input, select { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font: inherit; padding: 6px 8px; outline: none; }
+  input:focus, select:focus { border-color: var(--primary); }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .row3 { display: grid; grid-template-columns: 1.6fr 1fr 28px; gap: 6px; align-items: end; }
+  .x { background: none; border: 1px solid var(--border); color: var(--muted); border-radius: 6px; height: 30px; cursor: pointer; }
+  .add { font-size: 11px; color: var(--primary); background: none; border: none; cursor: pointer; margin-top: 6px; }
+  .btn { width: 100%; padding: 10px; border: none; border-radius: 6px; font: inherit; font-weight: 700; cursor: pointer; margin-top: 14px; background: var(--primary); color: #04121d; }
+  .btn:disabled { opacity: .4; cursor: wait; }
+  .hint { font-size: 10.5px; color: var(--muted); line-height: 1.5; margin-top: 4px; }
+  .status { font-size: 11px; color: var(--muted); margin-top: 8px; min-height: 16px; }
+  .status.error { color: var(--critical); }
+  details { margin-top: 10px; border-top: 1px solid var(--border); padding-top: 6px; }
+  summary { cursor: pointer; font-size: 11px; color: var(--primary); }
+  .empty { color: var(--muted); line-height: 1.8; max-width: 640px; margin-top: 40px; }
+  .empty h2 { color: var(--text); font-size: 18px; margin-bottom: 8px; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin-bottom: 16px; }
+  .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+  .kpi .v { font-size: 22px; font-weight: 800; font-family: var(--mono); }
+  .kpi .l { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-top: 3px; }
+  .kpi .s { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-bottom: 14px; }
+  .card h3 { font-size: 12px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 1100px) { .grid2 { grid-template-columns: 1fr; } }
+  table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+  th, td { text-align: left; padding: 5px 6px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: 10.5px; }
+  td.n { text-align: right; font-family: var(--mono); white-space: nowrap; }
+  .bar { height: 10px; background: var(--primary); border-radius: 2px; }
+  .warn { color: var(--moderate); }
+  ul.plain { list-style: none; } ul.plain li { padding: 3px 0; font-size: 11.5px; line-height: 1.5; }
+  ul.plain li::before { content: "• "; color: var(--muted); }
+  .legend { display: flex; flex-wrap: wrap; gap: 10px; font-size: 10.5px; color: var(--muted); margin-top: 6px; }
+  .legend i { display: inline-block; width: 10px; height: 3px; margin-right: 4px; vertical-align: middle; }
+  .foot { font-size: 10.5px; color: var(--muted); line-height: 1.6; }
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="logo">CLIMRISK</div>
+  <div class="sub">Product Carbon Footprint · cradle-to-gate LCA (ISO 14067-aligned)</div>
+  <div class="pill">IPCC 2006 · GCCA-CSI · Ember · DESNZ 2025 · NGFS Phase 5 · IPCC AR6 GWP100</div>
+</div>
+<div class="layout">
+  <aside class="side">
+    <div class="tabs" id="tabs"></div>
+    <div id="form"></div>
+    <details>
+      <summary>API key (only if your server requires one)</summary>
+      <input id="apiKey" type="password" placeholder="X-API-Key" style="margin-top:6px">
+    </details>
+    <button class="btn" id="run">Calculate footprint</button>
+    <div class="status" id="status"></div>
+  </aside>
+  <main class="main" id="out">
+    <div class="empty">
+      <h2>What this calculates</h2>
+      The cradle-to-gate carbon footprint (life-cycle stages A1–A3) of one tonne of product, built from <b>your plant's own data</b>:
+      raw materials and their upstream factors (A1), inbound freight (A2), and at the plant (A3) process CO₂,
+      fuel combustion, the fuels' supply chains (well-to-tank) and lifecycle grid electricity.<br><br>
+      Every result shows its uncertainty band (Monte Carlo, width set by data quality), what was excluded and why,
+      biogenic CO₂ reported separately, and a 2025–2050 trajectory as the grid decarbonises under each NGFS Phase 5 scenario.
+      Cement also gets an EU CBAM view.<br><br>
+      Inputs that differ widely between plants (clinker ratio, kiln fuel energy, fuel mix, electricity use) are required; the engine does not fill them in for you.
+    </div>
+  </main>
+</div>
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt = (v, d = 0) => v == null ? '—' : Number(v).toLocaleString('en-US', {maximumFractionDigits: d, minimumFractionDigits: d});
+let FACTORS = null, PRODUCT = 'cement';
+
+const PRODUCTS = {
+  cement: 'Cement', steel: 'Steel', aluminium: 'Aluminium', ammonia: 'Ammonia', custom: 'Any product'
+};
+
+function field(id, label, opts = {}) {
+  const req = opts.req ? ' <span class="req">*</span>' : '';
+  if (opts.select) {
+    return `<label for="${id}">${label}${req}</label><select id="${id}">${opts.select.map(([v, t]) => `<option value="${v}"${v === opts.value ? ' selected' : ''}>${esc(t)}</option>`).join('')}</select>`;
+  }
+  return `<label for="${id}">${label}${req}</label><input id="${id}" type="${opts.type || 'number'}" step="any" ${opts.value != null ? `value="${opts.value}"` : ''} placeholder="${esc(opts.ph || '')}">`;
+}
+function countrySelect(id = 'country') {
+  const c = FACTORS ? Object.keys(FACTORS.grid.countries).sort() : [];
+  return field(id, 'Country (ISO3 — sets the grid factor and NGFS region)', {req: true, select: [['', '— choose —'], ...c.map(k => [k, `${k} · ${FACTORS.grid.countries[k]} g/kWh`])]});
+}
+function fuelOptions(sel) {
+  return Object.entries(FACTORS.fuels).map(([k, f]) => `<option value="${k}"${k === sel ? ' selected' : ''}>${esc(f.label)}</option>`).join('');
+}
+function listRow(kind) {
+  const div = document.createElement('div');
+  if (kind === 'fuelmix') div.className = 'row3', div.innerHTML = `<div><select class="fm-fuel">${fuelOptions()}</select></div><div><input class="fm-share" type="number" step="any" placeholder="share 0–1"></div><button class="x" type="button">×</button>`;
+  if (kind === 'fuelgj') div.className = 'row3', div.innerHTML = `<div><select class="fg-fuel">${fuelOptions()}</select></div><div><input class="fg-gj" type="number" step="any" placeholder="GJ / unit"></div><button class="x" type="button">×</button>`;
+  if (kind === 'material') div.className = 'row3', div.style.gridTemplateColumns = '1.2fr .7fr .9fr 28px', div.innerHTML = `<div><input class="m-name" type="text" placeholder="material"></div><div><input class="m-t" type="number" step="any" placeholder="t / unit"></div><div><input class="m-f" type="number" step="any" placeholder="kg CO2e/t"></div><button class="x" type="button">×</button>`;
+  if (kind === 'transport') div.className = 'row3', div.style.gridTemplateColumns = '.9fr .7fr .8fr 28px', div.innerHTML = `<div><select class="t-mode"><option>truck</option><option>rail</option><option>ship</option></select></div><div><input class="t-t" type="number" step="any" placeholder="t"></div><div><input class="t-km" type="number" step="any" placeholder="km"></div><button class="x" type="button">×</button>`;
+  if (kind === 'process') div.className = 'row3', div.innerHTML = `<div><input class="p-name" type="text" placeholder="process emission"></div><div><input class="p-kg" type="number" step="any" placeholder="kg CO2e / unit"></div><button class="x" type="button">×</button>`;
+  div.querySelector('.x').onclick = () => div.remove();
+  return div;
+}
+function listBlock(id, kind, title, hint) {
+  return `<div class="section-title">${title}</div><div id="${id}"></div><button class="add" type="button" data-list="${id}" data-kind="${kind}">+ add</button>${hint ? `<div class="hint">${hint}</div>` : ''}`;
+}
+
+function renderForm() {
+  const f = $('form');
+  const dq = `<div class="section-title">Data quality (1 measured · 5 estimate)</div><div class="row2">${field('dq_main', 'Plant activity data', {select: [1,2,3,4,5].map(i => [String(i), String(i)]), value: '2'})}</div>`;
+  if (PRODUCT === 'cement') {
+    f.innerHTML = `
+      ${field('name', 'Plant name', {type: 'text', value: '', ph: 'e.g. Kiln 2, Plant X'})}
+      ${countrySelect()}
+      <div class="section-title">Clinker & kiln</div>
+      <div class="row2">${field('clinker_ratio', 'Clinker ratio (t/t cement)', {req: true, ph: '0.74'})}${field('kiln_thermal', 'Kiln fuel GJ / t clinker', {req: true, ph: '3.5'})}</div>
+      <div class="row2">${field('clinker_cao', 'Clinker CaO (fraction)', {ph: 'optional → Tier 2'})}${field('clinker_mgo', 'Clinker MgO (fraction)', {ph: 'optional'})}</div>
+      <div class="row2">${field('ckd', 'CKD leaving kiln (t/t clk)', {value: 0})}${field('toc', 'Raw-meal TOC (fraction)', {ph: 'default 0.002'})}</div>
+      ${listBlock('fuelmix', 'fuelmix', 'Kiln fuel mix (shares of energy, sum = 1) <span class="req">*</span>')}
+      <div class="section-title">Electricity</div>
+      <div class="row2">${field('kwh_clk', 'kWh / t clinker', {req: true, ph: 'kiln + raw mill'})}${field('kwh_grind', 'kWh / t cement', {req: true, ph: 'cement grinding'})}</div>
+      ${field('g_kwh', 'Supplier factor g CO2e/kWh (PPA)', {ph: 'blank = national lifecycle grid'})}
+      ${listBlock('materials', 'material', 'Other constituents (per t cement)', 'e.g. slag, fly ash, gypsum, limestone with your supplier factor. Leave the factor blank to list it as an exclusion.')}
+      ${listBlock('transport', 'transport', 'Inbound freight (per t cement)')}
+      ${field('capture', 'CO₂ capture rate on kiln stack (0–1)', {value: 0})}
+      ${dq}
+      <details><summary>Decarbonisation plan (optional → plan trajectory)</summary>
+        <div class="row2">${field('plan_year', 'Target year')}${field('plan_cr', 'Target clinker ratio')}</div>
+        <div class="row2">${field('plan_th', 'Target GJ / t clinker')}${field('plan_bio', 'Target biomass share')}</div>
+        <div class="row2">${field('plan_cap', 'Capture rate')}${field('plan_cap_y', 'Capture from year')}</div>
+        ${field('plan_g', 'Target electricity g/kWh')}
+      </details>
+      <details><summary>EU CBAM year</summary>${field('cbam_year', 'Year', {value: 2026})}</details>`;
+    $('fuelmix').append(listRow('fuelmix'));
+  } else if (PRODUCT === 'steel') {
+    f.innerHTML = `
+      ${field('route', 'Route', {req: true, select: [['bf_bof', 'Blast furnace – BOF'], ['eaf', 'Electric arc furnace (scrap)'], ['dri_eaf', 'DRI – EAF']]})}
+      ${countrySelect()}
+      ${field('kwh', 'Plant electricity, kWh / t crude steel', {req: true})}
+      ${field('g_kwh', 'Supplier factor g CO2e/kWh (PPA)', {ph: 'blank = national lifecycle grid'})}
+      ${listBlock('fuelgj', 'fuelgj', 'Additional fuels (GJ / t)', 'Only fuels not already inside the IPCC route factor, e.g. natural gas for reheating on an EAF route.')}
+      ${listBlock('materials', 'material', 'Purchased feedstock (per t)', 'e.g. scrap or DRI with a supplier factor; otherwise listed as an exclusion.')}
+      ${listBlock('transport', 'transport', 'Inbound freight (per t)')}
+      <div class="hint">Tier 1 screening: IPCC 2006 Vol.3 Table 4.1 route factors.</div>`;
+  } else if (PRODUCT === 'aluminium') {
+    f.innerHTML = `
+      ${countrySelect()}
+      ${field('kwh', 'Smelter electricity, kWh / t aluminium', {req: true, ph: 'typically 13,000–16,000'})}
+      ${field('g_kwh', 'Supplier factor g CO2e/kWh (e.g. captive hydro/coal)', {ph: 'blank = national lifecycle grid'})}
+      <div class="row2">${field('alumina_t', 'Alumina t / t Al', {ph: '≈1.9'})}${field('alumina_f', 'Alumina kg CO2e / t', {ph: 'supplier'})}</div>
+      ${field('pfc', 'Measured PFC, kg CO2e / t Al', {ph: 'from anode-effect monitoring'})}
+      <div class="hint">Prebake anode CO₂ from IPCC Tier 1 (1.6 t/t). Alumina and PFCs are excluded unless you supply them.</div>`;
+  } else if (PRODUCT === 'ammonia') {
+    f.innerHTML = `
+      ${countrySelect()}
+      ${field('kwh', 'Plant electricity, kWh / t NH₃', {req: true})}
+      ${field('gas', 'Natural gas, GJ / t NH₃ (fuel + feedstock)', {ph: 'blank = IPCC Tier 1 30.2'})}
+      ${field('urea', 'CO₂ recovered for urea, kg / t NH₃', {value: 0})}
+      ${field('g_kwh', 'Supplier factor g CO2e/kWh (PPA)', {ph: 'blank = national lifecycle grid'})}`;
+  } else {
+    f.innerHTML = `
+      ${field('unit', 'Declared unit', {type: 'text', req: true, value: '1 t product'})}
+      ${countrySelect()}
+      ${listBlock('fuelgj', 'fuelgj', 'Fuels burned on site (per unit)')}
+      ${field('kwh', 'Electricity, kWh / unit', {value: 0})}
+      ${field('g_kwh', 'Supplier factor g CO2e/kWh (PPA)', {ph: 'blank = national lifecycle grid'})}
+      ${listBlock('process', 'process', 'Process emissions (per unit)', 'Non-combustion CO₂e you have measured or calculated, e.g. carbonate decomposition.')}
+      ${listBlock('materials', 'material', 'Purchased materials (per unit)', 'Each with its upstream factor (supplier EPD or database).')}
+      ${listBlock('transport', 'transport', 'Inbound freight (per unit)')}
+      ${field('capture', 'CO₂ capture rate on process + fossil CO₂ (0–1)', {value: 0})}`;
+  }
+  f.querySelectorAll('.add').forEach(b => b.onclick = () => $(b.dataset.list).append(listRow(b.dataset.kind)));
+}
+
+const num = id => { const e = $(id); if (!e || e.value === '') return null; const v = Number(e.value); return Number.isFinite(v) ? v : null; };
+const need = (id, what) => { const v = num(id); if (v == null) throw new Error(`${what} is required`); return v; };
+const rows = (cls, fn) => Array.from(document.querySelectorAll(cls)).map(fn).filter(Boolean);
+
+function payload() {
+  const country = $('country').value || null;
+  if (!country) throw new Error('Choose a country');
+  const g = num('g_kwh');
+  const materials = rows('#materials > div', d => {
+    const name = d.querySelector('.m-name').value.trim(), t = Number(d.querySelector('.m-t').value), fv = d.querySelector('.m-f').value;
+    if (!name || !(t > 0)) return null;
+    return {name, t, f: fv === '' ? null : Number(fv)};
+  });
+  const transport = rows('#transport > div', d => {
+    const t = Number(d.querySelector('.t-t').value), km = Number(d.querySelector('.t-km').value);
+    return t > 0 && km > 0 ? {mode: d.querySelector('.t-mode').value, t, km} : null;
+  });
+  const fuelsGJ = rows('#fuelgj > div', d => {
+    const gj = Number(d.querySelector('.fg-gj').value);
+    return gj > 0 ? {fuel: d.querySelector('.fg-fuel').value, gj} : null;
+  });
+  if (PRODUCT === 'cement') {
+    const fuel_mix = {};
+    rows('#fuelmix > div', d => { const s = Number(d.querySelector('.fm-share').value); if (s > 0) fuel_mix[d.querySelector('.fm-fuel').value] = (fuel_mix[d.querySelector('.fm-fuel').value] || 0) + s; return null; });
+    const tot = Object.values(fuel_mix).reduce((a, b) => a + b, 0);
+    if (!tot) throw new Error('Kiln fuel mix is required');
+    if (Math.abs(tot - 1) > 0.01) throw new Error(`Fuel shares sum to ${tot.toFixed(3)} — they must sum to 1`);
+    const dq = Number($('dq_main').value);
+    const body = {
+      name: $('name').value || 'Cement plant', country,
+      clinker_ratio: need('clinker_ratio', 'Clinker ratio'), kiln_thermal_gj_per_t_clinker: need('kiln_thermal', 'Kiln fuel energy'),
+      fuel_mix, kwh_per_t_clinker: need('kwh_clk', 'kWh per t clinker'), kwh_per_t_cement_grinding: need('kwh_grind', 'kWh per t cement'),
+      clinker_cao: num('clinker_cao'), clinker_mgo: num('clinker_mgo'), ckd_t_per_t_clinker: num('ckd') || 0, raw_meal_toc: num('toc'),
+      electricity_g_per_kwh: g, capture_rate: num('capture') || 0,
+      constituents: materials.map(m => ({name: m.name, t_per_t_cement: m.t, kgco2e_per_t: m.f, source: 'user-supplied', dq: 3})),
+      transport: transport.map(t => ({mode: t.mode, t: t.t, km: t.km, dq: 3, label: ''})),
+      dq: {composition: dq, fuels: dq, electricity: dq}, cbam_year: num('cbam_year') || 2026,
+    };
+    const plan = {plan_target_year: num('plan_year'), plan_clinker_ratio: num('plan_cr'), plan_thermal_gj_per_t_clinker: num('plan_th'),
+                  plan_biomass_share: num('plan_bio'), plan_capture_rate: num('plan_cap'), plan_capture_start_year: num('plan_cap_y'), plan_electricity_g_per_kwh: num('plan_g')};
+    for (const [k, v] of Object.entries(plan)) if (v != null) body[k] = v;
+    return body;
+  }
+  if (PRODUCT === 'steel') {
+    const body = {route: $('route').value, kwh_per_t: need('kwh', 'Electricity'), country, g_per_kwh: g, extra_fuels: {}};
+    fuelsGJ.forEach(x => body.extra_fuels[x.fuel] = (body.extra_fuels[x.fuel] || 0) + x.gj);
+    return body;
+  }
+  if (PRODUCT === 'aluminium') return {kwh_per_t: need('kwh', 'Smelter electricity'), country, g_per_kwh: g,
+    alumina_t: num('alumina_t'), alumina_kgco2e_per_t: num('alumina_f'), pfc_kgco2e_per_t: num('pfc')};
+  if (PRODUCT === 'ammonia') return {kwh_per_t: need('kwh', 'Electricity'), country, g_per_kwh: g, gas_gj_per_t: num('gas'),
+    co2_recovered_for_urea_kg_per_t: num('urea') || 0};
+  const unit = $('unit').value.trim(); if (!unit) throw new Error('Declared unit is required');
+  const kwh = num('kwh') || 0;
+  const process = rows('#process > div', d => { const n = d.querySelector('.p-name').value.trim(), kg = d.querySelector('.p-kg').value; return n && kg !== '' ? {name: n, kg_co2e: Number(kg)} : null; });
+  const missing = materials.filter(m => m.f == null);
+  if (missing.length) throw new Error(`Give an upstream factor for: ${missing.map(m => m.name).join(', ')}`);
+  return {declared_unit: unit, country, fuels: fuelsGJ, electricity: kwh ? [{kwh, g_per_kwh: g}] : [], process,
+    materials: materials.map(m => ({name: m.name, t: m.t, kgco2e_per_t: m.f})), transport, capture_rate: num('capture') || 0};
+}
+
+async function run() {
+  let body;
+  try { body = payload(); } catch (e) { $('status').className = 'status error'; $('status').textContent = e.message; return; }
+  $('run').disabled = true; $('status').className = 'status'; $('status').textContent = 'Calculating (5,000 Monte Carlo draws)…';
+  try {
+    const key = $('apiKey').value;
+    const r = await fetch('/lca/' + PRODUCT, {method: 'POST', headers: Object.assign({'Content-Type': 'application/json'}, key ? {'X-API-Key': key} : {}), body: JSON.stringify(body)});
+    const j = await r.json();
+    if (!r.ok) throw new Error(typeof j.detail === 'string' ? j.detail : JSON.stringify(j.detail));
+    render(j); $('status').textContent = 'Done.';
+  } catch (e) { $('status').className = 'status error'; $('status').textContent = e.message; }
+  finally { $('run').disabled = false; }
+}
+
+const COLORS = {'Net Zero 2050': '#22c55e', 'Below 2°C': '#38bdf8', 'Low demand': '#a3e635', 'Delayed transition': '#eab308', 'NDCs': '#f97316', 'Fragmented World': '#a78bfa', 'Current Policies': '#ef4444'};
+function lineChart(tr, plan) {
+  const W = 620, H = 240, L = 50, R = 10, T = 10, B = 26;
+  const years = tr.years, series = Object.entries(tr.scenarios);
+  const all = series.flatMap(([, v]) => v).concat(plan ? Object.values(plan.scenarios || {}).flat() : []);
+  const max = Math.max(...all) * 1.08, min = Math.min(0, ...all);
+  const x = i => L + (W - L - R) * i / (years.length - 1), y = v => T + (H - T - B) * (1 - (v - min) / (max - min));
+  let s = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px">`;
+  for (let k = 0; k <= 4; k++) { const v = min + (max - min) * k / 4; s += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="#1c2a44"/><text x="${L - 6}" y="${y(v) + 3}" fill="#8a9bbd" font-size="10" text-anchor="end">${fmt(v)}</text>`; }
+  years.forEach((yr, i) => { if (yr % 5 === 0) s += `<text x="${x(i)}" y="${H - 8}" fill="#8a9bbd" font-size="10" text-anchor="middle">${yr}</text>`; });
+  series.forEach(([n, v]) => s += `<polyline fill="none" stroke="${COLORS[n] || '#8a9bbd'}" stroke-width="1.6" points="${v.map((p, i) => `${x(i)},${y(p)}`).join(' ')}"/>`);
+  if (plan) Object.entries(plan.scenarios || {}).forEach(([n, v]) => s += `<polyline fill="none" stroke="${COLORS[n] || '#e2eaf8'}" stroke-dasharray="4 3" stroke-width="1.2" opacity=".8" points="${v.map((p, i) => `${x(i)},${y(p)}`).join(' ')}"/>`);
+  return s + '</svg><div class="legend">' + series.map(([n]) => `<span><i style="background:${COLORS[n] || '#8a9bbd'}"></i>${esc(n)}</span>`).join('') + (plan ? '<span>dashed = with your plan</span>' : '') + '</div>';
+}
+
+function render(r) {
+  const u = r.uncertainty || {}, unit = r.declared_unit;
+  const stages = Object.entries(r.by_stage || {}), smax = Math.max(1, ...stages.map(([, v]) => Math.abs(v)));
+  const dq = r.data_quality || {};
+  const tr = r.trajectory || {}, plan = r.trajectory_with_plan || (tr.plan_applied ? null : null);
+  let h = `<div class="kpis">
+    <div class="kpi"><div class="v">${fmt(r.footprint_kg_co2e_per_t)}</div><div class="l">kg CO₂e per ${esc(unit.replace(/^1 /, ''))}</div><div class="s">cradle-to-gate, fossil + process</div></div>
+    <div class="kpi"><div class="v">${fmt(u.p5)}–${fmt(u.p95)}</div><div class="l">90% range (P5–P95)</div><div class="s">${fmt(u.n_draws)} Monte Carlo draws</div></div>
+    <div class="kpi"><div class="v">${fmt(r.biogenic_co2_kg_per_t)}</div><div class="l">biogenic CO₂, kg</div><div class="s">reported separately, not in total</div></div>
+    <div class="kpi"><div class="v ${dq.weighted_score > 3 ? 'warn' : ''}">${fmt(dq.weighted_score, 1)}</div><div class="l">data quality (1 best · 5)</div><div class="s">${esc(dq.rating || '')} · ${fmt((dq.primary_data_share || 0) * 100)}% primary data</div></div>`;
+  if (r.clinker) h += `<div class="kpi"><div class="v">${fmt(r.clinker.footprint_kg_co2e_per_t_clinker)}</div><div class="l">kg CO₂e per t clinker</div><div class="s">${esc(r.clinker.calcination_basis)}</div></div>`;
+  if (r.captured_co2_kg_per_t) h += `<div class="kpi"><div class="v">${fmt(r.captured_co2_kg_per_t)}</div><div class="l">captured CO₂, kg</div><div class="s">deducted from the total</div></div>`;
+  h += `</div><div class="grid2"><div class="card"><h3>By life-cycle stage</h3><table>${stages.map(([k, v]) => `<tr><td style="width:48%">${esc(k)}</td><td><div class="bar" style="width:${Math.abs(v) / smax * 100}%;${v < 0 ? 'background:var(--low)' : ''}"></div></td><td class="n">${fmt(v)}</td></tr>`).join('')}</table></div>`;
+  h += `<div class="card"><h3>Trajectory 2025–2050 · kg CO₂e per unit</h3>${tr.years ? lineChart(tr, r.trajectory_with_plan) : '—'}<div class="foot" style="margin-top:6px">Grid electricity follows each NGFS Phase 5 scenario (median of models, ${esc(tr.grid_basis || '')}); lifecycle floor 25 g/kWh. ${tr.plan_applied ? 'Your decarbonisation plan is applied.' : 'Process and fuel held at today\'s values unless you enter a plan.'}</div></div></div>`;
+  if (r.cbam) {
+    const c = r.cbam;
+    h += `<div class="card"><h3>EU CBAM view · ${c.year}</h3>${c.applies ? `<div class="kpis" style="margin-bottom:8px">
+      <div class="kpi"><div class="v">${fmt(c.direct_tco2_per_t_cement, 3)} + ${fmt(c.indirect_tco2_per_t_cement, 3)}</div><div class="l">embedded t CO₂ / t (direct + indirect)</div></div>
+      <div class="kpi"><div class="v">$${fmt(c.indicative_cbam_cost_usd_per_t_cement, 2)}</div><div class="l">indicative CBAM cost / t cement</div><div class="s">phase-in ${fmt(c.cbam_phase_in_share * 100, 1)}% · ETS $${fmt(c.eu_ets_price_usd_t, 1)} · paid at origin $${fmt(c.carbon_price_paid_usd_t, 1)}</div></div></div>`
+      : '<p style="margin-bottom:6px">CBAM does not apply: this plant is inside the EU ETS (or an ETS-linked country).</p>'}<ul class="plain">${(c.notes || []).map(n => `<li>${esc(n)}</li>`).join('')}</ul></div>`;
+  }
+  h += `<div class="card"><h3>Inventory detail</h3><table><tr><th>Stage</th><th>Flow</th><th>Basis</th><th class="n">kg CO₂e</th></tr>${(r.detail || []).map(d => `<tr><td>${esc(d.stage)}</td><td>${esc(d.item)}</td><td class="foot">${esc(d.basis || d.source || '')}</td><td class="n">${fmt(d.kg_co2e, 1)}</td></tr>`).join('')}</table></div>`;
+  h += `<div class="grid2"><div class="card"><h3>Exclusions</h3>${(r.exclusions || []).length ? `<ul class="plain">${r.exclusions.map(e => `<li class="warn">${esc(e)}</li>`).join('')}</ul>` : '<p class="foot">None — every flow in scope has a factor.</p>'}</div>
+    <div class="card"><h3>Notes & electricity factor</h3><ul class="plain">${r.electricity_factor ? `<li>Grid: ${fmt(r.electricity_factor.g_per_kwh, 1)} g CO₂e/kWh — ${esc(r.electricity_factor.source)}</li>` : ''}${(r.notes || []).map(n => `<li>${esc(n)}</li>`).join('')}</ul></div></div>`;
+  h += `<div class="card foot"><b>Standard.</b> ${esc(r.standard)}<br><b>Uncertainty.</b> ${esc(u.method || '')}${r.factor_sources ? `<br><b>Factor sources.</b> ${r.factor_sources.map(esc).join(' · ')}` : ''}</div>`;
+  $('out').innerHTML = h;
+}
+
+function setTabs() {
+  $('tabs').innerHTML = Object.entries(PRODUCTS).map(([k, v]) => `<span class="tab${k === PRODUCT ? ' on' : ''}" data-p="${k}">${v}</span>`).join('');
+  $('tabs').querySelectorAll('.tab').forEach(t => t.onclick = () => { PRODUCT = t.dataset.p; setTabs(); renderForm(); });
+}
+
+(async () => {
+  try { FACTORS = await (await fetch('/lca/factors')).json(); }
+  catch (e) { $('status').className = 'status error'; $('status').textContent = 'Could not load emission factors from the engine.'; return; }
+  const p = new URLSearchParams(location.search).get('product'); if (p && PRODUCTS[p]) PRODUCT = p;
+  const k = new URLSearchParams(location.hash.slice(1)).get('key'); if (k) $('apiKey').value = k;
+  setTabs(); renderForm(); $('run').onclick = run;
+})();
+</script>
+</body>
+</html>

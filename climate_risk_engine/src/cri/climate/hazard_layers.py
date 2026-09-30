@@ -1107,7 +1107,7 @@ def _flood_riverine(region: str, ssp: SSPScenario, year: int, lulc: str,
     data_src = (
         "Open-Meteo CMIP6 precipitation delta + WRI Aqueduct 4.0 + sub-grid elevation; Frontiers Water 2023; Zurich Re 2012 flood survey"
         if live_precip_delta_pct is not None
-        else "WRI Aqueduct 4.0 (0.25° grid) + IPCC AR6 Clausius-Clapeyron + sub-grid elevation; Frontiers Water 2023; Zurich Re 2012 flood survey"
+        else "WRI Aqueduct 4.0 (basin × admin-1 at coordinates, else regional table) + IPCC AR6 Clausius-Clapeyron + sub-grid elevation; Frontiers Water 2023; Zurich Re 2012 flood survey"
     )
 
     return HazardScore(
@@ -1486,7 +1486,7 @@ def _water_stress(region: str, ssp: SSPScenario, year: int,
         production_loss_pct=round(loss, 4),
         trend_2030=round(min(5.0, adjusted_baseline * (1 + w30 * 0.15)), 2),
         trend_2050=round(min(5.0, adjusted_baseline * (1 + w50 * 0.15)), 2),
-        data_source="WRI Aqueduct 4.0 (0.25° grid) + IPCC AR6 WG2 Ch4; sub-grid elevation correction",
+        data_source="WRI Aqueduct 4.0 (basin × admin-1 at coordinates, else regional table) + IPCC AR6 WG2 Ch4; sub-grid elevation correction",
         notes=(
             f"Grid baseline {baseline:.2f} × elevation factor {water_stress_factor:.2f} = {adjusted_baseline:.2f}; "
             f"stress mult {stress_mult:.2f}×"
@@ -2646,11 +2646,10 @@ class PhysicalHazardEngine:
                 "steps 1-4 applied using lookup-table baseline."
             )
 
-        # ── Live WRI Aqueduct point query (when coordinates available) ──────────
-        # Override the regional WRI_BASELINE lookup with real lat/lon API scores.
-        # WRIAqueductConnector caches at 0.1° resolution so repeated calls within
-        # a run are free. Year-adjusted via SSP2-RCP4.5 stress multipliers.
-        # Falls back silently to WRI_BASELINE dict if API unreachable.
+        # ── WRI Aqueduct 4.0 point lookup (when coordinates available) ─────────
+        # Overrides the regional WRI_BASELINE table with the published Aqueduct 4.0 scores for the
+        # basin × admin-1 unit at the coordinate (dataset ships with the engine; no network call).
+        # Baseline (1979–2019) scores are used; each hazard function applies its own warming trend.
         wri_riverine_live: Optional[float] = None
         wri_coastal_live:  Optional[float] = None
         wri_drought_live:  Optional[float] = None
@@ -2658,20 +2657,19 @@ class PhysicalHazardEngine:
         if lat is not None and lon is not None and _depth == 0:
             try:
                 from ..connectors.wri_aqueduct import WRIAqueductConnector
-                _wri = WRIAqueductConnector().get_water_risk(lat, lon, year)
-                if _wri.get("source", "").startswith("wri_aqueduct_live"):
-                    # Live API returned — use point-level scores
-                    wri_riverine_live = _wri.get("flood_risk")
-                    wri_coastal_live  = _wri.get("flood_risk")  # coastal uses same flood score
+                # baseline scores: the hazard functions below apply their own warming scaling
+                _wri = WRIAqueductConnector().get_water_risk(lat, lon, 2019)
+                if _wri.get("source") == "wri_aqueduct_4.0":
+                    wri_riverine_live = _wri.get("flood_riverine")
+                    wri_coastal_live  = _wri.get("flood_coastal")
                     wri_drought_live  = _wri.get("drought_risk")
                     wri_water_live    = _wri.get("water_stress")
                     if live_projection_meta is not None:
-                        live_projection_meta["wri_source"] = "live_api"
+                        live_projection_meta["wri_source"] = "aqueduct_4.0_dataset"
                     elif live_data is None:
-                        # Attach WRI provenance even when climate API was unavailable
-                        live_projection_meta = {"wri_source": "live_api", "live": False}
+                        live_projection_meta = {"wri_source": "aqueduct_4.0_dataset", "live": False}
             except Exception:
-                pass   # silent fallback — never break a run for this
+                pass   # never break a run for this; the regional table is used instead
 
         # Compute all 25 hazards with sub-grid downscaling + GIS + live WRI overrides
         hazards: dict[str, HazardScore] = {

@@ -546,7 +546,9 @@ class PortfolioPositionIn(BaseModel):
     exposure_usd_m:   float           # gross exposure in USD millions
     sector:           str
     region:           str = "Global"
-    physical_score:   float = 50.0    # 0–100; supply from a prior CRI run if available
+    # 0–100 scores from a prior CRI run. The portfolio loss model is sector × region based: these scores are
+    # carried through for reporting and the transition-factor split, and do not change EAL / VaR.
+    physical_score:   float = 50.0
     transition_score: float = 50.0
     # Task 53: Optional multi-factor transition sub-scores (0–100 each).
     # If omitted, decomposition is inferred from sector weights.

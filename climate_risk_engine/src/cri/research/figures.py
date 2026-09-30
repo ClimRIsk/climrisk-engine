@@ -134,3 +134,93 @@ def assets_map(company_keys: list[str], out: str | Path, title: str) -> dict:
                           "terrain elevation (ClimRisk engine); Natural Earth")
     plt.close(fig)
     return {"ok": True, "path": path, "n_assets": len(A)}
+
+
+# ── Sentinel-1 radar flood map (sees through cloud) ──────────────────────────
+
+def radar_flood_image(lat: float, lon: float, out: str | Path, before: tuple[str, str], after: tuple[str, str],
+                      half_km: float = 5.0, title: Optional[str] = None, water_db: float = -18.0) -> dict:
+    """
+    Real Sentinel-1 RTC (VV) scenes before and after an event, same orbit direction.
+    Left: before; right: after, with newly water-covered land (VV < −18 dB after, not before)
+    in blue. Radar sees through the cloud that hides floods from optical satellites.
+    """
+    from PIL import Image, ImageDraw, ImageFont
+    from scipy import ndimage
+    from ..connectors.sentinel1_sar import STAC, _sas
+    from ..connectors.sentinel2_pixels import _read_band, asset_bbox
+
+    def search(s, e):
+        body = {"collections": ["sentinel-1-rtc"], "intersects": {"type": "Point", "coordinates": [lon, lat]},
+                "datetime": f"{s}T00:00:00Z/{e}T23:59:59Z", "limit": 50}
+        req = urllib.request.Request(STAC, data=json.dumps(body).encode(), headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=30) as r:
+            return [f for f in json.loads(r.read()).get("features", []) if "vv" in f.get("assets", {})]
+
+    fa = sorted(search(*after), key=lambda f: f["properties"]["datetime"])
+    if not fa:
+        return {"ok": False, "reason": f"no Sentinel-1 scene between {after[0]} and {after[1]}"}
+    a_scene = fa[0]                                    # first pass after the event
+    orbit = a_scene["properties"].get("sat:orbit_state")
+    fb = [f for f in search(*before) if f["properties"].get("sat:orbit_state") == orbit] or search(*before)
+    if not fb:
+        return {"ok": False, "reason": f"no Sentinel-1 scene between {before[0]} and {before[1]}"}
+    fb = sorted(fb, key=lambda f: f["properties"]["datetime"])
+    b_scene = fb[-1]                                   # last pass before (shown)
+    b_ref = fb[-4:]                                    # up to 4 passes define "normal" water
+    bbox = asset_bbox(lat, lon, half_km)
+    px = int(min(900, max(400, half_km * 2000 / 20)))
+    tok = _sas()
+
+    def read(f):
+        href = f["assets"]["vv"]["href"]
+        a = _read_band(f"{href}{'&' if '?' in href else '?'}{tok}", bbox, (px, px), "average")[0]
+        a = ndimage.median_filter(np.nan_to_num(a, nan=np.nanmedian(a)), size=3)
+        return 10 * np.log10(np.maximum(a, 1e-6))
+
+    db_b, db_a = read(b_scene), read(a_scene)
+    # Permanent water: dark in ANY pre-event pass (wind can roughen a lake on one date) or
+    # mapped as water by ESA WorldCover — so lakes and rivers are never counted as flooding.
+    before_min = np.minimum.reduce([db_b] + [read(f) for f in b_ref if f is not b_scene])
+    perm_mask = before_min < water_db
+    try:
+        from ..connectors.worldcover import lc_grid
+        lc, _ = lc_grid(lat, lon, half_km)
+        ri = np.minimum((np.arange(px) * lc.shape[0] / px).astype(int), lc.shape[0] - 1)
+        ci = np.minimum((np.arange(px) * lc.shape[1] / px).astype(int), lc.shape[1] - 1)
+        wc = lc[np.ix_(ri, ci)]
+        perm_mask |= ndimage.binary_dilation(wc == 80, iterations=2)
+    except Exception:                                  # noqa: BLE001
+        pass
+    new_water = (db_a < water_db) & ~perm_mask
+    perm = (db_a < water_db) & perm_mask
+
+    def grey(db):
+        g = np.clip((db + 25) / 25, 0, 1) ** 0.9 * 255
+        return np.stack([g, g, g], -1).astype(np.uint8)
+
+    left, right = grey(db_b), grey(db_a)
+    right[perm] = (40, 60, 90)
+    right[new_water] = (56, 189, 248)
+    gap = 10
+    canvas = Image.new("RGB", (2 * px + gap, px + 78), (11, 18, 32))
+    canvas.paste(Image.fromarray(left), (0, 0)); canvas.paste(Image.fromarray(right), (px + gap, 0))
+    d = ImageDraw.Draw(canvas)
+    try:
+        font, small = ImageFont.truetype("DejaVuSans.ttf", 17), ImageFont.truetype("DejaVuSans.ttf", 13)
+    except OSError:
+        font = small = ImageFont.load_default()
+    bd, ad = b_scene["properties"]["datetime"][:10], a_scene["properties"]["datetime"][:10]
+    for x, lab in ((8, f"Before · {bd}"), (px + gap + 8, f"After · {ad}  (blue = flooded land · dark blue = normal water)")):
+        d.rectangle([x - 4, 6, x + 8 * len(lab) + 6, 30], fill=(11, 18, 32))
+        d.text((x, 9), lab, fill=(229, 231, 235), font=small)
+    d.text((12, px + 10), title or f"{lat:.3f}, {lon:.3f}", fill=(229, 231, 235), font=font)
+    d.text((12, px + 40), f"Copernicus Sentinel-1 radar (VV, RTC, Microsoft Planetary Computer) · water = backscatter < {water_db:.0f} dB · "
+                          f"{2 * half_km:.0f} km across · processed by ClimRisk", fill=(148, 163, 184), font=small)
+    Path(out).parent.mkdir(parents=True, exist_ok=True)
+    canvas.save(out, optimize=True)
+    cell_km2 = (2 * half_km / px) ** 2
+    return {"ok": True, "path": str(out), "before": b_scene["id"], "after": a_scene["id"], "orbit": orbit,
+            "reference_passes": [f["id"] for f in b_ref],
+            "new_water_km2": round(float(new_water.sum() * cell_km2), 2),
+            "credit": f"Contains modified Copernicus Sentinel-1 data ({ad[:4]}), RTC via Microsoft Planetary Computer"}

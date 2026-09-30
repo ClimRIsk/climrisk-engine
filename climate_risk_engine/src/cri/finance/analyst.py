@@ -211,6 +211,22 @@ def _actions(res: dict, cost_key: Optional[str], act_key: Optional[str]) -> list
 
 # ── orchestrator ─────────────────────────────────────────────────────────────
 
+def _water(lat: float, lon: float, sector: Optional[str]) -> Optional[dict]:
+    """WRI Aqueduct 4.0 context (not monetised in the loss distribution)."""
+    try:
+        from ..connectors.wri_aqueduct import point, stress_path
+        r = point(lat, lon, sector)
+        if not r.get("found"):
+            return None
+        b = r["baseline"]
+        return {"water_stress": b["bws"], "water_depletion": b["bwd"], "drought": b["drr"],
+                "groundwater_decline": b["gtd"], "overall": r["overall_water_risk"],
+                "water_stress_path_bau": stress_path(r, "bau"), "admin1": r["admin1"], "source": r["source"],
+                "note": "Context only — water stress is not monetised in the loss distribution."}
+    except Exception:
+        return None
+
+
 def analyse_asset(lat: float, lon: float, name: Optional[str] = None, sector: Optional[str] = None,
                   atype: Optional[str] = None, capacity: Optional[float] = None, emissions_t: Optional[float] = None,
                   value_usd: Optional[float] = None, iso3: Optional[str] = None, register_index: Optional[int] = None,
@@ -300,7 +316,8 @@ def analyse_asset(lat: float, lon: float, name: Optional[str] = None, sector: Op
                                                               "risk_signal": site.get("risk_signal"),
                                                               "findings": [{"hazard": f["hazard"], "severity": f["severity"],
                                                                             "summary": f.get("summary")} for f in site.get("findings", [])]},
-                     "vulnerability": vulnerability.describe(cont, tcr)},
+                     "vulnerability": vulnerability.describe(cont, tcr),
+                     "water": _water(lat, lon, sector)},
         "policy": pol,
         "transition": {"emissions_t": emissions_t, "scenarios": central, "models": drv["models"],
                        "regions": drv["regions"], "activity_variable": drv["activity_variable"],
@@ -328,6 +345,12 @@ def analyse_asset(lat: float, lon: float, name: Optional[str] = None, sector: Op
         "sea-level rise to 2050.",
         "NGFS carbon prices are model shadow prices; how much reaches a plant depends on policy design (sampled).",
     ]
+    if not emissions_t:
+        res["caveats"].insert(0, "Transition (carbon-cost) loss not assessed: no emissions known for this asset — "
+                                 "give emissions_t, or capacity for a register-type estimate.")
+        res["headline"] = res["headline"].rstrip(".") + ". Physical risk only — no emissions given, so carbon cost is not included."
+    if not (res["asset"].get("value") or {}).get("mode"):
+        res["caveats"].insert(0, "No asset value: money figures are zero — give value_usd (or capacity for an estimate).")
     res["elapsed_s"] = round(time.time() - t0, 1)
     return res
 

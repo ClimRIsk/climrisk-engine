@@ -11,6 +11,7 @@ them as such.
   python scripts/research_desk.py policy  --lat 51.87 --lon 4.33 --sector cement
   python scripts/research_desk.py search  --name "Tata"
   python scripts/research_desk.py satellite --lat 23.76 --lon 90.40 --start 2024-06-01 --end 2024-07-15 --out x.png [--title "..."] [--km 4]
+  python scripts/research_desk.py radar --lat .. --lon .. --start 2026-08-20 --before-end 2026-09-19 --after-start 2026-09-21 --end 2026-09-30 --out r.png   (flood before/after, sees through cloud)
   python scripts/research_desk.py assets-map --name "Holcim" --out map.png
 """
 from __future__ import annotations
@@ -50,11 +51,12 @@ def _keys(name: str) -> list[str]:
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["asset", "company", "hazard", "policy", "search", "satellite", "assets-map"])
+    ap.add_argument("cmd", choices=["asset", "company", "hazard", "policy", "search", "satellite", "radar", "assets-map"])
     ap.add_argument("--lat", type=float); ap.add_argument("--lon", type=float)
     ap.add_argument("--name"); ap.add_argument("--value", type=float); ap.add_argument("--emissions", type=float)
     ap.add_argument("--sector"); ap.add_argument("--type", default="")
     ap.add_argument("--start"); ap.add_argument("--end"); ap.add_argument("--out"); ap.add_argument("--title")
+    ap.add_argument("--before-end"); ap.add_argument("--after-start")
     ap.add_argument("--km", type=float, default=4.0); ap.add_argument("--top", type=int, default=20)
     a = ap.parse_args()
 
@@ -94,6 +96,9 @@ def main():
     elif a.cmd == "satellite":
         from cri.research.figures import satellite_image
         _dump(satellite_image(a.lat, a.lon, a.out, a.start, a.end, half_km=a.km, title=a.title))
+    elif a.cmd == "radar":
+        from cri.research.figures import radar_flood_image
+        _dump(radar_flood_image(a.lat, a.lon, a.out, (a.start, a.before_end), (a.after_start, a.end), half_km=a.km, title=a.title))
     elif a.cmd == "assets-map":
         from cri.research.figures import assets_map
         _dump(assets_map(_keys(a.name), a.out, a.title or f"{a.name}: assets by physical screening level"))
