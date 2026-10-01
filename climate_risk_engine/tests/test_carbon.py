@@ -132,7 +132,7 @@ def test_base_year_recalculation():
 
 
 def test_template_roundtrip_and_assurance_pack():
-    d = parse_workbook(template_workbook(), "Example", 2025)
+    d = parse_workbook(_filled_template(), "Example", 2025)
     assert {r["method"] for r in d["records"]} == {"factor", "electricity", "spend", "direct"}
     d["category_status"].update({k: v for k, v in ALL_EXCLUDED.items() if k not in d["category_status"]})
     i = from_dict(d)
@@ -157,7 +157,21 @@ def test_api_endpoints():
     assert c.post("/carbon/inventory/report", json=payload).json()["report"]["a_reporting_organisation"] == "T"
     bad = dict(payload, records=[{"entity": "X", "category": "s1_stationary", "method": "factor", "factor_id": GAS, "quantity": 1}])
     assert c.post("/carbon/inventory", json=bad).status_code == 422
-    files = {"file": ("t.xlsx", template_workbook())}
+    files = {"file": ("t.xlsx", _filled_template())}
     r = c.post("/carbon/inventory/upload", files=files, data={"organisation": "X", "reporting_year": "2025"})
     assert r.status_code == 200 and r.json()["result"]["totals_t"]["scope1"] > 0
     assert c.get("/carbon/dashboard").status_code == 200
+
+
+def _filled_template() -> bytes:
+    """The intake template as a client would return it: the example rows edited into real rows."""
+    import io as _io
+    from openpyxl import load_workbook as _lw
+    wb = _lw(_io.BytesIO(template_workbook()))
+    for name in ("Entities", "Activities", "Electricity", "Spend", "Direct", "Exclusions"):
+        ws = wb[name]
+        c = ws.cell(row=2, column=ws.max_column)
+        c.value = f"{c.value} (client)" if isinstance(c.value, str) else (c.value or 0) + 1
+    b = _io.BytesIO()
+    wb.save(b)
+    return b.getvalue()

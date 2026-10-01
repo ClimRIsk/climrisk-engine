@@ -62,6 +62,7 @@ class Inventory:
     base_year: Optional[int] = None
     revenue_musd: Optional[float] = None
     employees: Optional[float] = None
+    intake_notes: list = field(default_factory=list)       # warnings raised while reading an uploaded workbook
 
 
 class InventoryError(ValueError):
@@ -250,7 +251,11 @@ def calculate(inv: Inventory) -> dict:
     ents = {e.id: e for e in inv.entities}
     if not ents:
         raise InventoryError("add at least one entity (the organisational boundary)")
-    lines, errors = [], []
+    lines, errors, other_year = [], [], []
+    ids = [str(r.get("id")) for r in inv.records if r.get("id") is not None]
+    dup = sorted({x for x in ids if ids.count(x) > 1})
+    if dup:
+        errors.append(f"duplicate record id(s) {', '.join(dup)} — each record needs its own id for the audit trail")
     for i, rec in enumerate(inv.records):
         rec = dict(rec)
         rec.setdefault("id", f"r{i + 1}")
@@ -259,6 +264,7 @@ def calculate(inv: Inventory) -> dict:
             errors.append(f"record {rec['id']}: unknown entity '{rec.get('entity')}'")
             continue
         if int(rec.get("year", inv.reporting_year)) != inv.reporting_year:
+            other_year.append(f"{rec['id']} ({rec.get('year')})")
             continue
         try:
             r = _calc(rec, ent, inv.gwp)
@@ -309,8 +315,16 @@ def calculate(inv: Inventory) -> dict:
                              "t_co2e": round(by_cat.get(k, 0.0), 3),
                              "status": "reported" if present else st.get("status", "missing" if sc == 3 else "none"),
                              "reason": st.get("reason")})
-    checks = []
+    checks = [{"level": "warning", "check": "intake", "message": n} for n in inv.intake_notes]
+    if other_year:
+        checks.append({"level": "warning", "check": "period",
+                       "message": f"{len(other_year)} record(s) dated outside {inv.reporting_year} were not counted: "
+                                  + ", ".join(other_year[:10]) + (" …" if len(other_year) > 10 else "")})
     for c in completeness:
+        if c["status"] in ("excluded", "not_relevant") and not (c.get("reason") or "").strip():
+            checks.append({"level": "error", "check": "completeness",
+                           "message": f"{c['name']}: marked {c['status'].replace('_', ' ')} without a reason — "
+                                      "the GHG Protocol requires exclusions to be disclosed and justified"})
         if c["status"] == "missing" and c["scope"] == 3:
             checks.append({"level": "error", "check": "completeness",
                            "message": f"{c['name']}: no data and no exclusion reason — report it or state why it is excluded"})
@@ -329,7 +343,7 @@ def calculate(inv: Inventory) -> dict:
         "organisation": inv.organisation, "reporting_year": inv.reporting_year, "consolidation": inv.consolidation,
         "gwp": inv.gwp,
         "totals_t": {"scope1": round(s1, 3), "scope2_location": round(s2l, 3), "scope2_market": round(s2m, 3),
-                     "scope3": round(s3, 3), "total_location": round(tot, 3), "total_market": round(s1 + s2m + s3, 3)},
+                     "scope3": round(s3, 3), "total_location": round(tot, 3), "total_market": round(round(s1, 3) + round(s2m, 3) + round(s3, 3), 3)},
         "scope3_by_category_t": {S3_CATEGORIES[int(k[4:])]: round(v, 3) for k, v in sorted(by_cat.items(), key=lambda x: (len(x[0]), x[0])) if k.startswith("s3_")},
         "scope1_by_gas_t": {g: round(v, 3) for g, v in by_gas.items()},
         "by_category_t": {CATEGORIES[k][1]: round(v, 3) for k, v in by_cat.items()},
@@ -374,4 +388,5 @@ def from_dict(d: dict) -> Inventory:
     return Inventory(organisation=d["organisation"], reporting_year=int(d["reporting_year"]),
                      consolidation=d.get("consolidation", "operational_control"), gwp=d.get("gwp", "AR6"),
                      entities=ents, records=d.get("records", []), category_status=d.get("category_status", {}),
-                     base_year=d.get("base_year"), revenue_musd=d.get("revenue_musd"), employees=d.get("employees"))
+                     base_year=d.get("base_year"), revenue_musd=d.get("revenue_musd"), employees=d.get("employees"),
+                     intake_notes=list(d.get("intake_notes") or []))

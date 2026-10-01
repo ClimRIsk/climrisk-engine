@@ -113,9 +113,10 @@ def electricity_location(country: str, us_state: Optional[str] = None, egrid_sub
     E = lib()["electricity"]
     iso = _iso3(country)
     if iso == "GBR":
-        g = E["GBR"]["desnz_generation"][0]["kgco2e"] * 1000
-        return {"g_per_kwh": g, "source": "UK DESNZ 2026 UK electricity (generation)", "basis": "national", "dq": 2,
-                "gases": "CO2e (AR5)"}
+        f = E["GBR"]["desnz_generation"][0]
+        g = (f["co2"] + f["ch4"] / AR5["CH4"] * AR6["CH4_fossil"] + f["n2o"] / AR5["N2O"] * AR6["N2O"]) * 1000
+        return {"g_per_kwh": g, "source": "UK DESNZ 2026 UK electricity (generation), CH4/N2O restated to AR6",
+                "basis": "national", "dq": 2, "gases": "CO2+CH4+N2O (AR6)"}
     if iso == "USA":
         eg = E["us_egrid"]
         sub = (egrid_subregion or "").upper() or None

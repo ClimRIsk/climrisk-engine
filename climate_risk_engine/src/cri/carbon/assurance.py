@@ -218,6 +218,8 @@ def parse_workbook(data: bytes, organisation: str, reporting_year: int, consolid
                    gwp: str = "AR6", revenue_musd: Optional[float] = None, employees: Optional[float] = None) -> dict:
     wb = load_workbook(io.BytesIO(data), data_only=True)
 
+    notes: list = []
+
     def rows(name):
         if name not in wb.sheetnames:
             return []
@@ -226,7 +228,17 @@ def parse_workbook(data: bytes, organisation: str, reporting_year: int, consolid
         if not vals:
             return []
         hdr = [str(h).split(" (")[0].strip() if h else "" for h in vals[0]]
-        return [dict(zip(hdr, r)) for r in vals[1:] if any(v not in (None, "") for v in r)]
+        ex = TEMPLATE.get(name, (None, None))[1]
+        out = []
+        for r in vals[1:]:
+            if not any(v not in (None, "") for v in r):
+                continue
+            norm = lambda xs: [None if v == "" else v for v in xs]
+            if ex and norm(r[:len(ex)]) == norm(ex):        # the template's example row left in place
+                notes.append(f"{name}: the template's example row was left in the file and was ignored")
+                continue
+            out.append(dict(zip(hdr, r)))
+        return out
 
     ents = [{"id": str(r["id"]), "name": str(r["name"]), "country": str(r["country"]),
              "equity_pct": float(r.get("equity_pct") or 100), "operational_control": _yn(r.get("operational_control", "Y")),
@@ -255,7 +267,10 @@ def parse_workbook(data: bytes, organisation: str, reporting_year: int, consolid
     for r in rows("Spend"):
         recs.append({"id": str(r["id"]), "entity": str(r["entity"]), "year": reporting_year, "category": r["category"],
                      "method": "spend", "naics": str(r["naics"]), "amount": float(r["amount"]),
-                     "currency": r.get("currency") or "USD", "fx_to_usd": float(r.get("fx_to_usd") or 1),
+                     "currency": r.get("currency") or "USD",
+                     # no silent 1:1 — a non-USD amount without an FX rate is rejected by the calculation
+                     "fx_to_usd": float(r["fx_to_usd"]) if r.get("fx_to_usd") not in (None, "") else
+                     (1.0 if str(r.get("currency") or "USD").upper() == "USD" else None),
                      "spend_year": int(r.get("spend_year") or reporting_year), "description": r.get("description"),
                      "evidence": r.get("evidence"), "dq": 4})
     for r in rows("Direct"):
@@ -265,4 +280,4 @@ def parse_workbook(data: bytes, organisation: str, reporting_year: int, consolid
     status = {r["category"]: {"status": r.get("status"), "reason": r.get("reason")} for r in rows("Exclusions")}
     return {"organisation": organisation, "reporting_year": reporting_year, "consolidation": consolidation, "gwp": gwp,
             "entities": ents, "records": recs, "category_status": status, "revenue_musd": revenue_musd,
-            "employees": employees}
+            "employees": employees, "intake_notes": notes}
