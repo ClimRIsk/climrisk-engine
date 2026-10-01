@@ -213,5 +213,7 @@ $('file').onchange = () => { PAYLOAD = null; };
 $('run').onclick = run;
 const k = new URLSearchParams(location.hash.slice(1)).get('key'); if (k) $('apiKey').value = k;
 </script>
+<script>/* Escape inside the embedded workbench closes the app overlay */
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && window.parent !== window) window.parent.postMessage({type: 'climrisk:close-tool'}, '*'); });</script>
 </body>
 </html>

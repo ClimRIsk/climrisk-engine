@@ -330,5 +330,7 @@ function setTabs() {
   setTabs(); renderForm(); $('run').onclick = run;
 })();
 </script>
+<script>/* Escape inside the embedded workbench closes the app overlay */
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && window.parent !== window) window.parent.postMessage({type: 'climrisk:close-tool'}, '*'); });</script>
 </body>
 </html>
