@@ -854,7 +854,21 @@ function renderCompanyPanel() {
   }
   if (h.get('lat') && h.get('lon')) preset(+h.get('lat'), +h.get('lon'), h.get('name') || 'Asset', h.get('type') || 'industrial');
   if (h.get('auto') === '1' && h.get('lat')) setTimeout(analyze, 50);
-  if (h.get('analyst') === '1' && h.get('lat')) setTimeout(() => runAnalystSite(), 80);
+  // AN is declared further down the script, so hand the launch values over once it exists.
+  const launch = { assessId: h.get('assess_id') || null, extra: { sector: h.get('sector') || null, asset_type: h.get('atype') || null,
+               emissions_t: h.get('emissions_t') ? +h.get('emissions_t') : null,
+               value_usd: h.get('value_usd') ? +h.get('value_usd') : null } };
+  setTimeout(() => { AN.assessId = launch.assessId; AN.extra = launch.extra; }, 0);
+  if (h.get('analyst') === '1' && h.get('lat')) setTimeout(() => runAnalystSite(launch.extra.value_usd), 80);
+  if (h.get('run_keys')) setTimeout(async () => {          // New Assessment → company portfolio
+    setMode('company');
+    if (h.get('company')) document.getElementById('coQuery').value = h.get('company');
+    h.get('run_keys').split('|').filter(Boolean).forEach(k => CO.selected.add(k));
+    AN.label = h.get('company') || null;          // report under the name the user searched for
+    await loadExposure();
+    if (CO.data && CO.data.found) runAnalystCompany();
+  }, 60);
+  if (h.get('show') === '1') parent.postMessage({ type: 'climrisk:analyst-ready' }, '*');   // host sends a stored result
   if (h.get('mode') === 'company') setTimeout(() => {
     setMode('company');
     if (h.get('company')) { document.getElementById('coQuery').value = h.get('company'); searchCompanies(h.get('company')); }
@@ -913,6 +927,22 @@ function anOpen(title) {
   let k = 0; clearInterval(AN.timer);
   AN.timer = setInterval(() => { if (k < stages.length - 1) { document.getElementById('ans' + k).className = 'an-step done'; k++; const e = document.getElementById('ans' + k); if (e) e.className = 'an-step run'; } }, 1400);
 }
+// Hand every finished analysis to the host app so it is saved under My Reports.
+function anReport(title) {
+  if (window.parent === window) return;
+  parent.postMessage({ type: 'climrisk:analyst-result', kind: AN.kind, title, req: AN.req, data: AN.data,
+                       assess_id: AN.assessId }, '*');
+  AN.assessId = null;
+}
+// The host app can show a stored result (re-opened report, uploaded site list) without recomputing.
+window.addEventListener('message', e => {
+  const m = e.data || {};
+  if (e.source !== window.parent || m.type !== 'climrisk:analyst-show' || !m.data) return;
+  AN.kind = m.kind; AN.data = m.data; AN.req = m.req || null;
+  document.getElementById('analyst').classList.add('on');
+  m.kind === 'company' ? renderPortfolio() : renderAnalyst();
+  if (m.fresh) anReport(m.title || 'Portfolio');
+});
 function anDone() { clearInterval(AN.timer); document.querySelectorAll('.an-step').forEach(e => e.className = 'an-step done'); }
 function anClose() { clearInterval(AN.timer); document.getElementById('analyst').classList.remove('on'); }
 
@@ -928,7 +958,9 @@ async function runAnalystSite(valueUsd) {
   const name = document.getElementById('assetName').value || null;
   const site = last && Math.abs(last.lat - lat) < 1e-4 && Math.abs(last.lon - lon) < 1e-4
     ? { headline: last.headline, risk_signal: last.risk_signal, findings: (last.findings || []).map(f => ({ hazard: f.hazard, severity: f.severity, summary: f.summary })) } : null;
-  AN.req = { lat, lon, name, site, value_usd: valueUsd || null };
+  const ex = AN.extra || {};
+  AN.req = { lat, lon, name, site, value_usd: valueUsd || ex.value_usd || null, sector: ex.sector || null,
+             asset_type: ex.asset_type || null, emissions_t: ex.emissions_t };
   return anRunAsset(name || `${lat.toFixed(3)}, ${lon.toFixed(3)}`);
 }
 async function runAnalystRegister(i, valueUsd) {
@@ -938,13 +970,14 @@ async function runAnalystRegister(i, valueUsd) {
 }
 async function anRunAsset(title) {
   anOpen(title); AN.kind = 'asset';
-  try { AN.data = await anPost('/analyst/asset', AN.req); anDone(); renderAnalyst(); }
+  try { AN.data = await anPost('/analyst/asset', AN.req); anDone(); renderAnalyst(); anReport(title); }
   catch (e) { anDone(); document.getElementById('anHead').innerHTML = `<span style="color:var(--critical)">Error: ${esc(e.message)}</span>`; }
 }
 async function runAnalystCompany() {
   if (!CO.selected.size) return;
   anOpen('Portfolio: ' + (CO.data ? CO.data.companies.slice(0, 2).join(' + ') + (CO.data.companies.length > 2 ? ' …' : '') : '')); AN.kind = 'company';
-  try { AN.data = await anPost('/analyst/company', { keys: [...CO.selected], top_n: 30 }); anDone(); renderPortfolio(); }
+  try { AN.req = { keys: [...CO.selected], top_n: 30 }; AN.data = await anPost('/analyst/company', AN.req); anDone(); renderPortfolio();
+        anReport(AN.label || (CO.data ? CO.data.companies.slice(0, 2).join(' + ') : 'Portfolio')); AN.label = null; }
   catch (e) { anDone(); document.getElementById('anHead').innerHTML = `<span style="color:var(--critical)">Error: ${esc(e.message)}</span>`; }
 }
 

@@ -427,11 +427,39 @@ def analyse_company(keys: list, top_n: int = 30, n: int = 2000, discount: float 
                     values: Optional[dict] = None) -> dict:
     """Run every asset of a company (from the register) and aggregate the loss distribution."""
     from ..data.asset_register import company_exposure
-    t0 = time.time()
     exp = company_exposure(keys)
     if not exp.get("found"):
         return {"found": False, "keys": keys}
     assets = exp["assets"]
+    for a in assets:
+        a["_kw"] = {"name": a["name"], "register_index": a["i"], "value_usd": (values or {}).get(str(a["i"]))}
+    return _portfolio(assets, exp["companies"], top_n, n, discount,
+                      f"flood depths fetched live for the top {top_n} assets by emissions")
+
+
+def analyse_sites(sites: list, label: str = "Portfolio", top_n: int = 30, n: int = 2000, discount: float = 0.07) -> dict:
+    """The same four-stage analysis and aggregation for a client's own site list.
+    sites: [{name, lat, lon, sector?, type?, capacity?, emissions_t?, value_usd?}] — no register snapping:
+    a site without a sector is analysed as sector "other" rather than borrowing a nearby register plant."""
+    if not sites:
+        return {"found": False, "note": "no sites"}
+    assets = []
+    for k, s in enumerate(sites):
+        lat, lon = float(s["lat"]), float(s["lon"])
+        if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+            raise ValueError(f"site {s.get('name') or k + 1}: invalid coordinates")
+        assets.append({"i": k, "name": s.get("name") or f"Site {k + 1}", "lat": lat, "lon": lon,
+                       "country": s.get("country") or "", "sector": s.get("sector") or "other",
+                       "emissions_t": s.get("emissions_t"), "elev_m": None,
+                       "_kw": {"name": s.get("name") or f"Site {k + 1}", "sector": s.get("sector") or "other",
+                               "atype": s.get("type"), "capacity": s.get("capacity"),
+                               "emissions_t": s.get("emissions_t"), "value_usd": s.get("value_usd")}})
+    return _portfolio(assets, [label], top_n, n, discount,
+                      f"flood depths fetched live for the top {top_n} sites by emissions (then by list order)")
+
+
+def _portfolio(assets: list, companies: list, top_n: int, n: int, discount: float, flood_note: str) -> dict:
+    t0 = time.time()
     order = sorted(range(len(assets)), key=lambda k: -(assets[k]["emissions_t"] or 0))
     live = set(order[:top_n])
     floods = {}
@@ -443,18 +471,21 @@ def analyse_company(keys: list, top_n: int = 30, n: int = 2000, discount: float 
             except Exception:                              # noqa: BLE001
                 floods[k] = {"river": {"available": False}, "coastal": {"available": False}}
     common = {"u_model": np.random.default_rng(11).uniform(0, 1, n)}
-    per, tot = [], {}
+    per, tot, vals = [], {}, []
     for k in order:
         a = assets[k]
-        r = analyse_asset(a["lat"], a["lon"], name=a["name"], register_index=a["i"], n=n, discount=discount,
-                          value_usd=(values or {}).get(str(a["i"])),
+        r = analyse_asset(a["lat"], a["lon"], n=n, discount=discount,
                           _flood=floods.get(k, {"river": {"available": False, "reason": "not fetched (outside top assets)"},
                                                 "coastal": {"available": False, "reason": "not fetched"}}),
-                          _common=dict(common, seed=1000 + k))
+                          _common=dict(common, seed=1000 + k), **a["_kw"])
         for s, sc in r["financial"]["scenarios"].items():
             tot.setdefault(s, []).append(sc.pop("_total_draws"))
-        per.append({"i": a["i"], "name": a["name"], "country": a["country"], "sector": a["sector"],
-                    "emissions_t": a["emissions_t"], "value_mode": r["asset"]["value"].get("mode"),
+        vd = r["financial"].pop("_value_draws", None)
+        if vd is not None:
+            vals.append(vd)
+        per.append({"i": a["i"], "name": a["name"], "country": a["country"] or r["asset"].get("iso3"),
+                    "sector": a["sector"] or r["asset"].get("sector"), "lat": a["lat"], "lon": a["lon"],
+                    "emissions_t": r["asset"].get("emissions_t"), "value_mode": r["asset"]["value"].get("mode"),
                     "value_quality": r["asset"]["value"].get("quality"),
                     "flood_assessed": k in live, "physical_aal_pct": r["financial"]["physical"]["aal_pct"],
                     "cyclone": r["physical"]["cyclone"]["severity"], "river": r["physical"]["river_flood"].get("severity"),
@@ -472,12 +503,13 @@ def analyse_company(keys: list, top_n: int = 30, n: int = 2000, discount: float 
         x = np.sum(np.stack(arrs), axis=0)
         hist_hi = float(np.percentile(x, 99.5)) or 1.0
         counts, edges = np.histogram(np.clip(x, 0, hist_hi), bins=40, range=(0, hist_hi))
-        port[s] = {"label": transition.label(s), "total_npv": _stats(x, V or None),
+        port[s] = {"label": transition.label(s), "total_npv": _stats(x, np.sum(np.stack(vals), axis=0) if vals else None),
                    "histogram": {"edges": np.round(edges, 0).tolist(), "counts": counts.tolist()}}
     per.sort(key=lambda p: -(p["npv_delayed_mean"] or 0))
-    return {"found": True, "companies": exp["companies"], "n_assets": len(per), "portfolio_value_mode": V,
+    return {"found": True, "companies": companies, "n_assets": len(per), "portfolio_value_mode": V,
             "flood_assessed_assets": len(live), "scenarios": port, "assets": per,
-            "method": "Each asset run through the four-stage analyst; flood depths fetched live for the top "
-                      f"{top_n} assets by emissions (others: cyclone + policy + transition only). Transition model "
-                      "draws are shared across assets (common scenario uncertainty); physical events independent.",
+            "method": "Each asset run through the four-stage analyst; " + flood_note + " (others: cyclone + policy + "
+                      "transition only). Transition model draws are shared across assets (common scenario "
+                      "uncertainty); physical events independent. % of value is taken per draw against that draw's "
+                      "portfolio value, so it cannot exceed 100%.",
             "elapsed_s": round(time.time() - t0, 1)}

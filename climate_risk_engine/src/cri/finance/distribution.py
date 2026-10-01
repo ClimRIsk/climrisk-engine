@@ -66,12 +66,24 @@ def _interp_rp(T: np.ndarray, rps, dmg) -> np.ndarray:
     return np.interp(np.log(np.clip(T, 1.0001, None)), x, y, left=0.0, right=float(y[-1]))
 
 
-def _stats(x: np.ndarray, v_ref: Optional[float]) -> dict:
+def _stats(x: np.ndarray, v_ref) -> dict:
+    """Loss statistics. v_ref is either the value draws (same length as x) or a single value.
+    With draws, % of value is taken per draw (loss / that draw's value) so it is bounded by the cap:
+    an asset whose value is uncertain cannot show a loss above 100% of what it is worth."""
     q = np.percentile(x, [5, 50, 95, 99])
     tail = x[x >= q[2]]
     d = {"mean": float(x.mean()), "p5": float(q[0]), "p50": float(q[1]), "p95": float(q[2]), "p99": float(q[3]),
          "es95": float(tail.mean()) if len(tail) else float(q[2])}
-    if v_ref:
+    if isinstance(v_ref, np.ndarray):
+        r = 100 * x / np.where(v_ref > 0, v_ref, np.nan)
+        r = r[np.isfinite(r)]
+        if len(r):
+            rq = np.percentile(r, [5, 50, 95, 99])
+            rt = r[r >= rq[2]]
+            d["pct_of_value"] = {"mean": round(float(r.mean()), 2), "p5": round(float(rq[0]), 2), "p50": round(float(rq[1]), 2),
+                                 "p95": round(float(rq[2]), 2), "p99": round(float(rq[3]), 2),
+                                 "es95": round(float(rt.mean()) if len(rt) else float(rq[2]), 2)}
+    elif v_ref:
         d["pct_of_value"] = {k: round(100 * v / v_ref, 2) for k, v in d.items()}
     return d
 
@@ -170,7 +182,7 @@ def simulate(case: dict, n: int = 4000, discount: float = 0.07, seed: int = 7,
                        "capped_share": capped,
                        "annual_cost": cost, "price": P, "activity": A}
 
-    v_ref = float(val["mode"]) if has_value else None
+    v_ref = V if has_value else None                       # per-draw value: % of value stays within the cap
     out = {"n_draws": n, "discount_rate": discount, "years": YEARS.tolist(), "asset_value": val,
            "physical": {
                "npv": _stats(npv_phys, v_ref),
@@ -203,4 +215,6 @@ def simulate(case: dict, n: int = 4000, discount: float = 0.07, seed: int = 7,
         }
         if common is not None:
             out["scenarios"][s]["_total_draws"] = r["total"]
+    if common is not None:
+        out["_value_draws"] = V if has_value else None
     return out

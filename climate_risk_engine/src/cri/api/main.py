@@ -6354,3 +6354,47 @@ def materiality_dashboard():
 def carbon_markets_dashboard():
     from fastapi.responses import HTMLResponse
     return HTMLResponse((Path(__file__).parent / "carbon_markets_dashboard.html").read_text(encoding="utf-8"))
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# RISK ANALYST on a client's own site list (New Assessment with sites / upload)
+# ──────────────────────────────────────────────────────────────────────────────
+
+class AnalystSitesRequest(BaseModel):
+    label: str = "Portfolio"
+    sites: list[dict] = Field(..., min_length=1, max_length=500)
+    top_n: int = Field(30, ge=1, le=200)
+
+
+@app.post("/analyst/sites", dependencies=[_AUTH], tags=["Risk Analyst"])
+def analyst_sites(request: AnalystSitesRequest) -> dict:
+    """Run a client's own sites through the Risk Analyst and aggregate the loss distribution."""
+    from ..finance.analyst import analyse_sites
+    try:
+        return _jsonable(analyse_sites(request.sites, request.label, top_n=request.top_n))
+    except (ValueError, KeyError, TypeError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc).strip("'\""))
+
+
+@app.post("/analyst/sites/upload", dependencies=[_AUTH], tags=["Risk Analyst"])
+async def analyst_sites_upload(file: UploadFile = File(...), label: str = Form("Portfolio"), top_n: int = Form(30)) -> dict:
+    """Upload an asset list (.xlsx/.csv: name, lat, lon [, sector, type, capacity, emissions_t, value_usd]) and analyse it."""
+    import tempfile
+    from ..portfolio_export import read_portfolio
+    from ..finance.analyst import analyse_sites
+    suffix = Path(file.filename or "x.csv").suffix or ".csv"
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=True) as tmp:
+        tmp.write(await file.read())
+        tmp.flush()
+        try:
+            rows = read_portfolio(tmp.name)
+        except Exception as exc:
+            raise HTTPException(status_code=422, detail=f"could not read the asset list: {exc}")
+    bad = [r for r in rows if r.get("error")]
+    good = [r for r in rows if not r.get("error")]
+    if not good:
+        raise HTTPException(status_code=422, detail="no rows with valid name, lat and lon")
+    res = analyse_sites([{k: r.get(k) for k in ("name", "lat", "lon", "sector", "type", "capacity", "emissions_t",
+                                               "value_usd", "company")} for r in good], label, top_n=top_n)
+    res["skipped_rows"] = [{"row": r["row"], "name": r["name"], "error": r["error"]} for r in bad]
+    return _jsonable(res)
