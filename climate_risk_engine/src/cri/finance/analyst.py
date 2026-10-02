@@ -179,7 +179,8 @@ def _asset_life(commissioned: Optional[int], retire: Optional[int], act_key: Opt
     parts = []
     if commissioned:
         parts.append(f"Commissioned {int(commissioned)}: design life sampled {d[0]}–{d[2]} years (mode {d[1]}, analyst judgement for "
-                     "the sector), so remaining life and undepreciated value follow from the age.")
+                     "the sector), which sets the remaining life and undepreciated value used for stranding; the plant keeps operating "
+                     "unless a retirement year is given (refurbishment past design life is common).")
     if retire:
         parts.append(f"Retirement fixed at {int(retire)} (legal phase-out or planned closure): no emissions or earnings after it.")
     return {"commissioned": int(commissioned) if commissioned else None, "retire": int(retire) if retire else None,
@@ -398,7 +399,7 @@ def analyse_asset(lat: float, lon: float, name: Optional[str] = None, sector: Op
                        "plant_life": {"commissioned": commissioned_year, "retirement": retirement_year,
                                       "design_life": (life_in or {}).get("design"), "note": life_note},
                        "cbam": {"export_share_eu": export_share_eu if cbam_in else None, "note": cbam_note},
-                       "assumptions": {"emissions": ("abated when the net carbon price reaches a lever's levelised cost "
+                       "assumptions": {"emissions": ("abated when the carbon price the plant faces reaches a lever's levelised cost "
                                                      "(sector levers, lead times, irreversible); the unabated cost is shown as cost of inaction"
                                                      if ab_cfg["enabled"] else
                                                      "held at today's level unless sector output falls (no abatement response modelled)"),

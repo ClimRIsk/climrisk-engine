@@ -145,6 +145,8 @@ def compute(F: dict, ctx: dict) -> dict:
     def cq(x, q):                                  # percentile over the draws whose plant is still operating
         return np.array([np.percentile(x[alive[:, i] > 0, i], q) if (alive[:, i] > 0).any() else 0.0 for i in range(Y)])
 
+    gone = alive.sum(axis=0) == 0                  # years in which no draw has an operating plant
+
     def cmean(x):
         return (x * alive).sum(axis=0) / np.maximum(alive.sum(axis=0), 1)
 
@@ -219,7 +221,7 @@ def compute(F: dict, ctx: dict) -> dict:
                            "p95": np.round(cq(lev, 95), 2).tolist()}
         for yr in HORIZONS:
             if str(yr) in out["horizons"]:
-                out["horizons"][str(yr)]["leverage_median"] = round(float(cq(lev, 50)[int(yr - years[0])]), 2)
+                out["horizons"][str(yr)]["leverage_median"] = None if gone[int(yr - years[0])] else round(float(cq(lev, 50)[int(yr - years[0])]), 2)
     else:
         nd = None
         notes.append("Net debt not given: leverage, coverage trend and credit metrics not computed.")
@@ -240,9 +242,9 @@ def compute(F: dict, ctx: dict) -> dict:
             out["credit"] = {
                 "basis": "EBIT / interest → Damodaran synthetic rating (large non-financial firms) → S&P class default rate",
                 "baseline": {"coverage_ebit": round(base_icr, 2), "rating": RATINGS[b_idx], "pd": float(PD_BY_IDX[b_idx])},
-                "rating_median": [RATINGS[int(cq(idx.astype(float), 50)[i])] for i in range(Y)],
-                "rating_notches_vs_baseline_median": [int(cq(idx.astype(float), 50)[i]) - b_idx for i in range(Y)],
-                "pd_mean": [round(float(x), 5) for x in pd_mean],
+                "rating_median": [None if gone[i] else RATINGS[int(cq(idx.astype(float), 50)[i])] for i in range(Y)],
+                "rating_notches_vs_baseline_median": [None if gone[i] else int(cq(idx.astype(float), 50)[i]) - b_idx for i in range(Y)],
+                "pd_mean": [None if gone[i] else round(float(x), 5) for i, x in enumerate(pd_mean)],
                 "coverage_ebit_median": np.round(cq(icr, 50), 2).tolist(),
                 "ecl_mean_usd": _r(cmean(pd_ * F["lgd"] * ead)) if ead is not None else None,
                 "lgd": F["lgd"], "sources": RATING_SOURCES,
@@ -250,8 +252,8 @@ def compute(F: dict, ctx: dict) -> dict:
             for yr in HORIZONS:
                 if str(yr) in out["horizons"]:
                     i = int(yr - years[0])
-                    out["horizons"][str(yr)].update({"rating_median": RATINGS[int(cq(idx.astype(float), 50)[i])],
-                                                     "pd_mean": round(float(pd_mean[i]), 5)})
+                    out["horizons"][str(yr)].update({"rating_median": None if gone[i] else RATINGS[int(cq(idx.astype(float), 50)[i])],
+                                                     "pd_mean": None if gone[i] else round(float(pd_mean[i]), 5)})
         else:
             notes.append("D&A not given: coverage is EBITDA-based; the synthetic rating and PD need EBIT (give da_usd).")
     elif nd0 is not None:

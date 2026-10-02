@@ -282,3 +282,13 @@ def test_earnings_after_retirement_do_not_count_as_climate_loss():
     assert out["ebitda_shortfall_pv"]["mean"] == pytest.approx(0.0, abs=1)           # retirement is not a shortfall
     assert out["impairment"]["climate_attributable"]["mean"] == 0                    # same life in baseline and scenario
     assert out["prob_retired"][12] == 1.0 and out["horizons"]["2040"]["ebitda_change_pct_median"] is None
+
+
+def test_age_alone_does_not_stop_the_plant():
+    base = simulate(_case(False), n=500, seed=2)
+    c = _case(False)
+    c["asset_life"] = {"commissioned": 1950, "retire": None, "design": (30, 40, 50)}      # long past design life
+    r = simulate(c, n=500, seed=2)
+    assert r["scenarios"]["Net Zero 2050"]["transition_npv"]["mean"] == pytest.approx(
+        base["scenarios"]["Net Zero 2050"]["transition_npv"]["mean"])
+    assert r["scenarios"]["Net Zero 2050"]["retired_share_by_2050"] == 0.0

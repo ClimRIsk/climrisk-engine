@@ -9,9 +9,8 @@ Rules (stated so they can be challenged)
   • Each sector has a short list of levers: share of today's emissions it can remove, levelised cost per tonne
     abated (capital recovery + operating cost, US$/tCO2e), lead time, earliest year it is available, and the
     share of its levelised cost that is operating (the rest is capital).
-  • Decision price = the carbon price the asset actually faces after free allocation AND after cost pass-through
-    (the same quantity the loss model charges). A lever is triggered the first year that price reaches its
-    levelised cost. The operator is myopic: it reacts to the price it sees, it does not know the scenario.
+  • Decision price = the gross carbon price the asset faces after free allocation (and any CBAM charge), before cost
+    pass-through. A lever is triggered the first year that price reaches its levelised cost. The operator is myopic: it reacts to the price it sees, it does not know the scenario.
   • Abatement starts `lead` years after the trigger, so a late, sharp price (Delayed transition) is paid in full
     during the build time. Once started it persists (capital is sunk); it scales with sector output.
   • Residual emissions pay the carbon price; abated tonnes cost the levelised cost. The loss is the sum, so it
@@ -19,9 +18,11 @@ Rules (stated so they can be challenged)
   • Costs below zero (no-regret savings) are not credited: every lever costs at least 0.
   • Abatement shares are capped at 95 % of today's emissions in total.
 
-Conservative choice: the decision price is net of pass-through, so abatement is only triggered when the plant itself
-saves more than it spends. Where carbon cost is passed on, a real operator that abates can keep part of that price
-(the EU ETS windfall effect) — not credited here, so abatement starts later than it might.
+Pass-through: the operator decides on the gross carbon price it faces (after free allocation, plus any CBAM charge),
+because customers share the plant's carbon-related costs whether they arise as carbon payments or as abatement spend;
+the simulation therefore applies the same pass-through share to both. (Treating abatement as unshared while carbon
+payments are shared would delay abatement and overstate losses; no windfall from retaining the price on abated tonnes is
+credited either.)
 
 Sources are given per lever. `basis` says whether the numbers come from a published range or are analyst
 judgement; judgement ranges are deliberately wide. Override the library with your own levers (site-specific
@@ -177,7 +178,7 @@ def sample(levers: list, rng, n: int) -> dict:
 
 
 def respond(q: np.ndarray, Ae: np.ndarray, S: dict, discount: float) -> dict:
-    """q: net carbon price faced (US$/t, n×Y); Ae: baseline tonnes of the asset each year after output (n×Y).
+    """q: carbon price faced (US$/t, n×Y); Ae: baseline tonnes of the asset each year after output (n×Y).
     Returns abated fraction, levelised abatement cost, its operating part, and capital outlays (n×Y)."""
     n, Y = q.shape
     K = S["share"].shape[1]

@@ -857,7 +857,10 @@ function renderCompanyPanel() {
   // AN is declared further down the script, so hand the launch values over once it exists.
   const launch = { assessId: h.get('assess_id') || null, extra: { sector: h.get('sector') || null, asset_type: h.get('atype') || null,
                emissions_t: h.get('emissions_t') ? +h.get('emissions_t') : null,
-               value_usd: h.get('value_usd') ? +h.get('value_usd') : null } };
+               value_usd: h.get('value_usd') ? +h.get('value_usd') : null,
+               commissioned_year: h.get('comm') ? +h.get('comm') : null, retirement_year: h.get('ret') ? +h.get('ret') : null,
+               export_share_eu: h.get('eu') ? +h.get('eu') : null, abatement: h.get('ab') === '0' ? false : null,
+               financials: (() => { try { return h.get('fin') ? JSON.parse(h.get('fin')) : null; } catch (e) { return null; } })() } };
   setTimeout(() => { AN.assessId = launch.assessId; AN.extra = launch.extra; }, 0);
   if (h.get('analyst') === '1' && h.get('lat')) setTimeout(() => runAnalystSite(launch.extra.value_usd), 80);
   if (h.get('run_keys')) setTimeout(async () => {          // New Assessment → company portfolio
@@ -961,6 +964,8 @@ async function runAnalystSite(valueUsd) {
   const ex = AN.extra || {};
   AN.req = { lat, lon, name, site, value_usd: valueUsd || ex.value_usd || null, sector: ex.sector || null,
              asset_type: ex.asset_type || null, emissions_t: ex.emissions_t };
+  ['commissioned_year', 'retirement_year', 'export_share_eu', 'financials'].forEach(k => { if (ex[k] != null) AN.req[k] = ex[k]; });
+  if (ex.abatement === false) AN.req.abatement = false;
   return anRunAsset(name || `${lat.toFixed(3)}, ${lon.toFixed(3)}`);
 }
 async function runAnalystRegister(i, valueUsd) {
@@ -1130,16 +1135,18 @@ function anRerunValue() {
 const pct0 = x => x == null ? '—' : (100 * x).toFixed(0) + '%';
 function anFinForm() {
   const f = (AN.req && AN.req.financials) || {}, v = k => f[k] != null ? `value="${f[k]}"` : '';
-  const inp = (id, k, lbl, ph) => `<label style="margin:0;font-size:11px">${lbl}</label><input id="${id}" type="number" ${v(k)} placeholder="${ph || ''}" style="width:130px">`;
+  const cell = (id, k, lbl, ph) => `<div><label style="display:block;margin:0 0 3px;font-size:10.5px;color:var(--muted)">${lbl}</label><input id="${id}" type="number" ${v(k)} placeholder="${ph || ''}" style="width:100%"></div>`;
   return `<details class="an-note" ${AN.req && AN.req.financials ? 'open' : ''} style="margin-top:8px"><summary style="cursor:pointer"><b>Company financials</b> (optional) — adds EBITDA at risk, leverage, rating, covenants and impairment</summary>
-    <div class="an-val" style="flex-wrap:wrap;margin-top:8px">${inp('fin_rev', 'revenue_usd', 'Revenue (USD/yr)', '300000000')}${inp('fin_ebitda', 'ebitda_usd', 'EBITDA', '75000000')}${inp('fin_da', 'da_usd', 'D&A', '25000000')}
-      ${inp('fin_int', 'interest_usd', 'Interest expense', '12000000')}${inp('fin_debt', 'net_debt_usd', 'Net debt', '150000000')}${inp('fin_book', 'book_value_usd', 'Carrying amount (book)', '400000000')}
-      <label style="margin:0;font-size:11px">Tax rate %</label><input id="fin_tax" type="number" ${f.tax_rate != null ? `value="${100 * f.tax_rate}"` : ''} placeholder="25" style="width:80px">
-      ${inp('fin_mwh', 'electricity_mwh', 'Electricity bought (MWh/yr)', '150000')}
-      <select id="fin_fuel" style="width:110px"><option value="">Fuel: none</option>${['coal', 'gas', 'oil'].map(x => `<option ${f.fuel === x ? 'selected' : ''}>${x}</option>`).join('')}</select>${inp('fin_fuelgj', 'fuel_gj', 'Fuel burned (GJ/yr)', '4000000')}
-      ${inp('fin_sust', 'sustaining_capex_usd', 'Sustaining capex', '15000000')}${inp('fin_covlev', 'covenant_max_leverage', 'Covenant: max net debt/EBITDA', '3.5')}${inp('fin_covicr', 'covenant_min_icr', 'Covenant: min EBITDA/interest', '3')}</div>
-    <label style="font-size:11px"><input type="checkbox" id="anAb" ${AN.req && AN.req.abatement === false ? '' : 'checked'}> include the operator's abatement response (untick for cost of inaction only)</label>
-    <div style="color:var(--muted);font-size:10.5px;margin-top:4px">Same perimeter as the emissions. Click Re-run to apply.</div></details>`;
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px 10px;margin-top:10px">
+      ${cell('fin_rev', 'revenue_usd', 'Revenue (USD/yr)', '300000000')}${cell('fin_ebitda', 'ebitda_usd', 'EBITDA', '75000000')}${cell('fin_da', 'da_usd', 'D&A', '25000000')}${cell('fin_int', 'interest_usd', 'Interest expense', '12000000')}
+      ${cell('fin_debt', 'net_debt_usd', 'Net debt', '150000000')}${cell('fin_book', 'book_value_usd', 'Carrying amount (book)', '400000000')}
+      <div><label style="display:block;margin:0 0 3px;font-size:10.5px;color:var(--muted)">Tax rate %</label><input id="fin_tax" type="number" ${f.tax_rate != null ? `value="${100 * f.tax_rate}"` : ''} placeholder="25" style="width:100%"></div>
+      ${cell('fin_sust', 'sustaining_capex_usd', 'Sustaining capex (USD/yr)', '15000000')}
+      ${cell('fin_mwh', 'electricity_mwh', 'Electricity bought (MWh/yr)', '150000')}
+      <div><label style="display:block;margin:0 0 3px;font-size:10.5px;color:var(--muted)">Fuel burned</label><div style="display:flex;gap:6px"><input id="fin_fuelgj" type="number" ${v('fuel_gj')} placeholder="GJ/yr" style="flex:1;min-width:0"><select id="fin_fuel" style="width:78px"><option value="">fuel</option>${['coal', 'gas', 'oil'].map(x => `<option ${f.fuel === x ? 'selected' : ''}>${x}</option>`).join('')}</select></div></div>
+      ${cell('fin_covlev', 'covenant_max_leverage', 'Covenant: max net debt/EBITDA', '3.5')}${cell('fin_covicr', 'covenant_min_icr', 'Covenant: min EBITDA/interest', '3')}</div>
+    <label style="font-size:11px;display:block;margin-top:10px"><input type="checkbox" id="anAb" ${AN.req && AN.req.abatement === false ? '' : 'checked'}> include the operator's abatement response (untick for cost of inaction only)</label>
+    <div style="color:var(--muted);font-size:10.5px;margin-top:4px">Same perimeter as the emissions. Click Re-run (above) to apply.</div></details>`;
 }
 function anAbatementCard(S, T) {
   const a = S.abatement; if (!a || !a.enabled) return `<div class="an-card wide"><h3><span class="n">5</span>Abatement response</h3><div class="an-note">${T.abatement && T.abatement.note ? esc(T.abatement.note) : 'Not included — results show the cost of inaction.'}</div></div>`;
@@ -1153,13 +1160,13 @@ function anAbatementCard(S, T) {
       <div class="kpi"><div class="v" style="color:var(--low)">${usd(a.avoided_npv.mean)}</div><div class="l">avoided on average</div></div>
       <div class="kpi"><div class="v">${pct0(yrs['2030'])} → ${pct0(yrs['2040'])} → ${pct0(yrs['2050'])}</div><div class="l">emissions abated by 2030 → 2040 → 2050 (median)</div></div></div>
     <table class="an-tbl" style="margin-top:10px"><tr><th>Lever (hover for source)</th><th class="r">Share of emissions</th><th class="r">Cost</th><th class="r">Lead time</th><th class="r">Started by 2030 · 2040</th><th class="r">Median start</th><th>Basis</th></tr>${rows}</table>
-    <div class="an-note">A lever starts once the net carbon price the plant faces (after free allocation and pass-through) reaches its levelised cost, then takes its lead time to build; once built it stays. The plant cannot foresee the scenario. Costs are held flat in real terms; capture costs include transport and storage where the source gives them. Replace the library with site quotes through the lever inputs of the API.</div></div>`;
+    <div class="an-note">A lever starts once the carbon price the plant faces (after free allocation) reaches its levelised cost, then takes its lead time to build; once built it stays. Customers share carbon costs and abatement spend alike (same pass-through). The plant cannot foresee the scenario. Costs are held flat in real terms; capture costs include transport and storage where the source gives them. Replace the library with site quotes through the lever inputs of the API.</div></div>`;
 }
 function anEarningsCard(S, d) {
   const e = S.earnings;
   if (!e) return `<div class="an-card wide"><h3><span class="n">6</span>Earnings &amp; credit</h3><div class="an-note">Add company financials (Re-run panel above) to see EBITDA at risk, leverage, synthetic rating, covenants and impairment under each scenario.</div></div>`;
   const H = e.horizons, cr = e.credit, cov = e.covenants, im = e.impairment;
-  const rows = Object.keys(H).map(y => { const h = H[y]; return `<tr><td>${y}</td><td class="r">${h.ebitda_change_pct_median != null ? h.ebitda_change_pct_median.toFixed(0) + '%' : '—'} <span style="color:var(--muted)">(P5 ${h.ebitda_change_pct_p5 != null ? h.ebitda_change_pct_p5.toFixed(0) + '%' : '—'})</span></td>
+  const rows = Object.keys(H).map(y => { const h = H[y]; return `<tr><td>${y}</td><td class="r">${h.ebitda_change_pct_median != null ? h.ebitda_change_pct_median.toFixed(0) + '%' + ` <span style="color:var(--muted)">(P5 ${h.ebitda_change_pct_p5 != null ? h.ebitda_change_pct_p5.toFixed(0) + '%' : '—'})</span>` : (h.prob_retired >= 0.99 ? '<span style="color:var(--muted)">plant retired</span>' : '—')}</td>
       <td class="r">${h.leverage_median != null ? (h.leverage_median >= 99 ? '≥99' : h.leverage_median.toFixed(1)) + '×' : '—'}</td><td class="r">${h.rating_median || '—'}</td><td class="r">${h.pd_mean != null ? (100 * h.pd_mean).toFixed(2) + '%' : '—'}</td>
       <td class="r">${pct0(h.prob_closed)}</td><td class="r">${cov && cov.by_horizon ? pct0(cov.by_horizon[y]) : '—'}</td></tr>`; }).join('');
   const ch = Object.entries(e.channels_pv_mean).filter(([, v]) => Math.abs(v) > 1).sort((a, b) => Math.abs(b[1]) - Math.abs(a[1])).map(([k, v]) => `${esc(k.replace(/_/g, ' '))} ${v < 0 ? '−' + usd(-v) + ' (gain)' : usd(v)}`).join(' · ');

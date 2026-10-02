@@ -24,7 +24,7 @@ Transition (per NGFS scenario; model drawn uniformly from those reporting the re
             f_econ ~ Tri(0.15, 0.35, 0.6) is the undepreciated share of replacement value (plant age unknown) and the
             remaining life ~ Tri(10, 20, 30) years
 
-Operator response (finance/abatement.py): where the net carbon price reaches the levelised cost
+Operator response (finance/abatement.py): where the carbon price the plant faces reaches the levelised cost
 of a sector lever, the plant abates (after a lead time, irreversibly). Loss = carbon paid on the
 residual + levelised abatement cost. The carbon cost of doing nothing is kept as `transition_npv`
 and `total_npv_unabated`, so both views are always available.
@@ -32,8 +32,8 @@ Closure option: transition loss (carbon cost + abatement + stranded capital) is 
 value in each draw — an owner would shut the plant rather than pay more than it is worth;
 `closure_share` reports how often that happens.
 Plant life (optional): with a commissioning year the remaining life (design life ~ Tri by sector, less age) sets the
-stranding horizon and undepreciated share and ends the plant's emissions; a retirement year (legal phase-out or
-planned closure) ends operation on that date in every draw.
+stranding horizon and undepreciated share; it does not stop the plant — kilns and boilers are routinely refurbished past
+design life. A retirement year (legal phase-out or planned closure) ends operation on that date in every draw.
 CBAM (optional): for products in EU CBAM scope exported from outside the EU, `export_share_eu` of the emissions pay
 max(0, EU price − carbon price paid at home) × CBAM factor (1 − free allocation, 2026→2034) × (1 − pass-through),
 using the NGFS price of the EU region or today's EU ETS price if higher; it adds to the price that triggers abatement.
@@ -183,7 +183,8 @@ def simulate(case: dict, n: int = 4000, discount: float = 0.07, seed: int = 7,
         if al.get("retire"):
             end = np.minimum(end, float(al["retire"]))
             life = np.minimum(life, max(int(al["retire"]) - int(YEARS[0]), 1)).astype(int)
-        alive = (YEARS[None, :] < end[:, None]).astype(float)
+        if al.get("retire"):                 # only an explicit retirement ends operation; age alone does not
+            alive = (YEARS[None, :] < float(al["retire"])).astype(float)
     # Abatement levers use their own random stream so adding them never changes the physical or carbon draws.
     ab = tr.get("abatement") or {}
     levers = ab.get("levers") or []
@@ -210,12 +211,13 @@ def simulate(case: dict, n: int = 4000, discount: float = 0.07, seed: int = 7,
         Amin = Araw * alive
         Ae = E * Amin                                                          # tonnes emitted today's way, per year
         qg = p0 * cs0 + np.maximum(P - p0, 0.0) * csf                          # carbon price paid at home, per tonne
-        q = qg * (1 - pt)                                                      # net of cost pass-through
-        cbam_unit = np.zeros((n, Y))
+        cbam_g = np.zeros((n, Y))
         if cb:
             eu = np.stack([np.maximum(cb["price"].get(s, {}).get(m, np.zeros(Y)), cb["p_now"]) for m in models])[mi]
-            cbam_unit = cb["share"] * np.maximum(eu - qg, 0.0) * cb_factor * (1 - pt)      # EU border charge on exports
-            q = q + cbam_unit
+            cbam_g = cb["share"] * np.maximum(eu - qg, 0.0) * cb_factor                     # EU border charge on exports, gross
+        q_gross = qg + cbam_g                                                   # the carbon-price signal the operator sees
+        q = q_gross * (1 - pt)                                                  # what the plant bears after cost pass-through
+        cbam_unit = cbam_g * (1 - pt)
         cost = Ae * q                                                          # unabated: the cost of doing nothing
         npv_cost = (cost * disc).sum(axis=1)
         if strand_on and acts:
@@ -224,9 +226,11 @@ def simulate(case: dict, n: int = 4000, discount: float = 0.07, seed: int = 7,
             strand = V * f_econ * np.clip(1 - meanA, 0, 1)
         else:
             strand = np.zeros(n)
-        # Operator response: abate where the net carbon price reaches the levelised cost of a lever.
+        # Operator response: abate where the carbon price the plant faces reaches the levelised cost of a lever.
         if S_ab is not None:
-            R = abatement.respond(q, Ae, S_ab, discount)
+            R = abatement.respond(q_gross, Ae, S_ab, discount)                  # decides on the gross price signal
+            for k in ("cost", "opex", "capex"):                                 # pass-through shares abatement spend too
+                R[k] = R[k] * (1 - pt)
             pay = Ae * (1 - R["frac"]) * q
             resp = pay + R["cost"]
             npv_resp = (resp * disc).sum(axis=1)
