@@ -1424,6 +1424,59 @@ def generate_brsr_report(request: BRSRRequest) -> DisclosureResponse:
     return DisclosureResponse(**report.to_dict())
 
 
+class PhysicalRiskAssetIn(BaseModel):
+    lat: float = Field(..., ge=-90, le=90)
+    lon: float = Field(..., ge=-180, le=180)
+    name: Optional[str] = None
+    sector: Optional[str] = Field(None, description="e.g. cement, iron-and-steel, electricity-generation, real estate, data centre")
+    asset_type: Optional[str] = None
+    commissioned_year: Optional[int] = Field(None, ge=1800, le=2100, description="Construction / commissioning year")
+
+
+class PhysicalRiskReportRequest(BaseModel):
+    assets: list[PhysicalRiskAssetIn] = Field(..., min_length=1, max_length=25)
+    client: Optional[str] = None
+    title: Optional[str] = None
+    include_image: bool = True
+
+
+def _physical_risk_report(request: PhysicalRiskReportRequest) -> dict:
+    from ..physical_report import build_portfolio_report
+    rep = build_portfolio_report([a.model_dump() for a in request.assets], title=request.title, client=request.client,
+                                 include_image=request.include_image)
+    if not rep["assets"]:
+        raise HTTPException(status_code=422, detail="; ".join(rep["failed"]) or "no site could be assessed")
+    return rep
+
+
+@app.get("/reports/physical-risk/dashboard", tags=["Reports"])
+def physical_risk_dashboard():
+    from fastapi.responses import HTMLResponse
+    return HTMLResponse((Path(__file__).parent / "physical_report_dashboard.html").read_text(encoding="utf-8"))
+
+
+@app.post("/reports/physical-risk", dependencies=[_AUTH], tags=["Reports"])
+def physical_risk_report(request: PhysicalRiskReportRequest) -> dict:
+    """Physical Risk Assessment, grouped by sector: how each site sits, which hazard zones it is in, what its
+    construction year means, what will go wrong and what to do. No financial figures."""
+    return _jsonable(_physical_risk_report(request))
+
+
+@app.post("/reports/physical-risk.html", dependencies=[_AUTH], tags=["Reports"])
+def physical_risk_report_html(request: PhysicalRiskReportRequest):
+    from fastapi.responses import HTMLResponse
+    from ..physical_report import render_html
+    return HTMLResponse(render_html(_physical_risk_report(request)))
+
+
+@app.post("/reports/physical-risk.pdf", dependencies=[_AUTH], tags=["Reports"])
+def physical_risk_report_pdf(request: PhysicalRiskReportRequest):
+    from fastapi.responses import Response
+    from ..physical_report import render_pdf
+    return Response(render_pdf(_physical_risk_report(request)), media_type="application/pdf",
+                    headers={"Content-Disposition": 'attachment; filename="physical_risk_assessment.pdf"'})
+
+
 @app.post("/reports/physical", response_model=PhysicalHazardReportResponse, dependencies=[_AUTH])
 def generate_physical_report(request: PhysicalReportRequest) -> PhysicalHazardReportResponse:
     """

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClimRisk — Physical Risk Report</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root { --bg:#070b14; --surface:#0d1524; --border:#1c2a44; --primary:#38bdf8; --muted:#8a9bbd; --text:#e2eaf8; --high:#f97316; --low:#22c55e;
+          --sans:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',sans-serif; }
+  body { font-family: var(--sans); background: var(--bg); color: var(--text); font-size: 13px; }
+  .header { display:flex; align-items:center; gap:14px; padding:10px 18px; background:var(--surface); border-bottom:1px solid var(--border); }
+  .logo { font-weight:800; letter-spacing:3px; color:var(--primary); font-size:16px; } .sub { font-size:11px; color:var(--muted); }
+  .layout { display:grid; grid-template-columns:400px 1fr; height:calc(100vh - 46px); }
+  .side { background:var(--surface); border-right:1px solid var(--border); padding:14px; overflow-y:auto; }
+  .main { overflow:hidden; display:flex; flex-direction:column; }
+  h3 { font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); margin:14px 0 6px; font-weight:600; }
+  label { font-size:11px; color:var(--muted); display:block; margin:8px 0 3px; }
+  input, select { width:100%; background:var(--bg); border:1px solid var(--border); border-radius:6px; color:var(--text); font:inherit; padding:6px 8px; outline:none; }
+  .site { border:1px solid var(--border); border-radius:8px; padding:8px 10px; margin:8px 0; background:var(--bg); position:relative; }
+  .site .x { position:absolute; top:4px; right:6px; background:none; border:none; color:var(--muted); cursor:pointer; font-size:14px; }
+  .row { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .btn { width:100%; margin-top:10px; padding:9px; border:none; border-radius:8px; background:var(--primary); color:#04121e; font-weight:700; cursor:pointer; font:inherit; font-weight:700; }
+  .btn.alt { background:transparent; border:1px solid var(--border); color:var(--text); } .btn:disabled { opacity:.5; cursor:wait; }
+  .add { background:none; border:1px dashed var(--border); color:var(--muted); border-radius:6px; padding:6px; width:100%; cursor:pointer; margin-top:4px; }
+  .status { font-size:11px; color:var(--muted); margin-top:8px; min-height:14px; } .status.error { color:#f87171; }
+  .hint { font-size:10.5px; color:var(--muted); margin-top:4px; line-height:1.5; }
+  .empty { padding:28px; color:var(--muted); line-height:1.7; max-width:640px; } .empty h2 { color:var(--text); margin-bottom:8px; font-size:16px; }
+  iframe { flex:1; border:0; background:#fff; width:100%; }
+  .bar { display:none; gap:8px; padding:8px 14px; background:var(--surface); border-bottom:1px solid var(--border); } .bar button { width:auto; margin:0; padding:6px 14px; }
+</style>
+</head>
+<body>
+<div class="header"><div class="logo">CLIMRISK</div><div class="sub">Physical Risk Report · site, hazard zones, construction year, what goes wrong, what to do</div></div>
+<div class="layout">
+  <aside class="side">
+    <label for="client">Prepared for</label><input id="client" type="text" placeholder="Client or company name">
+    <h3>Sites</h3><div id="sites"></div>
+    <button class="add" id="addSite" type="button">+ add site</button>
+    <div class="hint">Sector sets which parts of the site and which consequences the report describes. Leave it on "detect" to match the nearest known asset. Construction year adds age, design life and ageing notes.</div>
+    <details style="margin-top:12px"><summary style="font-size:11px;color:var(--muted);cursor:pointer">API key (only if your server requires one)</summary>
+      <input id="apiKey" type="password" placeholder="X-API-Key" style="margin-top:6px"></details>
+    <button class="btn" id="go">Generate physical risk report</button>
+    <div class="status" id="status"></div>
+  </aside>
+  <main class="main">
+    <div class="bar" id="bar"><button class="btn" id="pdf">Download PDF</button><button class="btn alt" id="json">Download data (JSON)</button></div>
+    <div class="empty" id="empty"><h2>What this report covers</h2>
+      For each site: how the infrastructure sits (elevation, terrain, land cover, distance to water), which hazard zones it is in
+      (river and coastal flooding, cyclone wind, slope, wildfire, heat, water stress), what its construction year means, what is likely
+      to go wrong for that type of facility, and the physical measures to take.<br><br>
+      It contains no financial figures. Sites are grouped by sector. Each site takes about a minute: the engine reads terrain, satellite and flood-map data live.</div>
+    <iframe id="view" style="display:none" title="Report"></iframe>
+  </main>
+</div>
+<script>
+const $ = id => document.getElementById(id);
+const SECTORS = [['', 'Detect from location'], ['cement', 'Cement'], ['iron-and-steel', 'Steel'], ['electricity-generation', 'Power station'],
+  ['oil-and-gas-refining', 'Oil, gas and refining'], ['chemicals', 'Chemicals'], ['mining', 'Mining'], ['aluminum', 'Aluminium'],
+  ['pulp-and-paper', 'Pulp and paper'], ['real estate', 'Real estate / buildings'], ['data centre', 'Data centre'],
+  ['port', 'Port or logistics'], ['agriculture', 'Agriculture / food'], ['industrial', 'Other industrial']];
+function addSite(v = {}) {
+  const d = document.createElement('div'); d.className = 'site';
+  d.innerHTML = `<button class="x" type="button" title="remove">×</button>
+    <label>Site name</label><input class="n" type="text" value="${v.name || ''}" placeholder="e.g. Kiln 2, Plant X">
+    <div class="row"><div><label>Latitude</label><input class="la" type="number" step="any" value="${v.lat ?? ''}"></div><div><label>Longitude</label><input class="lo" type="number" step="any" value="${v.lon ?? ''}"></div></div>
+    <div class="row"><div><label>Sector</label><select class="s">${SECTORS.map(([k, t]) => `<option value="${k}">${t}</option>`).join('')}</select></div>
+    <div><label>Construction year</label><input class="y" type="number" step="1" min="1800" max="2100" placeholder="e.g. 1994"></div></div>`;
+  d.querySelector('.x').onclick = () => { if (document.querySelectorAll('.site').length > 1) d.remove(); };
+  $('sites').append(d);
+}
+function body() {
+  const assets = [...document.querySelectorAll('.site')].map(d => {
+    const lat = parseFloat(d.querySelector('.la').value), lon = parseFloat(d.querySelector('.lo').value);
+    if (!isFinite(lat) || !isFinite(lon)) throw new Error('Every site needs a latitude and longitude');
+    const y = parseInt(d.querySelector('.y').value, 10), s = d.querySelector('.s').value;
+    return {lat, lon, name: d.querySelector('.n').value || null, sector: s || null, asset_type: null, commissioned_year: isFinite(y) ? y : null};
+  });
+  return {assets, client: $('client').value || null, include_image: true};
+}
+async function call(path, b) {
+  const key = $('apiKey').value;
+  const r = await fetch(path, {method: 'POST', headers: Object.assign({'Content-Type': 'application/json'}, key ? {'X-API-Key': key} : {}), body: JSON.stringify(b)});
+  if (!r.ok) { let t = await r.text(); try { t = JSON.parse(t).detail; } catch (e) {} throw new Error(typeof t === 'string' ? t : JSON.stringify(t)); }
+  return r;
+}
+function save(name, blob) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); }
+let LAST = null;
+$('go').onclick = async () => {
+  let b; try { b = body(); } catch (e) { $('status').className = 'status error'; $('status').textContent = e.message; return; }
+  $('go').disabled = true; $('status').className = 'status';
+  $('status').textContent = `Reading terrain, satellite and flood maps for ${b.assets.length} site(s) — about a minute each…`;
+  try {
+    const r = await call('/reports/physical-risk.html', b);
+    $('view').srcdoc = await r.text(); $('view').style.display = 'block'; $('empty').style.display = 'none'; $('bar').style.display = 'flex';
+    LAST = b; $('status').textContent = 'Done.';
+  } catch (e) { $('status').className = 'status error'; $('status').textContent = e.message; }
+  finally { $('go').disabled = false; }
+};
+$('pdf').onclick = async () => { if (!LAST) return; $('status').textContent = 'Building PDF…'; try { save('physical_risk_assessment.pdf', await (await call('/reports/physical-risk.pdf', LAST)).blob()); $('status').textContent = 'Done.'; } catch (e) { $('status').className = 'status error'; $('status').textContent = e.message; } };
+$('json').onclick = async () => { if (!LAST) return; try { save('physical_risk_assessment.json', new Blob([JSON.stringify(await (await call('/reports/physical-risk', LAST)).json(), null, 1)], {type: 'application/json'})); } catch (e) { $('status').className = 'status error'; $('status').textContent = e.message; } };
+$('addSite').onclick = () => addSite();
+const q = new URLSearchParams(location.search);
+addSite({lat: q.get('lat') ?? '', lon: q.get('lon') ?? '', name: q.get('name') || ''});
+const k = new URLSearchParams(location.hash.slice(1)).get('key'); if (k) $('apiKey').value = k;
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && window.parent !== window) window.parent.postMessage({type: 'climrisk:close-tool'}, '*'); });
+</script>
+</body>
+</html>
