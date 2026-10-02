@@ -73,3 +73,13 @@ def test_analyst_asset_endpoint_validates_financials_and_levers():
     assert bad.status_code == 422 and "ebitda_usd" in bad.text
     bad = c.post("/analyst/asset", json=dict(base, levers=[{"name": "x", "share": 2, "mac": 10}]))
     assert bad.status_code == 422
+
+
+def test_upload_plant_life_and_export_columns():
+    csv = ("name,lat,lon,sector,type,emissions_t,value_usd,commissioned_year,retirement_year,export_share_eu\n"
+           "Dhaka cement,23.7,90.4,cement,integrated dry,800000,250000000,1995,2045,0.3\n").encode()
+    r = c.post("/analyst/sites/upload", files={"file": ("s.csv", csv, "text/csv")}, data={"label": "Life", "top_n": "1"})
+    assert r.status_code == 200, r.text
+    bad = ("name,lat,lon,sector,emissions_t,value_usd,commissioned_year\nX,23.7,90.4,cement,800000,250000000,2090\n").encode()
+    r2 = c.post("/analyst/sites/upload", files={"file": ("s.csv", bad, "text/csv")})
+    assert r2.status_code == 422 and "commissioned_year" in r2.text

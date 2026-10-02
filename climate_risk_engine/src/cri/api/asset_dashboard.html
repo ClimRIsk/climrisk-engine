@@ -1065,7 +1065,7 @@ function renderAnalyst() {
         <div class="an-grid"><div><div class="meta">Effective carbon price, US$2024/t (median of ${T.models.length} models)</div><canvas class="an-chart" id="anPrice"></canvas></div>
           <div><div class="meta">${T.activity_variable ? 'Sector output index (2025 = 1): ' + esc(T.activity_variable) : 'Annual carbon cost after pass-through, median and 5–95%'}</div><canvas class="an-chart" id="anAct"></canvas></div></div>
         <table class="an-tbl" style="margin-top:10px"><tr><th>Scenario</th><th class="r">Price 2030</th><th class="r">Price 2050</th><th class="r" title="Carbon cost if nothing is done">Cost of inaction</th><th class="r" title="Carbon paid plus levelised abatement cost when the sector levers are deployed">With response</th><th class="r">Stranded</th><th class="r">Total loss PV</th><th class="r">95th pct</th></tr>${scRows}</table>
-        <div class="an-note">${T.abatement && T.abatement.enabled ? `Emissions start at ${A.emissions_t ? A.emissions_t.toLocaleString() + ' t/yr' : 'today\'s level'} and fall as sector abatement levers pay off against the carbon price the plant actually faces (card 5); “cost of inaction” is the same run with no response.` : `Emissions held at today's level (${A.emissions_t ? A.emissions_t.toLocaleString() + ' t/yr' : 'unknown'}) — the cost of not abating${T.abatement && T.abatement.note ? '. ' + esc(T.abatement.note) : ''}.`} Future carbon price reaches the plant at a sampled 30–100% (free allocation, benchmarks); pass-through ${T.assumptions.pass_through.join('/')} (low/mode/high).</div></div>
+        <div class="an-note">${T.abatement && T.abatement.enabled ? `Emissions start at ${A.emissions_t ? A.emissions_t.toLocaleString() + ' t/yr' : 'today\'s level'} and fall as sector abatement levers pay off against the carbon price the plant actually faces (card 5); “cost of inaction” is the same run with no response.` : `Emissions held at today's level (${A.emissions_t ? A.emissions_t.toLocaleString() + ' t/yr' : 'unknown'}) — the cost of not abating${T.abatement && T.abatement.note ? '. ' + esc(T.abatement.note) : ''}.`} Future carbon price reaches the plant at a sampled 30–100% (free allocation, benchmarks); pass-through ${T.assumptions.pass_through.join('/')} (low/mode/high).${[T.plant_life && T.plant_life.note, T.cbam && T.cbam.note].filter(Boolean).map(n => '<br>' + esc(n)).join('')}</div></div>
       <div class="an-card wide"><h3><span class="n">4</span>Financial loss distribution 2026–2050 · ${esc(scLabel(AN.scen))}</h3>
         <div class="an-kpis">
           <div class="kpi"><div class="v">${usd(t.mean)}</div><div class="l">expected loss (PV)${pv.mean != null ? ' · ' + pv.mean.toFixed(1) + '% of value' : ''}</div></div>
@@ -1078,6 +1078,9 @@ function renderAnalyst() {
         <div class="an-val" style="flex-wrap:wrap"><label style="margin:0">Asset value (USD)</label><input id="anValue" type="number" placeholder="${V.mode ? Math.round(V.mode) : 'e.g. 850000000'}">
           <label style="margin:0">Emissions (tCO₂e/yr)</label><input id="anEm" type="number" placeholder="${A.emissions_t ? Math.round(A.emissions_t) : 'e.g. 450000'}">
           <select id="anSec" style="width:190px">${AN_SECTORS.map(([k, l]) => `<option value="${k}" ${k === (A.sector + '|' + (A.type || '')) ? 'selected' : ''}>${l}</option>`).join('')}</select>
+          <label style="margin:0">Commissioned (year)</label><input id="anComm" type="number" min="1850" max="2026" placeholder="${T.plant_life && T.plant_life.commissioned ? T.plant_life.commissioned : 'e.g. 1998'}" style="width:90px">
+          <label style="margin:0">Retire (year)</label><input id="anRet" type="number" min="2026" max="2100" placeholder="${T.plant_life && T.plant_life.retirement ? T.plant_life.retirement : 'legal phase-out'}" style="width:90px">
+          <label style="margin:0" title="Share of production exported into the EU (CBAM products)">EU export %</label><input id="anEu" type="number" min="0" max="100" placeholder="${T.cbam && T.cbam.export_share_eu != null ? 100 * T.cbam.export_share_eu : 'e.g. 20'}" style="width:80px">
           <button class="btn btn-ghost" onclick="anRerunValue()">Re-run</button></div>
         ${anFinForm()}
         <div class="an-note">Override any input with the owner's figures — the whole chain (policy, transition, distribution) re-runs.</div></div>
@@ -1107,6 +1110,10 @@ function anRerunValue() {
   if (v > 0) AN.req.value_usd = v;
   if (em >= 0) AN.req.emissions_t = em;
   if (sec) { AN.req.sector = sec; AN.req.asset_type = typ; delete AN.req.register_index; }
+  const yr = id => { const e = document.getElementById(id); return e && e.value !== '' ? parseInt(e.value, 10) : null; };
+  if (yr('anComm')) AN.req.commissioned_year = yr('anComm');
+  if (yr('anRet')) AN.req.retirement_year = yr('anRet');
+  const eu = document.getElementById('anEu'); if (eu && eu.value !== '') AN.req.export_share_eu = Math.min(Math.max(parseFloat(eu.value) / 100, 0), 1);
   const ab = document.getElementById('anAb'); if (ab) AN.req.abatement = ab.checked;
   const g = id => { const e = document.getElementById(id); return e && e.value !== '' ? parseFloat(e.value) : undefined; };
   const f = { revenue_usd: g('fin_rev'), ebitda_usd: g('fin_ebitda'), da_usd: g('fin_da'), interest_usd: g('fin_int'), net_debt_usd: g('fin_debt'),

@@ -31,6 +31,12 @@ and `total_npv_unabated`, so both views are always available.
 Closure option: transition loss (carbon cost + abatement + stranded capital) is capped at the asset's
 value in each draw — an owner would shut the plant rather than pay more than it is worth;
 `closure_share` reports how often that happens.
+Plant life (optional): with a commissioning year the remaining life (design life ~ Tri by sector, less age) sets the
+stranding horizon and undepreciated share and ends the plant's emissions; a retirement year (legal phase-out or
+planned closure) ends operation on that date in every draw.
+CBAM (optional): for products in EU CBAM scope exported from outside the EU, `export_share_eu` of the emissions pay
+max(0, EU price − carbon price paid at home) × CBAM factor (1 − free allocation, 2026→2034) × (1 − pass-through),
+using the NGFS price of the EU region or today's EU ETS price if higher; it adds to the price that triggers abatement.
 Earnings layer (finance/earnings.py): with financials in the request, EBITDA, leverage, coverage,
 rating/PD, covenants and impairment per scenario.
 
@@ -45,6 +51,7 @@ from typing import Optional
 import numpy as np
 
 from . import abatement, earnings
+from .policy import EU_CBAM_FREE_SHARE
 from .transition import FUTURE_CS, SCENARIOS, YEARS, label
 from .vulnerability import V_HALF, tc_damage
 
@@ -52,6 +59,12 @@ PASS_THROUGH = {  # (low, mode, high) share of carbon cost passed on to customer
     "el": (0.5, 0.8, 1.0), "refining": (0.5, 0.8, 1.0), "cement": (0.2, 0.5, 0.8), "steel": (0.2, 0.4, 0.8),
     "chemicals": (0.2, 0.4, 0.7), "min": (0.0, 0.1, 0.4), "ind": (0.2, 0.4, 0.7), "was": (0.3, 0.6, 0.9),
 }
+# Design life of the asset class, years (low, mode, high) — analyst judgement from typical commercial lives
+# (coal ~40, gas ~30, cement and steel ~40, refineries and mines longer-lived with rebuilds). Used only when the
+# commissioning year is given; the remaining life then replaces the sampled 10–30 years.
+DESIGN_LIFE = {"power:coal": (30, 40, 50), "power:gas": (25, 30, 40), "power:oil": (30, 40, 50), "cement": (30, 40, 50),
+               "steel": (30, 40, 50), "refining": (30, 40, 55), "oil-and-gas": (20, 25, 35), "coal-mining": (20, 30, 40)}
+DEFAULT_DESIGN_LIFE = (25, 35, 50)
 STRANDING_KEYS = {"power:coal", "power:gas", "power:oil", "coal-mining", "oil-and-gas", "refining"}
 
 
@@ -156,6 +169,21 @@ def simulate(case: dict, n: int = 4000, discount: float = 0.07, seed: int = 7,
     strand_on = tr.get("activity_key") in STRANDING_KEYS and has_value
     f_econ = _tri(rng, 0.15, 0.35, 0.6, n)          # undepreciated share of replacement value (age unknown)
     life = np.round(_tri(rng, 10, 20, 30, n)).astype(int)
+    # Plant age and legal retirement: remaining life, undepreciated share, and the years the plant still runs.
+    alive = np.ones((n, Y))
+    al = case.get("asset_life") or {}
+    if al.get("commissioned") or al.get("retire"):
+        end = np.full(n, 1e9)
+        if al.get("commissioned"):
+            dl = _tri(np.random.default_rng((common or {}).get("seed", seed) + 104729), *al["design"], n)
+            end = float(al["commissioned"]) + dl
+            rem = np.clip(end - YEARS[0], 0, None)
+            life = np.maximum(np.round(rem), 1).astype(int)
+            f_econ = np.clip(rem / dl, 0.02, 1.0)
+        if al.get("retire"):
+            end = np.minimum(end, float(al["retire"]))
+            life = np.minimum(life, max(int(al["retire"]) - int(YEARS[0]), 1)).astype(int)
+        alive = (YEARS[None, :] < end[:, None]).astype(float)
     # Abatement levers use their own random stream so adding them never changes the physical or carbon draws.
     ab = tr.get("abatement") or {}
     levers = ab.get("levers") or []
@@ -163,6 +191,8 @@ def simulate(case: dict, n: int = 4000, discount: float = 0.07, seed: int = 7,
     if ab.get("enabled") and levers and E > 0:
         S_ab = abatement.sample(levers, np.random.default_rng((common or {}).get("seed", seed) + 7919), n)
     fin = case.get("financials")
+    cb = tr.get("cbam")                                      # {"share", "price": {scenario: {model: array}}, "p_now"}
+    cb_factor = np.array([1.0 - EU_CBAM_FREE_SHARE.get(int(t), 0.0 if t > 2034 else 1.0) for t in YEARS])[None, :]
 
     per_scen = {}
     for s in (scenarios or SCENARIOS):
@@ -176,14 +206,21 @@ def simulate(case: dict, n: int = 4000, discount: float = 0.07, seed: int = 7,
         P = np.stack([prices[m] for m in models])[mi]                         # n × Y
         acts = drv["activity"].get(s) or {}
         A = np.stack([acts[m] if m in acts else np.ones(Y) for m in models])[mi] if acts else np.ones((n, Y))
-        Amin = np.minimum(A, 1.0)
+        Araw = np.minimum(A, 1.0)
+        Amin = Araw * alive
         Ae = E * Amin                                                          # tonnes emitted today's way, per year
-        q = (p0 * cs0 + np.maximum(P - p0, 0.0) * csf) * (1 - pt)              # net carbon price the asset faces
+        qg = p0 * cs0 + np.maximum(P - p0, 0.0) * csf                          # carbon price paid at home, per tonne
+        q = qg * (1 - pt)                                                      # net of cost pass-through
+        cbam_unit = np.zeros((n, Y))
+        if cb:
+            eu = np.stack([np.maximum(cb["price"].get(s, {}).get(m, np.zeros(Y)), cb["p_now"]) for m in models])[mi]
+            cbam_unit = cb["share"] * np.maximum(eu - qg, 0.0) * cb_factor * (1 - pt)      # EU border charge on exports
+            q = q + cbam_unit
         cost = Ae * q                                                          # unabated: the cost of doing nothing
         npv_cost = (cost * disc).sum(axis=1)
         if strand_on and acts:
             idx = np.arange(Y)[None, :] < life[:, None]
-            meanA = (Amin * idx).sum(axis=1) / np.maximum(idx.sum(axis=1), 1)
+            meanA = (Araw * idx).sum(axis=1) / np.maximum(idx.sum(axis=1), 1)
             strand = V * f_econ * np.clip(1 - meanA, 0, 1)
         else:
             strand = np.zeros(n)
@@ -208,12 +245,13 @@ def simulate(case: dict, n: int = 4000, discount: float = 0.07, seed: int = 7,
         total_un = np.minimum(npv_phys + trans_un, V) if has_value else npv_phys + trans_un
         earn = None
         if fin is not None:
-            earn = earnings.compute(fin, {"Amin": Amin, "pay": pay, "ab_opex": R["opex"], "capex": R["capex"], "pt": pt,
+            earn = earnings.compute(fin, {"Amin": Araw, "alive": alive, "pay": pay, "ab_opex": R["opex"], "capex": R["capex"], "pt": pt,
                                           "disc": disc, "years": YEARS, "discount": discount, "drv": drv, "scenario": s,
                                           "models": models, "mi": mi})
         per_scen[s] = {"label": label(s), "total": total, "total_un": total_un, "cost": npv_cost, "strand": strand,
                        "trans": trans, "trans_un": trans_un, "npv_resp": npv_resp, "npv_pay": (pay * disc).sum(axis=1),
                        "npv_abate": (R["cost"] * disc).sum(axis=1), "R": R, "capped_share": capped, "earnings": earn,
+                       "npv_cbam": (Ae * cbam_unit * disc).sum(axis=1) if cb else None,
                        "annual_cost": resp, "annual_cost_un": cost, "price": P, "activity": A}
 
     v_ref = V if has_value else None                       # per-draw value: % of value stays within the cap
@@ -252,6 +290,8 @@ def simulate(case: dict, n: int = 4000, discount: float = 0.07, seed: int = 7,
                 "capex_pv_mean": float(((R["capex"] * disc).sum(axis=1)).mean()),
                 "levers": abatement.summarise(levers, S_ab, R, YEARS)} if S_ab is not None else {"enabled": False}),
             "earnings": r["earnings"],
+            "cbam_npv": _stats(r["npv_cbam"], v_ref) if r["npv_cbam"] is not None else None,
+            "retired_share_by_2050": round(float(1 - alive[:, -1].mean()), 3) if (alive < 1).any() else 0.0,
             "closure_share": round(r["capped_share"], 3),
             "stranded": _stats(r["strand"], v_ref) if strand_on else None,
             "annual_cost_median": np.round(np.median(ac, axis=0), 0).tolist(),

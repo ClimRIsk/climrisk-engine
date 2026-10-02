@@ -2544,6 +2544,9 @@ class AnalystAssetRequest(BaseModel):
                   "revenue_usd, ebitda_usd required; da_usd, interest_usd, net_debt_usd, book_value_usd, tax_rate, "
                   "electricity_mwh, fuel (coal|gas|oil) + fuel_gj, commodity (coal|gas|oil|none), price_realisation, "
                   "operating_leverage, sustaining_capex_usd, covenant_max_leverage, covenant_min_icr, lgd")
+    commissioned_year: Optional[int] = Field(None, ge=1850, le=2100, description="Year the plant started operating — sets remaining life and undepreciated value")
+    retirement_year:   Optional[int] = Field(None, ge=2000, le=2100, description="Legal phase-out or planned closure year")
+    export_share_eu:   Optional[float] = Field(None, ge=0, le=1, description="Share of production (emissions) exported into the EU — drives the CBAM border charge for in-scope products")
     abatement:    bool = Field(True, description="Include the operator's abatement response (sector levers); false = cost of inaction only")
     levers:       Optional[list[dict]] = Field(None, max_length=8, description="Own abatement levers replacing the library: "
                   "[{name, share (0-1 or [low,mode,high]), mac (US$/t or [low,mode,high]), lead?, avail?, life?, opex_share?, source?}]")
@@ -2587,7 +2590,9 @@ def analyst_asset(request: AnalystAssetRequest) -> dict:
                           atype=request.asset_type, capacity=request.capacity, emissions_t=request.emissions_t,
                           value_usd=request.value_usd, register_index=request.register_index, site=request.site,
                           discount=request.discount_rate, narrative_llm=request.narrative_llm,
-                          financials=request.financials, abatement_on=request.abatement, levers=request.levers)
+                          financials=request.financials, abatement_on=request.abatement, levers=request.levers,
+                          commissioned_year=request.commissioned_year, retirement_year=request.retirement_year,
+                          export_share_eu=request.export_share_eu)
     except (ValueError, KeyError, TypeError) as exc:
         raise HTTPException(status_code=422, detail=str(exc).strip("'\""))
     return _jsonable(r)
@@ -6406,6 +6411,7 @@ async def analyst_sites_upload(file: UploadFile = File(...), label: str = Form("
     if not good:
         raise HTTPException(status_code=422, detail="no rows with valid name, lat and lon")
     from ..finance.analyst import _FIN_COLS
+    _FIN_COLS = _FIN_COLS + ("commissioned_year", "retirement_year", "export_share_eu")
     try:
         res = analyse_sites([{k: r.get(k) for k in ("name", "lat", "lon", "sector", "type", "capacity", "emissions_t",
                                                    "value_usd", "company") + _FIN_COLS} for r in good], label, top_n=top_n)

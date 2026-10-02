@@ -137,15 +137,25 @@ def compute(F: dict, ctx: dict) -> dict:
     e0, rev = F["ebitda"], F["revenue"]
     margin = e0 / rev
     notes = []
+    alive = ctx.get("alive")                       # 1 while the plant is within its life / before legal retirement
+    alive = np.ones((n, Y)) if alive is None else alive
+    base = e0 * alive                              # today's EBITDA, ending when the plant does (not a climate effect)
+    retiring = bool((alive < 1).any())
 
-    vol = rev * (1 - Amin) * max(margin, 0.0) * F["oplev"]
+    def cq(x, q):                                  # percentile over the draws whose plant is still operating
+        return np.array([np.percentile(x[alive[:, i] > 0, i], q) if (alive[:, i] > 0).any() else 0.0 for i in range(Y)])
+
+    def cmean(x):
+        return (x * alive).sum(axis=0) / np.maximum(alive.sum(axis=0), 1)
+
+    vol = rev * (1 - Amin) * max(margin, 0.0) * F["oplev"] * alive
     elec = np.zeros((n, Y))
     if F["mwh"]:
         d = _stack(ctx["drv"], ctx["scenario"], ctx["models"], ctx["mi"], "electricity", "delta_usd_gj", Y, 0.0)
         if d is None:
             notes.append("No NGFS electricity price for this region: power-cost channel skipped.")
         else:
-            elec = d * GJ_PER_MWH * F["mwh"] * Amin * (1 - pt)
+            elec = d * GJ_PER_MWH * F["mwh"] * Amin * (1 - pt) * alive
     else:
         notes.append("Electricity use (MWh) not given: indirect (Scope 2) power-price channel not modelled.")
     fuel = np.zeros((n, Y))
@@ -154,42 +164,48 @@ def compute(F: dict, ctx: dict) -> dict:
         if d is None:
             notes.append(f"No NGFS {F['fuel']} price for this region: fuel-cost channel skipped.")
         else:
-            fuel = d * F["fuel_gj"] * Amin * (1 - pt)
+            fuel = d * F["fuel_gj"] * Amin * (1 - pt) * alive
     comm = np.zeros((n, Y))
     if F["commodity"]:
         ratio = _stack(ctx["drv"], ctx["scenario"], ctx["models"], ctx["mi"], F["commodity"], "ratio", Y, 1.0)
         if ratio is None:
             notes.append(f"No NGFS {F['commodity']} price for this region: commodity-price channel skipped.")
         else:
-            comm = rev * Amin * (ratio - 1.0) * F["realisation"]
-    ebitda = e0 - vol - pay - ab_opex - elec - fuel + comm
+            comm = rev * Amin * (ratio - 1.0) * F["realisation"] * alive
+    ebitda = base - vol - pay - ab_opex - elec - fuel + comm
     # Operating closure: a plant whose EBITDA turns negative shuts (it would not keep burning cash). From that
     # year the whole margin is lost, the other channels and capex stop; debt and interest remain.
     closed = np.maximum.accumulate(ebitda < 0, axis=1) if e0 > 0 else np.zeros((n, Y), bool)
     if closed.any():
-        vol = np.where(closed, e0, vol)
+        vol = np.where(closed, base, vol)
         pay, ab_opex, elec, fuel, comm, capex = (np.where(closed, 0.0, a) for a in (pay, ab_opex, elec, fuel, comm, capex))
-        ebitda = e0 - vol - pay - ab_opex - elec - fuel + comm
-    drag = (e0 - ebitda) * (1 - F["tax"]) + capex
+        ebitda = base - vol - pay - ab_opex - elec - fuel + comm
+    drag = (base - ebitda) * (1 - F["tax"]) + capex
     cum = np.cumsum(drag, axis=1)
     out = {"years": years.tolist(), "baseline_ebitda": e0, "margin": round(margin, 4),
-           "ebitda": {"median": _r(_pct(ebitda, 50)), "p5": _r(_pct(ebitda, 5)), "p95": _r(_pct(ebitda, 95))},
+           "ebitda": {"median": _r(cq(ebitda, 50)), "p5": _r(cq(ebitda, 5)), "p95": _r(cq(ebitda, 95))},
            "channels_pv_mean": {k: float((v * disc).sum(axis=1).mean()) for k, v in
                                 (("volume", vol), ("carbon_payments", pay), ("abatement_opex", ab_opex), ("power", elec),
                                  ("fuel", fuel), ("commodity_price", -comm))},
            "channels_note": "present value, positive = reduces EBITDA; after an operating closure the lost margin is booked to volume",
-           "prob_closed": [round(float(x), 4) for x in closed.mean(axis=0)], "notes": notes, "horizons": {}}
-    pv_loss = ((e0 - ebitda) * disc).sum(axis=1)
+           "prob_closed": [round(float(x), 4) for x in closed.mean(axis=0)],
+           "prob_retired": [round(float(x), 4) for x in (1 - alive.mean(axis=0))], "notes": notes, "horizons": {}}
+    if retiring:
+        notes.append("The plant reaches the end of its life (or legal retirement) inside the horizon in some draws: figures "
+                     "after retirement count only the draws still operating; the earnings that end with the plant are not a climate loss.")
+    pv_loss = ((base - ebitda) * disc).sum(axis=1)
     out["ebitda_shortfall_pv"] = {"mean": float(pv_loss.mean()), "p50": float(np.percentile(pv_loss, 50)),
                                   "p95": float(np.percentile(pv_loss, 95))}
     out["abatement_capex_pv_mean"] = float((capex * disc).sum(axis=1).mean())
     for yr in HORIZONS:
         i = int(yr - years[0])
         if 0 <= i < Y:
+            live = base[:, i] > 0
+            chg = (ebitda[live, i] - base[live, i]) / base[live, i] if (e0 > 0 and live.any()) else None
             out["horizons"][str(yr)] = {
-                "ebitda_change_pct_median": round(float(100 * (np.median(ebitda[:, i]) - e0) / abs(e0)), 1) if e0 else None,
-                "ebitda_change_pct_p5": round(float(100 * (np.percentile(ebitda[:, i], 5) - e0) / abs(e0)), 1) if e0 else None,
-                "prob_closed": round(float(closed[:, i].mean()), 4)}
+                "ebitda_change_pct_median": round(float(100 * np.median(chg)), 1) if chg is not None else None,
+                "ebitda_change_pct_p5": round(float(100 * np.percentile(chg, 5)), 1) if chg is not None else None,
+                "prob_closed": round(float(closed[:, i].mean()), 4), "prob_retired": round(float(1 - alive[:, i].mean()), 4)}
     # balance sheet
     nd0 = F["net_debt"]
     icr_ebitda = icr = lev = None
@@ -198,12 +214,12 @@ def compute(F: dict, ctx: dict) -> dict:
         nd = nd0 + cum
         lev = np.where(ebitda > 0, nd / np.where(ebitda > 0, ebitda, 1.0), 99.0)
         lev = np.minimum(lev, 99.0)
-        out["net_debt"] = {"baseline": nd0, "median": _r(_pct(nd, 50)), "p95": _r(_pct(nd, 95))}
-        out["leverage"] = {"baseline": round(nd0 / e0, 2) if e0 > 0 else None, "median": np.round(_pct(lev, 50), 2).tolist(),
-                           "p95": np.round(_pct(lev, 95), 2).tolist()}
+        out["net_debt"] = {"baseline": nd0, "median": _r(cq(nd, 50)), "p95": _r(cq(nd, 95))}
+        out["leverage"] = {"baseline": round(nd0 / e0, 2) if e0 > 0 else None, "median": np.round(cq(lev, 50), 2).tolist(),
+                           "p95": np.round(cq(lev, 95), 2).tolist()}
         for yr in HORIZONS:
             if str(yr) in out["horizons"]:
-                out["horizons"][str(yr)]["leverage_median"] = round(float(np.median(lev[:, int(yr - years[0])])), 2)
+                out["horizons"][str(yr)]["leverage_median"] = round(float(cq(lev, 50)[int(yr - years[0])]), 2)
     else:
         nd = None
         notes.append("Net debt not given: leverage, coverage trend and credit metrics not computed.")
@@ -211,30 +227,30 @@ def compute(F: dict, ctx: dict) -> dict:
         rate = (F["interest"] / nd0) if (nd0 and nd0 > 0) else 0.0
         interest = F["interest"] + (np.maximum(nd - nd0, 0.0) * rate if nd is not None else 0.0)
         icr_ebitda = np.clip(ebitda / interest, -99, 99)
-        out["coverage_ebitda"] = {"baseline": round(e0 / F["interest"], 2), "median": np.round(_pct(icr_ebitda, 50), 2).tolist(),
-                                  "p5": np.round(_pct(icr_ebitda, 5), 2).tolist()}
+        out["coverage_ebitda"] = {"baseline": round(e0 / F["interest"], 2), "median": np.round(cq(icr_ebitda, 50), 2).tolist(),
+                                  "p5": np.round(cq(icr_ebitda, 5), 2).tolist()}
         if F["da"] is not None:
             icr = np.clip((ebitda - F["da"]) / interest, -99, 99)
             base_icr = (e0 - F["da"]) / F["interest"]
             idx = np.searchsorted(ICR_BOUNDS, icr, side="left")
             pd_ = PD_BY_IDX[idx]
-            pd_mean = pd_.mean(axis=0)
+            pd_mean = cmean(pd_)
             b_idx = int(np.searchsorted(ICR_BOUNDS, base_icr, side="left"))
             ead = np.maximum(nd, 0.0) if nd is not None else None
             out["credit"] = {
                 "basis": "EBIT / interest → Damodaran synthetic rating (large non-financial firms) → S&P class default rate",
                 "baseline": {"coverage_ebit": round(base_icr, 2), "rating": RATINGS[b_idx], "pd": float(PD_BY_IDX[b_idx])},
-                "rating_median": [RATINGS[int(np.median(idx[:, i]))] for i in range(Y)],
-                "rating_notches_vs_baseline_median": [int(np.median(idx[:, i])) - b_idx for i in range(Y)],
+                "rating_median": [RATINGS[int(cq(idx.astype(float), 50)[i])] for i in range(Y)],
+                "rating_notches_vs_baseline_median": [int(cq(idx.astype(float), 50)[i]) - b_idx for i in range(Y)],
                 "pd_mean": [round(float(x), 5) for x in pd_mean],
-                "coverage_ebit_median": np.round(_pct(icr, 50), 2).tolist(),
-                "ecl_mean_usd": _r((pd_ * F["lgd"] * ead).mean(axis=0)) if ead is not None else None,
+                "coverage_ebit_median": np.round(cq(icr, 50), 2).tolist(),
+                "ecl_mean_usd": _r(cmean(pd_ * F["lgd"] * ead)) if ead is not None else None,
                 "lgd": F["lgd"], "sources": RATING_SOURCES,
                 "caveat": "Through-the-cycle rating proxy from coverage; not a substitute for an internal rating model."}
             for yr in HORIZONS:
                 if str(yr) in out["horizons"]:
                     i = int(yr - years[0])
-                    out["horizons"][str(yr)].update({"rating_median": RATINGS[int(np.median(idx[:, i]))],
+                    out["horizons"][str(yr)].update({"rating_median": RATINGS[int(cq(idx.astype(float), 50)[i])],
                                                      "pd_mean": round(float(pd_mean[i]), 5)})
         else:
             notes.append("D&A not given: coverage is EBITDA-based; the synthetic rating and PD need EBIT (give da_usd).")
@@ -247,10 +263,11 @@ def compute(F: dict, ctx: dict) -> dict:
             br |= lev > F["cov_lev"]
         if F["cov_icr"] is not None and icr_ebitda is not None:
             br |= icr_ebitda < F["cov_icr"]
+        br = br & (alive > 0)
         ever = np.maximum.accumulate(br, axis=1)
         first = np.where(ever.any(axis=1), ever.argmax(axis=1), -1)
         out["covenants"] = {"max_leverage": F["cov_lev"], "min_coverage_ebitda": F["cov_icr"],
-                            "prob_in_breach": [round(float(x), 4) for x in br.mean(axis=0)],
+                            "prob_in_breach": [round(float(x), 4) for x in cmean(br.astype(float))],
                             "prob_breached_by": [round(float(x), 4) for x in ever.mean(axis=0)],
                             "first_breach_year_median": int(years[0] + np.median(first[first >= 0])) if (first >= 0).any() else None}
         out["covenants"]["by_horizon"] = {str(yr): round(float(ever[:, int(yr - years[0])].mean()), 4)
@@ -259,11 +276,12 @@ def compute(F: dict, ctx: dict) -> dict:
         notes.append("Covenant thresholds given but net debt or interest missing: covenants not tested.")
     # impairment
     if F["book"]:
-        cf = ebitda * (1 - F["tax"]) - capex - F["sustaining"]
+        cf = ebitda * (1 - F["tax"]) - capex - F["sustaining"] * alive
         viu = (cf * disc).sum(axis=1)
-        viu0 = float(((e0 * (1 - F["tax"]) - F["sustaining"]) * disc).sum())
+        viu0_d = ((base * (1 - F["tax"]) - F["sustaining"] * alive) * disc).sum(axis=1)     # same life, today's earnings
+        viu0 = float(viu0_d.mean())
         imp = np.maximum(0.0, F["book"] - np.maximum(viu, 0.0))
-        imp0 = max(0.0, F["book"] - max(viu0, 0.0))
+        imp0 = np.maximum(0.0, F["book"] - np.maximum(viu0_d, 0.0))
         clim = np.maximum(0.0, imp - imp0)
         tail = clim[clim >= np.percentile(clim, 95)]
         out["impairment"] = {"carrying_amount": F["book"], "value_in_use_baseline": viu0,
@@ -273,7 +291,7 @@ def compute(F: dict, ctx: dict) -> dict:
                                                       "p95": float(np.percentile(clim, 95)), "es95": float(tail.mean())},
                              "climate_attributable_pct_of_carrying": round(100 * float(clim.mean()) / F["book"], 2),
                              "prob_any": round(float((clim > 0).mean()), 4),
-                             "baseline_already_impaired": bool(imp0 > 0),
+                             "baseline_already_impaired": bool(imp0.mean() > 0),
                              "method": "PV of after-tax EBITDA − abatement capex − sustaining capex to 2050 at the model discount rate, "
                                        "no terminal value; climate-attributable = impairment in scenario − impairment on flat baseline."}
         if not F["sustaining"]:

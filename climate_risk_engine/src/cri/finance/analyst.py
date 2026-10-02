@@ -163,6 +163,49 @@ _ABATEMENT = {
 }
 
 
+def _asset_life(commissioned: Optional[int], retire: Optional[int], act_key: Optional[str]):
+    """Validated plant-life input for the simulation and a note on what it means."""
+    from .distribution import DEFAULT_DESIGN_LIFE, DESIGN_LIFE
+    if not commissioned and not retire:
+        return None, None
+    now = int(transition.YEARS[0])
+    if commissioned is not None and not (1850 <= int(commissioned) <= now):
+        raise ValueError(f"commissioned_year must be between 1850 and {now}")
+    if retire is not None and not (now <= int(retire) <= 2100):
+        raise ValueError(f"retirement_year must be between {now} and 2100")
+    if commissioned and retire and int(retire) <= int(commissioned):
+        raise ValueError("retirement_year must be after commissioned_year")
+    d = DESIGN_LIFE.get(act_key or "", DEFAULT_DESIGN_LIFE)
+    parts = []
+    if commissioned:
+        parts.append(f"Commissioned {int(commissioned)}: design life sampled {d[0]}–{d[2]} years (mode {d[1]}, analyst judgement for "
+                     "the sector), so remaining life and undepreciated value follow from the age.")
+    if retire:
+        parts.append(f"Retirement fixed at {int(retire)} (legal phase-out or planned closure): no emissions or earnings after it.")
+    return {"commissioned": int(commissioned) if commissioned else None, "retire": int(retire) if retire else None,
+            "design": d}, " ".join(parts)
+
+
+def _cbam(share: Optional[float], pol: dict, sector: str, atype: str, ckey: Optional[str]):
+    """EU CBAM exposure on exports: only for in-scope products made outside the EU ETS area."""
+    if share is None:
+        return None, ("Product is in EU CBAM scope but the share exported to the EU is not given, so the border charge is not "
+                      "modelled — give export_share_eu (0–1)." if pol.get("cbam_exporter") else None)
+    if not (0 <= float(share) <= 1):
+        raise ValueError("export_share_eu must be between 0 and 1")
+    if not pol.get("cbam_exporter"):
+        return None, "export_share_eu ignored: the asset is inside the EU ETS area or its product is outside CBAM scope."
+    if not share:
+        return None, None
+    eu = next((i for i in policy._wb()["instruments"] if i["id"] == "ETS_EU"), None)
+    p_now = (policy._price_latest(eu)[0] if eu else None) or 0.0
+    drv = transition.drivers("DEU", sector, atype, ckey)
+    return ({"share": float(share), "price": drv["price"], "p_now": float(p_now)},
+            f"CBAM: {100 * float(share):.0f}% of emissions are embedded in EU exports and pay the EU carbon price less the price paid at "
+            f"home, on the share not covered by free allocation (2.5% in 2026 rising to 100% in 2034); EU price = max of today's ETS "
+            f"price (${p_now:.0f}/t) and the NGFS EU path.")
+
+
 def _actions(res: dict, cost_key: Optional[str], act_key: Optional[str]) -> list:
     acts = []
     ph = res["physical"]
@@ -250,7 +293,9 @@ def analyse_asset(lat: float, lon: float, name: Optional[str] = None, sector: Op
                   value_usd: Optional[float] = None, iso3: Optional[str] = None, register_index: Optional[int] = None,
                   site: Optional[dict] = None, radius_m: float = 250.0, discount: float = 0.07, n: int = 4000,
                   narrative_llm: bool = False, _flood: Optional[dict] = None, _common: Optional[dict] = None,
-                  financials: Optional[dict] = None, abatement_on: bool = True, levers: Optional[list] = None) -> dict:
+                  financials: Optional[dict] = None, abatement_on: bool = True, levers: Optional[list] = None,
+                  commissioned_year: Optional[int] = None, retirement_year: Optional[int] = None,
+                  export_share_eu: Optional[float] = None) -> dict:
     t0 = time.time()
     steps = []
     reg = None
@@ -301,7 +346,9 @@ def analyse_asset(lat: float, lon: float, name: Optional[str] = None, sector: Op
     ab_lib = abatement.library_for(act_key, ckey)
     ab_levers = abatement.user_levers(levers) if levers else ab_lib["levers"]
     ab_cfg = {"enabled": bool(abatement_on and emissions_t and ab_levers), "levers": ab_levers}
-    case = {"value": val if val.get("mode") else None, "financials": fin_in,
+    life_in, life_note = _asset_life(commissioned_year, retirement_year, act_key)
+    cbam_in, cbam_note = _cbam(export_share_eu, pol, sector or "", atype or "", ckey)
+    case = {"value": val if val.get("mode") else None, "financials": fin_in, "asset_life": life_in,
             "tc": {"lam": tc["lam"], "sigma": tc["sigma"], "region": tcr},
             "river": {"rps": river.get("rps"), "damage": river.get("damage"), "protection": river["protection_rp"]}
             if river.get("damage") else None,
@@ -309,7 +356,7 @@ def analyse_asset(lat: float, lon: float, name: Optional[str] = None, sector: Op
                       "protection": coast["protection_rp"]} if coast.get("damage") else None,
             "transition": {"emissions_t": emissions_t or 0.0, "explicit_price": pol["effective_price_usd_t"],
                            "charged_share_path": cs_path, "drivers": drv, "pass_through_key": pt_key,
-                           "activity_key": act_key, "abatement": ab_cfg}}
+                           "activity_key": act_key, "abatement": ab_cfg, "cbam": cbam_in}}
     fin = simulate(case, n=n, discount=discount, common=_common)
     steps.append({"stage": "financial", "text": f"Monte Carlo {n:,} draws × 25 years, discount {discount:.0%} real"})
 
@@ -348,6 +395,9 @@ def analyse_asset(lat: float, lon: float, name: Optional[str] = None, sector: Op
                                      "user_levers": bool(levers),
                                      "levers": [{k: l[k] for k in ("name", "share", "mac", "lead", "avail", "basis", "source")}
                                                 for l in ab_levers]},
+                       "plant_life": {"commissioned": commissioned_year, "retirement": retirement_year,
+                                      "design_life": (life_in or {}).get("design"), "note": life_note},
+                       "cbam": {"export_share_eu": export_share_eu if cbam_in else None, "note": cbam_note},
                        "assumptions": {"emissions": ("abated when the net carbon price reaches a lever's levelised cost "
                                                      "(sector levers, lead times, irreversible); the unabated cost is shown as cost of inaction"
                                                      if ab_cfg["enabled"] else
@@ -381,6 +431,12 @@ def analyse_asset(lat: float, lon: float, name: Optional[str] = None, sector: Op
                               "Replace with site quotes where you have them.")
     elif emissions_t and not ab_cfg["enabled"]:
         res["caveats"].append("No abatement response included (" + (ab_lib["note"] or "switched off") + ") — results are the cost of inaction.")
+    for note in (life_note, cbam_note):
+        if note:
+            res["caveats"].append(note)
+    if not life_in and act_key in STRANDING_KEYS:
+        res["caveats"].append("Plant age unknown: remaining life is sampled (10–30 years) and the undepreciated share of "
+                              "value 15–60%. Give the commissioning year (and any legal retirement year) to replace both.")
     if fin_in:
         res["caveats"].append("Earnings layer: financials must cover the same perimeter as the emissions; ratings and default "
                               "probabilities are a coverage-based proxy, not an internal credit rating; debt refinancing is not modelled.")
@@ -503,6 +559,20 @@ _FIN_COLS = ("revenue_usd", "ebitda_usd", "da_usd", "interest_usd", "net_debt_us
              "sustaining_capex_usd", "covenant_max_leverage", "covenant_min_icr", "lgd")
 
 
+def _int_or_none(v):
+    try:
+        return None if v in (None, "") or v != v else int(float(v))
+    except (TypeError, ValueError):
+        raise ValueError(f"not a year: {v!r}")
+
+
+def _num_or_none(v):
+    try:
+        return None if v in (None, "") or v != v else float(v)
+    except (TypeError, ValueError):
+        raise ValueError(f"not a number: {v!r}")
+
+
 def _site_financials(s: dict, k: int) -> Optional[dict]:
     """Per-site financial columns → earnings-layer input (needs revenue_usd and ebitda_usd; a lone one is an error)."""
     f = {c: s[c] for c in _FIN_COLS if s.get(c) not in (None, "")}
@@ -530,7 +600,10 @@ def analyse_sites(sites: list, label: str = "Portfolio", top_n: int = 30, n: int
                        "_kw": {"name": s.get("name") or f"Site {k + 1}", "sector": s.get("sector") or "other",
                                "atype": s.get("type"), "capacity": s.get("capacity"),
                                "emissions_t": s.get("emissions_t"), "value_usd": s.get("value_usd"),
-                               "financials": _site_financials(s, k)}})
+                               "financials": _site_financials(s, k),
+                               "commissioned_year": _int_or_none(s.get("commissioned_year")),
+                               "retirement_year": _int_or_none(s.get("retirement_year")),
+                               "export_share_eu": _num_or_none(s.get("export_share_eu"))}})
     return _portfolio(assets, [label], top_n, n, discount,
                       f"flood depths fetched live for the top {top_n} sites by emissions (then by list order)")
 

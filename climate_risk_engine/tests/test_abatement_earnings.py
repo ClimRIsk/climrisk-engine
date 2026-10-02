@@ -199,3 +199,86 @@ def test_analyse_asset_with_financials_offline():
     own = analyse_asset(16.2, 120.4, levers=[{"name": "Own CCS", "share": 0.5, "mac": [30, 40, 50], "lead": 3}], **kw)
     assert [l["name"] for l in own["transition"]["abatement"]["levers"]] == ["Own CCS"]
     assert own["transition"]["abatement"]["user_levers"] is True
+
+
+# ── plant life and CBAM ──────────────────────────────────────────────────────
+
+def _life_case(**tr_extra):
+    c = _case(False)
+    c["transition"].update(tr_extra)
+    return c
+
+
+def test_retirement_year_ends_emissions_and_cost():
+    base = simulate(_case(False), n=600, seed=2)
+    c = _case(False)
+    c["asset_life"] = {"commissioned": None, "retire": 2031, "design": (30, 40, 50)}
+    r = simulate(c, n=600, seed=2)
+    for s in ("Net Zero 2050", "Delayed transition"):
+        assert r["scenarios"][s]["transition_npv"]["mean"] < base["scenarios"][s]["transition_npv"]["mean"]
+        ac = r["scenarios"][s]["annual_cost_median"]
+        assert ac[5] == 0 and ac[-1] == 0 and ac[0] > 0                # nothing after 2031, something before
+    assert r["scenarios"]["Net Zero 2050"]["retired_share_by_2050"] == 1.0
+
+
+def test_commissioning_year_sets_remaining_life_and_stranding():
+    drv = transition.drivers("USA", "electricity-generation", "coal", "power:coal")
+    Y = len(transition.YEARS)
+
+    def run(life):
+        return simulate({"value": {"low": 1e9, "mode": 1e9, "high": 1e9}, "tc": {"lam": 0.0, "sigma": None, "region": "ROW"},
+                         "asset_life": life,
+                         "transition": {"emissions_t": 1e6, "explicit_price": 0.0, "charged_share_path": (np.zeros(Y),) * 3,
+                                        "drivers": drv, "pass_through_key": "el", "activity_key": "power:coal",
+                                        "abatement": {"enabled": False, "levers": []}}}, n=800, seed=4)
+    old = run({"commissioned": 1980, "retire": None, "design": (40, 40, 40)})       # remaining life 0 → floor of 1 year
+    new = run({"commissioned": 2024, "retire": None, "design": (40, 40, 40)})       # 38 years left, 95 % undepreciated
+    s_old = old["scenarios"]["Net Zero 2050"]["stranded"]["mean"]
+    s_new = new["scenarios"]["Net Zero 2050"]["stranded"]["mean"]
+    assert s_new > 2 * s_old                                                         # young plant has far more to lose
+
+
+def test_cbam_adds_border_charge_only_with_export_share():
+    from cri.finance.analyst import analyse_asset
+    kw = dict(name="Dhaka cement", sector="cement", atype="integrated dry", emissions_t=8e5, value_usd=2.5e8, iso3="BGD", n=500,
+              _flood=NO_FLOOD)
+    plain = analyse_asset(23.7, 90.4, **kw)
+    assert any("export_share_eu" in c for c in plain["caveats"])                     # told what to give
+    with_eu = analyse_asset(23.7, 90.4, export_share_eu=0.3, **kw)
+    zero = analyse_asset(23.7, 90.4, export_share_eu=0.0, **kw)
+    for s in ("Current Policies", "Delayed transition"):
+        a, b = plain["financial"]["scenarios"][s], with_eu["financial"]["scenarios"][s]
+        assert b["transition_npv"]["mean"] > a["transition_npv"]["mean"] and b["cbam_npv"]["mean"] > 0
+        assert zero["financial"]["scenarios"][s]["transition_npv"]["mean"] == pytest.approx(a["transition_npv"]["mean"])
+    # a domestic EU asset or a non-CBAM product ignores the share
+    de = analyse_asset(51.0, 7.0, export_share_eu=0.5, name="Rhine plant", sector="cement", atype="integrated dry",
+                       emissions_t=8e5, value_usd=2.5e8, iso3="DEU", n=300, _flood=NO_FLOOD)
+    assert de["financial"]["scenarios"]["Delayed transition"]["cbam_npv"] is None and any("ignored" in c for c in de["caveats"])
+    with pytest.raises(ValueError):
+        analyse_asset(23.7, 90.4, export_share_eu=1.5, **kw)
+
+
+def test_plant_life_inputs_validated_and_reported():
+    from cri.finance.analyst import analyse_asset
+    kw = dict(name="Old coal", sector="electricity-generation", atype="coal", emissions_t=2e6, value_usd=5e8, iso3="USA", n=400,
+              _flood=NO_FLOOD)
+    unknown = analyse_asset(40.0, -80.0, **kw)
+    assert any("Plant age unknown" in c for c in unknown["caveats"])
+    known = analyse_asset(40.0, -80.0, commissioned_year=1985, retirement_year=2034, **kw)
+    assert known["transition"]["plant_life"]["retirement"] == 2034 and not any("Plant age unknown" in c for c in known["caveats"])
+    for bad in ({"commissioned_year": 2040}, {"retirement_year": 2020}, {"commissioned_year": 2000, "retirement_year": 1999}):
+        with pytest.raises(ValueError):
+            analyse_asset(40.0, -80.0, **bad, **kw)
+
+
+def test_earnings_after_retirement_do_not_count_as_climate_loss():
+    n = 3
+    alive = np.ones((n, Y))
+    alive[:, 10:] = 0.0                                                              # plant retires after 10 years
+    ctx = _ctx(n, pay=0.0)
+    ctx["alive"] = alive
+    out = earnings.compute(_fin(book_value_usd=100e6), ctx)
+    assert out["ebitda"]["median"][5] == pytest.approx(20e6) and out["ebitda"]["median"][12] == 0.0
+    assert out["ebitda_shortfall_pv"]["mean"] == pytest.approx(0.0, abs=1)           # retirement is not a shortfall
+    assert out["impairment"]["climate_attributable"]["mean"] == 0                    # same life in baseline and scenario
+    assert out["prob_retired"][12] == 1.0 and out["horizons"]["2040"]["ebitda_change_pct_median"] is None

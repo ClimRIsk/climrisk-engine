@@ -20,7 +20,7 @@ from typing import Callable, Iterable, Optional
 
 REQUIRED = ("name", "lat", "lon")
 OPTIONAL = ("sector", "type", "capacity", "emissions_t", "value_usd", "company")
-FIN_NUM = ("revenue_usd", "ebitda_usd", "da_usd", "interest_usd", "net_debt_usd", "book_value_usd", "tax_rate",
+FIN_NUM = ("commissioned_year", "retirement_year", "export_share_eu", "revenue_usd", "ebitda_usd", "da_usd", "interest_usd", "net_debt_usd", "book_value_usd", "tax_rate",
            "electricity_mwh", "fuel_gj", "price_realisation", "operating_leverage", "sustaining_capex_usd",
            "covenant_max_leverage", "covenant_min_icr", "lgd")
 SCEN_SHORT = {"Net Zero 2050": "nz2050", "Below 2°C": "b2c", "Low demand": "lowdemand",
