@@ -222,3 +222,18 @@ def test_api_products(path, body):
 def test_api_dashboard_served():
     r = client.get("/lca/dashboard")
     assert r.status_code == 200 and "Product Carbon Footprint" in r.text
+
+
+def test_steel_results_carry_worldsteel_benchmark_note():
+    bof = products.steel("bf_bof", 150, "CHN", n=200)
+    assert any("2.32" in n and "floor" in n for n in bof["notes"])
+    assert any("0.70" in n for n in products.steel("eaf", 450, "FRA", n=200)["notes"])
+    assert any("1.43" in n for n in products.steel("dri_eaf", 450, "IND", n=200)["notes"])
+
+
+def test_aluminium_exclusions_declared_unless_supplied():
+    bare = products.aluminium(14000, "NOR", n=200)
+    assert len(bare["exclusions"]) == 2
+    full = products.aluminium(14000, "NOR", alumina_t=1.93, alumina_kgco2e_per_t=500, pfc_kgco2e_per_t=300, n=200)
+    assert full["exclusions"] == []
+    assert full["footprint_kg_co2e_per_t"] > bare["footprint_kg_co2e_per_t"]

@@ -52,6 +52,19 @@ def _result(product: str, inv: Inventory, country: Optional[str], tier_note: str
     }
 
 
+STEEL_BENCHMARK_NOTE = {
+    "bf_bof": "Benchmark check: the worldsteel 2023 global average for BF-BOF is 2.32 t CO2 per t crude steel "
+              "(Sustainability Indicators report, partial scope 3). The IPCC Tier 1 process factor plus electricity "
+              "typically gives a LOWER figure for integrated mills because it omits externally sourced coke, "
+              "fuel-gas and ore-preparation emissions. Treat this result as a floor; use plant data (Tier 2/3) "
+              "or add fuels/materials before quoting it.",
+    "eaf": "Benchmark check: the worldsteel 2023 global average for scrap-EAF is 0.70 t CO2 per t crude steel, "
+           "dominated by grid electricity, alloys and electrodes. Results far below that need plant-specific evidence.",
+    "dri_eaf": "Benchmark check: the worldsteel 2023 global average for DRI-EAF is 1.43 t CO2 per t crude steel. "
+               "The Tier 1 route here omits ore pelletising and natural-gas supply chain emissions.",
+}
+
+
 def steel(route: str, kwh_per_t: float, country: Optional[str] = None, g_per_kwh: Optional[float] = None,
           extra_fuels: Optional[dict] = None, materials: Optional[list] = None, transport: Optional[list] = None,
           n: int = 5000) -> dict:
@@ -72,6 +85,7 @@ def steel(route: str, kwh_per_t: float, country: Optional[str] = None, g_per_kwh
         inv.exclusions.append("Scrap / DRI feedstock upstream (supply factors to include)")
     if route == "bf_bof":
         inv.notes.append("IPCC Tier 1 BOF factor covers the integrated route (coke, sinter, iron- and steelmaking).")
+    inv.notes.append(STEEL_BENCHMARK_NOTE[route])
     return _result("steel", inv, country, "Tier 1 screening (IPCC 2006 Vol.3 Table 4.1); use plant data for Tier 2/3.", n)
 
 
