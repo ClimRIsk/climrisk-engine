@@ -47,8 +47,7 @@ def _result(product: str, inv: Inventory, country: Optional[str], tier_note: str
         "data_quality": data_quality_summary(inv),
         "exclusions": res["exclusions"], "notes": inv.notes + [tier_note],
         "trajectory": _dynamic(inv, country),
-        "standard": "ISO 14067:2018-aligned cradle-to-gate screening (A1–A3); GWP100 IPCC AR6; biogenic CO2 reported "
-                    "separately. Not a verified CFP study.",
+        "standard": "ISO 14067:2018 methodology, partial CFP cradle-to-gate (A1–A3); GWP100 IPCC AR6; biogenic CO2 reported separately. Run POST /lca/study for distribution, use stage, end of life, allocation, cut-off, sensitivity, data quality and the study report.",
     }
 
 
@@ -65,9 +64,9 @@ STEEL_BENCHMARK_NOTE = {
 }
 
 
-def steel(route: str, kwh_per_t: float, country: Optional[str] = None, g_per_kwh: Optional[float] = None,
-          extra_fuels: Optional[dict] = None, materials: Optional[list] = None, transport: Optional[list] = None,
-          n: int = 5000) -> dict:
+def steel_inventory(route: str, kwh_per_t: float, country: Optional[str] = None, g_per_kwh: Optional[float] = None,
+                    extra_fuels: Optional[dict] = None, materials: Optional[list] = None,
+                    transport: Optional[list] = None) -> tuple:
     P = factors()["process"]
     key = {"bf_bof": "steel_bof_tco2_per_t", "eaf": "steel_eaf_tco2_per_t", "dri_eaf": "steel_dri_tco2_per_t"}.get(route)
     if not key:
@@ -86,12 +85,19 @@ def steel(route: str, kwh_per_t: float, country: Optional[str] = None, g_per_kwh
     if route == "bf_bof":
         inv.notes.append("IPCC Tier 1 BOF factor covers the integrated route (coke, sinter, iron- and steelmaking).")
     inv.notes.append(STEEL_BENCHMARK_NOTE[route])
-    return _result("steel", inv, country, "Tier 1 screening (IPCC 2006 Vol.3 Table 4.1); use plant data for Tier 2/3.", n)
+    return inv, "Tier 1 screening (IPCC 2006 Vol.3 Table 4.1); use plant data for Tier 2/3."
 
 
-def aluminium(kwh_per_t: float, country: Optional[str] = None, g_per_kwh: Optional[float] = None,
-              alumina_t: Optional[float] = None, alumina_kgco2e_per_t: Optional[float] = None,
-              pfc_kgco2e_per_t: Optional[float] = None, n: int = 5000) -> dict:
+def steel(route: str, kwh_per_t: float, country: Optional[str] = None, g_per_kwh: Optional[float] = None,
+          extra_fuels: Optional[dict] = None, materials: Optional[list] = None, transport: Optional[list] = None,
+          n: int = 5000) -> dict:
+    inv, note = steel_inventory(route, kwh_per_t, country, g_per_kwh, extra_fuels, materials, transport)
+    return _result("steel", inv, country, note, n)
+
+
+def aluminium_inventory(kwh_per_t: float, country: Optional[str] = None, g_per_kwh: Optional[float] = None,
+                        alumina_t: Optional[float] = None, alumina_kgco2e_per_t: Optional[float] = None,
+                        pfc_kgco2e_per_t: Optional[float] = None) -> tuple:
     P = factors()["process"]
     inv = Inventory("1 t primary aluminium")
     inv.process.append(ProcessEmission("Anode CO2, prebake (IPCC Tier 1)", P["aluminium_prebake_tco2_per_t"]["value"] * 1000, 4))
@@ -104,11 +110,18 @@ def aluminium(kwh_per_t: float, country: Optional[str] = None, g_per_kwh: Option
         inv.process.append(ProcessEmission("PFC (anode effects)", pfc_kgco2e_per_t, 3, capturable=False))
     else:
         inv.exclusions.append("PFC emissions from anode effects (supply measured kg CO2e/t to include)")
-    return _result("aluminium", inv, country, "Tier 1 screening (IPCC 2006 Vol.3 Table 4.10); electricity dominates.", n)
+    return inv, "Tier 1 screening (IPCC 2006 Vol.3 Table 4.10); electricity dominates."
 
 
-def ammonia(kwh_per_t: float, country: Optional[str] = None, g_per_kwh: Optional[float] = None,
-            gas_gj_per_t: Optional[float] = None, co2_recovered_for_urea_kg_per_t: float = 0.0, n: int = 5000) -> dict:
+def aluminium(kwh_per_t: float, country: Optional[str] = None, g_per_kwh: Optional[float] = None,
+              alumina_t: Optional[float] = None, alumina_kgco2e_per_t: Optional[float] = None,
+              pfc_kgco2e_per_t: Optional[float] = None, n: int = 5000) -> dict:
+    inv, note = aluminium_inventory(kwh_per_t, country, g_per_kwh, alumina_t, alumina_kgco2e_per_t, pfc_kgco2e_per_t)
+    return _result("aluminium", inv, country, note, n)
+
+
+def ammonia_inventory(kwh_per_t: float, country: Optional[str] = None, g_per_kwh: Optional[float] = None,
+                      gas_gj_per_t: Optional[float] = None, co2_recovered_for_urea_kg_per_t: float = 0.0) -> tuple:
     P = factors()["process"]
     gj = gas_gj_per_t if gas_gj_per_t is not None else P["ammonia_gas_gj_per_t"]["value"]
     inv = Inventory("1 t ammonia")
@@ -118,12 +131,19 @@ def ammonia(kwh_per_t: float, country: Optional[str] = None, g_per_kwh: Optional
                                            capturable=False))
         inv.notes.append("CO2 recovered for urea is deducted here and must be counted where the urea is used.")
     inv.electricity.append(ElectricityUse(kwh_per_t, country, g_per_kwh, 2, "Plant electricity"))
-    return _result("ammonia", inv, country, "Natural gas route; IPCC 2006 Vol.3 Table 3.1 Tier 1 fuel requirement "
-                   "when plant gas use is not given (fuel and feedstock CO2 combined).", n)
+    return inv, ("Natural gas route; IPCC 2006 Vol.3 Table 3.1 Tier 1 fuel requirement "
+                 "when plant gas use is not given (fuel and feedstock CO2 combined).")
 
 
-def custom(declared_unit: str, fuels: list, electricity: list, process: list, materials: list, transport: list,
-           country: Optional[str] = None, capture_rate: float = 0.0, exclusions: Optional[list] = None, n: int = 5000) -> dict:
+def ammonia(kwh_per_t: float, country: Optional[str] = None, g_per_kwh: Optional[float] = None,
+            gas_gj_per_t: Optional[float] = None, co2_recovered_for_urea_kg_per_t: float = 0.0, n: int = 5000) -> dict:
+    inv, note = ammonia_inventory(kwh_per_t, country, g_per_kwh, gas_gj_per_t, co2_recovered_for_urea_kg_per_t)
+    return _result("ammonia", inv, country, note, n)
+
+
+def custom_inventory(declared_unit: str, fuels: list, electricity: list, process: list, materials: list,
+                     transport: list, country: Optional[str] = None, capture_rate: float = 0.0,
+                     exclusions: Optional[list] = None) -> tuple:
     inv = Inventory(declared_unit, capture_rate=capture_rate, exclusions=list(exclusions or []))
     for f in fuels:
         if f["fuel"] not in factors()["fuels"]:
@@ -141,4 +161,11 @@ def custom(declared_unit: str, fuels: list, electricity: list, process: list, ma
         if t["mode"] not in factors()["freight"]:
             raise ValueError("transport mode must be truck, rail or ship")
         inv.transport.append(TransportLeg(t["mode"], float(t["t"]), float(t["km"]), int(t.get("dq", 3)), t.get("label", "")))
-    return _result("custom", inv, country, "Custom inventory supplied by the user.", n)
+    return inv, "Custom inventory supplied by the user."
+
+
+def custom(declared_unit: str, fuels: list, electricity: list, process: list, materials: list, transport: list,
+           country: Optional[str] = None, capture_rate: float = 0.0, exclusions: Optional[list] = None, n: int = 5000) -> dict:
+    inv, note = custom_inventory(declared_unit, fuels, electricity, process, materials, transport, country,
+                                 capture_rate, exclusions)
+    return _result("custom", inv, country, note, n)

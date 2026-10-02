@@ -772,7 +772,7 @@ _LCA_DEFINITION = {
     "function": {
         "name": "product_carbon_footprint",
         "description": (
-            "Cradle-to-gate (A1–A3) product carbon footprint per tonne, ISO 14067-aligned, with a P5–P95 "
+            "Cradle-to-gate (A1–A3) product carbon footprint per tonne, ISO 14067 methodology, with a P5–P95 "
             "uncertainty band, exclusions, a 2025–2050 trajectory under NGFS grid pathways and (cement) an EU CBAM "
             "cost view. Needs the plant's own data — ask the user for any required input you do not have; never guess. "
             "cement: clinker_ratio, kiln_thermal_gj_per_t_clinker, fuel_mix (shares summing to 1; keys e.g. "

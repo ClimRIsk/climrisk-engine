@@ -5855,7 +5855,7 @@ def physical_water_risk(lat: float, lon: float, sector: Optional[str] = None) ->
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# LIFE CYCLE ASSESSMENT — ISO 14067-aligned product carbon footprints (cri.lca)
+# LIFE CYCLE ASSESSMENT — ISO 14067 product carbon footprints and study reports (cri.lca)
 # ──────────────────────────────────────────────────────────────────────────────
 
 class LCAConstituentIn(BaseModel):
@@ -5920,7 +5920,7 @@ def lca_factors() -> dict:
 
 @app.post("/lca/cement", dependencies=[_AUTH], tags=["Life Cycle Assessment"])
 def lca_cement(request: LCACementRequest) -> dict:
-    """Cradle-to-gate carbon footprint of cement & clinker (ISO 14067-aligned), 2025–2050 trajectory and CBAM view."""
+    """Cradle-to-gate carbon footprint of cement & clinker (ISO 14067 methodology), 2025–2050 trajectory and CBAM view."""
     from ..lca.cement import CementPlant, Constituent, assess
     from ..lca.engine import TransportLeg
     d = request.model_dump()
@@ -5999,6 +5999,84 @@ def lca_ammonia(request: LCAAmmoniaRequest) -> dict:
 def lca_custom(request: LCACustomRequest) -> dict:
     from ..lca.products import custom
     return _lca_call(custom, **request.model_dump())
+
+
+class LCAStudyRequest(BaseModel):
+    product: str = Field(..., pattern="^(cement|steel|aluminium|ammonia|custom)$")
+    params: dict = Field(..., description="Same body as POST /lca/<product>")
+    study: dict = Field(default_factory=dict, description="ISO 14067 study options: boundary, reference_year, distribution, "
+                        "use, end_of_life, allocation, cutoff, luc_kgco2e, biogenic_uptake_share, commissioner, practitioner…")
+    n: int = Field(5000, ge=500, le=20000)
+
+
+def _lca_study(request: LCAStudyRequest):
+    from pydantic import ValidationError
+    from ..lca import cfp, products
+    from ..lca.cement import CementPlant, Constituent, inventory as cement_inventory
+    from ..lca.engine import TransportLeg
+    try:
+        p, prod = request.params, request.product
+        if prod == "cement":
+            d = LCACementRequest(**p).model_dump()
+            d["constituents"] = [Constituent(**c) for c in d["constituents"]]
+            d["transport"] = [TransportLeg(**t) for t in d["transport"]]
+            d.pop("cbam_year")
+            plant = CementPlant(**d)
+            inv, country = cement_inventory(plant), plant.resolved_country()
+        elif prod == "steel":
+            m = LCASteelRequest(**p)
+            inv, _ = products.steel_inventory(**m.model_dump())
+            country = m.country
+        elif prod == "aluminium":
+            m = LCAAluminiumRequest(**p)
+            inv, _ = products.aluminium_inventory(**m.model_dump())
+            country = m.country
+        elif prod == "ammonia":
+            m = LCAAmmoniaRequest(**p)
+            inv, _ = products.ammonia_inventory(**m.model_dump())
+            country = m.country
+        else:
+            m = LCACustomRequest(**p)
+            inv, _ = products.custom_inventory(**m.model_dump())
+            country = m.country
+        result = cfp.run_study(inv, request.study, prod, country, n=request.n)
+        return result
+    except ValidationError as exc:
+        raise HTTPException(status_code=422, detail=exc.errors(include_url=False, include_context=False))
+    except (ValueError, KeyError, TypeError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc).strip("'\""))
+
+
+@app.get("/lca/eol-options", tags=["Life Cycle Assessment"])
+def lca_eol_options() -> dict:
+    """End-of-life materials and treatments with a published DESNZ factor, for the use/end-of-life stages."""
+    from ..lca.cfp import eol_options
+    return eol_options()
+
+
+@app.post("/lca/study", dependencies=[_AUTH], tags=["Life Cycle Assessment"])
+def lca_study(request: LCAStudyRequest) -> dict:
+    """ISO 14067 carbon-footprint study: boundary A1–A3 / A1–A4 / A1–C, distribution, use stage, end of life, allocation,
+    cut-off, GHG-type split, uncertainty, sensitivity, hotspots, data quality (§6.3.5)."""
+    return _jsonable(_lca_study(request))
+
+
+@app.post("/lca/study/report", dependencies=[_AUTH], tags=["Life Cycle Assessment"])
+def lca_study_report(request: LCAStudyRequest) -> dict:
+    """The study plus its ISO 14067 clause 9 report (sections + Markdown)."""
+    from ..lca.cfp import report
+    res = _lca_study(request)
+    return _jsonable({"study": res, "report": report(res, request.study)})
+
+
+@app.post("/lca/study/report.xlsx", dependencies=[_AUTH], tags=["Life Cycle Assessment"])
+def lca_study_report_xlsx(request: LCAStudyRequest):
+    from fastapi.responses import Response
+    from ..lca.cfp import report, report_xlsx
+    res = _lca_study(request)
+    return Response(report_xlsx(res, report(res, request.study)),
+                    media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    headers={"Content-Disposition": f'attachment; filename="cfp_study_{request.product}.xlsx"'})
 
 
 @app.get("/lca/dashboard", tags=["Life Cycle Assessment"])

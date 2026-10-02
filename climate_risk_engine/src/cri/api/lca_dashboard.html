@@ -67,7 +67,7 @@
 <body>
 <div class="header">
   <div class="logo">CLIMRISK</div>
-  <div class="sub">Product Carbon Footprint · cradle-to-gate LCA (ISO 14067-aligned)</div>
+  <div class="sub">Product Carbon Footprint · ISO 14067 calculation (cradle-to-gate to cradle-to-grave)</div>
   <div class="pill">IPCC 2006 · GCCA-CSI · Ember · DESNZ 2025 · NGFS Phase 5 · IPCC AR6 GWP100</div>
 </div>
 <div class="layout">
@@ -79,6 +79,11 @@
       <input id="apiKey" type="password" placeholder="X-API-Key" style="margin-top:6px">
     </details>
     <button class="btn" id="run">Calculate footprint</button>
+    <details id="study" style="margin-top:12px">
+      <summary>ISO 14067 study — full life cycle, allocation, report</summary>
+      <div id="studyForm"></div>
+    </details>
+    <button class="btn" id="runStudy" style="margin-top:6px;background:#0f766e">Run ISO 14067 study</button>
     <div class="status" id="status"></div>
   </aside>
   <main class="main" id="out">
@@ -124,6 +129,8 @@ function listRow(kind) {
   if (kind === 'fuelgj') div.className = 'row3', div.innerHTML = `<div><select class="fg-fuel">${fuelOptions()}</select></div><div><input class="fg-gj" type="number" step="any" placeholder="GJ / unit"></div><button class="x" type="button">×</button>`;
   if (kind === 'material') div.className = 'row3', div.style.gridTemplateColumns = '1.2fr .7fr .9fr 28px', div.innerHTML = `<div><input class="m-name" type="text" placeholder="material"></div><div><input class="m-t" type="number" step="any" placeholder="t / unit"></div><div><input class="m-f" type="number" step="any" placeholder="kg CO2e/t"></div><button class="x" type="button">×</button>`;
   if (kind === 'transport') div.className = 'row3', div.style.gridTemplateColumns = '.9fr .7fr .8fr 28px', div.innerHTML = `<div><select class="t-mode"><option>truck</option><option>rail</option><option>ship</option></select></div><div><input class="t-t" type="number" step="any" placeholder="t"></div><div><input class="t-km" type="number" step="any" placeholder="km"></div><button class="x" type="button">×</button>`;
+  if (kind === 'dist') div.className = 'row3', div.style.gridTemplateColumns = '.9fr .7fr .8fr 28px', div.innerHTML = `<div><select class="d-mode"><option>truck</option><option>rail</option><option>ship</option><option>air</option></select></div><div><input class="d-t" type="number" step="any" placeholder="t"></div><div><input class="d-km" type="number" step="any" placeholder="km"></div><button class="x" type="button">×</button>`;
+  if (kind === 'excl') div.className = 'row3', div.style.gridTemplateColumns = '1.2fr .7fr .9fr 28px', div.innerHTML = `<div><input class="x-name" type="text" placeholder="excluded flow"></div><div><input class="x-t" type="number" step="any" placeholder="t"></div><div><input class="x-f" type="number" step="any" placeholder="kg CO2e/t"></div><button class="x" type="button">×</button>`;
   if (kind === 'process') div.className = 'row3', div.innerHTML = `<div><input class="p-name" type="text" placeholder="process emission"></div><div><input class="p-kg" type="number" step="any" placeholder="kg CO2e / unit"></div><button class="x" type="button">×</button>`;
   div.querySelector('.x').onclick = () => div.remove();
   return div;
@@ -317,6 +324,120 @@ function render(r) {
   $('out').innerHTML = h;
 }
 
+
+// ── ISO 14067 study ───────────────────────────────────────────────────────────
+let EOL = null, LAST_STUDY = null;
+const SCEN = ['Net Zero 2050', 'Below 2°C', 'Low demand', 'Delayed transition', 'NDCs', 'Fragmented World', 'Current Policies'];
+function renderStudyForm() {
+  const mats = EOL ? Object.keys(EOL.materials).sort() : [];
+  $('studyForm').innerHTML = `
+    ${field('s_boundary', 'System boundary', {select: [['cradle_to_gate', 'Cradle-to-gate A1–A3 (partial CFP)'], ['cradle_to_customer', 'Cradle-to-customer A1–A4 (partial CFP)'], ['cradle_to_grave', 'Cradle-to-grave A1–C (full CFP)']], value: 'cradle_to_gate'})}
+    <div class="row2">${field('s_year', 'Reference year', {value: new Date().getFullYear() - 1})}${field('s_luc', 'Direct land-use change kg CO₂e', {value: 0})}</div>
+    ${listBlock('s_dist', 'dist', 'A4 · Distribution to customer (per declared unit)', 'Air freight is reported as aircraft emissions, with the radiative-forcing uplift shown separately.')}
+    <div class="section-title">B · Use stage</div>
+    <div class="row2">${field('s_life', 'Service life, years', {ph: 'blank = no use stage'})}${field('s_kwh', 'Electricity kWh / year')}</div>
+    <div class="row2">${field('s_ucountry', 'Use-stage country ISO3', {type: 'text', ph: 'default: plant country'})}${field('s_basis', 'Grid basis', {select: [['static', 'Static (today)'], ...SCEN.map(x => [x, 'NGFS ' + x])]})}</div>
+    ${field('s_other', 'Other use-stage kg CO₂e / year', {value: 0})}
+    <div class="section-title">C · End of life</div>
+    ${field('s_eolmat', 'Material', {select: [['', '— none —'], ...mats.map(m => [m, m])]})}
+    <div class="row3" style="grid-template-columns:1fr 1fr 1fr 1fr">${field('s_eolt', 't / unit', {value: 1})}${field('s_landfill', 'Landfill %', {value: 0})}${field('s_recycle', 'Recycle %', {value: 100})}${field('s_burn', 'Incinerate %', {value: 0})}</div>
+    <div class="hint">Recycling takes no credit for avoided virgin production (cut-off approach).</div>
+    <div class="section-title">Allocation (multi-output process)</div>
+    ${field('s_amethod', 'Method', {select: [['', 'None'], ['mass', 'Mass'], ['energy', 'Energy content'], ['economic', 'Economic value']]})}
+    <div class="row3" style="grid-template-columns:1fr 1fr 1fr">${field('s_pm', 'Product t', {value: 1})}${field('s_pp', 'Product $/t')}${field('s_pe', 'Product GJ')}</div>
+    <div class="row3" style="grid-template-columns:1.2fr 1fr 1fr 1fr">${field('s_cn', 'Co-product', {type: 'text', ph: 'e.g. slag'})}${field('s_cm', 't')}${field('s_cp', '$/t')}${field('s_ce', 'GJ')}</div>
+    <div class="section-title">Cut-off</div>
+    <div class="row2">${field('s_cut', 'Criterion %', {value: 1})}${field('s_cin', 'Total input mass t')}</div>
+    ${listBlock('s_excl', 'excl', 'Excluded flows')}
+    <div class="section-title">Study details</div>
+    ${field('s_comm', 'Commissioner', {type: 'text'})}${field('s_prac', 'Practitioner', {type: 'text'})}${field('s_app', 'Intended application', {type: 'text', ph: 'e.g. internal hotspot analysis'})}
+    <div class="hint">Biogenic CO₂ uptake is assumed equal to biogenic emissions (sustainably sourced) unless you change it.</div>
+    ${field('s_bio', 'Biogenic uptake share (0–1)', {value: 1})}`;
+  $('studyForm').querySelectorAll('.add').forEach(b => b.onclick = () => $(b.dataset.list).append(listRow(b.dataset.kind)));
+  $('s_dist').append(listRow('dist'));
+}
+function studySpec() {
+  const spec = {boundary: $('s_boundary').value, reference_year: num('s_year') || 2025, luc_kgco2e: num('s_luc') || 0,
+    biogenic_uptake_share: num('s_bio') == null ? 1 : num('s_bio'),
+    commissioner: $('s_comm').value || null, practitioner: $('s_prac').value || null, intended_application: $('s_app').value || null};
+  spec.distribution = rows('#s_dist > div', d => { const t = Number(d.querySelector('.d-t').value), km = Number(d.querySelector('.d-km').value); return t > 0 && km > 0 ? {mode: d.querySelector('.d-mode').value, t, km} : null; });
+  if (spec.boundary === 'cradle_to_grave') {
+    const life = num('s_life');
+    if (life) {
+      const country = ($('s_ucountry').value || $('country')?.value || '').toUpperCase() || null;
+      spec.use = {service_life_years: life, grid_basis: $('s_basis').value, electricity: num('s_kwh') ? [{kwh_per_year: num('s_kwh'), country}] : [],
+        other: num('s_other') ? [{kg_co2e_per_year: num('s_other')}] : []};
+    }
+    const mat = $('s_eolmat').value;
+    if (mat) {
+      const sh = {landfill: (num('s_landfill') || 0) / 100, closed_loop: (num('s_recycle') || 0) / 100, combustion: (num('s_burn') || 0) / 100};
+      Object.keys(sh).forEach(k => { if (!sh[k]) delete sh[k]; });
+      spec.end_of_life = [{material: mat, t: num('s_eolt') || 1, shares: sh}];
+    }
+  }
+  if ($('s_amethod').value) {
+    const cn = $('s_cn').value.trim();
+    if (!cn) throw new Error('Give the co-product a name for allocation');
+    spec.allocation = {method: $('s_amethod').value, apply_to: 'A3', product: {mass_t: num('s_pm'), price_per_t: num('s_pp'), energy_gj: num('s_pe')},
+      coproducts: [{name: cn, mass_t: num('s_cm'), price_per_t: num('s_cp'), energy_gj: num('s_ce')}]};
+  }
+  const excl = rows('#s_excl > div', d => { const n = d.querySelector('.x-name').value.trim(), t = Number(d.querySelector('.x-t').value), f = d.querySelector('.x-f').value; return n && t > 0 ? {name: n, mass_t: t, kgco2e_per_t: f === '' ? null : Number(f)} : null; });
+  if (excl.length || num('s_cin')) spec.cutoff = {criterion_pct: num('s_cut') || 1, total_input_mass_t: num('s_cin'), excluded: excl};
+  return spec;
+}
+async function studyFetch(path, body) {
+  const key = $('apiKey').value;
+  return fetch(path, {method: 'POST', headers: Object.assign({'Content-Type': 'application/json'}, key ? {'X-API-Key': key} : {}), body: JSON.stringify(body)});
+}
+async function runStudy() {
+  let body;
+  try { body = {product: PRODUCT, params: payload(), study: studySpec()}; } catch (e) { $('status').className = 'status error'; $('status').textContent = e.message; return; }
+  delete body.params.cbam_year;
+  $('runStudy').disabled = true; $('status').className = 'status'; $('status').textContent = 'Running the ISO 14067 study…';
+  try {
+    const r = await studyFetch('/lca/study', body), j = await r.json();
+    if (!r.ok) throw new Error(typeof j.detail === 'string' ? j.detail : JSON.stringify(j.detail));
+    LAST_STUDY = body; renderStudy(j); $('status').textContent = 'Done.';
+  } catch (e) { $('status').className = 'status error'; $('status').textContent = e.message; }
+  finally { $('runStudy').disabled = false; }
+}
+function download(name, blob) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); }
+async function dlReport(kind) {
+  if (!LAST_STUDY) return;
+  const r = await studyFetch(kind === 'xlsx' ? '/lca/study/report.xlsx' : '/lca/study/report', LAST_STUDY);
+  if (!r.ok) { $('status').className = 'status error'; $('status').textContent = 'Report failed'; return; }
+  if (kind === 'xlsx') download(`cfp_study_${PRODUCT}.xlsx`, await r.blob());
+  else download(`cfp_study_${PRODUCT}.md`, new Blob([(await r.json()).report.markdown], {type: 'text/markdown'}));
+}
+function renderStudy(r) {
+  const u = r.uncertainty, st = Object.entries(r.by_stage), mx = Math.max(1, ...st.map(([, v]) => Math.abs(v)));
+  const dq = r.data_quality, cut = r.cutoff, al = r.allocation;
+  let h = `<div class="kpis">
+    <div class="kpi"><div class="v">${fmt(r.cfp_kg_co2e)}</div><div class="l">kg CO₂e per ${esc(r.declared_unit.replace(/^1 /, ''))}</div><div class="s">${esc(r.boundary.label)}</div></div>
+    <div class="kpi"><div class="v">${fmt(u.p5)}–${fmt(u.p95)}</div><div class="l">90% range (P5–P95)</div><div class="s">${fmt(u.n_draws)} draws</div></div>
+    <div class="kpi"><div class="v ${dq.overall_score > 3 ? 'warn' : ''}">${fmt(dq.overall_score, 1)}</div><div class="l">data quality (ISO 14067 §6.3.5)</div><div class="s">${esc(dq.overall_rating)} · 1 best, 5 worst</div></div>
+    <div class="kpi"><div class="v" style="font-size:15px">${esc(r.verification.status)}</div><div class="l">critical review</div><div class="s">fingerprint ${esc(r.fingerprint)}</div></div></div>
+  <div class="card"><button class="add" type="button" onclick="dlReport('xlsx')">Download study report (Excel)</button> <button class="add" type="button" onclick="dlReport('md')">Download study report (Markdown)</button>
+    <div class="foot" style="margin-top:8px">${esc(r.communication_statement)}</div></div>
+  <div class="grid2"><div class="card"><h3>By life-cycle stage</h3><table>${st.map(([k, v]) => `<tr><td style="width:48%">${esc(k)}</td><td><div class="bar" style="width:${Math.abs(v) / mx * 100}%"></div></td><td class="n">${fmt(v, 1)}</td></tr>`).join('')}</table></div>
+  <div class="card"><h3>By GHG type (§6.4.9.4)</h3><table>${Object.entries(r.by_ghg_type).map(([k, v]) => `<tr><td>${esc(k.replace(/_/g, ' '))}</td><td class="n">${fmt(v, 1)}</td></tr>`).join('')}</table>
+    ${r.aircraft_rf_uplift_kg_co2e ? `<div class="foot">Aircraft radiative-forcing uplift (not in total): ${fmt(r.aircraft_rf_uplift_kg_co2e, 1)} kg</div>` : ''}</div></div>`;
+  if (r.use_stage && r.use_stage.by_year_kg_co2e.length) {
+    const by = r.use_stage.by_year_kg_co2e, m = Math.max(...by, 1);
+    h += `<div class="card"><h3>Use stage by year · grid basis ${esc(r.use_stage.grid_basis)}</h3><svg viewBox="0 0 600 70" width="100%">${by.map((v, i) => `<rect x="${i * 600 / by.length}" y="${70 - v / m * 60}" width="${Math.max(1, 600 / by.length - 2)}" height="${v / m * 60}" fill="#38bdf8"/>`).join('')}</svg></div>`;
+  }
+  h += `<div class="grid2"><div class="card"><h3>Hotspots (to 80 %)</h3><table>${r.hotspots_to_80pct.map(x => `<tr><td>${esc(x.stage)}</td><td>${esc(x.item)}</td><td class="n">${fmt(x.share_pct, 1)}%</td><td class="n">${fmt(x.cumulative_pct, 1)}%</td></tr>`).join('')}</table></div>
+  <div class="card"><h3>Sensitivity · +10 % on each flow</h3><table>${r.sensitivity.map(x => `<tr><td>${esc(x.item)}</td><td class="n">${x.effect_of_plus_10pct_on_total_pct > 0 ? '+' : ''}${fmt(x.effect_of_plus_10pct_on_total_pct, 2)}%</td></tr>`).join('')}</table></div></div>`;
+  if (r.methodological_choices.length) h += `<div class="card"><h3>Effect of methodological choices</h3><table>${r.methodological_choices.map(c => `<tr><td>${esc(c.choice)}</td><td class="n">${fmt(c.gate_kg_co2e ?? c.total_kg_co2e, 1)}</td><td class="n">${c.change_vs_selected_pct > 0 ? '+' : ''}${fmt(c.change_vs_selected_pct, 1)}%</td></tr>`).join('')}</table></div>`;
+  h += `<div class="grid2"><div class="card"><h3>Cut-off</h3><p>${esc(cut.status)} (criterion ${fmt(cut.criterion_pct, 1)} %)</p>${cut.excluded_mass_pct != null ? `<p class="foot">Excluded mass ${fmt(cut.excluded_mass_pct, 3)} % · excluded emissions ${cut.excluded_emissions_pct == null ? 'not quantified' : fmt(cut.excluded_emissions_pct, 3) + ' %'}</p>` : `<p class="foot">${esc(cut.note || '')}</p>`}
+    <ul class="plain">${(cut.declared_exclusions || []).map(e => `<li class="warn">${esc(e)}</li>`).join('')}</ul></div>
+  <div class="card"><h3>Allocation</h3>${al ? `<p>${esc(al.method)} → product share ${fmt(al.product_share * 100, 1)} %</p><p class="foot">All methods: ${Object.entries(al.all_methods).map(([k, v]) => k + ' ' + fmt(v * 100, 1) + '%').join(' · ')}</p>` : '<p class="foot">None applied (single-output process).</p>'}</div></div>
+  <div class="card"><h3>Data quality — ISO 14067 §6.3.5</h3><table><tr><th>Criterion</th><th class="n">Score</th><th>Basis</th></tr>${dq.criteria.map(c => `<tr><td>${esc(c.criterion)}</td><td class="n ${c.score > 3 ? 'warn' : ''}">${c.score}</td><td class="foot">${esc(c.basis)}</td></tr>`).join('')}</table></div>
+  <div class="card"><h3>Inventory detail</h3><table><tr><th>Stage</th><th>Flow</th><th>Basis</th><th class="n">kg CO₂e</th></tr>${r.detail.map(d => `<tr><td>${esc(d.stage)}</td><td>${esc(d.item)}</td><td class="foot">${esc(d.basis || '')}</td><td class="n">${fmt(d.kg_co2e, 1)}</td></tr>`).join('')}</table></div>
+  <div class="card foot"><b>Sources.</b> ${r.factor_sources.map(esc).join(' · ')}<br><b>Uncertainty.</b> ${esc(u.method)}</div>`;
+  $('out').innerHTML = h;
+}
+
 function setTabs() {
   $('tabs').innerHTML = Object.entries(PRODUCTS).map(([k, v]) => `<span class="tab${k === PRODUCT ? ' on' : ''}" data-p="${k}">${v}</span>`).join('');
   $('tabs').querySelectorAll('.tab').forEach(t => t.onclick = () => { PRODUCT = t.dataset.p; setTabs(); renderForm(); });
@@ -327,7 +448,8 @@ function setTabs() {
   catch (e) { $('status').className = 'status error'; $('status').textContent = 'Could not load emission factors from the engine.'; return; }
   const p = new URLSearchParams(location.search).get('product'); if (p && PRODUCTS[p]) PRODUCT = p;
   const k = new URLSearchParams(location.hash.slice(1)).get('key'); if (k) $('apiKey').value = k;
-  setTabs(); renderForm(); $('run').onclick = run;
+  try { EOL = await (await fetch('/lca/eol-options')).json(); } catch (e) { EOL = null; }
+  setTabs(); renderForm(); renderStudyForm(); $('run').onclick = run; $('runStudy').onclick = runStudy;
 })();
 </script>
 <script>/* Escape inside the embedded workbench closes the app overlay */

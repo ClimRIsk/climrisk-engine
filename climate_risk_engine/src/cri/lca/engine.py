@@ -1,7 +1,7 @@
 """
 cri/lca/engine.py — generic cradle-to-gate life cycle inventory (LCI) calculator.
 
-ISO 14067-aligned product carbon footprint (CFP) for one declared unit:
+ISO 14067 product carbon footprint (CFP) calculation for one declared unit (A1–A3; see cfp.py for the full study):
 
   inventory (activity data per declared unit)
       × emission factors (sourced, see cri/data/lca_factors.json)
@@ -24,8 +24,8 @@ Stages
   A3  manufacturing: process emissions, fuel combustion, fuel supply chain (WTT),
       electricity (lifecycle grid factor)
 
-This is a screening-grade calculation engine, not a verified CFP study: a claim under
-ISO 14067 still needs the study report and critical review the standard requires.
+cfp.py builds on this to calculate distribution, use stage, end of life, allocation, cut-off, sensitivity,
+data quality and the ISO 14067 study report.
 """
 from __future__ import annotations
 
@@ -210,10 +210,9 @@ def _ln(rng, mean, cv, n):
     return np.abs(mean) * rng.lognormal(-s * s / 2, s, n) * np.sign(mean)
 
 
-def uncertainty(inv: Inventory, n: int = 5000, seed: int = 11, grid_multiplier: float = 1.0) -> dict:
-    """P5/P50/P95 of the total by perturbing each flow (activity × factor) lognormally by its data quality."""
+def uncertainty_draws(inv: Inventory, n: int = 5000, seed: int = 11, grid_multiplier: float = 1.0) -> np.ndarray:
+    """Monte Carlo draws of the A1–A3 total (kg CO2e): each flow perturbed lognormally by its data quality."""
     rng = np.random.default_rng(seed)
-    base = calculate(inv, grid_multiplier)
     tot = np.zeros(n)
     capt = np.zeros(n)
     cv = lambda dq: CV_BY_DQ.get(int(dq), 0.2)                     # noqa: E731
@@ -240,6 +239,13 @@ def uncertainty(inv: Inventory, n: int = 5000, seed: int = 11, grid_multiplier: 
             g = LOW_CARBON_FLOOR_G_KWH + (g - LOW_CARBON_FLOOR_G_KWH) * grid_multiplier if g > LOW_CARBON_FLOOR_G_KWH else g
         tot += _ln(rng, e.kwh * g / 1000.0, np.hypot(cv(e.dq), 0.15), n)   # grid factors ≈ ±15 %
     tot -= inv.capture_rate * capt
+    return tot
+
+
+def uncertainty(inv: Inventory, n: int = 5000, seed: int = 11, grid_multiplier: float = 1.0) -> dict:
+    """P5/P50/P95 of the total by perturbing each flow (activity × factor) lognormally by its data quality."""
+    base = calculate(inv, grid_multiplier)
+    tot = uncertainty_draws(inv, n, seed, grid_multiplier)
     q = np.percentile(tot, [5, 50, 95])
     return {"p5": float(q[0]), "p50": float(q[1]), "p95": float(q[2]), "mean": float(tot.mean()),
             "deterministic": base["total_kg_co2e"], "n_draws": n,

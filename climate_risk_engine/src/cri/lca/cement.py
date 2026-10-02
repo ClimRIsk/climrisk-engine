@@ -1,5 +1,5 @@
 """
-cri/lca/cement.py — cradle-to-gate carbon footprint of cement and clinker (ISO 14067-aligned),
+cri/lca/cement.py — cradle-to-gate carbon footprint of cement and clinker (ISO 14067 methodology),
 with a dynamic 2025–2050 trajectory and the EU CBAM view.
 
 Method (per tonne of cement; clinker reported per tonne of clinker)
@@ -268,9 +268,7 @@ def assess(p: CementPlant, n: int = 5000, cbam_year: int = 2026) -> dict:
         "trajectory": trajectory(p, use_plan=False),
         "trajectory_with_plan": trajectory(p) if has_plan else None,
         "cbam": cbam_view(p, res, cbam_year),
-        "standard": "ISO 14067:2018-aligned cradle-to-gate screening (A1–A3); GWP100 IPCC AR6; biogenic CO2 "
-                    "reported separately. Not a verified CFP study — publication of a CFP claim requires the ISO 14067 "
-                    "study report and critical review.",
+        "standard": "ISO 14067:2018 methodology, partial CFP cradle-to-gate (A1–A3); GWP100 IPCC AR6; biogenic CO2 reported separately. Run POST /lca/study for distribution, use stage, end of life, allocation, cut-off, sensitivity, data quality and the study report.",
         "factor_sources": ["IPCC 2006 Guidelines Vol.2 (combustion) & Vol.3 Ch.2 (cement)", "GCCA/WBCSD-CSI Cement CO2 & "
                            "Energy Protocol v3.1 defaults", "Ember Yearly Electricity Data (CC BY 4.0)",
                            "UK DESNZ GHG Conversion Factors 2025 (OGL)", "NGFS Phase 5 via IIASA", "IPCC AR6 GWP100"],
