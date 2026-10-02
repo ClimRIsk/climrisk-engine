@@ -27,7 +27,7 @@ from typing import Optional
 
 import numpy as np
 
-from . import asset_value, geo, policy, transition, vulnerability
+from . import abatement, asset_value, earnings, geo, policy, transition, vulnerability
 from .distribution import PASS_THROUGH, STRANDING_KEYS, simulate
 from .flood_hazard import site_flood
 
@@ -191,12 +191,30 @@ def _actions(res: dict, cost_key: Optional[str], act_key: Optional[str]) -> list
     if sc and res["transition"]["emissions_t"]:
         tn = sc["transition_npv"]["mean"]
         v = res["asset"]["value"]["mode"]
+        ab = sc.get("abatement") or {}
         if v and tn > 0.02 * v or tn > 5e6:
-            acts.append({"hazard": "carbon_cost", "problem": f"Carbon cost to 2050 (delayed transition, present value) "
-                         f"{_fmt_usd(tn)} — {100 * tn / v:.0f}% of asset value." if v else
-                         f"Carbon cost to 2050 (delayed transition, present value) {_fmt_usd(tn)}.",
+            problem = (f"Carbon cost to 2050 (delayed transition, present value) {_fmt_usd(tn)} if nothing is done"
+                       + (f" ({100 * tn / v:.0f}% of asset value)" if v else ""))
+            if ab.get("enabled"):
+                rc = ab["response_cost_npv"]["mean"]
+                problem += f"; with the sector's abatement levers deployed as prices rise {_fmt_usd(rc)} ({_fmt_usd(tn - rc)} avoided)"
+            acts.append({"hazard": "carbon_cost", "problem": problem + ".",
                          "action": _ABATEMENT.get(cost_key or "", "Build a site decarbonisation plan (efficiency, "
                                                   "electrification, fuel switch) and price carbon internally at the NGFS path.")})
+        if ab.get("enabled"):
+            ls = [l for l in ab["levers"] if l.get("median_start_year")]
+            if ls:
+                acts.append({"hazard": "abatement", "problem": "Modelled response: " + "; ".join(
+                    f"{l['name']} starts about {l['median_start_year']} ({100 * l['prob_started_by_2040']:.0f}% of runs by 2040)"
+                    for l in ls[:3]) + ".",
+                    "action": "Get site-specific quotes for these levers (cost per tonne, lead time) and rerun with them in "
+                              "place of the library ranges; start permitting and procurement now for the long-lead options."})
+        e = sc.get("earnings")
+        if e and e.get("covenants") and e["covenants"]["by_horizon"].get("2040", 0) > 0.1:
+            acts.append({"hazard": "covenants", "problem": f"Covenant breach probability by 2040 "
+                         f"{100 * e['covenants']['by_horizon']['2040']:.0f}% (delayed transition).",
+                         "action": "Renegotiate leverage and coverage covenants with climate-adjusted headroom, or phase "
+                                   "abatement capex ahead of the price path."})
         if sc.get("stranded") and sc["stranded"]["mean"] > 0:
             acts.append({"hazard": "stranding", "problem": f"Sector output falls under transition scenarios — expected "
                          f"stranded capital {_fmt_usd(sc['stranded']['mean'])} (delayed transition).",
@@ -231,7 +249,8 @@ def analyse_asset(lat: float, lon: float, name: Optional[str] = None, sector: Op
                   atype: Optional[str] = None, capacity: Optional[float] = None, emissions_t: Optional[float] = None,
                   value_usd: Optional[float] = None, iso3: Optional[str] = None, register_index: Optional[int] = None,
                   site: Optional[dict] = None, radius_m: float = 250.0, discount: float = 0.07, n: int = 4000,
-                  narrative_llm: bool = False, _flood: Optional[dict] = None, _common: Optional[dict] = None) -> dict:
+                  narrative_llm: bool = False, _flood: Optional[dict] = None, _common: Optional[dict] = None,
+                  financials: Optional[dict] = None, abatement_on: bool = True, levers: Optional[list] = None) -> dict:
     t0 = time.time()
     steps = []
     reg = None
@@ -278,7 +297,11 @@ def analyse_asset(lat: float, lon: float, name: Optional[str] = None, sector: Op
 
     # 4 financial
     val = asset_value.estimate(sector or "", atype or "", capacity, emissions_t, iso3, value_usd)
-    case = {"value": val if val.get("mode") else None,
+    fin_in = earnings.normalise(financials, act_key) if financials else None        # raises FinancialsError (a ValueError)
+    ab_lib = abatement.library_for(act_key, ckey)
+    ab_levers = abatement.user_levers(levers) if levers else ab_lib["levers"]
+    ab_cfg = {"enabled": bool(abatement_on and emissions_t and ab_levers), "levers": ab_levers}
+    case = {"value": val if val.get("mode") else None, "financials": fin_in,
             "tc": {"lam": tc["lam"], "sigma": tc["sigma"], "region": tcr},
             "river": {"rps": river.get("rps"), "damage": river.get("damage"), "protection": river["protection_rp"]}
             if river.get("damage") else None,
@@ -286,7 +309,7 @@ def analyse_asset(lat: float, lon: float, name: Optional[str] = None, sector: Op
                       "protection": coast["protection_rp"]} if coast.get("damage") else None,
             "transition": {"emissions_t": emissions_t or 0.0, "explicit_price": pol["effective_price_usd_t"],
                            "charged_share_path": cs_path, "drivers": drv, "pass_through_key": pt_key,
-                           "activity_key": act_key}}
+                           "activity_key": act_key, "abatement": ab_cfg}}
     fin = simulate(case, n=n, discount=discount, common=_common)
     steps.append({"stage": "financial", "text": f"Monte Carlo {n:,} draws × 25 years, discount {discount:.0%} real"})
 
@@ -321,7 +344,14 @@ def analyse_asset(lat: float, lon: float, name: Optional[str] = None, sector: Op
         "policy": pol,
         "transition": {"emissions_t": emissions_t, "scenarios": central, "models": drv["models"],
                        "regions": drv["regions"], "activity_variable": drv["activity_variable"],
-                       "assumptions": {"emissions": "held at today's level unless sector output falls (no abatement)",
+                       "abatement": {"enabled": ab_cfg["enabled"], "library": ab_lib["key"], "note": ab_lib["note"],
+                                     "user_levers": bool(levers),
+                                     "levers": [{k: l[k] for k in ("name", "share", "mac", "lead", "avail", "basis", "source")}
+                                                for l in ab_levers]},
+                       "assumptions": {"emissions": ("abated when the net carbon price reaches a lever's levelised cost "
+                                                     "(sector levers, lead times, irreversible); the unabated cost is shown as cost of inaction"
+                                                     if ab_cfg["enabled"] else
+                                                     "held at today's level unless sector output falls (no abatement response modelled)"),
                                        "future_charged_share": transition.FUTURE_CS,
                                        "pass_through": PASS_THROUGH.get(pt_key, PASS_THROUGH["ind"]),
                                        "stranding": act_key in STRANDING_KEYS}},
@@ -345,6 +375,18 @@ def analyse_asset(lat: float, lon: float, name: Optional[str] = None, sector: Op
         "sea-level rise to 2050.",
         "NGFS carbon prices are model shadow prices; how much reaches a plant depends on policy design (sampled).",
     ]
+    if ab_cfg["enabled"]:
+        res["caveats"].append("Abatement uses sector cost ranges from published studies (some analyst judgement, flagged per lever), "
+                              "held flat in real terms; the operator reacts to the price it sees and cannot foresee the scenario. "
+                              "Replace with site quotes where you have them.")
+    elif emissions_t and not ab_cfg["enabled"]:
+        res["caveats"].append("No abatement response included (" + (ab_lib["note"] or "switched off") + ") — results are the cost of inaction.")
+    if fin_in:
+        res["caveats"].append("Earnings layer: financials must cover the same perimeter as the emissions; ratings and default "
+                              "probabilities are a coverage-based proxy, not an internal credit rating; debt refinancing is not modelled.")
+        res["earnings_input"] = {k: v for k, v in fin_in.items()}
+    else:
+        res["caveats"].append("No financials given: EBITDA, leverage, covenant and credit effects are not computed.")
     if not emissions_t:
         res["caveats"].insert(0, "Transition (carbon-cost) loss not assessed: no emissions known for this asset — "
                                  "give emissions_t, or capacity for a register-type estimate.")
@@ -397,7 +439,9 @@ def _narrative(r: dict) -> list:
     for s in MAIN_SCENARIOS:
         sc = fin["scenarios"].get(s)
         if sc:
-            rows.append(f"{sc['label']}: {_fmt_usd(sc['transition_npv']['mean'])} carbon cost PV"
+            ab = sc.get("abatement") or {}
+            rows.append(f"{sc['label']}: {_fmt_usd(sc['transition_npv']['mean'])} carbon cost PV if unabated"
+                        + (f", {_fmt_usd(ab['response_cost_npv']['mean'])} with abatement" if ab.get("enabled") else "")
                         + (f", stranded {_fmt_usd(sc['stranded']['mean'])}" if sc.get("stranded") else ""))
     if rows and a.get("emissions_t"):
         out.append(f"Transition ({a['emissions_t']:,.0f} tCO2e/yr): " + "; ".join(rows) + ".")
@@ -407,6 +451,23 @@ def _narrative(r: dict) -> list:
         out.append(f"Financial: total loss to 2050 (PV) mean {_fmt_usd(t.get('mean'))}, median {_fmt_usd(t.get('p50'))}, "
                    f"95th percentile {_fmt_usd(t.get('p95'))}, expected shortfall (worst 5%) {_fmt_usd(t.get('es95'))}. "
                    f"Asset value basis: {a['value']['basis']}.")
+        if (sc.get("abatement") or {}).get("enabled") and sc.get("total_npv_unabated"):
+            out.append(f"Cost of inaction: without any abatement the mean loss would be "
+                       f"{_fmt_usd(sc['total_npv_unabated']['mean'])}.")
+    e = (fin["scenarios"].get("Delayed transition") or {}).get("earnings")
+    if e:
+        h = (e.get("horizons") or {}).get("2040") or {}
+        bits = []
+        if h.get("ebitda_change_pct_median") is not None:
+            bits.append(f"median EBITDA {h['ebitda_change_pct_median']:+.0f}% vs today by 2040")
+        if h.get("leverage_median") is not None:
+            bits.append(f"net debt/EBITDA {h['leverage_median']:.1f}×")
+        if h.get("rating_median"):
+            bits.append(f"synthetic rating {h['rating_median']} (today {e['credit']['baseline']['rating']})")
+        if (e.get("covenants") or {}).get("by_horizon", {}).get("2040") is not None:
+            bits.append(f"covenant breach probability {100 * e['covenants']['by_horizon']['2040']:.0f}%")
+        if bits:
+            out.append("Earnings (delayed transition): " + ", ".join(bits) + ".")
     return out
 
 
@@ -437,6 +498,21 @@ def analyse_company(keys: list, top_n: int = 30, n: int = 2000, discount: float 
                       f"flood depths fetched live for the top {top_n} assets by emissions")
 
 
+_FIN_COLS = ("revenue_usd", "ebitda_usd", "da_usd", "interest_usd", "net_debt_usd", "book_value_usd", "tax_rate",
+             "electricity_mwh", "fuel", "fuel_gj", "commodity", "price_realisation", "operating_leverage",
+             "sustaining_capex_usd", "covenant_max_leverage", "covenant_min_icr", "lgd")
+
+
+def _site_financials(s: dict, k: int) -> Optional[dict]:
+    """Per-site financial columns → earnings-layer input (needs revenue_usd and ebitda_usd; a lone one is an error)."""
+    f = {c: s[c] for c in _FIN_COLS if s.get(c) not in (None, "")}
+    if not f:
+        return None
+    if "revenue_usd" not in f or "ebitda_usd" not in f:
+        raise ValueError(f"site {s.get('name') or k + 1}: financial columns need both revenue_usd and ebitda_usd")
+    return f
+
+
 def analyse_sites(sites: list, label: str = "Portfolio", top_n: int = 30, n: int = 2000, discount: float = 0.07) -> dict:
     """The same four-stage analysis and aggregation for a client's own site list.
     sites: [{name, lat, lon, sector?, type?, capacity?, emissions_t?, value_usd?}] — no register snapping:
@@ -453,9 +529,21 @@ def analyse_sites(sites: list, label: str = "Portfolio", top_n: int = 30, n: int
                        "emissions_t": s.get("emissions_t"), "elev_m": None,
                        "_kw": {"name": s.get("name") or f"Site {k + 1}", "sector": s.get("sector") or "other",
                                "atype": s.get("type"), "capacity": s.get("capacity"),
-                               "emissions_t": s.get("emissions_t"), "value_usd": s.get("value_usd")}})
+                               "emissions_t": s.get("emissions_t"), "value_usd": s.get("value_usd"),
+                               "financials": _site_financials(s, k)}})
     return _portfolio(assets, [label], top_n, n, discount,
                       f"flood depths fetched live for the top {top_n} sites by emissions (then by list order)")
+
+
+def _earn_row(sc: Optional[dict]) -> Optional[dict]:
+    e = (sc or {}).get("earnings")
+    if not e:
+        return None
+    h = (e.get("horizons") or {}).get("2040") or {}
+    return {"ebitda_change_pct": h.get("ebitda_change_pct_median"), "leverage": h.get("leverage_median"),
+            "rating": h.get("rating_median"), "pd": h.get("pd_mean"),
+            "covenant_breach_prob": (e.get("covenants") or {}).get("by_horizon", {}).get("2040"),
+            "climate_impairment_mean": ((e.get("impairment") or {}).get("climate_attributable") or {}).get("mean")}
 
 
 def _portfolio(assets: list, companies: list, top_n: int, n: int, discount: float, flood_note: str) -> dict:
@@ -495,6 +583,7 @@ def _portfolio(assets: list, companies: list, top_n: int, n: int, discount: floa
                     "npv_delayed_mean": (r["financial"]["scenarios"].get("Delayed transition") or {}).get("total_npv", {}).get("mean"),
                     "npv_nz_mean": (r["financial"]["scenarios"].get("Net Zero 2050") or {}).get("total_npv", {}).get("mean"),
                     "npv_cp_mean": (r["financial"]["scenarios"].get("Current Policies") or {}).get("total_npv", {}).get("mean"),
+                    "earnings_delayed_2040": _earn_row(r["financial"]["scenarios"].get("Delayed transition")),
                     "top_action": (r["actions"][0]["action"] if r["actions"] else None)})
     V = sum((p["value_mode"] or 0) for p in per)
     from .distribution import _stats

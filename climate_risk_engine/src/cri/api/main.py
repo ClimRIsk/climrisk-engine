@@ -2540,6 +2540,13 @@ class AnalystAssetRequest(BaseModel):
     discount_rate: float = Field(0.07, ge=0.0, le=0.2)
     narrative_llm: bool = Field(False, description="Also write an LLM narrative (Groq) from the computed numbers")
     site:         Optional[dict] = Field(None, description="Optional /asset/assess result to fold satellite findings in")
+    financials:   Optional[dict] = Field(None, description="Earnings layer (US$/yr, same perimeter as the emissions): "
+                  "revenue_usd, ebitda_usd required; da_usd, interest_usd, net_debt_usd, book_value_usd, tax_rate, "
+                  "electricity_mwh, fuel (coal|gas|oil) + fuel_gj, commodity (coal|gas|oil|none), price_realisation, "
+                  "operating_leverage, sustaining_capex_usd, covenant_max_leverage, covenant_min_icr, lgd")
+    abatement:    bool = Field(True, description="Include the operator's abatement response (sector levers); false = cost of inaction only")
+    levers:       Optional[list[dict]] = Field(None, max_length=8, description="Own abatement levers replacing the library: "
+                  "[{name, share (0-1 or [low,mode,high]), mac (US$/t or [low,mode,high]), lead?, avail?, life?, opex_share?, source?}]")
 
 
 class AnalystCompanyRequest(BaseModel):
@@ -2575,10 +2582,14 @@ def analyst_asset(request: AnalystAssetRequest) -> dict:
     Typical latency: < 1 s cached, 3–30 s on first visit (flood depths are range-read).
     """
     from ..finance.analyst import analyse_asset
-    r = analyse_asset(request.lat, request.lon, name=request.name, sector=request.sector,
-                      atype=request.asset_type, capacity=request.capacity, emissions_t=request.emissions_t,
-                      value_usd=request.value_usd, register_index=request.register_index, site=request.site,
-                      discount=request.discount_rate, narrative_llm=request.narrative_llm)
+    try:
+        r = analyse_asset(request.lat, request.lon, name=request.name, sector=request.sector,
+                          atype=request.asset_type, capacity=request.capacity, emissions_t=request.emissions_t,
+                          value_usd=request.value_usd, register_index=request.register_index, site=request.site,
+                          discount=request.discount_rate, narrative_llm=request.narrative_llm,
+                          financials=request.financials, abatement_on=request.abatement, levers=request.levers)
+    except (ValueError, KeyError, TypeError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc).strip("'\""))
     return _jsonable(r)
 
 
@@ -6394,7 +6405,11 @@ async def analyst_sites_upload(file: UploadFile = File(...), label: str = Form("
     good = [r for r in rows if not r.get("error")]
     if not good:
         raise HTTPException(status_code=422, detail="no rows with valid name, lat and lon")
-    res = analyse_sites([{k: r.get(k) for k in ("name", "lat", "lon", "sector", "type", "capacity", "emissions_t",
-                                               "value_usd", "company")} for r in good], label, top_n=top_n)
+    from ..finance.analyst import _FIN_COLS
+    try:
+        res = analyse_sites([{k: r.get(k) for k in ("name", "lat", "lon", "sector", "type", "capacity", "emissions_t",
+                                                   "value_usd", "company") + _FIN_COLS} for r in good], label, top_n=top_n)
+    except (ValueError, KeyError, TypeError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc).strip("'\""))
     res["skipped_rows"] = [{"row": r["row"], "name": r["name"], "error": r["error"]} for r in bad]
     return _jsonable(res)

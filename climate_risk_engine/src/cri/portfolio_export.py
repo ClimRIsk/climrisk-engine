@@ -4,6 +4,9 @@ Consolidated portfolio run → one CSV row per asset.
 Input columns (xlsx / csv; header names are case-insensitive):
   required  name, lat, lon
   optional  sector, type, capacity, emissions_t, value_usd, company
+  earnings  revenue_usd + ebitda_usd (both, or neither) with optional da_usd, interest_usd, net_debt_usd, book_value_usd,
+            tax_rate, electricity_mwh, fuel + fuel_gj, commodity, sustaining_capex_usd, covenant_max_leverage,
+            covenant_min_icr — adds EBITDA, leverage, rating and covenant results per site (upload endpoint only)
 Every asset goes through the Risk Analyst (physical hazards → policies in force → NGFS Phase 5 transition →
 Monte Carlo loss distribution). Water stress is added from WRI Aqueduct 4.0.
 """
@@ -17,6 +20,9 @@ from typing import Callable, Iterable, Optional
 
 REQUIRED = ("name", "lat", "lon")
 OPTIONAL = ("sector", "type", "capacity", "emissions_t", "value_usd", "company")
+FIN_NUM = ("revenue_usd", "ebitda_usd", "da_usd", "interest_usd", "net_debt_usd", "book_value_usd", "tax_rate",
+           "electricity_mwh", "fuel_gj", "price_realisation", "operating_leverage", "sustaining_capex_usd",
+           "covenant_max_leverage", "covenant_min_icr", "lgd")
 SCEN_SHORT = {"Net Zero 2050": "nz2050", "Below 2°C": "b2c", "Low demand": "lowdemand",
               "Delayed transition": "delayed", "NDCs": "ndcs", "Fragmented World": "fragmented",
               "Current Policies": "current"}
@@ -52,6 +58,12 @@ def read_portfolio(path: str | Path) -> list[dict]:
                 rec[k] = _num(v)
             else:
                 rec[k] = None if v is None or (isinstance(v, float) and math.isnan(v)) else str(v)
+        for k in FIN_NUM:                       # optional earnings-layer columns (read by /analyst/sites/upload)
+            if k in df.columns:
+                rec[k] = _num(r.get(k))
+        for k in ("fuel", "commodity"):
+            v = r.get(k) if k in df.columns else None
+            rec[k] = None if v is None or (isinstance(v, float) and math.isnan(v)) else str(v).strip().lower()
         rec["error"] = None if (lat is not None and lon is not None and -90 <= lat <= 90 and -180 <= lon <= 180) \
             else "invalid or missing coordinates"
         rows.append(rec)

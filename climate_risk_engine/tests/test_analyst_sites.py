@@ -47,3 +47,29 @@ def test_upload_reports_skipped_rows():
 def test_upload_missing_columns():
     r = c.post("/analyst/sites/upload", files={"file": ("x.csv", b"site,latitude\nA,1\n", "text/csv")})
     assert r.status_code == 422
+
+
+def test_upload_with_financial_columns_adds_earnings_row():
+    csv = ("name,lat,lon,sector,type,emissions_t,value_usd,revenue_usd,ebitda_usd,da_usd,interest_usd,net_debt_usd,book_value_usd\n"
+           "Dhaka cement,23.7,90.4,cement,integrated dry,800000,250000000,300000000,75000000,25000000,12000000,150000000,250000000\n"
+           "Rotterdam DC,51.9,4.4,,,,500000000,,,,,,\n").encode()
+    r = c.post("/analyst/sites/upload", files={"file": ("s.csv", csv, "text/csv")}, data={"label": "Fin", "top_n": "1"})
+    assert r.status_code == 200, r.text
+    by = {a["name"]: a for a in r.json()["assets"]}
+    e = by["Dhaka cement"]["earnings_delayed_2040"]
+    assert e and e["rating"] and e["leverage"] is not None and e["covenant_breach_prob"] is None   # no covenants given
+    assert by["Rotterdam DC"]["earnings_delayed_2040"] is None
+
+
+def test_upload_lone_financial_column_is_rejected():
+    csv = b"name,lat,lon,revenue_usd\nA,51.9,4.4,1000000\n"
+    r = c.post("/analyst/sites/upload", files={"file": ("s.csv", csv, "text/csv")})
+    assert r.status_code == 422 and "revenue_usd and ebitda_usd" in r.text
+
+
+def test_analyst_asset_endpoint_validates_financials_and_levers():
+    base = {"lat": 23.7, "lon": 90.4, "sector": "cement", "asset_type": "integrated dry", "emissions_t": 8e5, "value_usd": 2.5e8}
+    bad = c.post("/analyst/asset", json=dict(base, financials={"revenue_usd": 1e8}))
+    assert bad.status_code == 422 and "ebitda_usd" in bad.text
+    bad = c.post("/analyst/asset", json=dict(base, levers=[{"name": "x", "share": 2, "mac": 10}]))
+    assert bad.status_code == 422

@@ -24,10 +24,15 @@ Transition (per NGFS scenario; model drawn uniformly from those reporting the re
             f_econ ~ Tri(0.15, 0.35, 0.6) is the undepreciated share of replacement value (plant age unknown) and the
             remaining life ~ Tri(10, 20, 30) years
 
-Closure option: transition loss (carbon cost + stranded capital) is capped at the asset's
+Operator response (finance/abatement.py): where the net carbon price reaches the levelised cost
+of a sector lever, the plant abates (after a lead time, irreversibly). Loss = carbon paid on the
+residual + levelised abatement cost. The carbon cost of doing nothing is kept as `transition_npv`
+and `total_npv_unabated`, so both views are always available.
+Closure option: transition loss (carbon cost + abatement + stranded capital) is capped at the asset's
 value in each draw — an owner would shut the plant rather than pay more than it is worth;
-`closure_share` reports how often that happens. The uncapped carbon cost is reported as
-`transition_npv` (the liability if the plant ran unabated).
+`closure_share` reports how often that happens.
+Earnings layer (finance/earnings.py): with financials in the request, EBITDA, leverage, coverage,
+rating/PD, covenants and impairment per scenario.
 
 Present values use a real discount rate (default 7 %). Seeded → reproducible.
 Not included: business interruption, supply-chain and market-wide effects,
@@ -39,6 +44,7 @@ from typing import Optional
 
 import numpy as np
 
+from . import abatement, earnings
 from .transition import FUTURE_CS, SCENARIOS, YEARS, label
 from .vulnerability import V_HALF, tc_damage
 
@@ -150,6 +156,13 @@ def simulate(case: dict, n: int = 4000, discount: float = 0.07, seed: int = 7,
     strand_on = tr.get("activity_key") in STRANDING_KEYS and has_value
     f_econ = _tri(rng, 0.15, 0.35, 0.6, n)          # undepreciated share of replacement value (age unknown)
     life = np.round(_tri(rng, 10, 20, 30, n)).astype(int)
+    # Abatement levers use their own random stream so adding them never changes the physical or carbon draws.
+    ab = tr.get("abatement") or {}
+    levers = ab.get("levers") or []
+    S_ab = None
+    if ab.get("enabled") and levers and E > 0:
+        S_ab = abatement.sample(levers, np.random.default_rng((common or {}).get("seed", seed) + 7919), n)
+    fin = case.get("financials")
 
     per_scen = {}
     for s in (scenarios or SCENARIOS):
@@ -163,24 +176,45 @@ def simulate(case: dict, n: int = 4000, discount: float = 0.07, seed: int = 7,
         P = np.stack([prices[m] for m in models])[mi]                         # n × Y
         acts = drv["activity"].get(s) or {}
         A = np.stack([acts[m] if m in acts else np.ones(Y) for m in models])[mi] if acts else np.ones((n, Y))
-        cost = E * np.minimum(A, 1.0) * (p0 * cs0 + np.maximum(P - p0, 0.0) * csf) * (1 - pt)
+        Amin = np.minimum(A, 1.0)
+        Ae = E * Amin                                                          # tonnes emitted today's way, per year
+        q = (p0 * cs0 + np.maximum(P - p0, 0.0) * csf) * (1 - pt)              # net carbon price the asset faces
+        cost = Ae * q                                                          # unabated: the cost of doing nothing
         npv_cost = (cost * disc).sum(axis=1)
         if strand_on and acts:
             idx = np.arange(Y)[None, :] < life[:, None]
-            meanA = (np.minimum(A, 1.0) * idx).sum(axis=1) / np.maximum(idx.sum(axis=1), 1)
+            meanA = (Amin * idx).sum(axis=1) / np.maximum(idx.sum(axis=1), 1)
             strand = V * f_econ * np.clip(1 - meanA, 0, 1)
         else:
             strand = np.zeros(n)
+        # Operator response: abate where the net carbon price reaches the levelised cost of a lever.
+        if S_ab is not None:
+            R = abatement.respond(q, Ae, S_ab, discount)
+            pay = Ae * (1 - R["frac"]) * q
+            resp = pay + R["cost"]
+            npv_resp = (resp * disc).sum(axis=1)
+        else:
+            R = {"frac": np.zeros((n, Y)), "cost": np.zeros((n, Y)), "opex": np.zeros((n, Y)),
+                 "capex": np.zeros((n, Y)), "starts": None}
+            pay, resp, npv_resp = cost, cost, npv_cost
         # Closure option: an owner facing carbon costs and lost output worth more than the
         # asset would shut it — the transition loss to the asset is capped at its value.
-        trans = np.minimum(npv_cost + strand, V) if has_value else npv_cost + strand
-        capped = float(np.mean(npv_cost + strand > V)) if has_value else 0.0
+        trans = np.minimum(npv_resp + strand, V) if has_value else npv_resp + strand
+        trans_un = np.minimum(npv_cost + strand, V) if has_value else npv_cost + strand
+        capped = float(np.mean(npv_resp + strand > V)) if has_value else 0.0
         # An asset cannot lose more than it is worth: once physical damage plus transition cost exceed
         # its value the rational owner closes it, so the total loss is capped at the asset value too.
         total = np.minimum(npv_phys + trans, V) if has_value else npv_phys + trans
-        per_scen[s] = {"label": label(s), "total": total, "cost": npv_cost, "strand": strand, "trans": trans,
-                       "capped_share": capped,
-                       "annual_cost": cost, "price": P, "activity": A}
+        total_un = np.minimum(npv_phys + trans_un, V) if has_value else npv_phys + trans_un
+        earn = None
+        if fin is not None:
+            earn = earnings.compute(fin, {"Amin": Amin, "pay": pay, "ab_opex": R["opex"], "capex": R["capex"], "pt": pt,
+                                          "disc": disc, "years": YEARS, "discount": discount, "drv": drv, "scenario": s,
+                                          "models": models, "mi": mi})
+        per_scen[s] = {"label": label(s), "total": total, "total_un": total_un, "cost": npv_cost, "strand": strand,
+                       "trans": trans, "trans_un": trans_un, "npv_resp": npv_resp, "npv_pay": (pay * disc).sum(axis=1),
+                       "npv_abate": (R["cost"] * disc).sum(axis=1), "R": R, "capped_share": capped, "earnings": earn,
+                       "annual_cost": resp, "annual_cost_un": cost, "price": P, "activity": A}
 
     v_ref = V if has_value else None                       # per-draw value: % of value stays within the cap
     out = {"n_draws": n, "discount_rate": discount, "years": YEARS.tolist(), "asset_value": val,
@@ -198,11 +232,26 @@ def simulate(case: dict, n: int = 4000, discount: float = 0.07, seed: int = 7,
         ac = r["annual_cost"]
         hist_hi = float(np.percentile(r["total"], 99.5)) or 1.0
         counts, edges = np.histogram(np.clip(r["total"], 0, hist_hi), bins=40, range=(0, hist_hi))
+        R = r["R"]
         out["scenarios"][s] = {
             "label": r["label"],
             "total_npv": _stats(r["total"], v_ref),
-            "transition_npv": _stats(r["cost"], v_ref),
-            "transition_loss": _stats(r["trans"], v_ref),
+            "total_npv_unabated": _stats(r["total_un"], v_ref),
+            "transition_npv": _stats(r["cost"], v_ref),                 # carbon cost if nothing is done (unabated)
+            "transition_loss": _stats(r["trans"], v_ref),               # after the operator's response, capped at value
+            "transition_loss_unabated": _stats(r["trans_un"], v_ref),
+            "annual_cost_unabated_median": np.round(np.median(r["annual_cost_un"], axis=0), 0).tolist(),
+            "abatement": ({
+                "enabled": True,
+                "carbon_paid_npv": _stats(r["npv_pay"], v_ref),
+                "abatement_cost_npv": _stats(r["npv_abate"], v_ref),
+                "response_cost_npv": _stats(r["npv_resp"], v_ref),
+                "avoided_npv": _stats(r["cost"] - r["npv_resp"], v_ref),
+                "abated_share_median": np.round(np.median(R["frac"], axis=0), 3).tolist(),
+                "abated_share_by_year": {str(y): round(float(np.median(R["frac"][:, y - YEARS[0]])), 3) for y in (2030, 2035, 2040, 2050)},
+                "capex_pv_mean": float(((R["capex"] * disc).sum(axis=1)).mean()),
+                "levers": abatement.summarise(levers, S_ab, R, YEARS)} if S_ab is not None else {"enabled": False}),
+            "earnings": r["earnings"],
             "closure_share": round(r["capped_share"], 3),
             "stranded": _stats(r["strand"], v_ref) if strand_on else None,
             "annual_cost_median": np.round(np.median(ac, axis=0), 0).tolist(),

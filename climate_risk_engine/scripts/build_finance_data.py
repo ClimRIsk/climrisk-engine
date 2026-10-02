@@ -11,6 +11,7 @@ under data/finance/raw/ and are not shipped)
   ngfs      NGFS Phase 5 scenarios (IIASA, anonymous pyam access): carbon price, coal/gas/oil
             power generation, primary energy, steel/cement production, electricity price for
             GCAM 6.0, MESSAGEix-GLOBIOM 2.0 and REMIND-MAgPIE 3.3, 2020–2050.
+  ngfs_fuels  coal / gas / oil price paths added to the NGFS file (input-cost channel)
   deltares  Deltares Global Flood Maps (coastal, NASADEM 90 m; Planetary Computer) — compact
             chunk index for RP 2…250 at 2018 and 2050 sea level, so the engine can range-read
             the ~12 KB chunk around a site without the 12 MB reference files.
@@ -242,6 +243,32 @@ def stage_ngfs() -> None:
           f"{len(country)} countries mapped → {(DATA/'ngfs_phase5.json').stat().st_size/1e6:.2f} MB")
 
 
+FUEL_VARS = ["Price|Primary Energy|Coal", "Price|Primary Energy|Gas", "Price|Primary Energy|Oil"]
+
+
+def stage_ngfs_fuels() -> None:
+    """Add fossil-fuel price paths (US$2010/GJ) to ngfs_phase5.json — input-cost / margin channel."""
+    import pandas as pd
+    f = RAW / "ngfs5_fuels.csv"
+    if not f.exists():
+        import pyam
+        pyam.read_iiasa("ngfs_phase_5", variable=FUEL_VARS, model=NGFS_MODELS).to_csv(f)
+    d = pd.read_csv(f)
+    d.columns = [c.lower() for c in d.columns]
+    path = DATA / "ngfs_phase5.json"
+    js = json.loads(path.read_text())
+    n = 0
+    for _, row in d.iterrows():
+        vals = [None if pd.isna(row.get(str(y))) else round(float(row[str(y)]), 3) for y in YEARS]
+        if all(v is None for v in vals) or row["region"] not in js["data"].get(row["model"], {}):
+            continue
+        js["data"][row["model"]][row["region"]].setdefault(row["variable"], {})[row["scenario"]] = vals
+        js["units"][row["variable"]] = row["unit"]
+        n += 1
+    path.write_text(json.dumps(js, separators=(",", ":")))
+    print(f"ngfs fuels: {n} series added → {path.stat().st_size/1e6:.2f} MB")
+
+
 # ── Deltares coastal flood chunk index ───────────────────────────────────────
 
 DELT_RPS = [2, 5, 10, 25, 50, 100, 250]
@@ -304,8 +331,8 @@ def stage_jrc() -> None:
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--stage", choices=["admin1", "ngfs", "deltares", "jrc"], required=True)
+    ap.add_argument("--stage", choices=["admin1", "ngfs", "ngfs_fuels", "deltares", "jrc"], required=True)
     a = ap.parse_args()
     t0 = time.time()
-    {"admin1": stage_admin1, "ngfs": stage_ngfs, "deltares": stage_deltares, "jrc": stage_jrc}[a.stage]()
+    {"admin1": stage_admin1, "ngfs": stage_ngfs, "ngfs_fuels": stage_ngfs_fuels, "deltares": stage_deltares, "jrc": stage_jrc}[a.stage]()
     print(f"({time.time()-t0:.0f}s)")

@@ -39,6 +39,12 @@ FAMILY = {"Net Zero 2050": "Orderly", "Below 2?C": "Orderly", "Low demand": "Ord
           "Delayed transition": "Disorderly", "Nationally Determined Contributions (NDCs)": "Hot house world",
           "Current Policies": "Hot house world", "Fragmented World": "Too little, too late"}
 FUTURE_CS = (0.3, 0.6, 1.0)
+BASE_SCENARIO = "Current Policies"
+# NGFS price variables (US$2010/GJ) used for input-cost and commodity-revenue channels. Each is taken as
+# the difference to the Current Policies path of the SAME model and region, so a model's base-year
+# calibration (MESSAGE's 2025 electricity price, for instance) cancels out.
+ENERGY_VARS = {"electricity": "Price|Secondary Energy|Electricity", "coal": "Price|Primary Energy|Coal",
+               "gas": "Price|Primary Energy|Gas", "oil": "Price|Primary Energy|Oil"}
 
 ACTIVITY_VAR = {
     "power:coal": "Secondary Energy|Electricity|Coal", "power:gas": "Secondary Energy|Electricity|Gas",
@@ -96,7 +102,7 @@ def drivers(iso3: Optional[str], sector: str, atype: str, cost_key: Optional[str
     world = not regions
     k = d["usd2010_to_usd2024"]
     act = activity_key(sector, atype, cost_key)
-    out = {"years": YEARS.tolist(), "models": [], "regions": {}, "price": {}, "activity": {},
+    out = {"years": YEARS.tolist(), "models": [], "regions": {}, "price": {}, "activity": {}, "energy": {},
            "activity_variable": ACTIVITY_VAR.get(act) if act else None, "world_fallback": world}
     for model in d["data"]:
         reg = "World" if world else regions[model]
@@ -107,6 +113,12 @@ def drivers(iso3: Optional[str], sector: str, atype: str, cost_key: Optional[str
             if p is None:
                 continue
             out["price"].setdefault(s, {})[model] = np.clip(p * k, 0, None)
+            for nm, var in ENERGY_VARS.items():
+                ps, pb = _series(model, reg, var, s), _series(model, reg, var, BASE_SCENARIO)
+                if ps is not None and pb is not None:
+                    out["energy"].setdefault(s, {}).setdefault(model, {})[nm] = {
+                        "delta_usd_gj": (ps - pb) * k,                       # US$2024/GJ vs Current Policies
+                        "ratio": np.where(pb > 0, ps / np.where(pb > 0, pb, 1.0), 1.0)}
             if act:
                 v = ACTIVITY_VAR[act]
                 a = _series(model, reg, v, s)
