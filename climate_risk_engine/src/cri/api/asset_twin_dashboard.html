@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClimRisk — Asset Twin</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root { --bg:#070b14; --surface:#0d1524; --border:#1c2a44; --primary:#38bdf8; --muted:#8a9bbd; --text:#e2eaf8;
+          --ok:#22c55e; --warn:#f59e0b; --bad:#ef4444; --sans:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',sans-serif; }
+  body { font-family: var(--sans); background: var(--bg); color: var(--text); font-size: 12.5px; overflow: hidden; }
+  .header { display:flex; align-items:center; gap:14px; padding:9px 16px; background:var(--surface); border-bottom:1px solid var(--border); height:42px; }
+  .logo { font-weight:800; letter-spacing:3px; color:var(--primary); font-size:15px; } .sub { font-size:11px; color:var(--muted); }
+  .layout { display:grid; grid-template-columns:310px 1fr 380px; height:calc(100vh - 42px); }
+  .left, .right { background:var(--surface); padding:12px; overflow-y:auto; }
+  .left { border-right:1px solid var(--border); } .right { border-left:1px solid var(--border); }
+  h3 { font-size:10px; letter-spacing:1.4px; text-transform:uppercase; color:var(--muted); margin:14px 0 6px; font-weight:600; }
+  h3:first-child { margin-top:0; }
+  label { font-size:11px; color:var(--muted); display:block; margin:7px 0 3px; }
+  input, select, textarea { width:100%; background:var(--bg); border:1px solid var(--border); border-radius:6px; color:var(--text); font:inherit; padding:5px 7px; outline:none; }
+  input[type=range] { padding:0; }
+  .row { display:grid; grid-template-columns:1fr 1fr; gap:7px; }
+  .btn { width:100%; margin-top:8px; padding:8px; border:none; border-radius:7px; background:var(--primary); color:#04121e; font:inherit; font-weight:700; cursor:pointer; }
+  .btn.alt { background:transparent; border:1px solid var(--border); color:var(--text); font-weight:600; } .btn:disabled { opacity:.5; cursor:wait; }
+  .btn.sm { width:auto; padding:4px 9px; margin:0; font-size:11px; }
+  .hint { font-size:10.5px; color:var(--muted); line-height:1.5; margin-top:4px; }
+  .status { font-size:11px; color:var(--muted); margin-top:8px; min-height:14px; } .status.error { color:#f87171; }
+  .main { position:relative; background:#0a1220; }
+  #view { width:100%; height:100%; display:block; }
+  .hud { position:absolute; left:10px; top:10px; right:10px; display:flex; gap:8px; flex-wrap:wrap; pointer-events:none; }
+  .chip { background:rgba(13,21,36,.88); border:1px solid var(--border); border-radius:8px; padding:5px 9px; font-size:11px; pointer-events:auto; }
+  .chip b { color:var(--primary); }
+  .legend { position:absolute; left:10px; bottom:10px; background:rgba(13,21,36,.88); border:1px solid var(--border); border-radius:8px; padding:7px 10px; font-size:10.5px; line-height:1.7; }
+  .legend i { display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:6px; vertical-align:middle; }
+  .tip { position:absolute; right:10px; bottom:10px; max-width:330px; background:rgba(13,21,36,.94); border:1px solid var(--border); border-radius:8px; padding:9px 11px; font-size:11px; line-height:1.55; display:none; }
+  .tip h4 { font-size:12px; margin-bottom:3px; } .tip .k { color:var(--muted); }
+  .seg { display:flex; border:1px solid var(--border); border-radius:7px; overflow:hidden; }
+  .seg button { flex:1; background:transparent; border:none; color:var(--muted); padding:6px; cursor:pointer; font:inherit; }
+  .seg button.on { background:var(--primary); color:#04121e; font-weight:700; }
+  .tabs { display:flex; gap:2px; border-bottom:1px solid var(--border); margin:-12px -12px 10px; padding:0 8px; position:sticky; top:-12px; background:var(--surface); z-index:2; }
+  .tabs button { background:none; border:none; color:var(--muted); padding:10px 8px; cursor:pointer; font:inherit; border-bottom:2px solid transparent; }
+  .tabs button.on { color:var(--text); border-bottom-color:var(--primary); }
+  .pane { display:none; } .pane.on { display:block; }
+  .card { border:1px solid var(--border); border-radius:9px; padding:9px 11px; margin-bottom:9px; background:var(--bg); }
+  .card h4 { font-size:12px; margin-bottom:5px; line-height:1.4; }
+  .card .lbl { font-size:9.5px; text-transform:uppercase; letter-spacing:1.2px; color:var(--muted); margin-top:7px; }
+  .card p, .card li { font-size:11.5px; line-height:1.5; color:#c7d3ea; } .card ul { margin:3px 0 0 16px; }
+  .tag { display:inline-block; font-size:9.5px; padding:1px 6px; border-radius:9px; border:1px solid var(--border); color:var(--muted); margin-left:4px; }
+  .tag.ok { color:var(--ok); border-color:#14532d; } .tag.bad { color:var(--bad); border-color:#7f1d1d; } .tag.warn { color:var(--warn); border-color:#78350f; }
+  .ev { display:flex; gap:8px; padding:6px 0; border-bottom:1px solid var(--border); font-size:11.5px; align-items:flex-start; }
+  .ev .y { width:42px; color:var(--primary); font-weight:700; flex:none; }
+  .ev .t { flex:1; line-height:1.45; } .ev .t small { color:var(--muted); display:block; }
+  .meas { display:flex; align-items:center; gap:6px; margin:5px 0; } .meas input[type=checkbox] { width:auto; } .meas span { flex:1; font-size:11.5px; }
+  .meas input[type=range] { flex:1.3; }
+  .cmp { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:6px; }
+  .cmp div { background:var(--bg); border:1px solid var(--border); border-radius:7px; padding:6px 8px; font-size:11px; } .cmp b { display:block; font-size:15px; }
+  .note { font-size:10.5px; color:var(--muted); line-height:1.5; margin:4px 0; }
+  .warnbox { background:#2a1d08; border:1px solid #78350f; color:#fcd9a0; border-radius:8px; padding:7px 9px; font-size:11px; line-height:1.5; margin-bottom:8px; }
+  #busy { position:absolute; inset:0; background:rgba(7,11,20,.75); display:none; align-items:center; justify-content:center; flex-direction:column; gap:8px; font-size:13px; color:var(--muted); }
+</style>
+</head>
+<body>
+<div class="header"><div class="logo">CLIMRISK</div><div class="sub">Asset Twin · the real site in 3D, how floods and cyclone winds hurt it, and how to protect it</div></div>
+<div class="layout">
+  <aside class="left">
+    <h3>Site</h3>
+    <label>Name</label><input id="name" type="text" placeholder="e.g. Kiln line 2">
+    <div class="row"><div><label>Latitude</label><input id="lat" type="number" step="any"></div><div><label>Longitude</label><input id="lon" type="number" step="any"></div></div>
+    <div class="row"><div><label>Sector</label><select id="sector"></select></div><div><label>Built (year)</label><input id="year" type="number" min="1800" max="2100"></div></div>
+    <label>Model radius <span id="radv">300</span> m</label><input id="rad" type="range" min="150" max="500" step="50" value="300">
+    <button class="btn" id="build">Build 3D twin</button>
+    <div class="status" id="status"></div>
+    <details style="margin-top:8px"><summary style="font-size:11px;color:var(--muted);cursor:pointer">API key (only if your server requires one)</summary>
+      <input id="apiKey" type="password" placeholder="X-API-Key" style="margin-top:6px"></details>
+
+    <h3>Hazard replay</h3>
+    <div class="seg" id="modeSeg"><button data-m="flood" class="on">Flood</button><button data-m="wind">Cyclone wind</button></div>
+    <label>Scenario</label><select id="scen"></select>
+    <div id="windDir" style="display:none"><label>Wind blowing toward <span id="dirv">0</span>° (0 = north)</label><input id="dir" type="range" min="0" max="359" value="0"></div>
+    <div class="row" style="margin-top:6px"><button class="btn alt sm" id="replay" style="width:100%">Replay</button><button class="btn alt sm" id="pause" style="width:100%">Pause</button></div>
+    <h3>What if it changes <span class="tag">user what-if, not a forecast</span></h3>
+    <label>Extra water depth <span id="fav">0.0</span> m</label><input id="fadd" type="range" min="-0.5" max="2" step="0.1" value="0">
+    <label>Wind speed × <span id="wsv">1.00</span></label><input id="wsc" type="range" min="0.8" max="1.4" step="0.01" value="1">
+    <div class="note">Water: added to the mapped depth. Where the map shows no water the rise is measured from the lowest ground on site.</div>
+    <label>Terrain vertical exaggeration <span id="vev">1.0</span>×</label><input id="ve" type="range" min="1" max="4" step="0.5" value="1">
+
+    <h3>Protection</h3>
+    <div class="meas"><input type="checkbox" id="mEq"><span>Raise equipment <b id="mEqv">1.0</b> m</span><input type="range" id="mEqr" min="0.2" max="4" step="0.1" value="1"></div>
+    <div class="meas"><input type="checkbox" id="mPl"><span>Raise floors <b id="mPlv">0.5</b> m</span><input type="range" id="mPlr" min="0.2" max="3" step="0.1" value="0.5"></div>
+    <div class="meas"><input type="checkbox" id="mBa"><span>Flood barrier <b id="mBav">2.0</b> m</span><input type="range" id="mBar" min="0.5" max="5" step="0.1" value="2"></div>
+    <div class="meas"><input type="checkbox" id="mWi"><span>Wind retrofit to <b id="mWiv">60</b> m/s</span><input type="range" id="mWir" min="40" max="110" step="5" value="60"></div>
+    <div id="applied" class="note"></div>
+    <div class="cmp"><div>Before<b id="cmpB">–</b><span id="cmpBt"></span></div><div>After<b id="cmpA">–</b><span id="cmpAt"></span></div></div>
+    <button class="btn alt" id="clearM">Clear all protection</button>
+    <div class="hint">Every number comes from the same evaluation the agent uses, re-run with the measures applied. The wall and raised-equipment shapes are schematic.</div>
+
+    <h3>Incidents you know of</h3>
+    <div class="row"><input id="incDate" type="date"><select id="incHaz"><option value="flood">Flood</option><option value="cyclone">Cyclone</option><option value="other">Other</option></select></div>
+    <input id="incNote" type="text" placeholder="what happened, e.g. MCC room flooded 0.6 m" style="margin-top:6px">
+    <button class="btn alt" id="incAdd">Add to timeline</button>
+  </aside>
+
+  <main class="main">
+    <canvas id="view"></canvas>
+    <div class="hud" id="hud"></div>
+    <div class="legend" id="legend"></div>
+    <div class="tip" id="tip"></div>
+    <div id="busy"><div id="busyT">Building the twin…</div><div class="note" id="busyS" style="max-width:360px;text-align:center"></div></div>
+  </main>
+
+  <aside class="right">
+    <div class="tabs" id="tabs"><button data-p="agent" class="on">Agent findings</button><button data-p="hist">History</button><button data-p="edit">Edit</button><button data-p="basis">Basis</button></div>
+    <div class="pane on" id="p-agent"><div class="note">Build a twin to see what the agent finds.</div></div>
+    <div class="pane" id="p-hist"></div>
+    <div class="pane" id="p-edit"><div class="note">Click a structure in the 3D view to correct it.</div></div>
+    <div class="pane" id="p-basis"></div>
+  </aside>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const SECTORS = [['', 'Detect'], ['cement', 'Cement'], ['iron-and-steel', 'Steel'], ['electricity-generation', 'Power station'],
+  ['oil-and-gas-refining', 'Oil, gas, refining'], ['chemicals', 'Chemicals'], ['mining', 'Mining'], ['aluminum', 'Aluminium'],
+  ['pulp-and-paper', 'Pulp and paper'], ['real estate', 'Real estate'], ['data centre', 'Data centre'], ['port', 'Port / logistics'],
+  ['agriculture', 'Agriculture / food'], ['industrial', 'Other industrial']];
+$('sector').innerHTML = SECTORS.map(([k, t]) => `<option value="${k}">${t}</option>`).join('');
+
+// ── state ────────────────────────────────────────────────────────────────────
+const S = { twin: null, mode: 'flood', evalNow: null, evalBase: null, measures: [], proposal: [], sel: null, t: 1, playing: false,
+            incidents: [], edits: [], VE: 1, sceneObjs: {} };
+const COL = {
+  flood: { dry: 0x8fa3bf, wet_floor: 0xf5b73c, equipment_inundated: 0xef4444, submerged: 0x991b1b, protected: 0x22c55e },
+  wind: { none: 0x8fa3bf, minor: 0xe6d24a, moderate: 0xf59e0b, severe: 0xef4444, failure: 0x991b1b }
+};
+const LEG = { flood: [['dry', 'Dry'], ['wet_floor', 'Water on floor, equipment clear'], ['equipment_inundated', 'Equipment inundated'], ['submerged', 'Submerged'], ['protected', 'Protected by barrier']],
+              wind: [['none', 'No damage expected'], ['minor', 'Minor'], ['moderate', 'Moderate (near design)'], ['severe', 'Severe (design exceeded)'], ['failure', 'Well beyond design']] };
+
+async function api(path, body) {
+  const key = $('apiKey').value.trim();
+  const r = await fetch(path, { method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json' }, key ? { 'X-API-Key': key } : {}), body: JSON.stringify(body) });
+  if (!r.ok) { let m = r.status + ''; try { m = (await r.json()).detail || m; } catch (e) {} throw new Error(m); }
+  return r.json();
+}
+function status(t, err) { $('status').textContent = t; $('status').className = 'status' + (err ? ' error' : ''); }
+
+// ── three.js ─────────────────────────────────────────────────────────────────
+let renderer, scene, camera, terrainMesh, waterMesh, compGroup, miscGroup, windLines, raycaster, markerEq;
+const cam = { th: 0.8, ph: 1.0, r: 520, tx: 0, ty: 0, tz: 0 };
+function initGL() {
+  renderer = new THREE.WebGLRenderer({ canvas: $('view'), antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  scene = new THREE.Scene(); scene.background = new THREE.Color(0x0a1220); scene.fog = new THREE.Fog(0x0a1220, 900, 2600);
+  camera = new THREE.PerspectiveCamera(48, 1, 1, 6000);
+  scene.add(new THREE.HemisphereLight(0xcfe3ff, 0x2a3140, 0.85));
+  const sun = new THREE.DirectionalLight(0xffffff, 0.8); sun.position.set(-300, 500, 200); scene.add(sun);
+  compGroup = new THREE.Group(); miscGroup = new THREE.Group(); scene.add(compGroup, miscGroup);
+  raycaster = new THREE.Raycaster();
+  resize(); window.addEventListener('resize', resize);
+  const cv = $('view'); let drag = null, moved = 0;
+  cv.addEventListener('mousedown', e => { drag = { x: e.clientX, y: e.clientY, pan: e.shiftKey || e.button === 2 }; moved = 0; });
+  window.addEventListener('mouseup', e => { if (drag && moved < 4) pick(e); drag = null; });
+  window.addEventListener('mousemove', e => {
+    if (!drag) return; const dx = e.clientX - drag.x, dy = e.clientY - drag.y; moved += Math.abs(dx) + Math.abs(dy); drag.x = e.clientX; drag.y = e.clientY;
+    if (drag.pan) { const k = cam.r * 0.0016; cam.tx -= (Math.cos(cam.th) * dx) * k; cam.tz -= (-Math.sin(cam.th) * dx) * k; cam.tx -= Math.sin(cam.th) * dy * k; cam.tz -= Math.cos(cam.th) * dy * k; }
+    else { cam.th -= dx * 0.006; cam.ph = Math.min(1.5, Math.max(0.12, cam.ph - dy * 0.006)); }
+  });
+  cv.addEventListener('wheel', e => { e.preventDefault(); cam.r = Math.min(2200, Math.max(40, cam.r * (1 + Math.sign(e.deltaY) * 0.1))); }, { passive: false });
+  cv.addEventListener('contextmenu', e => e.preventDefault());
+  requestAnimationFrame(loop);
+}
+function resize() { const m = $('view').parentElement; renderer.setSize(m.clientWidth, m.clientHeight, false); camera.aspect = m.clientWidth / m.clientHeight; camera.updateProjectionMatrix(); }
+let last = performance.now();
+function loop(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  camera.position.set(cam.tx + cam.r * Math.sin(cam.ph) * Math.sin(cam.th), cam.ty + cam.r * Math.cos(cam.ph), cam.tz + cam.r * Math.sin(cam.ph) * Math.cos(cam.th));
+  camera.lookAt(cam.tx, cam.ty, cam.tz);
+  if (S.playing && S.t < 1) { S.t = Math.min(1, S.t + dt / 6); updateWater(); }
+  if (S.mode === 'wind' && windLines && !S.windPaused) stepWind(dt);
+  renderer.render(scene, camera);
+  requestAnimationFrame(loop);
+}
+const zb = () => S.twin.site.ground_pct[0];
+const yv = z => (z - zb()) * S.VE;
+const sx = x => x, sz = y => -y;
+
+function clearGroup(g) { while (g.children.length) { const o = g.children.pop(); if (o.geometry) o.geometry.dispose(); if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => m.dispose()); } }
+
+function buildTerrain() {
+  const T = S.twin.terrain, R = T.rows, C = T.cols;
+  if (terrainMesh) { scene.remove(terrainMesh); terrainMesh.geometry.dispose(); }
+  if (waterMesh) { scene.remove(waterMesh); waterMesh.geometry.dispose(); }
+  const pos = new Float32Array(R * C * 3), col = new Float32Array(R * C * 3), idx = [];
+  let zmin = Infinity, zmax = -Infinity; T.z.forEach(r => r.forEach(v => { zmin = Math.min(zmin, v); zmax = Math.max(zmax, v); }));
+  for (let r = 0; r < R; r++) for (let c = 0; c < C; c++) {
+    const i = r * C + c, x = T.x0_m + c * T.dx_m, y = T.y0_m - r * T.dy_m, z = T.z[r][c];
+    pos[i * 3] = sx(x); pos[i * 3 + 1] = yv(z); pos[i * 3 + 2] = sz(y);
+    const f = (z - zmin) / Math.max(zmax - zmin, 1), cc = new THREE.Color().setHSL(0.30 - 0.22 * f, 0.35, 0.30 + 0.18 * f);
+    col[i * 3] = cc.r; col[i * 3 + 1] = cc.g; col[i * 3 + 2] = cc.b;
+  }
+  for (let r = 0; r < R - 1; r++) for (let c = 0; c < C - 1; c++) { const a = r * C + c, b = a + 1, d = a + C, e = d + 1; idx.push(a, d, b, b, d, e); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.setIndex(idx); g.computeVertexNormals();
+  terrainMesh = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ vertexColors: true })); scene.add(terrainMesh);
+  const wg = new THREE.BufferGeometry(); wg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(R * C * 3), 3)); wg.setIndex(idx);
+  waterMesh = new THREE.Mesh(wg, new THREE.MeshPhongMaterial({ color: 0x2a8ad8, transparent: true, opacity: 0.62, shininess: 80, depthWrite: false, side: THREE.DoubleSide }));
+  waterMesh.renderOrder = 2; scene.add(waterMesh);
+  cam.ty = yv(S.twin.site.ground_ref_m); cam.r = Math.max(260, S.twin.site.radius_m * 1.8);
+  S.zrange = [zmin, zmax];
+}
+
+// depth mapping — identical to asset_twin.depth_at for mapped scenarios
+function interp(x, xs, ys) { if (x <= xs[0]) return ys[0]; if (x >= xs[xs.length - 1]) return ys[ys.length - 1]; let i = 1; while (xs[i] < x) i++; const f = (x - xs[i - 1]) / ((xs[i] - xs[i - 1]) || 1); return ys[i - 1] + f * (ys[i] - ys[i - 1]); }
+let PCT101 = Array.from({ length: 101 }, (_, i) => i / 100), PCT21 = Array.from({ length: 21 }, (_, i) => i / 20);
+function depthAt(sc, z, add) {
+  const gp = S.twin.site.ground_pct, r = interp(z, gp, PCT101), d0 = interp(1 - r, PCT21, sc.q);
+  if (d0 > 0) return d0 + add;
+  const zbnd = interp(sc.wet_share, PCT101, gp); return Math.max(0, add - Math.max(z - zbnd, 0));
+}
+function floodSc() { return S.twin.scenarios.flood.find(s => s.id === $('scen').value); }
+function protectedRing() { return S.measures.some(m => m.type === 'flood_barrier'); }
+function ringRadius() { const cs = onsite(); let r = 40; cs.forEach(c => { r = Math.max(r, Math.hypot(c.x, c.y) + 25); }); return r; }
+function barrierH() { return Math.max(0, ...S.measures.filter(m => m.type === 'flood_barrier').map(m => m.height_m)); }
+function updateWater() {
+  if (!S.twin || !waterMesh) return;
+  const T = S.twin.terrain, R = T.rows, C = T.cols, p = waterMesh.geometry.attributes.position, sc = floodSc();
+  const show = S.mode === 'flood' && sc, add = parseFloat($('fadd').value), t = S.t;
+  const sited = show ? (sc.q[18] + add) : 0, ring = ringRadius(); let wetN = 0;
+  const prot = show && protectedRing() && barrierH() >= sited + S.twin.site.freeboard_m;
+  for (let r = 0; r < R; r++) for (let c = 0; c < C; c++) {
+    const i = r * C + c, x = T.x0_m + c * T.dx_m, y = T.y0_m - r * T.dy_m, z = T.z[r][c];
+    let d = show ? depthAt(sc, z, add) : 0;
+    if (prot && Math.hypot(x, y) < ring) d = 0;
+    d *= t; if (d > 0.02) wetN++;
+    p.array[i * 3] = sx(x); p.array[i * 3 + 2] = sz(y);
+    p.array[i * 3 + 1] = d > 0.02 ? yv(z) + d * S.VE + 0.05 : yv(z) - 3;
+  }
+  p.needsUpdate = true; waterMesh.geometry.computeVertexNormals();
+  const el = $('hudDepth');
+  if (el) el.innerHTML = show ? `Map: <b>${sc.depth_m.toFixed(2)} m</b> mean depth, ${(100 * sc.wet_share).toFixed(0)}% of ground wet` +
+    (add ? ` · what-if <b>${add > 0 ? '+' : ''}${add.toFixed(1)} m</b>` : '') + ` · shown wet now: <b>${(100 * wetN / (R * C)).toFixed(0)}%</b>` : '';
+}
+
+function onsite() {
+  const cs = S.twin.components.filter(c => !c.removed && c.on_site !== false);
+  return cs.some(c => c.kind !== 'building') ? cs.filter(c => c.kind !== 'building') : cs;
+}
+function compMesh(c) {
+  const kd = S.twin.kinds[c.kind] || {}; let g;
+  if (['tank', 'silo', 'stack'].includes(c.kind)) { const rad = Math.max(2, Math.sqrt(c.area_m2 / Math.PI)); g = new THREE.CylinderGeometry(rad * (c.kind === 'stack' ? 0.8 : 1), rad, c.height_m, 20); g.translate(0, c.height_m / 2, 0); }
+  else {
+    const sh = new THREE.Shape(c.footprint.map(p => new THREE.Vector2(p[0], p[1]))); g = new THREE.ExtrudeGeometry(sh, { depth: c.height_m, bevelEnabled: false });
+    g.rotateX(-Math.PI / 2);
+  }
+  const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ color: 0x8fa3bf })); m.userData.id = c.id;
+  const ed = new THREE.LineSegments(new THREE.EdgesGeometry(g), new THREE.LineBasicMaterial({ color: 0x0a1220, transparent: true, opacity: 0.55 })); m.add(ed);
+  return m;
+}
+function placeComp(c, m) {
+  const pl = S.measures.filter(x => x.type === 'raise_plinth' && (x.components === 'all' || (x.components || []).includes(c.id))).reduce((a, x) => a + x.delta_m, 0);
+  m.position.set(sx(c.x), yv(c.floor_elev_m + pl), sz(c.y));
+}
+function buildComps() {
+  clearGroup(compGroup); S.sceneObjs = {};
+  S.twin.components.filter(c => !c.removed).forEach(c => { const m = compMesh(c); placeComp(c, m); compGroup.add(m); S.sceneObjs[c.id] = m; });
+}
+function buildLinear() {
+  clearGroup(miscGroup); (S.twin.linear || []).forEach(l => {
+    if (l.type === 'water' || l.type === 'waterbody') { const pts = l.pts.map(p => new THREE.Vector3(sx(p[0]), yv(S.twin.site.pin_ground_m) + 0.3, sz(p[1]))); miscGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: 0x3b82f6 }))); return; }
+    const pts = l.pts.map((p, i) => new THREE.Vector3(sx(p[0]), yv(l.z ? l.z[i] : S.twin.site.pin_ground_m) + 0.6, sz(p[1])));
+    const ln = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: 0xaab4c8 })); ln.userData.lin = l.id; miscGroup.add(ln);
+  });
+}
+function colorize() {
+  const ev = S.evalNow; if (!ev) return;
+  const set = new Set(onsite().map(c => c.id));
+  S.twin.components.forEach(c => {
+    const m = S.sceneObjs[c.id]; if (!m) return; const st = (ev.components[c.id] || {})[S.mode];
+    const col = st ? COL[S.mode][st.state] : 0x8fa3bf; m.material.color.setHex(col); m.material.opacity = set.has(c.id) ? 1 : 0.55; m.material.transparent = !set.has(c.id);
+    if (m.userData.id === S.sel) m.material.emissive.setHex(0x1b4a6b); else m.material.emissive.setHex(0);
+    placeComp(c, m);
+  });
+  miscGroup.children.forEach(o => { if (!o.userData.lin) return; const a = (ev.access || []).find(x => x.id === o.userData.lin);
+    o.material.color.setHex(a ? ({ passable: 0xaab4c8, restricted: 0xf5b73c, cut: 0xef4444 })[a.state] : 0xaab4c8); });
+  drawBarrier(); drawEquipLevel();
+}
+function drawBarrier() {
+  if (S.barrierMesh) { scene.remove(S.barrierMesh); S.barrierMesh.geometry.dispose(); S.barrierMesh = null; }
+  const h = barrierH(); if (!h || S.mode !== 'flood') return;
+  const rr = ringRadius(), z0 = S.zrange[0], hh = h + (S.zrange[1] - S.zrange[0]) * 0.5;
+  const g = new THREE.CylinderGeometry(rr, rr, hh * S.VE, 64, 1, true);
+  S.barrierMesh = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: 0x22c55e, transparent: true, opacity: 0.22, side: THREE.DoubleSide }));
+  S.barrierMesh.position.set(0, yv(S.twin.site.ground_ref_m - 0.5) + hh * S.VE / 2, 0); scene.add(S.barrierMesh);
+}
+function drawEquipLevel() {
+  if (markerEq) { scene.remove(markerEq); markerEq.geometry.dispose(); markerEq = null; }
+  const c = S.sel && S.twin.components.find(x => x.id === S.sel); if (!c || c.equip_height_m == null || S.mode !== 'flood') return;
+  const raise = S.measures.filter(x => x.type === 'raise_equipment' && (x.components === 'all' || (x.components || []).includes(c.id))).reduce((a, x) => a + x.delta_m, 0);
+  const pl = S.measures.filter(x => x.type === 'raise_plinth' && (x.components === 'all' || (x.components || []).includes(c.id))).reduce((a, x) => a + x.delta_m, 0);
+  const g = new THREE.BoxGeometry(Math.max(8, Math.sqrt(c.area_m2) + 4), 0.15, Math.max(8, Math.sqrt(c.area_m2) + 4));
+  markerEq = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: 0x22d3ee, transparent: true, opacity: 0.85 }));
+  markerEq.position.set(sx(c.x), yv(c.floor_elev_m + pl) + c.equip_height_m + raise, sz(c.y)); scene.add(markerEq);
+}
+
+// wind streaks
+const NW = 700;
+function buildWind() {
+  if (windLines) { scene.remove(windLines); windLines.geometry.dispose(); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(NW * 6), 3));
+  windLines = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: 0xbfe3ff, transparent: true, opacity: 0.55 }));
+  windLines.userData.p = Array.from({ length: NW }, () => seedW()); windLines.visible = S.mode === 'wind'; scene.add(windLines);
+}
+function seedW() { const R = S.twin.site.radius_m * 1.1; return [(Math.random() * 2 - 1) * R, 2 + Math.random() * 60, (Math.random() * 2 - 1) * R]; }
+function windVec() { const a = parseFloat($('dir').value) * Math.PI / 180; return [Math.sin(a), -Math.cos(a)]; }   // east, scene-z (north = −z)
+function stepWind(dt) {
+  const sc = S.twin.scenarios.wind.find(s => s.id === $('scen').value), st = S.twin.history.storms.find(s => s.id === $('scen').value);
+  const v = ((sc ? sc.v10_ms : st ? st.peak_wind_ms : 20)) * parseFloat($('wsc').value), [wx, wz] = windVec(), R = S.twin.site.radius_m * 1.1;
+  const P = windLines.userData.p, a = windLines.geometry.attributes.position, len = Math.min(40, 4 + v * 0.7);
+  for (let i = 0; i < NW; i++) {
+    const p = P[i]; const hf = Math.pow(Math.max(p[1], 10) / 10, 0.16); const sp = v * hf * 0.5 * dt * 3;
+    p[0] += wx * sp; p[2] += wz * sp;
+    if (Math.abs(p[0]) > R || Math.abs(p[2]) > R) { const s = seedW(); p[0] = s[0] - wx * R * 0.9; p[2] = s[2] - wz * R * 0.9; p[1] = s[1]; }
+    a.array.set([p[0], yv(S.twin.site.ground_ref_m) + p[1], p[2], p[0] - wx * len, yv(S.twin.site.ground_ref_m) + p[1], p[2] - wz * len], i * 6);
+  }
+  a.needsUpdate = true;
+}
+
+function pick(e) {
+  if (!S.twin) return; const r = $('view').getBoundingClientRect();
+  const m = new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  raycaster.setFromCamera(m, camera);
+  const hit = raycaster.intersectObjects(compGroup.children, false)[0];
+  S.sel = hit ? hit.object.userData.id : null; colorize(); showTip(); renderEdit();
+}
+function showTip() {
+  const t = $('tip'); const c = S.sel && S.twin.components.find(x => x.id === S.sel);
+  if (!c) { t.style.display = 'none'; return; }
+  const st = (S.evalNow.components[c.id] || {}), b = (S.evalBase && S.evalBase.components[c.id]) || {}; let h = `<h4>${esc(c.name)} <span class="tag">${esc(c.kind)}</span><span class="tag">${esc(c.source)}</span></h4>`;
+  h += `<div><span class="k">Height</span> ${c.height_m} m <span class="k">(${esc(c.height_source)})</span> · <span class="k">floor</span> ${c.floor_elev_m} m asl</div>`;
+  if (S.mode === 'flood' && st.flood) { const f = st.flood, f0 = b.flood || f;
+    h += `<div><span class="k">Flood</span> <b>${esc(f.label)}</b>` + (f.state === 'dry' ? '' : ` — ${f.depth_m} m over floor` + (f0.depth_m !== f.depth_m ? ` (was ${f0.depth_m} m)` : '')) + `</div>`;
+    h += f.state === 'dry' ? `<div class="k">No water reaches this structure in this scenario.</div>` : `<div class="k">Water would stand ${f.depth_at_ground_m} m above ground here; ${c.equip_height_m == null ? 'nothing here is flood-sensitive' : 'flood-critical equipment sits ' + c.equip_height_m + ' m above the floor' + (f.margin_m != null ? ` → margin ${f.margin_m} m (negative = under water)` : '')}.</div>`;
+    if (f.barrier_overtopped) h += `<div style="color:#fca5a5">Barrier is overtopped in this scenario.</div>`; }
+  if (S.mode === 'wind' && st.wind) { const w = st.wind;
+    h += `<div><span class="k">Wind</span> <b>${esc(w.label)}</b></div><div class="k">Gust ${w.gust_ms} m/s at ${c.height_m} m = ${w.q_kpa} kPa · ${Math.round(w.ratio * 100)}% of design ${w.design_wind_ms} m/s (${esc(c.design_wind_source)})</div>`; }
+  t.innerHTML = h; t.style.display = 'block';
+}
+
+// ── scenario / evaluation ────────────────────────────────────────────────────
+function hazard() {
+  const hz = { what_if: { flood_add_m: parseFloat($('fadd').value), wind_scale: parseFloat($('wsc').value) } };
+  if (S.mode === 'flood') { const sc = floodSc(); if (sc) hz.flood = { q: sc.q, wet_share: sc.wet_share }; }
+  else { const sc = S.twin.scenarios.wind.find(s => s.id === $('scen').value), st = S.twin.history.storms.find(s => s.id === $('scen').value);
+    hz.wind = { v10_ms: sc ? sc.v10_ms : st ? st.peak_wind_ms : 0 }; }
+  return hz;
+}
+let evalTimer = null;
+function schedule() { clearTimeout(evalTimer); evalTimer = setTimeout(runEval, 120); }
+async function runEval() {
+  if (!S.twin) return; const hz = hazard();
+  if (!hz.flood && !hz.wind) { S.evalNow = S.evalBase = { components: {}, access: [], tally: {} }; colorize(); updateWater(); return; }
+  const body = { components: S.twin.components, site: S.twin.site, hazard: hz, linear: S.twin.linear };
+  try {
+    const [b, a] = await Promise.all([api('/asset-twin/evaluate', Object.assign({ measures: [] }, body)), api('/asset-twin/evaluate', Object.assign({ measures: S.measures }, body))]);
+    S.evalBase = b; S.evalNow = a; colorize(); updateWater(); renderHud(); renderCompare(); showTip(); renderLegend();
+  } catch (e) { status('Evaluation failed: ' + e.message, true); }
+}
+function counts(ev) {
+  const set = new Set(onsite().map(c => c.id)); const t = {}; let n = 0;
+  Object.entries(ev.components || {}).forEach(([id, s]) => { if (!set.has(id)) return; const st = s[S.mode]; if (!st) return; t[st.state] = (t[st.state] || 0) + 1; n++; });
+  return { t, n };
+}
+function badCount(ev) { const { t } = counts(ev); return S.mode === 'flood' ? (t.equipment_inundated || 0) + (t.submerged || 0) : (t.severe || 0) + (t.failure || 0); }
+function renderCompare() {
+  const b = counts(S.evalBase), a = counts(S.evalNow), what = S.mode === 'flood' ? 'with equipment inundated' : 'beyond design wind';
+  $('cmpB').textContent = badCount(S.evalBase) + ' / ' + b.n; $('cmpA').textContent = badCount(S.evalNow) + ' / ' + a.n;
+  $('cmpBt').textContent = what; $('cmpAt').textContent = S.measures.length ? what : 'no protection applied';
+}
+function renderLegend() { $('legend').innerHTML = LEG[S.mode].map(([k, t]) => `<div><i style="background:#${COL[S.mode][k].toString(16).padStart(6, '0')}"></i>${t}</div>`).join('') + '<div class="note">Grey, faded: surrounding structures, not judged.</div>'; }
+function renderHud() {
+  const sc = S.mode === 'flood' ? floodSc() : (S.twin.scenarios.wind.find(s => s.id === $('scen').value) || S.twin.history.storms.find(s => s.id === $('scen').value));
+  const lbl = sc ? (sc.label || (sc.name + ' ' + sc.year)) : 'No scenario';
+  let h = `<div class="chip"><b>${esc(S.twin.asset.name)}</b> · ${S.twin.components.filter(c => !c.removed).length} structures · layout: <b>${esc(S.twin.site.layout_source)}</b></div><div class="chip">${esc(lbl)}</div>`;
+  if (S.mode === 'wind' && sc) h += `<div class="chip"><b>${(sc.v10_ms || sc.peak_wind_ms)} m/s</b> sustained at 10 m (× ${$('wsc').value})</div>`;
+  if (S.mode === 'flood') h += `<div class="chip" id="hudDepth"></div>`;
+  const acc = (S.evalNow.access || []).filter(a => a.state !== 'passable'); if (acc.length && S.mode === 'flood') h += `<div class="chip" style="color:#fcd9a0">${acc.length} access road/rail segment(s) restricted or cut</div>`;
+  if (S.twin.site.layout_source === 'parametric') h += `<div class="chip" style="color:#fcd9a0;border-color:#78350f">ILLUSTRATIVE layout — not the real plant. Use Edit to place real structures.</div>`;
+  $('hud').innerHTML = h;
+}
+function fillScen() {
+  const sel = $('scen'); const tw = S.twin; let opts = '';
+  if (S.mode === 'flood') opts = tw.scenarios.flood.map(s => `<option value="${esc(s.id)}">${esc(s.label)} — ${s.depth_m} m</option>`).join('');
+  else {
+    opts = tw.scenarios.wind.map(s => `<option value="${esc(s.id)}">${esc(s.label)} — ${s.v10_ms} m/s</option>`).join('');
+    if (tw.history.storms.length) opts += '<optgroup label="Storms on record at this site">' + [...tw.history.storms].sort((a, b) => b.peak_wind_ms - a.peak_wind_ms).map(s => `<option value="${esc(s.id)}">${s.year} ${esc(s.name)} — ${s.peak_wind_ms} m/s</option>`).join('') + '</optgroup>';
+  }
+  sel.innerHTML = opts || '<option value="">No scenario available</option>';
+  const pre = S.mode === 'flood' ? (tw.scenarios.flood.find(s => s.id === 'river_100') || tw.scenarios.flood.find(s => s.depth_m > 0) || tw.scenarios.flood[0]) : (tw.scenarios.wind.find(s => s.rp === 100) || tw.scenarios.wind[0]);
+  if (pre) sel.value = pre.id;
+  $('windDir').style.display = S.mode === 'wind' ? 'block' : 'none';
+  setDirFromScenario();
+}
+function setDirFromScenario() {
+  const st = S.twin && S.twin.history.storms.find(s => s.id === $('scen').value);
+  if (st) { $('dir').value = st.wind_to_deg; } else if (S.twin && S.mode === 'wind') { const w = [...S.twin.history.storms].sort((a, b) => b.peak_wind_ms - a.peak_wind_ms)[0]; if (w) $('dir').value = w.wind_to_deg; }
+  $('dirv').textContent = $('dir').value;
+}
+function setMode(m) {
+  S.mode = m; document.querySelectorAll('#modeSeg button').forEach(b => b.classList.toggle('on', b.dataset.m === m));
+  if (!S.twin) return; fillScen(); if (windLines) windLines.visible = m === 'wind'; replay(); schedule();
+}
+function replay() { S.t = S.mode === 'flood' ? 0 : 1; S.playing = S.mode === 'flood'; S.windPaused = false; updateWater(); }
+
+// ── protection ───────────────────────────────────────────────────────────────
+function manual() {
+  const m = [];
+  if ($('mEq').checked) m.push({ type: 'raise_equipment', delta_m: +$('mEqr').value, components: 'all' });
+  if ($('mPl').checked) m.push({ type: 'raise_plinth', delta_m: +$('mPlr').value, components: 'all' });
+  if ($('mBa').checked) m.push({ type: 'flood_barrier', height_m: +$('mBar').value, components: 'all' });
+  if ($('mWi').checked) m.push({ type: 'wind_retrofit', design_wind_ms: +$('mWir').value, components: 'all' });
+  return m;
+}
+function syncMeasures() {
+  S.measures = S.proposal.concat(manual());
+  $('applied').innerHTML = S.proposal.length ? 'Agent proposal applied: ' + S.proposal.map(m => esc(m.type.replace(/_/g, ' ')) + ' ' + (m.delta_m ?? m.height_m ?? m.design_wind_ms)).join('; ') : '';
+  [['mEq', 'mEqr', 'mEqv'], ['mPl', 'mPlr', 'mPlv'], ['mBa', 'mBar', 'mBav'], ['mWi', 'mWir', 'mWiv']].forEach(([, r, v]) => { $(v).textContent = $(r).value; });
+  schedule();
+}
+['mEq', 'mPl', 'mBa', 'mWi', 'mEqr', 'mPlr', 'mBar', 'mWir'].forEach(id => $(id).addEventListener('input', () => { S.proposal = []; syncMeasures(); }));
+$('clearM').onclick = () => { S.proposal = []; ['mEq', 'mPl', 'mBa', 'mWi'].forEach(i => $(i).checked = false); syncMeasures(); };
+
+// ── right-hand panes ─────────────────────────────────────────────────────────
+function renderAgent() {
+  const ag = S.twin.agent || { findings: [], transcript: [], assumptions: [] }; let h = '';
+  if (S.twin.notes.length || S.twin.data_gaps.length) h += `<div class="warnbox">${S.twin.notes.concat(S.twin.data_gaps).map(esc).join('<br><br>')}</div>`;
+  if (!ag.findings.length) h += `<div class="card"><h4>No component is reached by the key scenarios</h4><p>None of the structures judged is reached by the mapped 1-in-10 or 1-in-100 floods, or goes beyond its (assumed) design wind at the 1-in-100 and 1-in-250 cyclone, or in the strongest storm on record. Check the scenario list and the Edit tab (heights, equipment levels, design winds are partly assumed).</p></div>`;
+  ag.findings.forEach((f, i) => {
+    h += `<div class="card"><h4>${esc(f.title)}</h4>
+      <div class="lbl">What happens</div><ul>${f.problem.map(p => `<li>${esc(p)}</li>`).join('')}</ul>
+      <div class="lbl">Why it happens</div><p>${esc(f.cause)}</p>
+      <div class="lbl">What it means for this kind of facility</div><p>${esc(f.consequence)}</p>
+      <div class="lbl">How to protect it (checked by re-running the evaluation)</div><ul>${f.protection.map((m, j) => `<li>${esc(m.why)} <b>${esc((m.type || '').replace(/_/g, ' '))} ${m.delta_m ?? m.height_m ?? m.design_wind_ms}${m.type === 'wind_retrofit' ? ' m/s' : ' m'}</b> → ${f.hazard === 'flood' ? `${m.residual_equipment_inundated} with equipment inundated, ${m.residual_wet_floor} with wet floor left` : `${m.residual_beyond_design} still beyond design`} <button class="btn alt sm" data-prot="${i}:${j}" style="margin-left:4px">Apply in 3D</button></li>`).join('') || '<li>No measure needed.</li>'}</ul>
+      ${(f.access || []).length ? `<p class="note">Access: ${f.access.map(a => esc(a.name) + ' ' + a.state + ' (' + a.max_depth_m + ' m)').join('; ')}</p>` : ''}
+      <div style="display:flex;gap:6px;margin-top:8px"><button class="btn sm" data-show="${i}">Show in 3D (no protection)</button></div></div>`;
+  });
+  h += `<h3>Agent steps</h3>` + ag.transcript.map(s => `<div class="ev"><div class="y" style="width:92px">${esc(s.step)}</div><div class="t">${esc(s.result)}<small>${esc(s.tool)}</small></div></div>`).join('');
+  h += `<h3>Assumptions</h3><ul class="note" style="margin-left:16px">${(ag.assumptions || []).map(a => `<li>${esc(a)}</li>`).join('')}</ul>`;
+  $('p-agent').innerHTML = h;
+  $('p-agent').querySelectorAll('[data-show]').forEach(b => b.onclick = () => showFinding(+b.dataset.show));
+  $('p-agent').querySelectorAll('[data-prot]').forEach(b => b.onclick = () => { const [i, j] = b.dataset.prot.split(':').map(Number); showFinding(i, j); });
+}
+function showFinding(i, j) {
+  const f = S.twin.agent.findings[i]; setMode(f.hazard); $('scen').value = f.scenario; setDirFromScenario();
+  S.proposal = (j === undefined || j === false) ? [] : [f.protection[j]].map(m => ({ type: m.type, delta_m: m.delta_m, height_m: m.height_m, design_wind_ms: m.design_wind_ms, components: m.components }));
+  ['mEq', 'mPl', 'mBa', 'mWi'].forEach(id => $(id).checked = false); replay(); syncMeasures();
+}
+function renderHistory() {
+  const H = S.twin.history, ev = [];
+  H.storms.forEach(s => ev.push({ y: s.year, t: `<b>${esc(s.name)}</b> — ${s.peak_wind_ms} m/s at the site (${esc(s.category_at_site)}), centre passed ${s.closest_km} km away`, small: `IBTrACS + Holland model · wind blew toward ≈${s.wind_to_deg}°`, id: s.id, mode: 'wind' }));
+  H.observed.forEach(o => ev.push({ y: o.year, t: esc(o.label), small: `${esc(o.date)} · ${esc(o.source)}` }));
+  S.incidents.concat(H.incidents).forEach(o => ev.push({ y: o.year || '—', t: esc(o.label) + (o.depth_m ? ` (${o.depth_m} m)` : ''), small: `${esc(o.date || '')} · ${esc(o.hazard || '')} · reported by you` }));
+  ev.sort((a, b) => (a.y === '—' ? 9999 : a.y) - (b.y === '—' ? 9999 : b.y));
+  let h = `<div class="note">Storm record: ${H.record_years || '—'} years of IBTrACS (1980 onward), storms giving at least tropical-storm force at the site. Radar flood = Sentinel-1 water mapping, up to 4 years. The record shows what has happened; the scenarios show what the same site can face. Parameters can change: use the what-if sliders.</div>`;
+  h += ev.length ? ev.map(e => `<div class="ev"><div class="y">${e.y}</div><div class="t">${e.t}<small>${e.small || ''}</small></div>${e.id ? `<button class="btn alt sm" data-rep="${esc(e.id)}">Replay</button>` : ''}</div>`).join('') : '<div class="note">No recorded events at this site in the available data.</div>';
+  $('p-hist').innerHTML = h;
+  $('p-hist').querySelectorAll('[data-rep]').forEach(b => b.onclick = () => { setMode('wind'); $('scen').value = b.dataset.rep; setDirFromScenario(); replay(); schedule(); });
+}
+function renderEdit() {
+  const c = S.sel && S.twin && S.twin.components.find(x => x.id === S.sel); const p = $('p-edit');
+  if (!c) { p.innerHTML = `<div class="note">Click a structure in the 3D view to correct its height, kind, equipment level or design wind speed. Corrections are applied to the model and used by the agent.</div>` + addForm(); wireAdd(); return; }
+  p.innerHTML = `<div class="card"><h4>${esc(c.name)} <span class="tag">${esc(c.source)}</span></h4>
+    <label>Kind</label><select id="eKind">${Object.entries(S.twin.kinds).map(([k, v]) => `<option value="${k}" ${k === c.kind ? 'selected' : ''}>${esc(v.label)}</option>`).join('')}</select>
+    <div class="row"><div><label>Height m <span class="tag">${esc(c.height_source)}</span></label><input id="eH" type="number" step="0.5" value="${c.height_m}"></div>
+    <div><label>Floor above ground m</label><input id="eF" type="number" step="0.05" value="${(c.floor_elev_m - c.ground_m).toFixed(2)}"></div></div>
+    <div class="row"><div><label>Flood-critical equipment, m above floor</label><input id="eE" type="number" step="0.05" value="${c.equip_height_m ?? ''}" placeholder="none"></div>
+    <div><label>Design gust m/s <span class="tag">${esc(c.design_wind_source)}</span></label><input id="eW" type="number" step="1" value="${c.design_wind_ms}"></div></div>
+    <div style="display:flex;gap:6px"><button class="btn sm" id="eApply">Apply</button><button class="btn alt sm" id="eRem">Remove</button></div>
+    <div class="note">Equipment level and design wind that you do not enter are assumed by kind and flagged as such.</div></div>` + addForm();
+  $('eApply').onclick = () => applyEdit(c); $('eRem').onclick = () => { c.removed = true; S.sel = null; buildComps(); rerun(); renderEdit(); showTip(); }; wireAdd();
+}
+function addForm() {
+  return `<h3>Add equipment</h3><div class="card"><div class="row"><div><label>Kind</label><select id="aKind">${Object.entries(S.twin ? S.twin.kinds : {}).map(([k, v]) => `<option value="${k}">${esc(v.label)}</option>`).join('')}</select></div><div><label>Name</label><input id="aName" type="text"></div></div>
+    <div class="row"><div><label>East of pin m</label><input id="aX" type="number" value="0"></div><div><label>North of pin m</label><input id="aY" type="number" value="0"></div></div>
+    <div class="row"><div><label>Width m</label><input id="aW" type="number" value="20"></div><div><label>Depth m</label><input id="aD" type="number" value="20"></div></div>
+    <label>Height m</label><input id="aH" type="number" value="12"><button class="btn sm" id="aGo" style="margin-top:8px">Add and re-run agent</button></div>`;
+}
+function wireAdd() {
+  const b = $('aGo'); if (!b || !S.twin) return;
+  b.onclick = () => {
+    const w = +$('aW').value, d = +$('aD').value, k = $('aKind').value, kd = S.twin.kinds[k], x = +$('aX').value, y = +$('aY').value;
+    const c = { id: 'u' + Date.now(), name: $('aName').value || kd.label, kind: k, footprint: [[-w / 2, -d / 2], [w / 2, -d / 2], [w / 2, d / 2], [-w / 2, d / 2]], x, y, area_m2: w * d,
+      height_m: +$('aH').value, height_source: 'user', equip_height_m: kd.equip_h, design_wind_ms: kd.dw, design_wind_source: 'assumed by kind', source: 'user', on_site: true };
+    const g = S.twin.terrain; const gz = groundAt(x, y); c.ground_m = +gz.toFixed(2); c.floor_elev_m = +(gz + 0.15).toFixed(2);
+    S.twin.components.push(c); S.sel = c.id; buildComps(); rerun(); renderEdit();
+  };
+}
+function groundAt(x, y) { const T = S.twin.terrain; const c = Math.min(T.cols - 1.001, Math.max(0, T.pin_col + x / T.dx_m)), r = Math.min(T.rows - 1.001, Math.max(0, T.pin_row - y / T.dy_m)); const r0 = Math.floor(r), c0 = Math.floor(c), fr = r - r0, fc = c - c0, z = T.z;
+  return (z[r0][c0] * (1 - fc) + z[r0][c0 + 1] * fc) * (1 - fr) + (z[r0 + 1][c0] * (1 - fc) + z[r0 + 1][c0 + 1] * fc) * fr; }
+function applyEdit(c) {
+  c.kind = $('eKind').value; c.height_m = +$('eH').value; c.height_source = 'user';
+  const e = $('eE').value; c.equip_height_m = e === '' ? null : +e; c.design_wind_ms = +$('eW').value; c.design_wind_source = 'user';
+  c.floor_elev_m = +(c.ground_m + +$('eF').value).toFixed(2); buildComps(); rerun(); showTip();
+}
+async function rerun() {
+  await runEval();
+  try { const a = await api('/asset-twin/analyse', { twin: S.twin }); S.twin.agent = a; renderAgent(); } catch (e) { status('Agent re-run failed: ' + e.message, true); }
+}
+function renderBasis() {
+  const b = S.twin.basis; $('p-basis').innerHTML = Object.entries(b).map(([k, v]) => `<div class="card"><div class="lbl" style="margin-top:0">${esc(k)}</div><p>${esc(v)}</p></div>`).join('') +
+    `<div class="note">Flood scenarios: ${S.twin.scenarios.flood.length}. Water in the 3D view is not a hydraulic simulation: the mapped depth distribution is allocated to the lowest ground first. Roads and rails come from OpenStreetMap; their state uses the same depths with 0.15 m and 0.30 m rules of thumb.</div>`;
+}
+
+// ── build ────────────────────────────────────────────────────────────────────
+async function build() {
+  const lat = parseFloat($('lat').value), lon = parseFloat($('lon').value);
+  if (!isFinite(lat) || !isFinite(lon)) { status('Enter a latitude and longitude', true); return; }
+  const y = parseInt($('year').value, 10);
+  $('build').disabled = true; $('busy').style.display = 'flex'; $('busyT').textContent = 'Building the twin…';
+  $('busyS').textContent = 'Reading OpenStreetMap footprints, terrain, flood maps, cyclone record and radar history. Usually 30–90 seconds.';
+  try {
+    const tw = await api('/asset-twin/build', { lat, lon, name: $('name').value || 'Asset', sector: $('sector').value || null, commissioned_year: isFinite(y) ? y : null,
+      radius_m: +$('rad').value, incidents: S.incidents, edits: S.edits.length ? S.edits : null });
+    loadTwin(tw); status('Twin built in ' + tw.elapsed_s + ' s');
+  } catch (e) { status(e.message, true); } finally { $('build').disabled = false; $('busy').style.display = 'none'; }
+}
+function loadTwin(tw) {
+  S.twin = tw; S.sel = null; S.proposal = []; S.measures = []; ['mEq', 'mPl', 'mBa', 'mWi'].forEach(i => $(i).checked = false);
+  buildTerrain(); buildComps(); buildLinear(); buildWind(); fillScen(); renderAgent(); renderHistory(); renderEdit(); renderBasis();
+  windLines.visible = S.mode === 'wind'; replay(); runEval();
+}
+$('build').onclick = build;
+$('rad').oninput = () => $('radv').textContent = $('rad').value;
+$('scen').onchange = () => { setDirFromScenario(); replay(); schedule(); };
+$('dir').oninput = () => { $('dirv').textContent = $('dir').value; };
+$('fadd').oninput = () => { $('fav').textContent = (+$('fadd').value).toFixed(1); schedule(); };
+$('wsc').oninput = () => { $('wsv').textContent = (+$('wsc').value).toFixed(2); schedule(); };
+$('ve').oninput = () => { $('vev').textContent = (+$('ve').value).toFixed(1); S.VE = +$('ve').value; if (S.twin) { buildTerrain(); buildComps(); buildLinear(); colorize(); updateWater(); } };
+$('replay').onclick = () => { replay(); }; $('pause').onclick = () => { S.playing = !S.playing; S.windPaused = !S.windPaused; $('pause').textContent = S.windPaused || !S.playing ? 'Resume' : 'Pause'; };
+document.querySelectorAll('#modeSeg button').forEach(b => b.onclick = () => setMode(b.dataset.m));
+document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => { document.querySelectorAll('#tabs button').forEach(x => x.classList.toggle('on', x === b)); document.querySelectorAll('.pane').forEach(p => p.classList.toggle('on', p.id === 'p-' + b.dataset.p)); });
+$('incAdd').onclick = () => { const d = $('incDate').value, n = $('incNote').value.trim(); if (!d || !n) return; S.incidents.push({ date: d, year: +d.slice(0, 4), hazard: $('incHaz').value, label: n, source: 'user-reported' }); $('incNote').value = ''; if (S.twin) renderHistory(); };
+const q = new URLSearchParams(location.search);
+if (q.get('lat')) { $('lat').value = q.get('lat'); $('lon').value = q.get('lon') || ''; $('name').value = q.get('name') || ''; if (q.get('sector')) $('sector').value = q.get('sector'); }
+initGL(); renderLegend();
+window.__twin = { S, loadTwin, depthAt, interp };   // for tests
+</script>
+</body>
+</html>

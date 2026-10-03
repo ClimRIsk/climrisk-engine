@@ -1477,6 +1477,69 @@ def physical_risk_report_pdf(request: PhysicalRiskReportRequest):
                     headers={"Content-Disposition": 'attachment; filename="physical_risk_assessment.pdf"'})
 
 
+# ── Asset Twin: 3D model of a real site with a hazard-replay and protection agent ──────────────────────
+
+class AssetTwinBuildRequest(BaseModel):
+    lat: float = Field(..., ge=-90, le=90)
+    lon: float = Field(..., ge=-180, le=180)
+    name: Optional[str] = "Asset"
+    sector: Optional[str] = None
+    asset_type: Optional[str] = None
+    commissioned_year: Optional[int] = Field(None, ge=1800, le=2100)
+    radius_m: float = Field(300.0, ge=120, le=500)
+    edits: Optional[list[dict]] = Field(None, description="Corrections: patch a component by id (height_m, kind, equip_height_m, "
+                                                          "design_wind_ms, floor_offset_m, name, removed) or add one (x, y, w, d, height_m, kind)")
+    incidents: Optional[list[dict]] = Field(None, description="Known past incidents: {date, hazard, note, depth_m}")
+    include_observed: bool = True
+
+
+class AssetTwinEvaluateRequest(BaseModel):
+    components: list[dict]
+    site: dict
+    hazard: dict = Field(..., description='{"flood": {"q": [...21], "wet_share": s} | {"depth_m": x}, "wind": {"v10_ms": v}, '
+                                          '"what_if": {"flood_add_m": 0, "wind_scale": 1}}')
+    measures: Optional[list[dict]] = None
+    linear: Optional[list[dict]] = None
+
+
+class AssetTwinAnalyseRequest(BaseModel):
+    twin: dict
+
+
+@app.get("/asset-twin/dashboard", tags=["Asset Twin"])
+def asset_twin_dashboard():
+    from fastapi.responses import HTMLResponse
+    return HTMLResponse((Path(__file__).parent / "asset_twin_dashboard.html").read_text(encoding="utf-8"))
+
+
+@app.post("/asset-twin/build", dependencies=[_AUTH], tags=["Asset Twin"])
+def asset_twin_build(request: AssetTwinBuildRequest) -> dict:
+    """Build the 3D twin: real OSM footprints (or a flagged illustrative layout), terrain, flood scenarios, cyclone winds,
+    storm history, and the agent's findings (problem, cause, protection, verified residual)."""
+    from .. import asset_twin as T
+    try:
+        tw = T.build_twin(request.lat, request.lon, request.name or "Asset", request.sector, request.asset_type,
+                          request.commissioned_year, request.radius_m, request.edits, request.incidents, request.include_observed)
+        tw["agent"] = T.analyse(tw)
+    except Exception as exc:                                    # noqa: BLE001
+        raise HTTPException(status_code=502, detail=f"Could not build the twin: {type(exc).__name__}: {str(exc)[:200]}")
+    return _jsonable(tw)
+
+
+@app.post("/asset-twin/evaluate", dependencies=[_AUTH], tags=["Asset Twin"])
+def asset_twin_evaluate(request: AssetTwinEvaluateRequest) -> dict:
+    """Re-evaluate every component for one flood scenario and / or wind, with protection measures applied."""
+    from .. import asset_twin as T
+    return _jsonable(T.evaluate(request.components, request.site, request.hazard, request.measures, request.linear))
+
+
+@app.post("/asset-twin/analyse", dependencies=[_AUTH], tags=["Asset Twin"])
+def asset_twin_analyse(request: AssetTwinAnalyseRequest) -> dict:
+    """Re-run the agent on an edited twin (after the user corrected heights, equipment levels or design winds)."""
+    from .. import asset_twin as T
+    return _jsonable(T.analyse(request.twin))
+
+
 @app.post("/reports/physical", response_model=PhysicalHazardReportResponse, dependencies=[_AUTH])
 def generate_physical_report(request: PhysicalReportRequest) -> PhysicalHazardReportResponse:
     """
