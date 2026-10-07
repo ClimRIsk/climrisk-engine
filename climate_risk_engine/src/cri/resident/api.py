@@ -51,6 +51,19 @@ class AskReq(BaseModel):
     question: str = Field(..., max_length=1000)
     context: Optional[str] = None
 
+class LabReq(BaseModel):
+    domain: str = Field(..., pattern="^(flood|air)$")
+    lat: float = Field(..., ge=-90, le=90)
+    lon: float = Field(..., ge=-180, le=180)
+    name: str = Field("Study site", max_length=80)
+    return_period: Optional[int] = Field(None, ge=2, le=1000)
+    radius_km: Optional[float] = Field(None, ge=0.5, le=5.0)
+    city_km: Optional[float] = Field(None, ge=5.0, le=80.0)
+    manning: Optional[float] = Field(None, ge=0.01, le=0.3)
+    cn: Optional[float] = Field(None, ge=40, le=98)
+    observed_depths: Optional[list] = None
+    pm25_series: Optional[list] = None
+
 class EditReq(BaseModel):
     text: str = Field(..., max_length=3000)
 
@@ -202,6 +215,37 @@ def make_router(auth_dep) -> tuple:
     def ask(req: AskReq) -> dict:
         from . import answer as AN
         return AN.ask(req.question, context=req.context)
+
+    @prot.get("/lab/domains")
+    def lab_domains() -> dict:
+        from ..modellab import lab as L
+        return L.DOMAINS
+
+    @prot.post("/lab/run")
+    def lab_run(req: LabReq) -> dict:
+        """Start a Model Lab study as a background job; poll /resident/job/{id}. Result blocks carry the report links."""
+        from ..modellab import lab as L
+        opts: dict = {}
+        if req.domain == "flood":
+            for k in ("return_period", "radius_km", "manning", "cn"):
+                if getattr(req, k) is not None:
+                    opts[k] = getattr(req, k)
+            if req.observed_depths:
+                opts["observed"] = {"points": [p for p in req.observed_depths if isinstance(p, dict) and "depth_m" in p], "source": "supplied by the user"}
+        else:
+            if req.city_km is not None:
+                opts["city_km"] = req.city_km
+            if req.pm25_series:
+                opts["obs"] = {"pm25": req.pm25_series, "source": "supplied ground-station series"}
+        holder: dict = {}
+
+        def work():
+            out = L.run_study(req.domain, req.lat, req.lon, req.name, opts, progress=lambda m: holder["j"].__setitem__("progress", m))
+            r = out["result"]
+            return {"reply": out["story"]["title"] + "\n" + out["story"].get("standfirst", ""),
+                    "blocks": [{"type": "files", "items": out["files"]}, {"type": "table", "head": ["", ""], "rows": L.summary(r)}], "actions": []}
+        holder["j"] = A._job(work, f"{req.domain} model study")
+        return {"job": holder["j"]["id"]}
 
     @pub.get("/file/{name}")
     def report_file(name: str) -> Response:

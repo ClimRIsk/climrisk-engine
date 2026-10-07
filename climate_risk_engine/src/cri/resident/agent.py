@@ -29,7 +29,8 @@ REPORT_TYPES = {"report_physical": "physical", "report_transition": "transition"
 HELP = ("I can: **build a 3D twin** of a site and replay flood and wind on it; **find protection** and verify it; **build scenarios** and rank solutions; "
         "**write story reports** (physical, transition, financial, LCA, ISO 14067, carbon audit, CBAM); **run the risk analyst** on a company or coordinates; "
         "**list a company's assets**; **research** live hazards and map them onto the asset register; **draft LinkedIn posts** (and publish only after you approve); "
-        "and **remember** facts about your sites. Try: \"build a 3D twin of 22.2645, 91.805\", \"how do I protect it?\", \"scan this week's events\", \"write the CBAM report for Holcim\".")
+        "**build and test physics models on my own** (flood inundation, air quality: I choose the equations, verify them, calibrate, validate and write the methods); "
+        "and **remember** facts about your sites. Try: \"build a flood model for 22.2645, 91.805\", \"air quality model for 28.6139, 77.2090\", \"build a 3D twin of 22.2645, 91.805\", \"how do I protect it?\", \"scan this week's events\", \"write the CBAM report for Holcim\".")
 
 FAQ = [
     (r"solver|hydraul|how.*flood.*(model|calcul)", "Flood depths come from a 2D shallow-water solver (local-inertial form, Bates 2010) on 9 m terrain, with every building a solid obstruction. "
@@ -68,7 +69,7 @@ def job_status(jid: str) -> dict:
     j = JOBS.get(jid)
     if not j:
         return {"status": "unknown"}
-    return {k: j[k] for k in ("id", "label", "status", "error")} | {"elapsed_s": round(time.time() - j["t0"], 1), "reply": (j.get("result") or {}).get("reply") if j["status"] == "done" else None,
+    return {k: j[k] for k in ("id", "label", "status", "error")} | {"progress": j.get("progress"), "elapsed_s": round(time.time() - j["t0"], 1), "reply": (j.get("result") or {}).get("reply") if j["status"] == "done" else None,
                                                                     "blocks": (j.get("result") or {}).get("blocks") if j["status"] == "done" else None,
                                                                     "actions": (j.get("result") or {}).get("actions") if j["status"] == "done" else None}
 
@@ -137,7 +138,7 @@ class Agent:
         text = (text or "").strip()
         if not text:
             return {"reply": "Ask me something — for example \"build a 3D twin of 22.2645, 91.805\".", "blocks": [], "actions": [], "intent": "empty"}
-        quick = self._autopilot_commands(session, text) or self._knowledge_commands(session, text)
+        quick = self._autopilot_commands(session, text) or self._lab_commands(session, text) or self._knowledge_commands(session, text)
         if quick:
             if quick.get("intent") in (None, "knowledge", "learn"):      # autopilot commands log themselves
                 quick.setdefault("intent", "knowledge")
@@ -328,6 +329,54 @@ class Agent:
             return {"reply": r["reply"], "blocks": blocks, "actions": acts}
         j = _job(work, "answering from what I have learned")
         return {"reply": "Looking through what I have learned" + (" — and reading up on it if it is new to me" if True else "") + "…", "blocks": [], "actions": [], "job": j["id"]}
+
+    def _lab_commands(self, session, text) -> Optional[dict]:
+        """"build a flood model for <place>", "air quality model for <city>", "what can the model lab do" — the engine runs a full study on its own."""
+        from ..modellab import lab as L
+        t = text.strip(); low = t.lower()
+        if re.search(r"\b(model lab|modelling lab|modeling lab)\b", low) and re.search(r"\b(what|which|list|can|do)\b", low):
+            rows = [[k, v["label"], v["needs"], v["validates_with"]] for k, v in L.DOMAINS.items()]
+            return {"reply": ("The Model Lab builds a physics model the way a researcher would, without being walked through it: it chooses the equations, fetches the data, builds and runs the model, "
+                              "proves it is solved correctly against analytic solutions and conservation laws, calibrates on part of the record, tests on part it never saw, finds which assumption matters most, and writes the methods and results. "
+                              "It says plainly whether the result is only verified, or also calibrated and validated. Say, for example: \"build a flood model for Chattogram\" or \"air quality model for Delhi\"."),
+                    "blocks": [_blk("table", head=["Domain", "Physics", "Needs", "Validates with"], rows=rows)], "actions": []}
+        domain = L.detect_domain(t)
+        if not domain or not re.search(r"\b(build|construct|develop|create|make|run|simulate|calibrate|validate|set up|prepare|do)\b", low) or re.match(r"\s*(what|why|how|explain|define)\b", low):
+            return None
+        ent = N.entities(t)
+        pl = resolve_place(t, ent, session)
+        if not pl:
+            return {"reply": f"Which place is the {domain.replace('air', 'air-quality')} model for? Give coordinates or a city name and I will take it from there.", "blocks": [], "actions": []}
+        M.set_state("last_place", pl)
+        opts: dict = {}
+        m = re.search(r"(\d{2,3})[\s\-]*(?:year|yr)", low)
+        if m and domain == "flood":
+            opts["return_period"] = max(2, min(1000, int(m.group(1))))
+        m = re.search(r"(\d+(?:\.\d+)?)\s*km", low)
+        if m and domain == "flood":
+            opts["radius_km"] = max(0.5, min(5.0, float(m.group(1))))
+        if m and domain == "air":
+            opts["city_km"] = max(5.0, min(80.0, float(m.group(1))))
+        holder: dict = {}
+
+        def work():
+            def prog(msg):
+                if holder.get("j") is not None:
+                    holder["j"]["progress"] = msg
+            out = L.run_study(domain, pl["lat"], pl["lon"], pl["name"], opts, progress=prog)
+            r = out["result"]
+            M.add_run("modellab_" + domain, {"place": pl["name"], **opts}, [r["status"]], bool(r["ok"]), out["story"]["title"][:160])
+            M.set_state("last_result", {"summary": out["story"]["title"], "explain": out["story"].get("standfirst", "")})
+            blocks = [_blk("files", items=out["files"]), _blk("table", head=["", ""], rows=L.summary(r), caption="What the engine established, and what it did not.")]
+            if out["basis"]:
+                blocks.append(_blk("sources", items=[{"n": i + 1, "title": b["title"], "url": b["url"], "learned": False} for i, b in enumerate(out["basis"])]))
+            blocks.append(_blk("list", items=[f'{n["step"]}. {n["title"]}' for n in r["notebook"]]))
+            return {"reply": f'**{out["story"]["title"]}**\n{out["story"].get("standfirst", "")}', "blocks": blocks,
+                    "actions": [{"type": "say", "label": "Run the other model for this place", "text": ("air quality model for " if domain == "flood" else "flood model for ") + pl["name"]}]}
+        holder["j"] = _job(work, f"{domain} model study")
+        steps = ("physics choice, terrain and rainfall data, model run, five verification tests, sensitivity" if domain == "flood" else "physics choice, three competing model structures, validation on unseen hours, verification tests, sensitivity")
+        return {"reply": f"Starting a {domain.replace('air', 'air-quality')} study for {pl['name']}. I will work through: {steps}, then write the methods and results. This takes a few minutes; I will post it here.",
+                "blocks": [], "actions": [], "job": holder["j"]["id"], "intent": "modellab"}
 
     def _knowledge_commands(self, session, text) -> Optional[dict]:
         """learn from <url> / learn about <topic> / what do you know / forget <url> — keyword-routed."""

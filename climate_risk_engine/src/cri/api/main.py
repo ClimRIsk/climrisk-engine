@@ -126,7 +126,7 @@ async def _lifespan(app: FastAPI):
 app = FastAPI(
     title="Climate Risk Intelligence API",
     description="REST API for climate financial risk modelling",
-    version="0.4.2",
+    version="0.5.0",
     lifespan=_lifespan,
 )
 
@@ -241,7 +241,7 @@ def _build_custom_scenario(params: CustomScenarioParams, scenario_id: str = 'cus
 @app.get("/health", response_model=HealthResponse)
 def health() -> HealthResponse:
     """Health check endpoint."""
-    return HealthResponse(status="ok", version="0.4.2")
+    return HealthResponse(status="ok", version="0.5.0")
 
 
 # ── License tier metadata keyed by API key ────────────────────────────────────

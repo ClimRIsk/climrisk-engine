@@ -39,7 +39,7 @@ WIKI_TITLES = [
     "Wildfire", "Landslide", "Drought", "El Niño–Southern Oscillation", "Cyclone Amphan", "Hurricane Katrina", "Hurricane Harvey", "Typhoon Haiyan", "2022 Pakistan floods",
     "Bay of Bengal", "Tropical cyclone forecasting", "International Best Track Archive for Climate Stewardship",
     # physical-risk methods and data
-    "Shallow water equations", "Digital elevation model", "Height Above Nearest Drainage", "Sentinel-2", "Sentinel-1", "Synthetic-aperture radar", "ERA5", "Fragility curve", "Flood risk assessment",
+    "Shallow water equations", "Manning formula", "Curve number", "Gumbel distribution", "Return period", "Atmospheric dispersion modeling", "Box model", "Air quality index", "Planetary boundary layer", "Particulates", "Digital elevation model", "Height Above Nearest Drainage", "Sentinel-2", "Sentinel-1", "Synthetic-aperture radar", "ERA5", "Fragility curve", "Flood risk assessment",
     # climate finance and policy
     "Climate risk", "Climate change mitigation", "Stranded asset", "Carbon price", "Carbon tax", "EU Emissions Trading System", "Carbon Border Adjustment Mechanism", "Corporate Sustainability Reporting Directive",
     "Task Force on Climate-related Financial Disclosures", "IFRS Sustainability Disclosure Standards", "Network for Greening the Financial System", "Paris Agreement", "Net zero emissions",
