@@ -43,11 +43,12 @@ def _sens_chart(rows, unit):
 def flood_story(r: dict, narrative: str = "", basis: list = None) -> dict:
     o, P = r["out"], r["plan"]
     st = S.Story("ClimRisk Model Lab · Flood", f'Flood model for {r["name"]}: a {r["return_period"]}-year rainstorm',
-                 narrative or f'The engine built a two-dimensional inundation model of {r["name"]} from first principles, tested it, and found {o["site_depth_m"]:.2f} m of water at the site, '
-                              f'lasting {o["wet_hours"]:.1f} hours, with {o["flooded_area_km2"]:.2f} km² of the {o["domain_km2"]:.1f} km² area deeper than 30 cm. Status: {r["status"]}.',
+                 narrative or (f'The engine built a two-dimensional inundation model of {r["name"]} from first principles, tested it, and found {o["site_depth_m"]:.2f} m of water at the site, '
+                               + (f'lasting {o["wet_hours"]:.1f} hours' if o["wet_hours"] >= 0.1 else "which drains almost at once") +
+                               f', with {o["flooded_area_km2"]:.2f} km² of the {o["domain_km2"]:.1f} km² area deeper than 30 cm. Status: {r["status"]}.'),
                  byline="Written and run by the ClimRisk engine")
     st.callout(f'Model status: **{r["status"]}**. ' + ("Every number below comes from a model that passed its verification tests." if r["ok"] else "Verification failed; do not use these results."), _tone(r["status"]))
-    st.facts([(f'{o["site_depth_m"]:.2f} m', "peak depth at the site"), (f'{o["wet_hours"]:.1f} h', "time the site stays under 5 cm or more of water"), (f'{o["flooded_area_km2"]:.2f} km²', "area deeper than 30 cm"),
+    st.facts([(f'{o["site_depth_m"]:.2f} m', "peak depth at the site"), (f'{o["wet_hours"]:.1f} h' if o["wet_hours"] >= 0.1 else "< 0.1 h", "time the site stays under 5 cm or more of water"), (f'{o["flooded_area_km2"]:.2f} km²', "area deeper than 30 cm (patches of 4+ cells)"),
               (f'{r["storm_mm"]:.0f} mm', f'{r["storm_hours"]:g}-hour storm rainfall'), (f'{r["runoff_mm"]:.0f} mm', "runoff after infiltration"), (f'{P["dx"]:.0f} m', "model grid")])
     st.section("question", "The question")
     st.p(f'How deep does water get at {r["name"]} ({r["lat"]:.4f}, {r["lon"]:.4f}), for how long, and how far does it spread, in the {r["return_period"]}-year storm? '
@@ -92,9 +93,16 @@ def flood_story(r: dict, narrative: str = "", basis: list = None) -> dict:
         st.p(f'Independent reference: the {ref["source"]} give {ref["depth_m"]:.2f} m at the site for the {r["return_period"]}-year river flood, against {ref["model_m"]:.2f} m here for local rainfall. They describe different flood mechanisms, so this is context rather than validation.')
     st.section("assumptions", "Assumptions and limits")
     st.ul(r["assumptions"] + r["limitations"])
+    _next(st, r)
     st.section("notebook", "Lab notebook")
     _notebook(st, r["notebook"])
     return st.build()
+
+
+def _next(st, r):
+    if r.get("next_steps"):
+        st.section("next", "What the engine would do next")
+        st.ul(r["next_steps"])
 
 
 def _depth_map(g, name):
@@ -149,6 +157,7 @@ def air_story(r: dict, narrative: str = "", basis: list = None) -> dict:
     st.figure(_sens_chart(r["sensitivity"], "µg/m³ of mean PM2.5"), "One input varied at a time over its plausible range.")
     st.section("assumptions", "Assumptions and limits")
     st.ul(r["assumptions"] + r["limitations"])
+    _next(st, r)
     st.section("notebook", "Lab notebook")
     _notebook(st, r["notebook"])
     return st.build()

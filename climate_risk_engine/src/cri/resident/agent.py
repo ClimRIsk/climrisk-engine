@@ -341,7 +341,7 @@ class Agent:
                               "It says plainly whether the result is only verified, or also calibrated and validated. Say, for example: \"build a flood model for Chattogram\" or \"air quality model for Delhi\"."),
                     "blocks": [_blk("table", head=["Domain", "Physics", "Needs", "Validates with"], rows=rows)], "actions": []}
         domain = L.detect_domain(t)
-        if not domain or not re.search(r"\b(build|construct|develop|create|make|run|simulate|calibrate|validate|set up|prepare|do)\b", low) or re.match(r"\s*(what|why|how|explain|define)\b", low):
+        if not domain or not re.search(r"\b(build|construct|develop|create|make|run|simulate|simulation|calibrate|validate|set up|prepare|do|model|study)\b", low) or re.match(r"\s*(what|why|how|explain|define|tell|describe|list|which|is|are|does|do you)\b", low):
             return None
         ent = N.entities(t)
         pl = resolve_place(t, ent, session)

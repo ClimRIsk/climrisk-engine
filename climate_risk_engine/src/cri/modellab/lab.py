@@ -101,7 +101,7 @@ def narrate(domain: str, result: dict, default: str) -> str:
         return default
 
 
-def run_study(domain: str, lat: float, lon: float, name: str, options: Optional[dict] = None, progress: Optional[Callable] = None, write: bool = True, use_llm: bool = True) -> dict:
+def run_study(domain: str, lat: float, lon: float, name: str, options: Optional[dict] = None, progress: Optional[Callable] = None, write: bool = True, use_llm: bool = False) -> dict:
     from .. import story as S
     from . import air_study, flood_study, report
     opts = dict(options or {})

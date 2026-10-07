@@ -206,7 +206,18 @@ def run(lat: float, lon: float, name: str = "Study city", city_km: float = 20.0,
     limits = ["The 'observations' are the Copernicus CAMS analysis, itself a model constrained by satellites, not a network of ground monitors. Skill here shows the box model reproduces CAMS, not that it matches the air at street level." if not truth_is_station else
               "Ground-station series supplied by the user were used as truth.",
               f"A {n / 24:.0f}-day record cannot capture seasonal change in emissions or meteorology; repeat the study over a full year before relying on it."]
-    return {"domain": "air", "name": name, "lat": lat, "lon": lon, "status": status, "ok": nfail == 0, "skilful": bool(skilful), "structure": best, "structures": {k: {**ALL[k], "fit": fits[k], **cand[k]} for k in fits}, "diagnosis": dg,
+    res_dict = {"domain": "air", "name": name, "lat": lat, "lon": lon, "status": status, "ok": nfail == 0, "skilful": bool(skilful), "structure": best, "structures": {k: {**ALL[k], "fit": fits[k], **cand[k]} for k in fits}, "diagnosis": dg,
             "validation": val, "verification": verification, "sensitivity": sens, "assumptions": assumptions, "limitations": limits, "notebook": nb, "plume": plume, "source": obs_source,
             "series": {"t": t, "obs": pm.tolist(), "sim": sim_all.tolist(), "cut": cut, "test_sim": sim_te.tolist(), "hours": hours.tolist(), "clim": base_clim.tolist()},
             "params": dict(zip(pn, xb)), "city_km": city_km, "elapsed_s": round(NOW() - t_start, 1)}
+    steps = []
+    if not truth_is_station:
+        steps.append("Supply PM2.5 from ground monitors (for example a city's regulatory network) so the model is validated against what people breathe, not against a reanalysis.")
+    if val["bias_share"] > 0.4:
+        steps.append("Add regional transport: most of the error is a level offset caused by haze or smoke arriving from upwind. An upwind concentration, or a record long enough to span several regimes, would address it.")
+    if not skilful:
+        steps.append("Do not use this model to forecast yet: it does not beat the naive baselines on unseen data.")
+    steps.append(f"Sensitivity says the result depends most on {sens[0]['label'].lower()}; measure or constrain it first.")
+    steps.append("Repeat over a full year so that seasonal changes in emissions and meteorology are inside the fitting record.")
+    res_dict["next_steps"] = steps
+    return res_dict

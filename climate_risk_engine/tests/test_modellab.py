@@ -180,3 +180,33 @@ def test_chat_runs_a_study_as_a_job(tmp_path, monkeypatch):
     assert "Model Lab" in cap["reply"]
     ask = ag.handle("s", "build an air quality model")
     assert "Which place" in ask["reply"] or ask.get("job")
+
+
+def test_chat_routes_a_bare_model_request_and_ignores_questions(tmp_path, monkeypatch):
+    monkeypatch.setenv("CRI_DATA_DIR", str(tmp_path)); monkeypatch.setenv("CRI_STORY_OFFLINE", "1"); monkeypatch.setenv("CRI_LLM", "0")
+    from cri.resident import agent as AG
+    from cri.modellab import data as D
+    monkeypatch.setattr(D, "hourly_met_and_pm", lambda lat, lon, days=60, fetch=None: _city())
+    ag = AG.Agent(twin_builder=lambda **k: {}, analyser=lambda t: {}, scanner=lambda **k: {}, lab=lambda *a: {})
+    r = ag.handle("s", "air quality model for 28.6139, 77.2090")
+    assert r.get("intent") == "modellab" and r["job"]
+    for _ in range(300):
+        j = AG.job_status(r["job"])
+        if j["status"] != "running":
+            break
+        time.sleep(0.2)
+    assert j["status"] == "done", j
+    assert any("Chosen structure" in str(b.get("rows")) for b in j["blocks"] if b["type"] == "table")
+    for q in ("tell me about the flood model", "is air quality modelling hard?", "what is a box model for air pollution?"):
+        assert ag.handle("s", q).get("intent") != "modellab", q
+
+
+def test_flood_conditioning_removes_single_cell_pits_from_the_flooded_area():
+    z = _valley().elevations.copy()
+    rng = np.random.default_rng(4)
+    z = z + rng.normal(0, 0.8, z.shape)                                   # speckle: the noise that made the Chattogram map look like static
+    dem = NS(elevations=z, cell_size_m=30.0, asset_row=70, asset_col=50)
+    r = flood_study.run(22.26, 91.8, "Noisy valley", dem=dem, rain_fetch=lambda a, b: _rain(), reference_depth=lambda *a: -1.0, sensitivity=False)
+    assert any(n["step"] == "1b" for n in r["notebook"]) and r["ok"]
+    big = flood_study._clusters(np.array([[1, 0, 0, 0], [0, 0, 1, 1], [0, 0, 1, 1], [0, 0, 0, 0]], bool), 4)
+    assert big.sum() == 4 and not big[0, 0]

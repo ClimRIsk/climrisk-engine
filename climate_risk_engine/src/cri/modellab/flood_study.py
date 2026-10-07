@@ -71,9 +71,15 @@ def run(lat: float, lon: float, name: str = "Study site", radius_km: float = 1.5
     z0 = np.asarray(dem.elevations, float)
     P = plan(radius_km, dem.cell_size_m)
     z = _block_mean(z0, P["factor"])
+    z_raw = z.copy()
+    from scipy import ndimage as _ndi
+    z = _ndi.median_filter(z, size=3, mode="nearest")           # global elevation products carry single-cell pits and spikes (vegetation, buildings, noise)
+    cond_change = float(np.abs(z - z_raw).mean())
     ny, nx = z.shape
     ai, aj = min(ny - 1, dem.asset_row // P["factor"]), min(nx - 1, dem.asset_col // P["factor"])
     note("1", "Problem and scale", f"Where does water go at {name} ({lat:.4f}, {lon:.4f}) in a {return_period}-year rainstorm, how deep and for how long? " + P["why_grid"])
+    note("1b", "Terrain conditioning", f"Global elevation products contain isolated single-cell pits and spikes (canopy, buildings, noise). Left alone, each pit becomes a fake puddle that collects rain and has no outlet. "
+                                      f"A 3×3 median filter was applied (mean change {cond_change:.2f} m), and flooded area counts only connected patches of at least 4 cells.")
     note("2", "Choice of physics", " ".join(f"{a}: {b}" for a, b in MODEL_CHOICE))
 
     # 2 ── rainfall
@@ -128,7 +134,7 @@ def run(lat: float, lon: float, name: str = "Study site", radius_km: float = 1.5
     site = res.h_max[max(0, ai - 1):ai + 2, max(0, aj - 1):aj + 2]
     site_depth = float(site.max())
     site_hours = float(res.t_wet[ai, aj] / 3600)
-    wet_mask = res.h_max > 0.3
+    wet_mask = _clusters(res.h_max > 0.3, 4)
     area_km2 = float(wet_mask.sum() * P["dx"] ** 2 / 1e6)
     out = {"site_depth_m": site_depth, "wet_hours": site_hours, "flooded_area_km2": area_km2, "domain_km2": float(z.size * P["dx"] ** 2 / 1e6), "max_depth_m": float(res.h_max.max()),
            "site_elev_m": float(z[ai, aj]), "domain_relief_m": float(z.max() - z.min())}
@@ -193,11 +199,37 @@ def run(lat: float, lon: float, name: str = "Study site", radius_km: float = 1.5
             pass
 
     status = ("verified, calibrated and validated" if validation["done"] else "verified and calibrated, not validated" if calibration["done"] else "verified only") if nfail == 0 else "FAILED verification"
-    return {"domain": "flood", "name": name, "lat": lat, "lon": lon, "status": status, "ok": nfail == 0, "return_period": return_period, "storm_mm": storm_mm, "storm_hours": storm_hours,
+    res_dict = {"domain": "flood", "name": name, "lat": lat, "lon": lon, "status": status, "ok": nfail == 0, "return_period": return_period, "storm_mm": storm_mm, "storm_hours": storm_hours,
             "daily_T_mm": d_T, "runoff_mm": q_excess, "rain": rain, "plan": P, "model_choice": MODEL_CHOICE, "out": out, "verification": verification, "sensitivity": sens,
             "calibration": calibration, "validation": validation, "reference": ref, "assumptions": assumptions, "limitations": limits, "notebook": nb,
             "grids": {"z": z, "h_max": res.h_max, "t_wet": res.t_wet, "dx": P["dx"], "asset": (ai, aj), "series": res.series, "hyetograph_mm": hy, "effective_mm": eff, "step_s": step_s},
-            "params": {"manning": manning, "cn": cn, "radius_km": radius_km}, "elapsed_s": round(NOW() - t_start, 1)}
+            "next_steps": None, "params": {"manning": manning, "cn": cn, "radius_km": radius_km}, "elapsed_s": round(NOW() - t_start, 1)}
+    res_dict["next_steps"] = next_steps(res_dict)
+    return res_dict
+
+
+def _clusters(mask: np.ndarray, min_cells: int) -> np.ndarray:
+    """Keep only connected wet patches of at least min_cells cells (8-connectivity)."""
+    from scipy import ndimage as ndi
+    lab, n = ndi.label(mask, structure=np.ones((3, 3)))
+    if n == 0:
+        return mask
+    sizes = ndi.sum(mask, lab, index=np.arange(1, n + 1))
+    keep = np.isin(lab, 1 + np.flatnonzero(sizes >= min_cells))
+    return keep
+
+
+def next_steps(r: dict) -> list:
+    out = []
+    if not r["validation"]["done"]:
+        out.append("Obtain observations to calibrate and validate: flood marks, gauge depths, or a Sentinel-1 flood mask of a past event. Until then treat the depths as scenario estimates.")
+    if r["sensitivity"]:
+        top = r["sensitivity"][0]
+        out.append(f'The answer moves most with {top["label"].lower()} (swing {top["swing"]:.2f} m). Pinning that input down with local data is the cheapest way to tighten the result.')
+    out.append("Replace the global 30 m terrain with a survey or LiDAR terrain model, and add culverts and embankments as features; both change local depths more than any physics refinement.")
+    if r["rain"].get("ok"):
+        out.append("ERA5 smooths extreme rain. Re-run with gauge-based intensity–duration–frequency curves if the municipality has them.")
+    return out
 
 
 def hydrology_fetch(lat, lon):
