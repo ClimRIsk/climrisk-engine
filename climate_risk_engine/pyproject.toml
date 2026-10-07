@@ -28,6 +28,7 @@ api = [
     "python-multipart>=0.0.9",
     "openpyxl>=3.1",
     "reportlab>=4.0",
+    "matplotlib>=3.8",      # story-report figures, research-desk charts, LinkedIn cards
     "supabase>=2.4",
     # Data acquisition layer — autonomous agent
     "httpx>=0.27",          # async HTTP client for GLEIF, EDGAR, CDP, SBTi, Nominatim
