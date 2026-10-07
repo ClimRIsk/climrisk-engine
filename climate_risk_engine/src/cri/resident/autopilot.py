@@ -284,6 +284,17 @@ def run_cycle(reason: str = "scheduled") -> dict:
                           " ".join(f'{r["name"]}: {r["fix"]}' for r in bad)[:600], key=f"selfcheck-{dt.date.today()}-{len(bad)}")
         except Exception as e:                                   # noqa: BLE001
             log.append(f"selfcheck failed: {type(e).__name__}")
+        try:                                                     # keep learning: refresh and extend what the agent knows (does nothing when everything is fresh)
+            from . import knowledge as K
+            lr = K.learn_seed()
+            if lr["sources_checked"]:
+                log.append(f'learned {lr["new_passages"]} passages from {lr["sources_checked"]} sources')
+                if lr["new_passages"] > 0:
+                    inbox_add("learned", f'Read {lr["sources_checked"]} sources; now know {lr["total_passages"]:,} passages',
+                              "Wikipedia, NOAA's ENSO outlook and the ClimRisk research pieces, refreshed on schedule. I quote them, with sources, when you ask a question.",
+                              key=f"learned-{dt.date.today()}-{lr['total_passages'] // 500}")
+        except Exception as e:                                   # noqa: BLE001
+            log.append(f"learn failed: {type(e).__name__}")
         for name, fn in (("research", lambda: _step_research(log)),):
             try:
                 ctx = fn()

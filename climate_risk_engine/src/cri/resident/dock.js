@@ -56,6 +56,8 @@
       if (b.type === 'list') return '<ul>' + b.items.map(function (i) { return '<li>' + esc(i) + '</li>'; }).join('') + '</ul>';
       if (b.type === 'table') return '<table><tr>' + b.head.map(function (h) { return '<th>' + esc(h) + '</th>'; }).join('') + '</tr>' + b.rows.map(function (r) { return '<tr>' + r.map(function (c) { return '<td>' + esc(c) + '</td>'; }).join('') + '</tr>'; }).join('') + '</table>' + (b.caption ? '<div class="note">' + esc(b.caption) + '</div>' : '');
       if (b.type === 'note') return '<div class="note">' + esc(b.text) + '</div>';
+      if (b.type === 'sources') return '<div class="note"><b>Sources</b><br>' + b.items.map(function (s) { return '[' + s.n + '] <a href="' + esc(s.url) + '" target="_blank" rel="noopener" style="color:#7cc4ff">' + esc(s.title) + '</a> · learned ' + esc(s.learned); }).join('<br>') + '</div>';
+      if (b.type === 'files') return '<div style="margin-top:8px">' + b.items.map(function (f) { return '<a class="act" href="' + esc(f.url) + '" target="_blank" rel="noopener" style="display:inline-block;margin:0 6px 6px 0;text-decoration:none">' + esc(f.label) + '</a>'; }).join('') + '</div>';
       if (b.type === 'post') return '<div class="post"><textarea data-post="' + b.id + '">' + esc(b.text) + '</textarea>' + (b.has_image ? '<img src="' + b.image_url + (key() ? '' : '') + '" alt="post image">' : '') + '</div>';
       return '';
     }).join('');

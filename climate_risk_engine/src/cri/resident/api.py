@@ -42,6 +42,15 @@ class SiteReq(BaseModel):
 class BriefReq(BaseModel):
     assessment: dict
 
+class LearnReq(BaseModel):
+    url: Optional[str] = None
+    topic: Optional[str] = None
+    force: bool = False
+
+class AskReq(BaseModel):
+    question: str = Field(..., max_length=1000)
+    context: Optional[str] = None
+
 class EditReq(BaseModel):
     text: str = Field(..., max_length=3000)
 
@@ -173,6 +182,38 @@ def make_router(auth_dep) -> tuple:
     @prot.delete("/sites/{name}")
     def del_site(name: str) -> dict:
         AP.remove_site(name); return {"ok": True}
+
+    # ── what the agent has learned ──
+    @prot.get("/knowledge")
+    def kn_stats() -> dict:
+        from . import knowledge as K, answer as AN
+        return {**K.stats(), "language_model": AN.llm_status()}
+
+    @prot.post("/knowledge/learn")
+    def kn_learn(req: LearnReq) -> dict:
+        from . import knowledge as K
+        if req.url:
+            return K.learn_url(req.url)
+        if req.topic:
+            return K.learn_topic(req.topic)
+        return K.learn_seed(force=req.force)
+
+    @prot.post("/ask")
+    def ask(req: AskReq) -> dict:
+        from . import answer as AN
+        return AN.ask(req.question, context=req.context)
+
+    @pub.get("/file/{name}")
+    def report_file(name: str) -> Response:
+        import re as _re
+        if not _re.fullmatch(r"[A-Za-z0-9_\-]+\.(html|pdf)", name):
+            raise HTTPException(status_code=404, detail="no such file")
+        p = A.report_dir() / name
+        if not p.exists():
+            raise HTTPException(status_code=404, detail="no such file")
+        if name.endswith(".pdf"):
+            return Response(p.read_bytes(), media_type="application/pdf", headers={"Content-Disposition": f'inline; filename="{name}"'})
+        return Response(p.read_text(encoding="utf-8"), media_type="text/html")
 
     @pub.get("/dock.js")
     def dock_js() -> Response:

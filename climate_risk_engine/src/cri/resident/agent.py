@@ -43,6 +43,13 @@ FAQ = [
 ]
 
 
+def report_dir():
+    from pathlib import Path
+    d = Path(M.db_path()).parent / "reports"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
 def _job(fn: Callable, label: str) -> dict:
     jid = uuid.uuid4().hex[:10]
     JOBS[jid] = {"id": jid, "label": label, "status": "running", "t0": time.time(), "result": None, "error": None}
@@ -130,8 +137,12 @@ class Agent:
         text = (text or "").strip()
         if not text:
             return {"reply": "Ask me something — for example \"build a 3D twin of 22.2645, 91.805\".", "blocks": [], "actions": [], "intent": "empty"}
-        quick = self._autopilot_commands(session, text)
+        quick = self._autopilot_commands(session, text) or self._knowledge_commands(session, text)
         if quick:
+            if quick.get("intent") in (None, "knowledge", "learn"):      # autopilot commands log themselves
+                quick.setdefault("intent", "knowledge")
+                M.add_message(session, "user", text, quick["intent"], {}); M.add_message(session, "agent", quick["reply"], quick["intent"], {"job": quick.get("job")})
+            quick.setdefault("confidence", 1.0); quick.setdefault("top", []); quick.setdefault("entities", {})
             return quick
         model = N.get_model()
         pred = model.predict(text)
@@ -140,6 +151,8 @@ class Agent:
         if intent:                                                     # user confirmed an intent from the clarification buttons
             M.add_feedback(text, pred["intent"], intent)
             pred = {"intent": intent, "confidence": 1.0, "top": pred["top"]}
+        elif self._is_info_question(text, ent, comp) and pred["intent"] in self._TOOLISH:
+            pred = {"intent": "explain", "confidence": max(pred["confidence"], 0.6), "top": pred["top"]}   # a question about the world, not a request for a tool
         M.add_message(session, "user", text, pred["intent"], {"entities": ent, "company": comp, "top": pred["top"]})
         try:
             out = self._dispatch(session, text, pred, ent, comp)
@@ -193,6 +206,8 @@ class Agent:
 
     def _dispatch(self, session, text, pred, ent, comp) -> dict:
         it = pred["intent"]
+        if it == "unknown" and self._Q.search(text):                   # a real question the router has no tool for: answer it from what has been learned
+            return self._ask(text)
         if it == "unknown":
             top = [t for t in pred["top"][:3] if t["p"] > 0.08]
             return {"reply": "I'm not sure what you want. Did you mean one of these? (Your choice teaches me.)", "blocks": [],
@@ -255,12 +270,105 @@ class Agent:
     def _explain(self, text):
         low = text.lower()
         for pat, ans in FAQ:
-            if re.search(pat, low):
+            if re.search(pat, low) and re.search(r"\b(this|the|your|our|my)\b.*\b(engine|model|solver|result|twin|report|rating|score|finding)\b|\b(engine|solver|twin)\b", low):
                 return {"reply": ans, "blocks": [], "actions": []}
-        last = M.get_state("last_result")
-        if last:
-            return {"reply": "About the last result: " + last.get("explain", last.get("summary", "")), "blocks": [], "actions": []}
-        return {"reply": FAQ[3][1], "blocks": [], "actions": []}
+        if re.search(r"\b(last|previous|that|this)\s+(result|finding|analysis|run)\b", low):
+            last = M.get_state("last_result")
+            if last:
+                return {"reply": "About the last result: " + last.get("explain", last.get("summary", "")), "blocks": [], "actions": []}
+        return self._ask(text)
+
+    # open questions: answered from what the agent has learned, with sources; learns the topic first if it has not met it
+    _Q = re.compile(r"^\s*(what|why|how|when|where|who|which|does|do|is|are|can|could|should|would|will|explain|describe|tell me|compare|define|give me|summari[sz]e|difference)\b|\?\s*$", re.I)
+
+    _TOOLISH = {"twin", "protect", "scenario", "risk_analysis", "research", "assets", "explain", "unknown", "draft_post", "report_physical", "report_transition", "report_financial",
+                "report_lca", "report_iso14067", "report_carbon", "report_cbam"}
+    _ACT = re.compile(r"\b(build|run|create|make|write|generate|open|scan|draft|publish|post|protect|model|simulate|assess|analy[sz]e|list|show me|remember|watch|monitor|learn|forget|replay|retrain|find)\b", re.I)
+
+    def _is_info_question(self, text: str, ent: dict, comp) -> bool:
+        """'What is a storm surge?' is a question to answer from what has been learned, not a request to open a tool."""
+        return bool(self._Q.search(text)) and not self._ACT.search(text) and "lat" not in ent and not comp
+
+    def _ask(self, text: str) -> dict:
+        prev = M.get_state("last_question")
+        ctx = None
+        q = text
+        from . import knowledge as K
+        if prev and len(K._terms(text)) <= 2:                       # a short follow-up: carry the subject of the last question
+            q = prev["q"] + " " + text
+            ctx = f'The user previously asked: "{prev["q"]}".'
+
+        def work():
+            from . import answer as AN
+            try:
+                if K._due("engine://method", 10 ** 9):                # the engine's own method notes are part of what it knows
+                    K.learn_text("engine://method", "ClimRisk engine method notes", " ".join(a for _, a in FAQ) + " " + HELP.replace("**", ""))
+                if K.stats()["passages"] < 50:                          # first question on a fresh install: read the seed sources now
+                    K.learn_seed()
+            except Exception:                                          # noqa: BLE001
+                pass
+            r = AN.ask(q, context=ctx)
+            M.set_state("last_question", {"q": q, "ts": time.time()})
+            M.add_run("ask", {"q": q[:200]}, [r["mode"]], bool(r["ok"]), (r["reply"] or "")[:200])
+            blocks = []
+            if r["sources"]:
+                blocks.append(_blk("sources", items=[{"n": s["n"], "title": s["title"], "url": s["url"], "learned": s["learned"]} for s in r["sources"]]))
+            note = []
+            if r["learned"]:
+                note.append("I had not read about this yet, so I just learned: " + "; ".join(r["learned"]) + ".")
+            if r["ok"]:
+                note.append("Written by: " + r["mode"] + ".")
+                if r["mode"] == "extractive":
+                    note.append("These are the most relevant sentences from the sources above. For fluent written answers, install a free local model (Ollama) — the engine detects it automatically.")
+            if note:
+                blocks.append(_blk("note", text=" ".join(note)))
+            acts = [] if r["ok"] else [{"type": "say", "label": "Learn about this", "text": "learn about " + " ".join(K._terms(q)[:6])}]
+            return {"reply": r["reply"], "blocks": blocks, "actions": acts}
+        j = _job(work, "answering from what I have learned")
+        return {"reply": "Looking through what I have learned" + (" — and reading up on it if it is new to me" if True else "") + "…", "blocks": [], "actions": [], "job": j["id"]}
+
+    def _knowledge_commands(self, session, text) -> Optional[dict]:
+        """learn from <url> / learn about <topic> / what do you know / forget <url> — keyword-routed."""
+        from . import knowledge as K
+        t = text.strip()
+        low = t.lower()
+        m = re.match(r"(?i)\s*(?:please\s+)?(?:learn|read|study|ingest)\s+(?:from\s+)?(https?://\S+)", t)
+        if m:
+            url = m.group(1).rstrip(".,)")
+
+            def work():
+                r = K.learn_url(url)
+                st = K.stats()
+                return {"reply": (f'Read it: {r["passages"]} passages from “{r["title"]}”. I now know {st["passages"]:,} passages from {st["sources"]} sources, and I will quote this page when it answers a question.'
+                                  if r.get("ok") else f'I could not learn from that address: {r.get("error")}.'), "blocks": [], "actions": []}
+            j = _job(work, "learning a page")
+            return {"reply": f"Reading {url} …", "blocks": [], "actions": [], "job": j["id"], "intent": "learn"}
+        m = re.match(r"(?i)\s*(?:please\s+)?(?:learn|study|read up)\s+(?:about|on)\s+(.{3,120})$", t)
+        if m:
+            topic = m.group(1).strip(" .?")
+
+            def work2():
+                r = K.learn_topic(topic)
+                st = K.stats()
+                return {"reply": (f'Learned: {", ".join(r["learned"])} ({r["passages"]} passages). I now know {st["passages"]:,} passages in total. Ask me about it.' if r.get("ok")
+                                  else f'I could not find a good public source for “{topic}”. Give me a web address and I will read it.'), "blocks": [], "actions": []}
+            j = _job(work2, "learning a topic")
+            return {"reply": f"Looking up “{topic}” in public sources …", "blocks": [], "actions": [], "job": j["id"], "intent": "learn"}
+        if re.search(r"\b(what (do|have) you (know|learn(ed|t))|how much do you know|your knowledge|what.?s in your (knowledge|memory) base|what sources)\b", low):
+            st = K.stats()
+            from . import answer as AN
+            ls = AN.llm_status()
+            rows = [[k, str(v)] for k, v in sorted(st["kinds"].items())]
+            when = time.strftime("%d %b %Y %H:%M", time.localtime(st["last_learned"])) if st["last_learned"] else "never"
+            return {"reply": f'I have learned {st["passages"]:,} passages from {st["sources"]} public sources (last learned {when}). The autopilot keeps reading new material and refreshes it.',
+                    "blocks": [_blk("table", head=["Source kind", "Pages"], rows=rows),
+                               _blk("note", text="Language model: " + (f'{ls["model"]} (local, no key)' if ls["available"] else "none running — answers are assembled from the sources. " + ls["why"] + "."))],
+                    "actions": [{"type": "say", "label": "Learn about CBAM for cement", "text": "learn about carbon border adjustment mechanism cement"}], "intent": "knowledge"}
+        m = re.match(r"(?i)\s*forget\s+(https?://\S+)", t)
+        if m:
+            n = K.forget(m.group(1))
+            return {"reply": f"Forgot {n} passages from that page." if n else "I had nothing from that address.", "blocks": [], "actions": [], "intent": "knowledge"}
+        return None
 
     # data
     def _assets(self, comp, text):
@@ -365,6 +473,8 @@ class Agent:
     def _site(self, session, text, it, ent):
         pl = resolve_place(text, ent, session)
         if not pl:
+            if self._Q.search(text) and not self._ACT.search(text):    # a question with no site in it: answer it instead of asking for coordinates
+                return self._ask(text)
             return {"reply": "Which site? Give coordinates (e.g. 22.2645, 91.805), a place name, or a plant name I know.", "blocks": [], "actions": []}
         M.set_state("last_place", pl)
         sector = ent.get("sector")
@@ -435,10 +545,56 @@ class Agent:
         if rtype == "physical" and not pl:
             return {"reply": "Which site is the physical risk report for? Give coordinates or a place.", "blocks": [], "actions": []}
         qs = "&".join(f"{k}={str(v).replace(' ', '%20')}" for k, v in q.items())
-        M.add_run(it, q, [], True, f"opened {rtype} report workbench")
-        return {"reply": f"Opening the {rtype.replace('_', ' ')} story report workbench with what I understood ({', '.join(f'{k}={v}' for k, v in q.items() if k != 'type') or 'nothing yet — fill in the form'}). "
-                         "Pick the sector template, sections and client branding, then generate HTML, PDF or JSON.",
-                "blocks": [], "actions": [{"type": "open", "label": f"Open {rtype.replace('_', ' ')} report", "url": f"/story-reports/dashboard?{qs}"}]}
+        open_act = {"type": "open", "label": "Open in the workbench to customise", "url": f"/story-reports/dashboard?{qs}"}
+        # Reports whose inputs are only a site or a company are written right here; the others need plant data, so the workbench opens with the form.
+        payload = None
+        if rtype == "physical" and pl:
+            payload = {"name": pl["name"], "lat": pl["lat"], "lon": pl["lon"]}
+            if ent.get("sector"):
+                payload["sector"] = ent["sector"]
+        elif rtype in ("transition", "financial"):
+            pl2 = resolve_place(text, ent, session) if "lat" in ent else None
+            if comp:
+                payload = {"company": comp["query"]}
+            elif pl2:
+                payload = {"lat": pl2["lat"], "lon": pl2["lon"]}
+        if payload is None:
+            need = {"transition": "a company from the asset register, or coordinates", "financial": "a company from the asset register, or coordinates",
+                    "lca": "the plant's clinker ratio, kiln fuel and mix, and electricity use", "iso14067": "the plant data and the study options (boundary, reference year, commissioner)",
+                    "carbon_audit": "the emissions inventory", "cbam": "production, EU share of sales, origin country and the origin carbon price"}.get(rtype, "a few inputs")
+            M.add_run(it, q, [], True, f"opened {rtype} report workbench")
+            return {"reply": f"The {rtype.replace('_', ' ')} report needs {need}. I opened the workbench with what I understood ({', '.join(f'{k}={v}' for k, v in q.items() if k != 'type') or 'nothing yet'}); "
+                             "fill the rest and I will not guess any of it.", "blocks": [], "actions": [open_act]}
+
+        def work():
+            import uuid as _u
+            from .. import story as S, story_reports as SR
+            st = SR.build(rtype, payload)
+            slug = re.sub(r"[^A-Za-z0-9]+", "-", str(payload.get("name") or payload.get("company") or rtype)).strip("-").lower()[:40] or rtype
+            base = f"{rtype}_{slug}_{_u.uuid4().hex[:8]}"
+            d = report_dir()
+            (d / f"{base}.html").write_text(S.html(st), encoding="utf-8")
+            files = [{"label": "Open the report (HTML)", "url": f"/resident/file/{base}.html"}]
+            try:
+                (d / f"{base}.pdf").write_bytes(S.pdf(st))
+                files.append({"label": "Download PDF", "url": f"/resident/file/{base}.pdf"})
+            except Exception:                                          # noqa: BLE001
+                pass
+            secs = S.sections_of(st)
+            facts = next((b["items"] for b in st["blocks"] if b["type"] == "facts"), [])
+            nfig = sum(1 for b in st["blocks"] if b["type"] == "figure")
+            M.add_run(it, payload, [f"{len(secs)} sections", f"{nfig} figures"], True, st["title"][:160])
+            M.set_state("last_result", {"summary": st["title"], "explain": st.get("standfirst", "")})
+            blocks = [_blk("files", items=files)]
+            if facts:
+                blocks.append(_blk("table", head=["Number", "What it is"], rows=[[f["value"], f["label"]] for f in facts[:6]], caption="The six numbers on the report's card, all computed by the engine."))
+            blocks.append(_blk("list", items=[s["title"] for s in secs]))
+            return {"reply": f'**{st["title"]}**\n{st.get("standfirst", "")}\n\n{len(secs)} sections, {nfig} figures, {len(st.get("sources", {}))} cited sources. The full report is in the links below.',
+                    "blocks": blocks, "actions": [open_act, {"type": "say", "label": "Draft a LinkedIn post from this", "text": "write a LinkedIn post about this"}]}
+        j = _job(work, f"{rtype} report")
+        what = payload.get("name") or payload.get("company") or f'{payload.get("lat")}, {payload.get("lon")}'
+        return {"reply": f"Writing the {rtype.replace('_', ' ')} report for {what}: building the evidence, drawing the figures and setting the story. About two minutes for a site; I will post it here.",
+                "blocks": [], "actions": [open_act], "job": j["id"]}
 
 
 _AGENT: Optional[Agent] = None
