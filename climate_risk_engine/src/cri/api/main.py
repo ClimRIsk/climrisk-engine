@@ -185,6 +185,28 @@ def _require_api_key(api_key: Optional[str] = Security(_API_KEY_HEADER)) -> None
 
 _AUTH = Depends(_require_api_key)
 
+# ── Resident AI agent (in-engine, trained NLU; dock injected into every engine HTML page) ──
+from ..resident.api import make_router as _resident_router, INJECT as _DOCK_TAG   # noqa: E402
+_res_prot, _res_pub = _resident_router(_AUTH)
+app.include_router(_res_pub)
+app.include_router(_res_prot)
+
+
+@app.middleware("http")
+async def _inject_resident_dock(request, call_next):
+    resp = await call_next(request)
+    p = request.url.path
+    if (request.method != "GET" or "text/html" not in (resp.headers.get("content-type") or "")
+            or p.startswith(("/docs", "/redoc", "/openapi", "/resident/dashboard"))):
+        return resp
+    body = b"".join([chunk async for chunk in resp.body_iterator])
+    if b"</body>" in body and _DOCK_TAG not in body:
+        i = body.rfind(b"</body>")
+        body = body[:i] + _DOCK_TAG + body[i:]
+    headers = {k: v for k, v in resp.headers.items() if k.lower() != "content-length"}
+    from fastapi.responses import Response as _R
+    return _R(content=body, status_code=resp.status_code, headers=headers, media_type="text/html")
+
 # Custom scenarios created via POST /scenarios are stored here at runtime.
 # Not persisted across restarts; persistence is a Phase 2 feature.
 CUSTOM_SCENARIO_REGISTRY: dict[str, Scenario] = {}

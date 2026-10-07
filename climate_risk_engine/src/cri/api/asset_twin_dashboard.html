@@ -584,6 +584,7 @@ $('incAdd').onclick = () => { const d = $('incDate').value, n = $('incNote').val
 const q = new URLSearchParams(location.search);
 if (q.get('lat')) { $('lat').value = q.get('lat'); $('lon').value = q.get('lon') || ''; $('name').value = q.get('name') || ''; if (q.get('sector')) $('sector').value = q.get('sector'); }
 initGL(); renderLegend();
+if (q.get('auto') === '1' && q.get('lat')) setTimeout(build, 300);   // opened by the resident agent
 window.__twin = { S, loadTwin, depthAt, interp };   // for tests
 </script>
 </body>

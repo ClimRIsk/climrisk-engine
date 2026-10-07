@@ -84,3 +84,4 @@ where = ["src"]
 # carbontlens/ndgain lookups and the emissions calibration + observed-emissions
 # files were silently missing from installed builds before this line
 "cri.data" = ["*.json", "*.npz"]
+"cri.resident" = ["*.js"]
