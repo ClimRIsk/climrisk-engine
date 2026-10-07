@@ -1,6 +1,6 @@
 [project]
 name = "cri"
-version = "0.4.0"
+version = "0.4.1"
 description = "Climate Risk Intelligence engine — scenario-driven climate-to-finance translation"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -25,6 +25,7 @@ api = [
     "fastapi>=0.110",
     "uvicorn>=0.29",
     "requests>=2.31",
+    "certifi>=2024.2.2",    # CA bundle: python.org Python on macOS has none until 'Install Certificates'
     "python-multipart>=0.0.9",
     "openpyxl>=3.1",
     "reportlab>=4.0",

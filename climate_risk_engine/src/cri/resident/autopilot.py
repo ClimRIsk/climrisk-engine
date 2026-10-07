@@ -274,6 +274,16 @@ def run_cycle(reason: str = "scheduled") -> dict:
     try:
         t0 = time.time()
         ctx = None
+        try:                                                     # first thing every cycle: can this machine reach the data at all?
+            from . import selfcheck as SC
+            sc = SC.run()
+            if not sc["ok"]:
+                bad = [r for r in sc["rows"] if not r["ok"]]
+                log.append("selfcheck: " + sc["summary"])
+                inbox_add("alert", "Some data sources are unreachable from this computer",
+                          " ".join(f'{r["name"]}: {r["fix"]}' for r in bad)[:600], key=f"selfcheck-{dt.date.today()}-{len(bad)}")
+        except Exception as e:                                   # noqa: BLE001
+            log.append(f"selfcheck failed: {type(e).__name__}")
         for name, fn in (("research", lambda: _step_research(log)),):
             try:
                 ctx = fn()

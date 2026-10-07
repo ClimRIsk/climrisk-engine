@@ -342,6 +342,7 @@ function renderPanel(d) {
     <div class="signal"><span class="badge sev-${esc(d.risk_signal)}">${esc(d.risk_signal)}</span>
       <div class="meta">${d.lat.toFixed(4)}, ${d.lon.toFixed(4)}<br>${fmt(t.elevation_m)} m · ${esc(t.terrain_position || '')}</div></div>
     <div class="headline">${esc(d.headline)}</div>
+    ${(d.data_gaps || []).length ? `<div style="margin:10px 0;padding:10px 12px;border:1px solid #e0556b;border-radius:8px;background:rgba(224,85,107,.10);font-size:12px;line-height:1.5"><b style="color:#ff8da0">Data did not fully load</b><br>${d.data_gaps.map(esc).join('<br>')}<br><span style="color:var(--muted)">Ratings below that depend on the missing layer should not be relied on. Check the internet connection and run the analysis again.</span></div>` : ''}
     <div class="section-title" style="margin-top:4px">Findings</div>`;
 
   findings.forEach((f, idx) => {
@@ -364,7 +365,7 @@ function renderPanel(d) {
   });
 
   h += `<div class="section-title" style="margin-top:4px">AI narrative</div>
-    <div class="ai" id="aiBox">Press <b>AI deep dive</b> for an LLM write-up grounded in the evidence above.</div>
+    <div class="ai" id="aiBox">Press <b>AI deep dive</b> for a written brief grounded in the evidence above (written inside the engine, no API key).</div>
     <div class="foot"><b>Sources</b><br>${(d.sources||[]).map(esc).join('<br>')}<br><br>
     <b>Caveats</b><br>${(d.caveats||[]).slice(0,3).map(esc).join('<br>')}</div>`;
   document.getElementById('panel').innerHTML = h;
@@ -518,7 +519,7 @@ function buildScene(data) {
   // bridge pylons, towers and river-bed voids would otherwise become fake spikes.
   const sorted = Array.from(elev.values).filter(isFinite).sort((a, b) => a - b);
   const q = f => sorted[Math.min(sorted.length - 1, Math.max(0, Math.round(f * (sorted.length - 1))))];
-  G.minE = q(0.01); G.maxE = q(0.99); G.relief = Math.max(G.maxE - G.minE, 1);
+  G.minE = sorted.length ? q(0.01) : 0; G.maxE = sorted.length ? q(0.99) : 0; G.relief = Math.max(G.maxE - G.minE, 1);
 
   // Default exaggeration: aim for ~1.6 world units of relief, clamped to 1–5×.
   // Flat sites stay near-flat: over-exaggerating a surface model turns
@@ -901,12 +902,15 @@ async function aiDeepDive() {
     `3) how exposure is likely to change by 2050 under NGFS Current Policies vs Net Zero 2050 (qualitative, say it is qualitative); ` +
     `4) the three highest-value actions, most urgent first. Evidence already computed:\n${summary}`;
   try {
-    const r = await fetch('/agent/chat', { method:'POST', headers: hdrs(key),
-      body: JSON.stringify({ message, context:{ asset:last.asset_name, lat:last.lat, lon:last.lon, risk_signal:last.risk_signal }, max_rounds:2 }) });
+    // Keyless first: the resident engine writes the brief from the computed evidence. An LLM key is optional polish only.
+    const slim = { asset_name:last.asset_name, asset_type:last.asset_type, lat:last.lat, lon:last.lon, risk_signal:last.risk_signal,
+                   headline:last.headline, findings:last.findings, data_gaps:last.data_gaps };
+    let r = await fetch('/resident/brief', { method:'POST', headers: hdrs(key), body: JSON.stringify({ assessment: slim }) });
     if (!r.ok) throw new Error(`API ${r.status}`);
-    const d = await r.json(); box.className = 'ai'; box.textContent = d.narrative || 'No narrative returned.';
-    setStatus(`AI brief ready (${esc(d.model_used)}, tools: ${esc((d.tool_calls_made||[]).join(', ') || 'none')}).`);
-  } catch (e) { box.className = 'ai'; box.textContent = 'AI brief unavailable: ' + e.message; }
+    const d = await r.json(); box.className = 'ai';
+    box.innerHTML = (d.sections || []).map(s => `<div style="margin-bottom:10px"><b>${esc(s.title)}</b><br>${esc(s.text)}</div>`).join('') || esc(d.narrative || 'No narrative returned.');
+    setStatus('Brief ready (resident engine · from the computed evidence · no API key).');
+  } catch (e) { box.className = 'ai'; box.textContent = 'Brief unavailable: ' + e.message; }
   finally { document.getElementById('aiBtn').disabled = false; }
 }
 

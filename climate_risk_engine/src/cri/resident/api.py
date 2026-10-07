@@ -39,6 +39,9 @@ class SiteReq(BaseModel):
     name: str = ""
     sector: Optional[str] = None
 
+class BriefReq(BaseModel):
+    assessment: dict
+
 class EditReq(BaseModel):
     text: str = Field(..., max_length=3000)
 
@@ -51,6 +54,20 @@ def make_router(auth_dep) -> tuple:
     @prot.post("/chat")
     def chat(req: ChatReq) -> dict:
         return A.get_agent().handle(req.session, req.text, req.intent)
+
+    @prot.get("/selfcheck")
+    def selfcheck() -> dict:
+        """Can this machine reach every data source the engine needs? Plain-language result."""
+        from . import selfcheck as SC
+        return SC.run()
+
+    @prot.post("/brief")
+    def brief(req: BriefReq) -> dict:
+        """Keyless 'AI deep dive': a written site brief from a computed assessment. No LLM, no key."""
+        from .brief import site_brief
+        if not isinstance(req.assessment, dict) or not req.assessment.get("findings"):
+            raise HTTPException(422, "assessment with findings required")
+        return site_brief(req.assessment)
 
     @prot.get("/job/{jid}")
     def job(jid: str) -> dict:

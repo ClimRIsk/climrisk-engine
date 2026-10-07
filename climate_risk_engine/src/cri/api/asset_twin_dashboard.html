@@ -137,10 +137,18 @@ const COL = {
 const LEG = { flood: [['dry', 'Dry'], ['wet_floor', 'Water on floor, equipment clear'], ['equipment_inundated', 'Equipment inundated'], ['submerged', 'Submerged'], ['protected', 'Protected by barrier']],
               wind: [['none', 'No damage expected'], ['minor', 'Minor'], ['moderate', 'Moderate (near design)'], ['severe', 'Severe (design exceeded)'], ['failure', 'Well beyond design']] };
 
+// FastAPI returns `detail` as a string, an object ({error, hint}) or a validation list; never show "[object Object]".
+function errText(d, fallback) {
+  if (d == null || d === '') return fallback;
+  if (typeof d === 'string') return d;
+  if (Array.isArray(d)) return d.map(x => (x && x.msg) ? ((x.loc || []).slice(-1)[0] ? (x.loc.slice(-1)[0] + ': ') : '') + x.msg : errText(x, '')).filter(Boolean).join('; ') || fallback;
+  if (typeof d === 'object') { const t = d.error || d.message || d.detail; const h = d.hint ? ' — ' + d.hint : ''; return t ? errText(t, fallback) + h : (JSON.stringify(d).slice(0, 300) || fallback); }
+  return String(d);
+}
 async function api(path, body) {
   const key = $('apiKey').value.trim();
   const r = await fetch(path, { method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json' }, key ? { 'X-API-Key': key } : {}), body: JSON.stringify(body) });
-  if (!r.ok) { let m = r.status + ''; try { m = (await r.json()).detail || m; } catch (e) {} throw new Error(m); }
+  if (!r.ok) { let m = 'Request failed (' + r.status + ')'; try { m = errText((await r.json()).detail, m); } catch (e) {} throw new Error(m); }
   return r.json();
 }
 function status(t, err) { $('status').textContent = t; $('status').className = 'status' + (err ? ' error' : ''); }

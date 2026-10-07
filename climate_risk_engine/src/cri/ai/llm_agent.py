@@ -151,21 +151,29 @@ def _groq_unavailable_fallback(user_message: str) -> AgentResponse:
         except Exception as exc:
             logger.warning("Anthropic fallback failed: %s", exc)
 
-    # Last resort template
+    # No LLM key: the resident in-engine agent answers short questions with the engine's own tools.
+    # (Long, structured prompts such as the deep-dive brief use /resident/brief instead.)
+    if len(user_message) <= 400:
+        try:
+            from ..resident.agent import get_agent
+            r = get_agent().handle("llm-fallback", user_message)
+            if r.get("reply"):
+                return AgentResponse(narrative=r["reply"], tool_calls_made=[r.get("intent", "resident")], raw_tool_results={},
+                                     tokens_used=0, model_used="resident-engine", rounds=0, fallback_used=True)
+        except Exception as exc:                                    # noqa: BLE001
+            logger.warning("resident fallback failed: %s", exc)
     return AgentResponse(
         narrative=(
-            "The ClimRisk AI engine requires a GROQ_API_KEY to be configured on "
-            "the server. The parametric assessment tools (physical risk, transition "
-            "risk, Monte Carlo VaR) are all available — they just need an LLM to "
-            "orchestrate them. Please contact your administrator to enable AI mode."
+            "No external AI key is set, and none is needed for the core work. Use the ClimRisk "
+            "chat button (bottom right): it runs inside the engine, builds the 3D twin, runs scenarios "
+            "and writes the reports. For a written site brief, press AI deep dive again after the analysis."
         ),
         tool_calls_made=[],
         raw_tool_results={},
         tokens_used=0,
-        model_used="template",
+        model_used="resident-engine",
         rounds=0,
         fallback_used=True,
-        error="No LLM API key configured",
     )
 
 

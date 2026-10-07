@@ -502,7 +502,20 @@ def assess_asset(
 
     headline = _headline(asset_name, terrain, sat, lc, material)
 
+    # A layer that failed to load must be said out loud: a missing DEM otherwise reads as
+    # "flat site, negligible flood". Plain-language gaps, shown as a banner in the dashboard.
+    _gap_text = {
+        "terrain": "Terrain did not load, so elevation, slope, flood routing, debris-flow and landslide results are NOT valid for this site",
+        "satellite": "Sentinel-2 imagery did not load (no satellite texture, NDVI or water index)",
+        "radar": "Sentinel-1 radar history did not load",
+        "land_cover": "Land cover did not load",
+    }
+    data_gaps = [f"{_gap_text[k]} — {str(errors[k])[:160]}" for k in _gap_text if k in errors and errors[k] and not (k == "radar" and "timed out" in str(errors[k]))]
+    if not (terrain.get("viz") or {}).get("elevations") and "terrain" not in errors:
+        data_gaps.insert(0, _gap_text["terrain"])
+
     out = {
+        "data_gaps": data_gaps,
         "asset_name": asset_name,
         "asset_type": asset_type,
         "lat": lat,

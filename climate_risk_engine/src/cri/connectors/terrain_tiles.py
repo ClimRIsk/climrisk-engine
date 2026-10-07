@@ -50,6 +50,7 @@ log = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 _TILE_URL   = "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"
+_LAST_ERROR: list = [""]          # most recent permanent tile failure, for a useful message
 _TILE_SIZE  = 256          # pixels per tile side
 _ZOOM       = 14           # default zoom — ~9.5 m/px at equator
 _TIMEOUT    = 15           # seconds per HTTP request
@@ -150,6 +151,7 @@ def _fetch_tile(z: int, x: int, y: int) -> Optional[np.ndarray]:
                             z, x, y, attempt + 1, exc)
             else:
                 log.error("Tile z=%d x=%d y=%d permanently failed: %s", z, x, y, exc)
+                _LAST_ERROR[0] = f"{type(exc).__name__}: {exc}"
                 return None
 
 
@@ -227,6 +229,7 @@ def get_elevation_grid(
     with ThreadPoolExecutor(max_workers=min(16, len(_keys))) as _pool:
         list(_pool.map(lambda k: _fetch_tile(*k), _keys))
 
+    n_ok = 0
     for j, ty in enumerate(range(ty_min, ty_max + 1)):
         for i, tx in enumerate(range(tx_min, tx_max + 1)):
             rgb = _fetch_tile(zoom, tx, ty)
@@ -236,6 +239,13 @@ def get_elevation_grid(
             row0 = j * _TILE_SIZE
             col0 = i * _TILE_SIZE
             mosaic[row0:row0 + _TILE_SIZE, col0:col0 + _TILE_SIZE] = elev
+            n_ok += 1
+
+    if n_ok == 0:
+        # Never hand back a grid of NaN: downstream it reads as "flat site, no flood risk".
+        raise RuntimeError(
+            f"terrain tiles could not be downloaded ({len(_keys)} tried; last error: {_LAST_ERROR[0] or 'unknown'}). "
+            "Check the internet connection; on macOS this is usually a missing root-certificate bundle.")
 
     # ------------------------------------------------------------------ #
     # 4. Compute exact pixel extents of the mosaic
