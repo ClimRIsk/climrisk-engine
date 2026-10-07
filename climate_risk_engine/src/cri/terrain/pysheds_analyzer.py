@@ -55,6 +55,9 @@ from dataclasses import dataclass, field
 from typing import Optional, Tuple
 
 import numpy as np
+
+if not hasattr(np, "in1d"):          # NumPy >= 2.4 removed it; pysheds still calls it
+    np.in1d = np.isin               # type: ignore[attr-defined]
 from affine import Affine
 from pysheds.grid import Grid
 from pysheds.view import Raster, ViewFinder

@@ -26,6 +26,9 @@ from dataclasses import dataclass
 from typing import Optional
 
 import numpy as np
+
+if not hasattr(np, "in1d"):          # NumPy >= 2.4 removed it; pysheds still calls it
+    np.in1d = np.isin               # type: ignore[attr-defined]
 from pysheds.view import Raster
 
 from ..connectors.terrain_tiles import get_elevation_grid

@@ -319,7 +319,9 @@ class Agent:
             if r["ok"]:
                 note.append("Written by: " + r["mode"] + ".")
                 if r["mode"] == "extractive":
-                    note.append("These are the most relevant sentences from the sources above. For fluent written answers, install a free local model (Ollama) — the engine detects it automatically.")
+                    note.append("These are the most relevant sentences from the sources above." + (
+                        f' The local model was running but {r["llm_note"]}.' if r.get("llm_note") else
+                        " For fluent written answers, install a free local model (Ollama) — the engine detects it automatically."))
             if note:
                 blocks.append(_blk("note", text=" ".join(note)))
             acts = [] if r["ok"] else [{"type": "say", "label": "Learn about this", "text": "learn about " + " ".join(K._terms(q)[:6])}]

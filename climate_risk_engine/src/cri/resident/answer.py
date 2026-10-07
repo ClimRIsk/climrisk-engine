@@ -94,24 +94,61 @@ def _extractive(question: str, passages: list, max_sent: int = 5) -> str:
     return " ".join(f"{s} [{pi + 1}]" for pi, si, s in chosen)
 
 
+LAST_LLM: dict = {"why": "not called", "raw": ""}
+
+
+def _normalise_cites(out: str, n: int) -> str:
+    """Small models cite as (1), [Source 2], [1, 3] — fold those into plain [n] markers."""
+    out = re.sub(r"\[(?:source|src|s)\s*(\d+)\]", r"[\1]", out, flags=re.I)
+    out = re.sub(r"\((?:source|sources|src)?\s*(\d+)\)", lambda m: f"[{m.group(1)}]" if int(m.group(1)) <= n else m.group(0), out, flags=re.I)
+    out = re.sub(r"\[(\d+(?:\s*[,;]\s*\d+)+)\]", lambda m: "".join(f"[{x}]" for x in re.findall(r"\d+", m.group(1))), out)
+    return out
+
+
 def _llm(question: str, passages: list, model: str, context: Optional[str] = None) -> Optional[str]:
+    for strict in (False, True):
+        out = _llm_once(question, passages, model, context, strict)
+        if out:
+            return out
+        if not LAST_LLM["why"].startswith("the model answered without citing"):
+            return None                                              # only an uncited answer is worth a stricter retry
+    return None
+
+
+def _llm_once(question: str, passages: list, model: str, context: Optional[str], strict: bool) -> Optional[str]:
     src = "\n\n".join(f"[{i + 1}] {p['title']}: {p['text']}" for i, p in enumerate(passages))
     sysmsg = ("You are ClimRisk's climate-risk analyst. Answer the question using ONLY the numbered sources. "
               "Cite every factual sentence with its source number in square brackets, like [2]. "
               "If the sources do not contain the answer, say exactly what is missing instead of guessing. "
               "Write 120 to 220 words in plain prose: lead with the answer, then the mechanism, then what it means for an asset owner or lender. No bullet lists.")
+    if strict:
+        sysmsg += (" STRICT FORMAT: end EVERY sentence with its source marker, for example: "
+                   "'Storm surge is wind-driven sea-level rise [2]. River floods come from rainfall upstream [3].' "
+                   "An answer with no [n] markers is invalid.")
     user = (f"Context from the user's session: {context}\n\n" if context else "") + f"Question: {question}\n\nSources:\n{src}"
-    body = json.dumps({"model": model, "stream": False, "options": {"temperature": 0.2, "num_ctx": 6144},
+    body = json.dumps({"model": model, "stream": False, "keep_alive": "30m",
+                       "options": {"temperature": 0.0 if strict else 0.2, "num_ctx": 6144, "num_predict": 520},
                        "messages": [{"role": "system", "content": sysmsg}, {"role": "user", "content": user}]}).encode()
     try:
         req = urllib.request.Request(_OLLAMA + "/api/chat", data=body, headers={"Content-Type": "application/json"})
-        with urllib.request.urlopen(req, timeout=150) as r:
+        with urllib.request.urlopen(req, timeout=240) as r:
             out = json.loads(r.read()).get("message", {}).get("content", "").strip()
+        out = _normalise_cites(out, len(passages))
         cited = {int(x) for x in re.findall(r"\[(\d+)\]", out)}
-        if not out or not cited or max(cited) > len(passages):       # uncited or mis-cited: do not trust it
+        LAST_LLM.update(raw=out[:400])
+        if not out:
+            LAST_LLM["why"] = "the model returned nothing"
             return None
+        if not cited:
+            LAST_LLM["why"] = "the model answered without citing a source, so the answer was rejected"
+            return None
+        if max(cited) > len(passages):
+            LAST_LLM["why"] = "the model cited a source number that does not exist, so the answer was rejected"
+            return None
+        LAST_LLM["why"] = "ok"
         return out
-    except Exception:                                                # noqa: BLE001
+    except Exception as e:                                           # noqa: BLE001
+        LAST_LLM.update(why=f"call to the local model failed: {type(e).__name__}: {e}"[:300], raw="")
         return None
 
 
@@ -144,7 +181,8 @@ def ask(question: str, context: Optional[str] = None, allow_learn: bool = True, 
         return {"ok": False, "reply": "I found related pages but no sentence that answers the question directly; the sources are listed below.", "sources": _src(ps), "mode": "none", "learned": learned,
                 "elapsed_s": round(time.time() - t0, 1)}
     used = sorted({int(x) for x in re.findall(r"\[(\d+)\]", text) if int(x) <= len(ps)})
-    return {"ok": True, "reply": text, "sources": _src(ps, used), "mode": mode, "learned": learned, "elapsed_s": round(time.time() - t0, 1)}
+    return {"ok": True, "reply": text, "sources": _src(ps, used), "mode": mode, "learned": learned, "elapsed_s": round(time.time() - t0, 1),
+            "llm_note": (LAST_LLM["why"] if ls["available"] and mode == "extractive" else None)}
 
 
 def _src(ps: list, used: Optional[list] = None) -> list:

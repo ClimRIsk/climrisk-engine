@@ -1,3 +1,4 @@
+import sys
 """The keyless deep dive, the certificate fix and the 'terrain did not load' guard (found on a real Mac run)."""
 import os
 import ssl
@@ -62,6 +63,7 @@ def test_llm_fallback_no_longer_asks_for_a_groq_key(monkeypatch):
 
 def test_trust_store_points_python_at_certifi(monkeypatch):
     certifi = pytest.importorskip("certifi")
+    monkeypatch.setitem(sys.modules, "truststore", None)             # force the certifi fallback path
     monkeypatch.delenv("SSL_CERT_FILE", raising=False)
     monkeypatch.delenv("REQUESTS_CA_BUNDLE", raising=False)
     import cri
@@ -73,6 +75,7 @@ def test_trust_store_points_python_at_certifi(monkeypatch):
 
 def test_trust_store_respects_operator_bundle(monkeypatch):
     pytest.importorskip("certifi")
+    monkeypatch.setitem(sys.modules, "truststore", None)
     monkeypatch.setenv("SSL_CERT_FILE", "/custom/bundle.pem")
     import cri
     cri._trust_store()
@@ -123,3 +126,27 @@ def test_selfcheck_ok_when_reachable(monkeypatch):
         def __exit__(self, *a): return False
     monkeypatch.setattr(S.urllib.request, "urlopen", lambda req, timeout=0: R())
     assert S.run()["ok"]
+
+
+def test_trust_store_prefers_the_os_store_when_available(monkeypatch):
+    calls = []
+    fake = type("T", (), {"inject_into_ssl": staticmethod(lambda: calls.append(1))})
+    monkeypatch.setitem(sys.modules, "truststore", fake)
+    import cri
+    cri._trust_store()
+    assert calls == [1]
+
+
+def test_trust_store_patches_http_client_even_if_urllib_was_imported_first():
+    """The order that failed on the Mac: urllib/http.client imported before cri."""
+    import subprocess, textwrap
+    code = textwrap.dedent("""
+        import sys; sys.modules['truststore'] = None
+        import urllib.request, http.client, ssl
+        import cri
+        f = getattr(http.client, '_create_default_https_context', None)
+        ok = (f is None) or (f is ssl._create_default_https_context)
+        print('OK' if ok else 'STALE')
+    """)
+    out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, env={**os.environ, "PYTHONPATH": os.path.join(os.path.dirname(__file__), "..", "src")})
+    assert "OK" in out.stdout, out.stdout + out.stderr
