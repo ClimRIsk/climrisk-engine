@@ -79,7 +79,7 @@
     });
   }
   function chips() {
-    var c = ['What can you do?', 'Scan this week\'s events', 'Write the CBAM report', 'How do I protect my site?'];
+    var c = ['What did you find while I was away?', 'Run the autopilot now', 'Scan this week\'s events', 'How do I protect my site?'];
     $('cri-chips').innerHTML = c.map(function (t) { return '<span class="act">' + esc(t) + '</span>'; }).join('');
     $('cri-chips').querySelectorAll('.act').forEach(function (el) { el.onclick = function () { send(el.textContent); }; });
   }
@@ -135,5 +135,23 @@
   var _send = send; send = function (t, i) { if (t.toLowerCase() === 'retrain') { api('/resident/retrain', 'POST').then(function (r) { var j = r.j; push('a', 'Retrained on ' + j.n_train + ' examples (' + j.n_feedback + ' from your corrections). Held-out phrasing accuracy (never-seen templates): ' + Math.round(100 * j.heldout_templates) + '%; grouped CV ' + Math.round(100 * j.grouped_cv.mean) + '%.'); }); return; } _send(t, i); };
 
   if (!msgs.length) msgs.push({ role: 'a', text: 'I run inside this engine — no outside software. I can build 3D twins, find and verify protection, build scenarios, write story reports, research live hazards and draft LinkedIn posts (published only when you approve). What do you want to look at?' });
+  // ── autopilot: the agent works in the background; show what it found ──
+  var apState = null;
+  function ago(ts) { if (!ts) return 'not yet'; var m = Math.round((Date.now() / 1000 - ts) / 60); return m < 1 ? 'just now' : m < 90 ? m + ' min ago' : Math.round(m / 60) + ' h ago'; }
+  function pullInbox(announce) {
+    api('/resident/inbox?unread=true').then(function (r) {
+      if (!r.ok || !r.j.items) return; apState = r.j.status;
+      var n = r.j.unread; fab.textContent = n ? 'Ask ClimRisk · ' + n + ' new' : 'Ask ClimRisk';
+      var hd = $('cri-hd').querySelector('span.s'); if (hd && apState) hd.textContent = apState.enabled ? 'autopilot on · last cycle ' + ago(apState.last_run) + (apState.running ? ' · working…' : '') : 'autopilot off';
+      if (n && (open || FULL) && announce !== false) {
+        r.j.items.slice().reverse().forEach(function (it) {
+          msgs.push({ role: 'a', text: '🛰 ' + it.title + '\n' + it.detail, blocks: it.blocks, actions: it.actions });
+        });
+        save(); render(); api('/resident/inbox/read', 'POST', { ids: r.j.items.map(function (i) { return i.id; }) }).then(function () { fab.textContent = 'Ask ClimRisk'; });
+      }
+    });
+  }
+  var _show = show; show = function (o) { _show(o); if (o) pullInbox(true); };
+  pullInbox(true); setInterval(function () { pullInbox(true); }, 60000);
   chips(); show(open);
 })();

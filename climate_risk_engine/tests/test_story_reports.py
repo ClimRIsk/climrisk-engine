@@ -8,6 +8,11 @@ from cri import story as S
 from cri import story_reports as SR
 
 
+@pytest.fixture(autouse=True)
+def _offline(monkeypatch):
+    monkeypatch.setenv("CRI_STORY_OFFLINE", "1")
+
+
 @pytest.fixture(scope="module")
 def twin():
     return X.twin(incidents=[{"date": "2019-08-02", "hazard": "flood", "note": "MCC room flooded", "depth_m": 0.4}])
@@ -159,3 +164,53 @@ def test_zero_map_depth_with_solver_finding_is_explained(twin):
     text = json.dumps(st)
     assert any(f["hazard"] == "flood" for f in an["findings"]) and "flood maps show no depth on the site itself" in text
     assert "deepest mapped scenario" not in text
+
+
+# ── v2: the research-desk style ─────────────────────────────────────────────
+
+def test_figures_carry_source_and_are_png():
+    from cri import story_figs as F
+    png = F.bars(["a", "b"], [1.0, 2.0], "t", "Test source")
+    assert png[:8] == b"\x89PNG\r\n\x1a\n"
+    with pytest.raises(ValueError):
+        F.bars(["a"], [1.0], "t", "")
+
+
+def test_physical_story_has_cover_pull_figures_and_measured_section(twin):
+    st = SR.build("physical", {"twin": twin, "name": "Test plant", "sector": "cement", "scenario_lab": False})
+    assert st.get("cover_b64") and any(b["type"] == "pull" for b in st["blocks"])
+    assert sum(b["type"] == "figure" for b in st["blocks"]) >= 3
+    t = json.dumps(st)
+    assert "How ClimRisk measured this" in t and "Method and limitations" in t
+    h = S.html(st)
+    assert "#0b1220" in h and "class='pull'" in h and "class='cover'" in h                     # dark research-desk page
+
+
+def test_light_theme_and_event_hook_from_supplied_facts(twin):
+    ev = "HEADLINE: Typhoon test hits the coast\nPeak gust 62 m/s | Test agency | https://example.org/a\nPort closed for two days | Test wire"
+    h = SR.generate("physical", {"twin": twin, "name": "T", "scenario_lab": False, "event": ev}, brand={"theme": "light"}, fmt="html")
+    assert "Typhoon test hits the coast" in h and "Peak gust 62 m/s" in h and "https://example.org/a" in h and "#ffffff" in h
+    from cri import story_context as C
+    e = C.parse_event_text(ev)
+    assert len(e["notes"]) == 2 and e["notes"][1]["url"] == ""
+    assert C.parse_event_text("") is None
+
+
+def test_thesis_ratio_never_overstates():
+    ratio, txt = SR._ratio(300.0, 100.0)
+    assert ratio == 3.0 and "3.0 times" in txt
+    r2, t2 = SR._ratio(50.0, 100.0)
+    assert "loud risk is the larger" in t2
+    r3, t3 = SR._ratio(100.0, 0.0)
+    assert r3 is None and "not made" in t3
+
+
+def test_gdacs_hook_ignores_distant_green_alerts(monkeypatch):
+    from cri import story_context as C
+    monkeypatch.delenv("CRI_STORY_OFFLINE")
+    import cri.resident.research as R
+    ev = {"id": "FL1", "type": "FL", "title": "Flood X", "alert": "Green", "lat": 25.0, "lon": 91.0, "from": "2026-09-10", "to": "2026-09-12", "near": {}}
+    monkeypatch.setattr(R, "fetch_gdacs", lambda days: [ev])
+    assert C.nearest_event(22.0, 91.0) is None                       # ~330 km, Green: not a hook
+    ev["alert"] = "Orange"
+    assert C.nearest_event(22.0, 91.0)["title"] == "Flood X"

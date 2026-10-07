@@ -7,6 +7,7 @@ research, risk analysis) run in background threads; the dock polls the job.
 """
 from __future__ import annotations
 
+import datetime as dt
 import re
 import threading
 import time
@@ -129,6 +130,9 @@ class Agent:
         text = (text or "").strip()
         if not text:
             return {"reply": "Ask me something — for example \"build a 3D twin of 22.2645, 91.805\".", "blocks": [], "actions": [], "intent": "empty"}
+        quick = self._autopilot_commands(session, text)
+        if quick:
+            return quick
         model = N.get_model()
         pred = model.predict(text)
         ent = N.entities(text)
@@ -143,6 +147,48 @@ class Agent:
             out = {"reply": f"That failed inside the engine: {type(e).__name__}: {str(e)[:200]}. Nothing was changed.", "blocks": [], "actions": []}
         out["intent"] = pred["intent"]; out["confidence"] = pred["confidence"]; out["top"] = pred["top"]; out["entities"] = ent
         M.add_message(session, "agent", out["reply"], pred["intent"], {"actions": out.get("actions"), "job": out.get("job")})
+        return out
+
+    def _autopilot_commands(self, session, text) -> Optional[dict]:
+        """Inbox, autopilot and watch commands: keyword-routed, no model needed."""
+        import re as _re
+        from . import autopilot as AP
+        t = text.lower().strip()
+        out = None
+        if _re.search(r"\b(inbox|while i was (away|gone)|what.?s new|what did you (do|find)|any news|briefing|catch me up|autopilot|background)\b", t):
+            if _re.search(r"run|now|again|refresh", t) and "autopilot" in t:
+                import threading
+                threading.Thread(target=AP.run_cycle, args=("asked in chat",), daemon=True).start()
+                out = {"reply": "Started a cycle: scanning hazards, checking watched sites and companies. The findings will appear here in a minute or two.", "blocks": [], "actions": []}
+            else:
+                items = AP.inbox(False)[:6]; st = AP.status()
+                if not items:
+                    out = {"reply": "The inbox is empty — the autopilot has not finished a cycle yet" + (f' (next in {max(0, round((st["next_run"] - time.time()) / 60))} min)' if st.get("next_run") else "") + ". Say “run the autopilot now” to start one.", "blocks": [], "actions": []}
+                else:
+                    blocks = []
+                    for i in items:
+                        blocks.append(_blk("note", text=f'{i["title"]} — {i["detail"]}'))
+                        blocks += i.get("blocks", [])[:1]
+                    acts = [a for i in items[:2] for a in i.get("actions", [])][:4]
+                    out = {"reply": f'{st["unread"]} new item(s). Autopilot: {st["cycles"]} cycle(s) run, every {st["interval_min"]} min; I started the first one when the app opened.', "blocks": blocks, "actions": acts}
+                    AP.mark_read()
+        m = _re.match(r"\s*(?:please\s+)?(?:watch|monitor|keep an eye on)\s+(?:the\s+)?(.+?)\s*$", t)
+        if out is None and m and not _re.search(r"\d+\.\d+", t):
+            name = text.strip()[len(text.strip()) - len(m.group(1)):]
+            comp = N.find_company(name)
+            try:
+                from ..api.agents import _load_watchlist, _save_watchlist
+                wl = _load_watchlist()
+                label = comp["name"] if comp else name
+                if not any(w["company_name"].lower() == label.lower() for w in wl):
+                    wl.append({"company_name": label, "sector": None, "alert_email": None, "notes": "added by the resident agent", "added_at": dt.datetime.utcnow().isoformat()})
+                    _save_watchlist(wl)
+                out = {"reply": f"Watching {label}. The autopilot re-assesses it every cycle and tells you when expected loss moves by 10% or more.", "blocks": [], "actions": [{"type": "say", "label": "Run the autopilot now", "text": "run the autopilot now"}]}
+            except Exception as e:                                       # noqa: BLE001
+                out = {"reply": f"Could not add it to the watchlist: {e}", "blocks": [], "actions": []}
+        if out:
+            out.setdefault("intent", "autopilot"); out.setdefault("confidence", 1.0); out.setdefault("top", []); out.setdefault("entities", {})
+            M.add_message(session, "user", text, "autopilot", {}); M.add_message(session, "agent", out["reply"], "autopilot", {})
         return out
 
     def _dispatch(self, session, text, pred, ent, comp) -> dict:
@@ -322,6 +368,11 @@ class Agent:
             return {"reply": "Which site? Give coordinates (e.g. 22.2645, 91.805), a place name, or a plant name I know.", "blocks": [], "actions": []}
         M.set_state("last_place", pl)
         sector = ent.get("sector")
+        try:                                                           # sites the user works on are watched by the autopilot
+            from . import autopilot as AP
+            AP.register_site(pl["lat"], pl["lon"], pl["name"], sector)
+        except Exception:                                              # noqa: BLE001
+            pass
         url = f'/asset-twin/dashboard?lat={pl["lat"]:.5f}&lon={pl["lon"]:.5f}&auto=1&name={pl["name"].replace(" ", "%20")}' + (f'&sector={sector}' if sector else "")
         open_act = {"type": "open", "label": "Open 3D twin", "url": url}
         if it == "twin":

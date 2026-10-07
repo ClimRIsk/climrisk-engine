@@ -105,6 +105,11 @@ def _start_scheduler() -> None:
 @asynccontextmanager
 async def _lifespan(app: FastAPI):
     _start_scheduler()
+    try:                                            # the resident agent works on its own from the moment the engine (the app) opens
+        from ..resident import autopilot as _ap
+        _ap.start()
+    except Exception as exc:                        # noqa: BLE001
+        logging.getLogger(__name__).warning("autopilot not started: %s", exc)
     # Preload in-memory datasets in the background so the first request has no lag
     try:
         from ..data.asset_register import warm_up_async
@@ -121,7 +126,7 @@ async def _lifespan(app: FastAPI):
 app = FastAPI(
     title="Climate Risk Intelligence API",
     description="REST API for climate financial risk modelling",
-    version="0.3.0",
+    version="0.4.0",
     lifespan=_lifespan,
 )
 
@@ -236,7 +241,7 @@ def _build_custom_scenario(params: CustomScenarioParams, scenario_id: str = 'cus
 @app.get("/health", response_model=HealthResponse)
 def health() -> HealthResponse:
     """Health check endpoint."""
-    return HealthResponse(status="ok", version="0.3.0")
+    return HealthResponse(status="ok", version="0.4.0")
 
 
 # ── License tier metadata keyed by API key ────────────────────────────────────

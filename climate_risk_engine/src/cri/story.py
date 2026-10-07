@@ -46,6 +46,9 @@ class Story:
     def facts(self, items): self.d["blocks"].append({"type": "facts", "items": [{"value": v, "label": l} for v, l in items]}); return self
     def figure(self, png: bytes, caption: str = "", alt: str = ""):
         self.d["blocks"].append({"type": "figure", "png_b64": base64.b64encode(png).decode(), "caption": caption, "alt": alt or caption}); return self
+    def cover(self, png: bytes, caption: str = ""):
+        self.d["cover_b64"] = base64.b64encode(png).decode(); self.d["cover_caption"] = caption; return self
+    def pull(self, t, sub=""): self.d["blocks"].append({"type": "pull", "text": t, "sub": sub}); return self
     def source(self, key, title, url="", note=""): self.d["sources"][key] = {"title": title, "url": url, "note": note}; return self
     def section(self, key: str, title: str): self.d["blocks"].append({"type": "h2", "text": title, "section": key}); return self
     def build(self) -> dict: return self.d
@@ -108,43 +111,53 @@ def _inline(t: str, num: dict, mode: str) -> str:
 # ── HTML ─────────────────────────────────────────────────────────────────────
 
 _CSS = """
-:root{--accent:%(accent)s;--ink:#0f172a;--muted:#64748b;--rule:#e2e8f0}
-*{box-sizing:border-box}body{margin:0;background:#fff;color:var(--ink);font:17px/1.65 Georgia,'Iowan Old Style','Times New Roman',serif}
-.wrap{max-width:760px;margin:0 auto;padding:36px 22px 80px}
-.top{display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--rule);padding-bottom:14px;margin-bottom:26px;font:600 13px/1.2 -apple-system,'Segoe UI',sans-serif;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
-.top img{height:30px}.top b{color:var(--accent);letter-spacing:.2em;font-size:15px}
-.kicker{font:700 12px/1 -apple-system,'Segoe UI',sans-serif;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin-bottom:12px}
-h1{font:800 38px/1.12 -apple-system,'Segoe UI',sans-serif;margin:0 0 14px;letter-spacing:-.01em}
-.stand{font:400 20px/1.5 -apple-system,'Segoe UI',sans-serif;color:#334155;margin:0 0 16px}
+:root{--accent:%(accent)s;--bg:%(bg)s;--ink:%(ink)s;--muted:%(muted)s;--rule:%(rule)s;--panel:%(panel)s;--stand:%(stand)s}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:17.5px/1.7 Georgia,'Iowan Old Style','Times New Roman',serif}
+.wrap{max-width:780px;margin:0 auto;padding:36px 22px 80px}
+.top{display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--rule);padding-bottom:14px;margin-bottom:30px;font:600 12.5px/1.2 -apple-system,'Segoe UI',sans-serif;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.top img{height:30px}.top b{color:var(--accent);letter-spacing:.24em;font-size:15px}.top span{margin-left:auto}
+.kicker{font:700 12px/1 -apple-system,'Segoe UI',sans-serif;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin-bottom:14px}
+h1{font:800 40px/1.1 -apple-system,'Segoe UI',sans-serif;margin:0 0 16px;letter-spacing:-.015em}
+.stand{font:400 20.5px/1.5 -apple-system,'Segoe UI',sans-serif;color:var(--stand);margin:0 0 16px}
 .by{font:13px -apple-system,'Segoe UI',sans-serif;color:var(--muted);margin-bottom:26px}
-h2{font:800 24px/1.25 -apple-system,'Segoe UI',sans-serif;margin:38px 0 10px}h3{font:700 18px -apple-system,'Segoe UI',sans-serif;margin:26px 0 6px}
-p{margin:0 0 16px}ul{margin:0 0 16px 22px;padding:0}li{margin-bottom:6px}
+.cover{margin:0 0 30px}.cover img{width:100%%;height:auto;display:block;border-radius:6px}
+h2{font:800 25px/1.25 -apple-system,'Segoe UI',sans-serif;margin:44px 0 12px;padding-top:6px;border-top:1px solid var(--rule)}h3{font:700 18px -apple-system,'Segoe UI',sans-serif;margin:26px 0 6px;color:var(--accent)}
+p{margin:0 0 17px}ul{margin:0 0 17px 22px;padding:0}li{margin-bottom:7px}strong{color:var(--ink)}
 sup.c a{color:var(--accent);text-decoration:none;font:600 11px -apple-system,sans-serif}
-blockquote{margin:22px 0;padding:14px 18px;border-left:4px solid var(--accent);background:#f8fafc;font-size:16px}
+blockquote{margin:24px 0;padding:14px 20px;border-left:4px solid var(--accent);background:var(--panel);font-size:16.5px}
 blockquote .src{display:block;font:700 11px -apple-system,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
-figure{margin:26px 0}figure img{width:100%%;height:auto;border:1px solid var(--rule);border-radius:6px}
-figcaption{font:italic 13px/1.5 Georgia,serif;color:var(--muted);margin-top:6px}
-table{width:100%%;border-collapse:collapse;margin:20px 0;font:14px -apple-system,'Segoe UI',sans-serif}
-th{text-align:left;border-bottom:2px solid var(--ink);padding:8px 10px;font-weight:700}td{padding:8px 10px;border-bottom:1px solid var(--rule)}
-.cap{font:italic 13px Georgia,serif;color:var(--muted);margin:-12px 0 18px}
-.call{margin:22px 0;padding:14px 18px;border-radius:8px;background:#f0f9ff;border:1px solid #bae6fd;font:15px/1.55 -apple-system,'Segoe UI',sans-serif}
-.call.warn{background:#fffbeb;border-color:#fde68a}.call.bad{background:#fef2f2;border-color:#fecaca}
-.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:22px 0}
-.fact{border:1px solid var(--rule);border-radius:10px;padding:12px 14px}.fact b{display:block;font:800 26px/1.1 -apple-system,sans-serif;color:var(--accent)}
+.pull{margin:30px 0;padding:22px 24px;background:var(--panel);border-left:5px solid var(--accent);border-radius:4px}
+.pull b{display:block;font:800 30px/1.2 -apple-system,'Segoe UI',sans-serif;color:var(--accent);margin-bottom:6px}.pull span{font:15.5px/1.5 -apple-system,'Segoe UI',sans-serif;color:var(--stand)}
+figure{margin:30px 0}figure img{width:100%%;height:auto;display:block;border-radius:6px}
+figcaption{font:italic 13.5px/1.5 Georgia,serif;color:var(--muted);margin-top:8px}
+table{width:100%%;border-collapse:collapse;margin:22px 0;font:14px -apple-system,'Segoe UI',sans-serif}
+th{text-align:left;border-bottom:2px solid var(--accent);padding:8px 10px;font-weight:700;color:var(--ink)}td{padding:8px 10px;border-bottom:1px solid var(--rule);color:var(--stand)}
+.cap{font:italic 13.5px Georgia,serif;color:var(--muted);margin:-12px 0 20px}
+.call{margin:24px 0;padding:14px 18px;border-radius:8px;background:var(--panel);border:1px solid var(--rule);font:15px/1.55 -apple-system,'Segoe UI',sans-serif;color:var(--stand)}
+.call.warn{border-color:#a16207;background:%(warn)s}.call.bad{border-color:#b91c1c;background:%(bad)s}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin:24px 0}
+.fact{border:1px solid var(--rule);background:var(--panel);border-radius:10px;padding:14px 16px}.fact b{display:block;font:800 27px/1.1 -apple-system,sans-serif;color:var(--accent)}
 .fact span{font:12.5px/1.4 -apple-system,sans-serif;color:var(--muted)}
-ol.src{font:13.5px/1.55 -apple-system,'Segoe UI',sans-serif;color:#334155;padding-left:20px}ol.src a{color:var(--accent)}
+ol.src{font:13.5px/1.55 -apple-system,'Segoe UI',sans-serif;color:var(--stand);padding-left:20px}ol.src a{color:var(--accent);word-break:break-all}
 .foot{margin-top:46px;padding-top:16px;border-top:1px solid var(--rule);font:12.5px/1.6 -apple-system,sans-serif;color:var(--muted)}
-@media print{.wrap{padding:0}h2{break-after:avoid}figure,table,blockquote,.fact{break-inside:avoid}}
+@media print{.wrap{padding:0}h2{break-after:avoid}figure,table,blockquote,.fact,.pull{break-inside:avoid}}
 """
+
+_THEMES = {
+    "dark": {"bg": "#0b1220", "ink": "#e5e7eb", "muted": "#94a3b8", "rule": "#1f2a3d", "panel": "#111c30", "stand": "#cbd5e1", "warn": "#2a2108", "bad": "#2a0f0f"},
+    "light": {"bg": "#ffffff", "ink": "#0f172a", "muted": "#64748b", "rule": "#e2e8f0", "panel": "#f8fafc", "stand": "#334155", "warn": "#fffbeb", "bad": "#fef2f2"},
+}
+GOLD = "#d4af37"
 
 
 def html(story: dict) -> str:
     num, order = _number_sources(story)
     b = story.get("brand") or {}
-    accent = b.get("accent") or "#0ea5e9"
+    accent = b.get("accent") or GOLD
+    th = dict(_THEMES.get(b.get("theme") or "dark", _THEMES["dark"]))
     I = lambda t: _inline(t, num, "html")                      # noqa: E731
     out = [f"<!DOCTYPE html><html lang='en'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>"
-           f"<title>{_h.escape(story['title'])}</title><style>{_CSS % {'accent': accent}}</style></head><body><div class='wrap'>"]
+           f"<title>{_h.escape(story['title'])}</title><style>{_CSS % {**th, 'accent': accent}}</style></head><body><div class='wrap'>"]
     logo = f"<img alt='' src='data:image/png;base64,{b['logo_b64']}'>" if b.get("logo_b64") else f"<b>{_h.escape(b.get('name') or 'CLIMRISK')}</b>"
     out.append(f"<div class='top'>{logo}<span>{_h.escape(b.get('client') and 'Prepared for ' + b['client'] or 'Climate financial risk')}</span></div>")
     out.append(f"<div class='kicker'>{_h.escape(story.get('kicker', ''))}</div><h1>{_h.escape(story['title'])}</h1>")
@@ -152,9 +165,12 @@ def html(story: dict) -> str:
         out.append(f"<p class='stand'>{I(story['standfirst'])}</p>")
     words = sum(len(re.findall(r"\w+", x.get("text", "") or "")) for x in story["blocks"])
     out.append(f"<div class='by'>{_h.escape(story.get('byline', ''))} · {_h.escape(story.get('date', ''))} · {max(1, round(words / 220))} min read</div>")
+    if story.get("cover_b64"):
+        out.append(f"<figure class='cover'><img alt='' src='data:image/png;base64,{story['cover_b64']}'>" + (f"<figcaption>{I(story.get('cover_caption', ''))}</figcaption>" if story.get("cover_caption") else "") + "</figure>")
     for x in story["blocks"]:
         t = x["type"]
-        if t == "h2": out.append(f"<h2>{_h.escape(x['text'])}</h2>")
+        if t == "pull": out.append(f"<div class='pull'><b>{I(x['text'])}</b><span>{I(x.get('sub', ''))}</span></div>")
+        elif t == "h2": out.append(f"<h2>{_h.escape(x['text'])}</h2>")
         elif t == "h3": out.append(f"<h3>{_h.escape(x['text'])}</h3>")
         elif t == "p": out.append(f"<p>{I(x['text'])}</p>")
         elif t == "list": out.append("<ul>" + "".join(f"<li>{I(i)}</li>" for i in x["items"]) + "</ul>")
@@ -187,7 +203,8 @@ def markdown(story: dict) -> str:
     if story.get("standfirst"): L += [I(story["standfirst"]), ""]
     for x in story["blocks"]:
         t = x["type"]
-        if t == "h2": L += [f"## {x['text']}", ""]
+        if t == "pull": L += [f"**{I(x['text'])}** — {I(x.get('sub', ''))}", ""]
+        elif t == "h2": L += [f"## {x['text']}", ""]
         elif t == "h3": L += [f"### {x['text']}", ""]
         elif t == "p": L += [I(x["text"]), ""]
         elif t == "list": L += [f"- {I(i)}" for i in x["items"]] + [""]
@@ -227,7 +244,7 @@ def pdf(story: dict) -> bytes:
     from reportlab.platypus import Image as RLImage, KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
     num, order = _number_sources(story)
     b = story.get("brand") or {}
-    acc = colors.HexColor(b.get("accent") or "#0ea5e9")
+    acc = colors.HexColor(b.get("accent") or GOLD)
     ss = getSampleStyleSheet()
     Bd = ParagraphStyle("b", parent=ss["Normal"], fontName="Times-Roman", fontSize=10.6, leading=15.5, spaceAfter=7)
     K = ParagraphStyle("k", parent=ss["Normal"], fontName="Helvetica-Bold", fontSize=8, textColor=acc, spaceAfter=6)
@@ -252,9 +269,17 @@ def pdf(story: dict) -> bytes:
     if story.get("standfirst"): fl.append(pp(story["standfirst"], SF))
     fl.append(Paragraph(_h.escape(f"{story.get('byline', '')} · {story.get('date', '')}" + (f" · prepared for {b['client']}" if b.get("client") else "")), CP))
     fl.append(Spacer(1, 6))
+    if story.get("cover_b64"):
+        from PIL import Image as _PI
+        raw = base64.b64decode(story["cover_b64"]); iw, ih = _PI.open(io.BytesIO(raw)).size
+        fl.append(RLImage(io.BytesIO(raw), width=W, height=W * ih / iw)); fl.append(Spacer(1, 8))
     for x in story["blocks"]:
         t = x["type"]
-        if t == "h2": fl.append(Paragraph(_h.escape(x["text"]), H2))
+        if t == "pull":
+            PS = ParagraphStyle("pl", parent=Bd, fontName="Helvetica-Bold", fontSize=15, leading=19, textColor=acc, spaceAfter=2)
+            fl.append(Table([[[Paragraph(_h.escape(_inline(x["text"], num, "plain")), PS), pp(x.get("sub", ""), SM)]]], colWidths=[W], style=TableStyle([("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#f8fafc")), ("LINEBEFORE", (0, 0), (0, -1), 3, acc), ("LEFTPADDING", (0, 0), (-1, -1), 10), ("TOPPADDING", (0, 0), (-1, -1), 8), ("BOTTOMPADDING", (0, 0), (-1, -1), 8)])))
+            fl.append(Spacer(1, 6))
+        elif t == "h2": fl.append(Paragraph(_h.escape(x["text"]), H2))
         elif t == "h3": fl.append(Paragraph(_h.escape(x["text"]), H3))
         elif t == "p": fl.append(pp(x["text"]))
         elif t == "list":
@@ -262,7 +287,7 @@ def pdf(story: dict) -> bytes:
         elif t == "quote": fl.append(KeepTogether([pp(x.get("source", "").upper(), CP), pp(x["text"], ParagraphStyle("q", parent=Bd, leftIndent=10, textColor=colors.HexColor("#334155")))]))
         elif t == "callout": fl.append(Table([[pp(x["text"], SM)]], colWidths=[W], style=TableStyle([("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#f0f9ff")), ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#bae6fd")), ("LEFTPADDING", (0, 0), (-1, -1), 8), ("TOPPADDING", (0, 0), (-1, -1), 6), ("BOTTOMPADDING", (0, 0), (-1, -1), 6)])))
         elif t == "facts":
-            VS = ParagraphStyle("fv", parent=SM, fontName="Helvetica-Bold", fontSize=15, leading=19, textColor=colors.HexColor(b.get("accent") or "#0ea5e9"))
+            VS = ParagraphStyle("fv", parent=SM, fontName="Helvetica-Bold", fontSize=15, leading=19, textColor=colors.HexColor(b.get("accent") or GOLD))
             LS = ParagraphStyle("fl", parent=SM, fontSize=7.8, leading=10)
             cells = [[[Paragraph(_h.escape(str(i["value"])), VS), Paragraph(_h.escape(_inline(i["label"], num, "plain")), LS)] for i in x["items"][:4]]]
             if cells[0]:
@@ -273,7 +298,7 @@ def pdf(story: dict) -> bytes:
             from PIL import Image
             iw, ih = Image.open(io.BytesIO(raw)).size
             wpt = W; hpt = W * ih / iw
-            if hpt > 260: hpt = 260; wpt = hpt * iw / ih
+            if hpt > 300: hpt = 300; wpt = hpt * iw / ih
             fl.append(KeepTogether([RLImage(io.BytesIO(raw), width=wpt, height=hpt), pp(x.get("caption", ""), CP)]))
         elif t == "table":
             data = [[Paragraph(f"<b>{_h.escape(_inline(str(c), num, 'plain'))}</b>", SM) for c in x["head"]]] + [[Paragraph(_h.escape(_inline(str(c), num, "plain")), SM) for c in r] for r in x["rows"]]

@@ -27,7 +27,8 @@ details{margin-top:14px;color:var(--mut);font-size:12px}
   <div class="row" style="margin-top:10px"><button class="btn g" id="ex">Load worked example</button></div>
   <label>Sector template</label><select id="tpl"></select>
   <label>Client name (on the cover)</label><input id="client" placeholder="e.g. Acme Cement Ltd">
-  <div class="row"><div><label>Brand name</label><input id="bname" placeholder="CLIMRISK"></div><div><label>Accent</label><input id="acc" type="color" value="#0ea5e9" style="padding:2px;height:34px"></div></div>
+  <div class="row"><div><label>Brand name</label><input id="bname" placeholder="CLIMRISK"></div><div><label>Accent</label><input id="acc" type="color" value="#d4af37" style="padding:2px;height:34px"></div></div>
+  <label>Page theme</label><select id="theme"><option value="dark">Dark (research-desk style)</option><option value="light">Light (print)</option></select>
   <label>Logo (PNG, optional)</label><input id="logo" type="file" accept="image/png">
   <label>Footer line</label><input id="foot" placeholder="Prepared for … — confidential">
   <button class="btn" id="build" style="width:100%;margin-top:16px">Build report</button>
@@ -46,16 +47,16 @@ function msg(t,e,spin){$('msg').className=e?'err':'';$('msg').innerHTML=(spin?'<
 function cur(){return CAT.find(c=>c.id===$('type').value)}
 function drawFields(vals){const c=cur();$('fields').innerHTML=c.fields.map(f=>{const id='f_'+f.k;
   if(f.t==='select')return `<label>${f.l}</label><select id="${id}">${f.o.map(o=>`<option>${o}</option>`).join('')}</select>`;
-  if(f.t==='json')return `<label>${f.l}</label><textarea id="${id}" spellcheck="false"></textarea>`;
+  if(f.t==='json'||f.t==='area')return `<label>${f.l}</label><textarea id="${id}" spellcheck="false" ${f.t==='area'?'style="min-height:80px;font-family:inherit" placeholder="HEADLINE: Typhoon X hits Y&#10;Peak gust 62 m/s | JMA | https://..."':''}></textarea>`;
   return `<label>${f.l}</label><input id="${id}" type="${f.t==='number'?'number':'text'}" step="any" ${f.d!==undefined?`value="${f.d}"`:''}>`}).join('');
   if(vals)fill(vals)}
-function fill(v){const c=cur();c.fields.forEach(f=>{const el=$('f_'+f.k);if(!el||v[f.k]===undefined)return;el.value=f.t==='json'?JSON.stringify(v[f.k],null,2):v[f.k]})}
+function fill(v){const c=cur();c.fields.forEach(f=>{const el=$('f_'+f.k);if(!el||v[f.k]===undefined)return;el.value=f.t==='json'?JSON.stringify(v[f.k],null,2):(typeof v[f.k]==='object'?JSON.stringify(v[f.k]):v[f.k])})}
 function collect(){const c=cur(),p={};for(const f of c.fields){const el=$('f_'+f.k);if(!el)continue;let v=el.value.trim();if(v==='')continue;
   if(f.t==='number')v=Number(v);else if(f.t==='json'){try{v=JSON.parse(v)}catch(e){throw new Error(f.l+': invalid JSON')}}p[f.k]=v}return p}
-function brand(){const b={};if($('client').value)b.client=$('client').value;if($('bname').value)b.name=$('bname').value;b.accent=$('acc').value;if($('foot').value)b.footer=$('foot').value;if(window._logo)b.logo_b64=window._logo;return b}
+function brand(){const b={};if($('client').value)b.client=$('client').value;if($('bname').value)b.name=$('bname').value;b.accent=$('acc').value;b.theme=$('theme').value;if($('foot').value)b.footer=$('foot').value;if(window._logo)b.logo_b64=window._logo;return b}
 $('logo').onchange=e=>{const f=e.target.files[0];if(!f){window._logo=null;return}const r=new FileReader();r.onload=()=>{window._logo=r.result.split(',')[1];sched()};r.readAsDataURL(f)};
 async function build(){let p;try{p=collect()}catch(e){return msg(e.message,true)}
-  if($('client').value)p.client=$('client').value;const sec=cur().id==='physical'?'about a minute (3D twin + solver)':'a few seconds';
+  if($('client').value)p.client=$('client').value;const sec=cur().id==='physical'?'about two minutes (3D twin, solver, satellite)':'a few seconds';
   $('build').disabled=true;msg('Building from the engine — '+sec+'…',false,true);
   try{const r=await fetch('/story-reports/build',{method:'POST',headers:H(1),body:JSON.stringify({type:cur().id,payload:p,template:$('tpl').value||null,brand:brand()})});
     const j=await r.json();if(!r.ok)throw new Error(typeof j.detail==='string'?j.detail:JSON.stringify(j.detail));
@@ -68,7 +69,7 @@ function sched(){clearTimeout(TIMER);TIMER=setTimeout(render,250)}
 document.querySelectorAll('#bar .btn').forEach(b=>b.onclick=async()=>{if(!TOK)return msg('Build the report first',true);const f=b.dataset.f;
   const r=await fetch('/story-reports/render',{method:'POST',headers:H(1),body:JSON.stringify({token:TOK,sections:keep(),brand:brand(),format:f==='html'?'html':f})});
   if(!r.ok)return msg('Download failed ('+r.status+')',true);const bl=await r.blob();const a=document.createElement('a');a.href=URL.createObjectURL(bl);a.download='climrisk-'+cur().id+'.'+({html:'html',pdf:'pdf',markdown:'md',json:'json'}[f]);a.click()});
-['client','bname','acc','foot'].forEach(i=>$(i).oninput=sched);
+['client','bname','acc','foot'].forEach(i=>$(i).oninput=sched);$('theme').onchange=sched;
 $('build').onclick=build;$('type').onchange=()=>{drawFields();TOK=null;$('secs').innerHTML='';$('prev').srcdoc=''};$('ex').onclick=()=>{const e=cur().example;if(e)fill(e);else msg('No worked example for this report — paste your inventory JSON.')};
 (async()=>{const r=await fetch('/story-reports/catalogue',{headers:H()});const j=await r.json();CAT=j.reports;
   $('type').innerHTML=CAT.map(c=>`<option value="${c.id}">${c.label}</option>`).join('');

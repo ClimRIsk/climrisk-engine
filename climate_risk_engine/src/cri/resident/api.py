@@ -9,6 +9,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, Response
 from pydantic import BaseModel, Field
 
 from . import agent as A
+from . import autopilot as AP
 from . import linkedin as LI
 from . import memory as M
 from . import nlu as N
@@ -28,6 +29,15 @@ class FeedbackReq(BaseModel):
 
 class PublishReq(BaseModel):
     approved: bool = False
+
+class ReadReq(BaseModel):
+    ids: Optional[list] = None
+
+class SiteReq(BaseModel):
+    lat: float
+    lon: float
+    name: str = ""
+    sector: Optional[str] = None
 
 class EditReq(BaseModel):
     text: str = Field(..., max_length=3000)
@@ -115,6 +125,37 @@ def make_router(auth_dep) -> tuple:
     def publish(pid: int, req: PublishReq) -> JSONResponse:
         r = LI.publish(pid, approved=req.approved)
         return JSONResponse(r, status_code=200 if r.get("ok") else (400 if r.get("needs_approval") else 502))
+
+    # ── autopilot: the agent working in the background ──
+    @prot.get("/autopilot")
+    def ap_status() -> dict:
+        return AP.status()
+
+    @prot.post("/autopilot/run")
+    def ap_run() -> dict:
+        import threading
+        threading.Thread(target=AP.run_cycle, args=("run now",), daemon=True).start()
+        return {"ok": True, "note": "cycle started; results appear in the inbox"}
+
+    @prot.get("/inbox")
+    def ap_inbox(unread: bool = False) -> dict:
+        return {"items": AP.inbox(unread), "unread": len(AP.inbox(True)), "status": AP.status()}
+
+    @prot.post("/inbox/read")
+    def ap_read(req: ReadReq) -> dict:
+        return {"marked": AP.mark_read(req.ids)}
+
+    @prot.get("/sites")
+    def sites() -> dict:
+        return {"sites": AP.sites()}
+
+    @prot.post("/sites")
+    def add_site(req: SiteReq) -> dict:
+        return AP.register_site(req.lat, req.lon, req.name, req.sector)
+
+    @prot.delete("/sites/{name}")
+    def del_site(name: str) -> dict:
+        AP.remove_site(name); return {"ok": True}
 
     @pub.get("/dock.js")
     def dock_js() -> Response:
