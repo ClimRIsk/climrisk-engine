@@ -191,6 +191,11 @@ _res_prot, _res_pub = _resident_router(_AUTH)
 app.include_router(_res_pub)
 app.include_router(_res_prot)
 
+from ..story_api import make_router as _story_router   # noqa: E402
+_st_prot, _st_pub = _story_router(_AUTH)
+app.include_router(_st_pub)
+app.include_router(_st_prot)
+
 
 @app.middleware("http")
 async def _inject_resident_dock(request, call_next):
