@@ -45,7 +45,7 @@ def flood_story(r: dict, narrative: str = "", basis: list = None) -> dict:
     st = S.Story("ClimRisk Model Lab · Flood", f'Flood model for {r["name"]}: a {r["return_period"]}-year rainstorm',
                  narrative or (f'The engine built a two-dimensional inundation model of {r["name"]} from first principles, tested it, and found {o["site_depth_m"]:.2f} m of water at the site, '
                                + (f'lasting {o["wet_hours"]:.1f} hours' if o["wet_hours"] >= 0.1 else "which drains almost at once") +
-                               f', with {o["flooded_area_km2"]:.2f} km² of the {o["domain_km2"]:.1f} km² area deeper than 30 cm. Status: {r["status"]}.'),
+                               f', with {o["flooded_area_km2"]:.2f} km² of the {o["land_km2"]:.1f} km² of land deeper than 30 cm. Status: {r["status"]}.'),
                  byline="Written and run by the ClimRisk engine")
     st.callout(f'Model status: **{r["status"]}**. ' + ("Every number below comes from a model that passed its verification tests." if r["ok"] else "Verification failed; do not use these results."), _tone(r["status"]))
     st.facts([(f'{o["site_depth_m"]:.2f} m', "peak depth at the site"), (f'{o["wet_hours"]:.1f} h' if o["wet_hours"] >= 0.1 else "< 0.1 h", "time the site stays under 5 cm or more of water"), (f'{o["flooded_area_km2"]:.2f} km²', "area deeper than 30 cm (patches of 4+ cells)"),
@@ -108,8 +108,12 @@ def _next(st, r):
 def _depth_map(g, name):
     plt = S._mpl()
     fig, ax = plt.subplots(figsize=(7.4, 5.0))
-    z, h = g["z"], np.ma.masked_less(g["h_max"], 0.05)
+    z = g["z"]; sea = g.get("sea")
+    h = np.ma.masked_less(np.where(sea, 0.0, g["h_max"]) if sea is not None else g["h_max"], 0.05)
     ax.imshow(z, cmap="Greys", alpha=0.85)
+    if sea is not None and sea.any():
+        ax.imshow(np.ma.masked_where(~sea, np.ones_like(z)), cmap="winter", alpha=0.35, vmin=0, vmax=2)
+        ax.text(0.02, 0.97, "open water (outlet)", transform=ax.transAxes, va="top", fontsize=8, color="#0369a1")
     im = ax.imshow(h, cmap="Blues", vmin=0, vmax=max(0.5, float(np.nanmax(g["h_max"]))))
     ai, aj = g["asset"]
     ax.plot(aj, ai, marker="*", color="#ef4444", ms=15, mec="white")

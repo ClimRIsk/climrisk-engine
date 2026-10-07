@@ -50,9 +50,10 @@ def _face_depth(eta_a, eta_b, z_a, z_b):
 
 def simulate(z: np.ndarray, dx: float, duration_s: float, rain_m_s=0.0, manning_n=0.035, inflow: Optional[dict] = None,
              open_boundary=True, h0: Optional[np.ndarray] = None, probe: Optional[tuple] = None, alpha: float = 0.7, dt_max: float = 30.0,
-             record_every_s: float = 300.0, rain_mask: Optional[np.ndarray] = None) -> FloodResult:
+             record_every_s: float = 300.0, rain_mask: Optional[np.ndarray] = None, sink: Optional[np.ndarray] = None) -> FloodResult:
     """
     z: bed elevation (rows × cols, m). rain_m_s: scalar, or callable t→m/s, or (times_s, rates) arrays.
+    sink: boolean mask of cells that are open water (sea, large lake): whatever reaches them leaves the model, and they are never "flooded".
     inflow: {"cells": [(i, j), ...], "q_m3_s": scalar|callable} spread equally over the cells.
     open_boundary: True (all four edges), False (closed), or a string such as "S" / "NS" naming the edges that drain by
                    Manning normal-depth flux (a free outflow); the others are walls.
@@ -156,6 +157,9 @@ def simulate(z: np.ndarray, dx: float, duration_s: float, rain_m_s=0.0, manning_
                 vol_in += float(qq * dt)
 
         h = np.maximum(h + dh, 0.0)
+        if sink is not None:
+            vol_out += float(h[sink].sum() * area)
+            h[sink] = 0.0
         t += dt
         steps += 1
         np.maximum(h_max, h, out=h_max)

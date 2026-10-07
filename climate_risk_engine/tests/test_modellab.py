@@ -210,3 +210,18 @@ def test_flood_conditioning_removes_single_cell_pits_from_the_flooded_area():
     assert any(n["step"] == "1b" for n in r["notebook"]) and r["ok"]
     big = flood_study._clusters(np.array([[1, 0, 0, 0], [0, 0, 1, 1], [0, 0, 1, 1], [0, 0, 0, 0]], bool), 4)
     assert big.sum() == 4 and not big[0, 0]
+
+
+def test_open_water_is_an_outlet_not_a_flood():
+    # coastal valley: the northern third is sea at 0 m
+    d = _valley(); z = d.elevations.copy(); z[:30, :] = 0.0
+    dem = NS(elevations=z, cell_size_m=30.0, asset_row=70, asset_col=50)
+    sea = flood_study._open_water(flood_study._block_mean(z, 2))
+    assert sea[:14].all() and not sea[18:].any()
+    r = flood_study.run(22.26, 91.8, "Coast", dem=dem, rain_fetch=lambda a, b: _rain(), reference_depth=lambda *a: -1.0, sensitivity=False)
+    assert r["ok"] and r["out"]["sea_fraction"] > 0.2 and any(n["step"] == "1c" for n in r["notebook"])
+    assert r["grids"]["h_max"][sea].max() == 0.0 and r["out"]["flooded_area_km2"] < r["out"]["land_km2"]
+    # mass balance with a sink: in = out (edges + sea) + stored
+    zz = np.zeros((20, 20)) + np.linspace(1, 0, 20)[None, :]; s = np.zeros_like(zz, bool); s[:, -3:] = True
+    res = flood.simulate(zz, 20.0, 1800, rain_m_s=30e-3 / 3600, open_boundary=False, sink=s)
+    assert res.mass_error < 1e-9 and res.vol_out > 0

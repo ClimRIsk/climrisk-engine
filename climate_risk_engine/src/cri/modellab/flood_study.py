@@ -76,10 +76,16 @@ def run(lat: float, lon: float, name: str = "Study site", radius_km: float = 1.5
     z = _ndi.median_filter(z, size=3, mode="nearest")           # global elevation products carry single-cell pits and spikes (vegetation, buildings, noise)
     cond_change = float(np.abs(z - z_raw).mean())
     ny, nx = z.shape
+    sea = _open_water(z_raw)
+    sea_frac = float(sea.mean())
     ai, aj = min(ny - 1, dem.asset_row // P["factor"]), min(nx - 1, dem.asset_col // P["factor"])
     note("1", "Problem and scale", f"Where does water go at {name} ({lat:.4f}, {lon:.4f}) in a {return_period}-year rainstorm, how deep and for how long? " + P["why_grid"])
     note("1b", "Terrain conditioning", f"Global elevation products contain isolated single-cell pits and spikes (canopy, buildings, noise). Left alone, each pit becomes a fake puddle that collects rain and has no outlet. "
                                       f"A 3×3 median filter was applied (mean change {cond_change:.2f} m), and flooded area counts only connected patches of at least 4 cells.")
+    if sea_frac > 0.01:
+        note("1c", "Open water", f"{sea_frac:.0%} of the study area is open water (elevation at or below 0 m, connected to the edge). It is treated as an outlet, not as floodplain: rain that reaches it leaves the model. "
+                                 "Storm surge and tide are NOT modelled, so for a coastal site this is rain-driven flooding only; surge would add to it.", warn=True)
+        limits.append("Coastal flooding from storm surge and tide is not included; at a coastal site the real flood is the combination of this rain-driven water and the sea level at the time.")
     note("2", "Choice of physics", " ".join(f"{a}: {b}" for a, b in MODEL_CHOICE))
 
     # 2 ── rainfall
@@ -111,7 +117,7 @@ def run(lat: float, lon: float, name: str = "Study site", radius_km: float = 1.5
         hy_ = hydrology.block_hyetograph(storm_mm * rain_scale, storm_hours, step_s)
         eff_ = hydrology.effective_rain_series(hy_, cn_)
         return flood.simulate(dx_z, P["dx"], duration, rain_m_s=(np.arange(len(eff_)) * step_s, eff_ / 1000.0 / step_s), manning_n=n_manning, open_boundary=True,
-                              probe=(ai, aj), record_every_s=600.0)
+                              probe=(ai, aj), record_every_s=600.0, sink=sea if sea.any() else None, rain_mask=(~sea).astype(float) if sea.any() else None)
 
     # 3 ── build + run
     t0 = NOW()
@@ -134,9 +140,9 @@ def run(lat: float, lon: float, name: str = "Study site", radius_km: float = 1.5
     site = res.h_max[max(0, ai - 1):ai + 2, max(0, aj - 1):aj + 2]
     site_depth = float(site.max())
     site_hours = float(res.t_wet[ai, aj] / 3600)
-    wet_mask = _clusters(res.h_max > 0.3, 4)
+    wet_mask = _clusters((res.h_max > 0.3) & ~sea, 4)
     area_km2 = float(wet_mask.sum() * P["dx"] ** 2 / 1e6)
-    out = {"site_depth_m": site_depth, "wet_hours": site_hours, "flooded_area_km2": area_km2, "domain_km2": float(z.size * P["dx"] ** 2 / 1e6), "max_depth_m": float(res.h_max.max()),
+    out = {"site_depth_m": site_depth, "wet_hours": site_hours, "flooded_area_km2": area_km2, "domain_km2": float(z.size * P["dx"] ** 2 / 1e6), "land_km2": float((~sea).sum() * P["dx"] ** 2 / 1e6), "sea_fraction": sea_frac, "max_depth_m": float(res.h_max.max()),
            "site_elev_m": float(z[ai, aj]), "domain_relief_m": float(z.max() - z.min())}
 
     # 5 ── sensitivity
@@ -202,10 +208,26 @@ def run(lat: float, lon: float, name: str = "Study site", radius_km: float = 1.5
     res_dict = {"domain": "flood", "name": name, "lat": lat, "lon": lon, "status": status, "ok": nfail == 0, "return_period": return_period, "storm_mm": storm_mm, "storm_hours": storm_hours,
             "daily_T_mm": d_T, "runoff_mm": q_excess, "rain": rain, "plan": P, "model_choice": MODEL_CHOICE, "out": out, "verification": verification, "sensitivity": sens,
             "calibration": calibration, "validation": validation, "reference": ref, "assumptions": assumptions, "limitations": limits, "notebook": nb,
-            "grids": {"z": z, "h_max": res.h_max, "t_wet": res.t_wet, "dx": P["dx"], "asset": (ai, aj), "series": res.series, "hyetograph_mm": hy, "effective_mm": eff, "step_s": step_s},
+            "grids": {"sea": sea, "z": z, "h_max": res.h_max, "t_wet": res.t_wet, "dx": P["dx"], "asset": (ai, aj), "series": res.series, "hyetograph_mm": hy, "effective_mm": eff, "step_s": step_s},
             "next_steps": None, "params": {"manning": manning, "cn": cn, "radius_km": radius_km}, "elapsed_s": round(NOW() - t_start, 1)}
     res_dict["next_steps"] = next_steps(res_dict)
     return res_dict
+
+
+def _open_water(z: np.ndarray) -> np.ndarray:
+    """Sea or large lake: flat at/below 0 m and connected to the edge of the study area (inland sinks stay as terrain)."""
+    from scipy import ndimage as ndi
+    cand = z <= 0.15
+    if not cand.any():
+        return np.zeros_like(cand)
+    lab, n = ndi.label(cand)
+    edge = set(np.unique(np.concatenate([lab[0, :], lab[-1, :], lab[:, 0], lab[:, -1]]))) - {0}
+    out = np.zeros_like(cand)
+    for k in edge:
+        m = lab == k
+        if m.sum() >= 30:
+            out |= m
+    return out
 
 
 def _clusters(mask: np.ndarray, min_cells: int) -> np.ndarray:
