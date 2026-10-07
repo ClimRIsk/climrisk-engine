@@ -1533,11 +1533,36 @@ def asset_twin_evaluate(request: AssetTwinEvaluateRequest) -> dict:
     return _jsonable(T.evaluate(request.components, request.site, request.hazard, request.measures, request.linear))
 
 
+class AssetTwinSimulateRequest(BaseModel):
+    twin: dict
+    scenario: str
+    add_m: float = 0.0
+    barrier_m: float = 0.0
+
+
+@app.post("/asset-twin/simulate", dependencies=[_AUTH], tags=["Asset Twin"])
+def asset_twin_simulate(request: AssetTwinSimulateRequest) -> dict:
+    """Run the 2D shallow-water solver for one mapped flood scenario on the twin's terrain and structures, optionally with a
+    flood wall (barrier_m) in the model or extra water level (add_m). Returns depth frames and per-structure depth, speed, arrival."""
+    from .. import asset_twin as T
+    try:
+        sim = T.simulate_flood(request.twin, request.scenario, request.add_m, request.barrier_m)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown flood scenario")
+    except Exception as exc:                                    # noqa: BLE001
+        raise HTTPException(status_code=502, detail=f"Solver could not run: {type(exc).__name__}: {str(exc)[:160]}")
+    blk = sim.pop("block", None)
+    sim["block_present"] = blk is not None
+    return _jsonable(sim)
+
+
 @app.post("/asset-twin/analyse", dependencies=[_AUTH], tags=["Asset Twin"])
 def asset_twin_analyse(request: AssetTwinAnalyseRequest) -> dict:
     """Re-run the agent on an edited twin (after the user corrected heights, equipment levels or design winds)."""
     from .. import asset_twin as T
-    return _jsonable(T.analyse(request.twin))
+    ag = T.analyse(request.twin)
+    ag["sims"] = request.twin.get("sims")
+    return _jsonable(ag)
 
 
 @app.post("/reports/physical", response_model=PhysicalHazardReportResponse, dependencies=[_AUTH])

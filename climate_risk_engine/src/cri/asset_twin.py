@@ -331,6 +331,15 @@ class Ground:
         # pixel (r,c) centre → local metres: pin sits at (asset_col, asset_row)
         self.ac, self.ar = float(grid.asset_col), float(grid.asset_row)
 
+    @classmethod
+    def from_payload(cls, p: dict) -> "Ground":
+        g = object.__new__(cls)
+        g.z = g.raw = np.asarray(p["z"], dtype=float)
+        g.rows, g.cols = g.z.shape
+        g.dx, g.dy = float(p["dx_m"]), float(p["dy_m"])
+        g.ar, g.ac = float(p["pin_row"]), float(p["pin_col"])
+        return g
+
     def xy(self, r, c):
         return (c - self.ac) * self.dx, (self.ar - r) * self.dy
 
@@ -510,6 +519,9 @@ def depth_at(site: dict, fl: dict, ground_z: float, add_m: float = 0.0) -> float
 
 
 def _site_depth(fl: dict, add_m: float) -> float:
+    if fl.get("comp") is not None:
+        d = sorted(v["depth_at_ground_m"] for v in fl["comp"].values() if v["depth_at_ground_m"] > 0)
+        return (d[int(0.9 * (len(d) - 1))] + add_m) if d else 0.0
     q = fl.get("q")
     base = float(q[18]) if q else float(fl.get("depth_m") or 0.0)           # 90th percentile of the mapped depths
     return max(0.0, base + add_m)
@@ -533,12 +545,17 @@ def evaluate(components: list, site: dict, hazard: dict, measures: Optional[list
             continue
         st = {}
         if fl:
-            d_ground = depth_at(site, fl, float(c["ground_m"]), add)
+            sc_ = (fl.get("comp") or {}).get(c["id"]) if fl.get("comp") is not None else None
+            if fl.get("comp") is not None:
+                d0 = sc_["depth_at_ground_m"] if sc_ else 0.0
+                d_ground = d0 + add if d0 > 0 else 0.0           # solver result; a what-if rise is re-simulated by the viewer
+            else:
+                d_ground = depth_at(site, fl, float(c["ground_m"]), add)
             above = float(c["floor_elev_m"]) + _sum(measures, "raise_plinth", c["id"]) - float(c["ground_m"])
             depth = max(0.0, d_ground - above)                    # water above the finished floor
             eq = c.get("equip_height_m")
             eqh = None if eq is None else float(eq) + _sum(measures, "raise_equipment", c["id"])
-            bar = _barrier(measures, c["id"])
+            bar = None if fl.get("barrier_in_sim") else _barrier(measures, c["id"])
             protected = bool(bar) and depth > 0 and bar >= site_depth + FREEBOARD_M
             if protected:
                 depth_eff, state = 0.0, "protected"
@@ -555,7 +572,9 @@ def evaluate(components: list, site: dict, hazard: dict, measures: Optional[list
             st["flood"] = {"state": state, "label": FLOOD_LABEL[state], "depth_m": round(depth_eff, 2),
                            "depth_at_ground_m": round(d_ground, 2),
                            "margin_m": None if eqh is None else round(eqh - depth, 2),
-                           "barrier_overtopped": bool(bar) and depth > 0 and not protected}
+                           "barrier_overtopped": bool(bar) and depth > 0 and not protected,
+                           "velocity_ms": (sc_ or {}).get("velocity_ms"), "arrival_min": (sc_ or {}).get("arrival_min"),
+                           "depth_velocity_m2s": (sc_ or {}).get("depth_velocity_m2s")}
             tallies["flood"][state] += 1
         if v10 is not None:
             w = wind_at(v10, float(c["height_m"]))
@@ -572,7 +591,7 @@ def evaluate(components: list, site: dict, hazard: dict, measures: Optional[list
         for l in linear:
             if l["type"] not in ("road", "rail") or not l.get("z"):
                 continue
-            d = max(depth_at(site, fl, z, add) for z in l["z"])
+            d = max(depth_at(site, fl, z, add) for z in l["z"]) if fl.get("comp") is None else fl.get("road_depth", {}).get(l["id"], 0.0)
             state = "passable" if d < 0.15 else ("restricted" if d < 0.30 else "cut")
             access.append({"id": l["id"], "name": l["name"], "type": l["type"], "max_depth_m": round(d, 2), "state": state})
     return {"site_depth_m": round(site_depth, 2), "wind_v10_ms": None if v10 is None else round(v10, 1),
@@ -634,14 +653,14 @@ def place_on_ground(components: list, ground: Ground) -> None:
 def build_twin(lat: float, lon: float, name: str = "Asset", sector: Optional[str] = None, asset_type: Optional[str] = None,
                commissioned_year: Optional[int] = None, radius_m: float = 300.0, edits: Optional[list] = None,
                incidents: Optional[list] = None, include_observed: bool = True,
-               _osm=None, _grid=None, _flood=None, _storms=None, _tc=None, _sar=None) -> dict:
+               run_hydraulics: bool = True, _osm=None, _grid=None, _flood=None, _storms=None, _tc=None, _sar=None, _era=None) -> dict:
     t0 = time.time()
     key = _sector_key(sector, asset_type)
     notes, gaps = [], []
     # terrain
     if _grid is None:
         from .connectors.terrain_tiles import get_elevation_grid
-        _grid = get_elevation_grid(lat, lon, radius_km=(radius_m + 60) / 1000.0, zoom=14)
+        _grid = get_elevation_grid(lat, lon, radius_km=(radius_m + 250) / 1000.0, zoom=14)
     ground = Ground(_grid)
     ground_ref = ground.mean_within(250.0)
 
@@ -680,11 +699,6 @@ def build_twin(lat: float, lon: float, name: str = "Asset", sector: Optional[str
     floods = flood_scenarios(_flood)
     if not floods:
         gaps.append("No river or coastal flood depth is mapped for this site (outside map coverage, or the site is on water).")
-    coast_dry = not any(f["kind"] == "coastal" and f["depth_m"] > 0 for f in floods)
-    if ground_ref < 5.0 and coast_dry:
-        notes.append(f"Verify: the site is only about {ground_ref:.1f} m above the terrain model's datum, yet the global coastal-flood map shows "
-                     "no flooding here. That map (90 m terrain) can miss surge in estuaries and dense built-up land, so zero does not mean safe. "
-                     "Check against a local survey or surge study before relying on it.")
     try:
         if _tc is None:
             from .climate.tropical_cyclone import site_hazard
@@ -699,6 +713,24 @@ def build_twin(lat: float, lon: float, name: str = "Asset", sector: Optional[str
     if not winds:
         notes.append("Tropical-cyclone hazard is negligible here; no cyclone wind scenario is offered (other wind types are not modelled).")
 
+    # all-cause wind (ERA5 reanalysis): ordinary storms, monsoon squalls, cyclones as the reanalysis sees them
+    from .wind_extreme import site_extreme_wind
+    era = _era if _era is not None else (site_extreme_wind(lat, lon) if include_observed else {"available": False})
+    windstorms = []
+    if era.get("available"):
+        for rp in (10, 50, 100):
+            g = float(era["rp_gust_ms"][rp] if rp in era["rp_gust_ms"] else era["rp_gust_ms"][str(rp)])
+            winds.append({"id": f"gust{rp}", "kind": "allcause", "label": f"All-cause wind (ERA5), 1-in-{rp} years", "rp": rp, "gust10_ms": g,
+                          "v10_ms": round(g / GUST, 1), "source": era["source"],
+                          "uncertain": rp in era.get("extrapolated", [])})
+        for e in era["top_events"][:6]:
+            if e.get("wind_to_deg") is None:
+                continue
+            windstorms.append({"id": f"era5_{e['date']}", "kind": "windstorm", "name": "Windstorm", "year": e["year"], "date": e["date"],
+                               "peak_wind_ms": round(e["gust_ms"] / GUST, 1), "gust_ms": e["gust_ms"], "wind_to_deg": e["wind_to_deg"],
+                               "category_at_site": f"gust {e['gust_ms']} m/s", "closest_km": None})
+    elif include_observed or _era is not None:
+        gaps.append("ERA5 all-cause wind could not be read for this site" + (f" ({era.get('reason')})" if era.get("reason") else "") + ".")
     observed = []
     if include_observed:
         try:
@@ -718,27 +750,32 @@ def build_twin(lat: float, lon: float, name: str = "Asset", sector: Optional[str
         "asset": {"name": name, "lat": lat, "lon": lon, "sector": key, "commissioned_year": commissioned_year},
         "site": {"radius_m": radius_m, "ground_ref_m": round(ground_ref, 2), "relief_m": round(float(ground.z.max() - ground.z.min()), 1),
                  "pin_ground_m": round(ground.at(0, 0), 2), "cell_m": round(ground.dx, 1), "ground_pct": ground.ground_pct(),
-                 "layout_source": layout_source, "gust_factor": GUST, "wind_exponent": ALPHA, "freeboard_m": FREEBOARD_M},
+                 "layout_source": layout_source, "hydraulics": bool(run_hydraulics), "gust_factor": GUST, "wind_exponent": ALPHA, "freeboard_m": FREEBOARD_M},
         "terrain": ground.payload(),
         "components": comps,
         "linear": linear,
         "scenarios": {"flood": floods, "wind": winds},
-        "history": {"storms": storms, "observed": observed, "incidents": user_inc,
+        "history": {"storms": storms, "windstorms": windstorms, "observed": observed, "incidents": user_inc,
                     "record_years": (_tc or {}).get("years")},
         "kinds": {k: {"label": v["label"], "equip_h": v["equip_h"], "dw": v["dw"], "h": v["h"]} for k, v in KINDS.items()},
         "data_gaps": gaps, "notes": notes,
         "basis": {
             "layout": "OpenStreetMap contributors via Overpass API (ODbL). Heights from OSM tags where present, otherwise assumed by kind.",
             "terrain": "AWS Terrain Tiles (Terrarium), ~9 m, 3×3 smoothed; includes some building/vegetation height in urban cover.",
-            "flood": "JRC CEMS-GloFAS river-flood maps (1 in 10–500 yr) and Deltares coastal maps (2018 and 2050); undefended. "
-                     "The 3D water is a level-pool projection of the mapped site-mean depth over the 10 m terrain — not a hydraulic simulation.",
-            "wind": "IBTrACS best tracks + Holland (1980) wind profile; 1-min sustained 10 m open-terrain wind. Gust factor "
+            "flood": "JRC CEMS-GloFAS river-flood maps (1 in 10–500 yr) and Deltares coastal maps (2018 and 2050); undefended, 90 m. "
+                     "Water is routed over the 9 m terrain by a 2D local-inertial shallow-water solver (Bates et al. 2010) with buildings as "
+                     "solid obstructions and Manning friction; the map's water-surface level is imposed at the model edge, at sea and in deep wet "
+                     "cells, rising over 2 h and held to 4 h. Arrival time, velocity and depth×velocity are computed. No rainfall, drains, pumps "
+                     "or waves; event duration is an assumption; the map level is the ceiling.",
+            "wind": "Tropical cyclones: IBTrACS best tracks + Holland (1980) wind profile, 1-min sustained 10 m open-terrain wind. "
+                    "All-cause wind: ERA5 daily maximum gust since 1950, Gumbel return levels (0.25° grid: smooths local peaks and "
+                    "under-represents cyclones, so it is a floor). Gust factor "
                     f"{GUST}, power-law profile exponent {ALPHA}, dynamic pressure ½ρv².",
             "states": "Flood state compares water level with the finished-floor level and the height of flood-critical equipment. Wind state "
                       "is the ratio of 3-s gust at roof height to the design wind. Both are threshold bands, not damage functions. "
                       "Equipment levels and design winds not supplied by the user are assumptions by kind.",
-            "limits": "Cyclone wind only (no tornado, thunderstorm or extratropical wind). No rainfall-runoff or drainage model. "
-                      "Debris impact, storm-surge wave loading and structural detail are not modelled.",
+            "limits": "Wind: tropical-cyclone model plus ERA5 all-cause gusts; tornadoes and thunderstorm downbursts are not modelled. "
+                      "No rainfall-runoff, drains, pumps or wave action. Debris impact and structural detail are not modelled.",
         },
         "elapsed_s": round(time.time() - t0, 1),
     }
@@ -747,7 +784,7 @@ def build_twin(lat: float, lon: float, name: str = "Asset", sector: Optional[str
 
 # ── the agent ────────────────────────────────────────────────────────────────
 
-def _key_flood(twin) -> list:
+def _key_flood(twin, solver: bool = False) -> list:
     fs = twin["scenarios"]["flood"]
     pick = []
     rivers = [s for s in fs if s["kind"] == "river"]
@@ -758,10 +795,66 @@ def _key_flood(twin) -> list:
             m = [s for s in grp if s["rp"] == rp]
             if m:
                 pick.append(m[0])
-    return [s for s in pick if s["depth_m"] > 0]
+    return pick if solver else [s for s in pick if s["depth_m"] > 0]
 
 
-def _hz_flood(s):
+_DEM = {}
+
+
+def _dem_coarse(lat: float, lon: float, half_m: float):
+    k = (round(lat, 3), round(lon, 3), int(half_m))
+    if k not in _DEM:
+        from .connectors.terrain_tiles import get_elevation_grid
+        _DEM.clear()
+        _DEM[k] = Ground(get_elevation_grid(lat, lon, radius_km=(half_m + 300) / 1000.0, zoom=12))
+    return _DEM[k]
+
+
+def simulate_flood(twin: dict, scenario_id: str, add_m: float = 0.0, barrier_m: float = 0.0, n_frames: int = 6, _dem=None) -> dict:
+    """Run the 2D solver for one mapped scenario on the twin's own terrain and structures."""
+    from . import hydraulics as H
+    sc = next((x for x in twin["scenarios"]["flood"] if x["id"] == scenario_id), None)
+    if sc is None:
+        raise KeyError(scenario_id)
+    g = Ground.from_payload(twin["terrain"])
+    half = max(g.rows, g.cols) * g.dx / 2.0 + 1200.0
+    lat, lon = twin["asset"]["lat"], twin["asset"]["lon"]
+    comps = [c for c in twin["components"] if not c.get("removed")]
+    on = [c for c in comps if c.get("on_site", True) and (c["kind"] != "building" or not any(x["kind"] != "building" for x in comps if x.get("on_site", True)))]
+    ring = max([math.hypot(c["x"], c["y"]) for c in on] or [40.0]) + 25.0
+    dem = _dem if _dem is not None else _dem_coarse(lat, lon, half)
+    return H.simulate(lat, lon, g, comps, sc, dem, add_m=add_m, barrier_m=barrier_m, barrier_radius_m=ring, n_frames=n_frames)
+
+
+def ensure_sims(twin: dict) -> None:
+    """Run the solver for the key flood scenarios that have no result yet (in parallel); stores twin['sims']."""
+    twin.setdefault("sims", {})
+    if not twin["site"].get("hydraulics", True):
+        return
+    from concurrent.futures import ThreadPoolExecutor
+    todo = [sc["id"] for sc in _key_flood(twin, solver=True) if sc["id"] not in twin["sims"]]
+    if not todo:
+        return
+
+    def run(sid):
+        try:
+            return sid, simulate_flood(twin, sid)
+        except Exception as exc:                                # noqa: BLE001
+            return sid, {"scenario": sid, "failed": f"{type(exc).__name__}: {str(exc)[:160]}", "dry": True, "comp": {}}
+    with ThreadPoolExecutor(max_workers=min(4, len(todo))) as pool:
+        for sid, sim in pool.map(run, todo):
+            twin["sims"][sid] = sim
+    blk = next((v.pop("block", None) for v in twin["sims"].values() if v.get("block")), None)
+    for v in twin["sims"].values():
+        v.pop("block", None)
+    if blk is not None:
+        twin["terrain"]["block"] = blk
+
+
+def _hz_flood(s, twin=None):
+    sim = ((twin or {}).get("sims") or {}).get(s["id"])
+    if sim and sim.get("comp") and not sim.get("failed"):
+        return {"flood": {"comp": sim["comp"], "q": s["q"], "wet_share": s["wet_share"]}, "_sim": True}
     return {"flood": {"q": s["q"], "wet_share": s["wet_share"]}}
 
 
@@ -813,46 +906,87 @@ def analyse(twin: dict, extra_scenarios: Optional[list] = None) -> dict:
                   "result": f"{len(hazards['flood'])} flood scenarios, {len(hazards['wind'])} design winds, "
                             f"{len(twin['history']['storms'])} historical storms ≥ tropical-storm force."})
 
-    # flood diagnosis
-    for sc in _key_flood(twin):
-        base = evaluate(onsite, gref, _hz_flood(sc), None, twin.get("linear"))
+    # flood diagnosis — 2D solver where it ran, mapped-depth allocation otherwise
+    ensure_sims(twin)
+    notes = []
+    for sc in _key_flood(twin, solver=True):
+        hz = _hz_flood(sc, twin)
+        sim = twin.get("sims", {}).get(sc["id"])
+        solver_on = bool(hz.get("_sim"))
+        hz.pop("_sim", None)
+        base = evaluate(onsite, gref, hz, None, twin.get("linear"))
         t = base["tally"]["flood"]
         bad = [cid for cid, st in base["components"].items() if st["flood"]["state"] in ("wet_floor", "equipment_inundated", "submerged")]
-        steps.append({"step": "Quantify flood", "tool": "level-pool projection",
-                      "result": f"{sc['label']}: mapped site depth {sc['depth_m']} m → {len(bad)} of {len(onsite)} components wet "
-                                f"({t['equipment_inundated'] + t['submerged']} with equipment inundated)."})
+        if solver_on:
+            v = sim.get("validation") or {}
+            steps.append({"step": "Quantify flood", "tool": "2D shallow-water solver (9 m, buildings as obstructions)",
+                          "result": f"{sc['label']}: {len(bad)} of {len(onsite)} components reached by water, "
+                                    f"{t['equipment_inundated'] + t['submerged']} with equipment inundated; deepest {v.get('max_depth_m', 0)} m; "
+                                    f"mass residual {v.get('mass_residual_pct', 0)}%; solver wet land {round(100 * v.get('solver_wet_share_of_open_land', 0))}% vs map "
+                                    f"{round(100 * v.get('map_wet_share_of_open_land', 0))}% ({v.get('consistency', '')})."})
+            if abs(v.get("solver_wet_share_of_open_land", 0) - v.get("map_wet_share_of_open_land", 0)) > 0.15 and v.get("solver_wet_share_of_open_land", 0) > v.get("map_wet_share_of_open_land", 0):
+                notes.append(f"{sc['label']}: " + v["consistency"])
+        elif sim and sim.get("dry") and sim.get("note"):
+            b = sim.get("boundary") or {}
+            steps.append({"step": "Quantify flood", "tool": "2D shallow-water solver",
+                          "result": f"{sc['label']}: {sim['note']}"})
+            if sc["kind"] == "coastal" and b.get("level_m_p10_p50_p90"):
+                notes.append(f"{sc['label']}: the map puts the water surface at about {b['level_m_p10_p50_p90'][1]} m above datum at the model "
+                             f"boundary; the site stands at {twin['site']['ground_ref_m']} m.")
+        else:
+            why = (sim or {}).get("failed")
+            steps.append({"step": "Quantify flood", "tool": "mapped-depth allocation (solver unavailable)",
+                          "result": f"{sc['label']}: mapped site depth {sc['depth_m']} m → {len(bad)} of {len(onsite)} components wet"
+                                    + (f" (solver failed: {why})" if why else "") + "."})
+        if solver_on and sim.get("dry") is False and not bad and sc["kind"] == "coastal" and twin["site"]["ground_ref_m"] < 5.0:
+            notes.append(f"Verify: {sc['label']} reaches the model but not the site, which stands only {twin['site']['ground_ref_m']} m above datum.")
         if not bad:
             continue
+        sd = base["site_depth_m"]
         props = _propose_flood(twin, sc, base, by)
-        after = evaluate(onsite, gref, _hz_flood(sc), props, twin.get("linear")) if props else base
-        # verify each measure alone, and combined
         verified = []
         for m in props:
-            r = evaluate(onsite, gref, _hz_flood(sc), [m], twin.get("linear"))
-            left = [cid for cid, st in r["components"].items() if st["flood"]["state"] in ("equipment_inundated", "submerged")]
-            left_wet = [cid for cid, st in r["components"].items() if st["flood"]["state"] == "wet_floor"]
-            verified.append(dict(m, residual_equipment_inundated=len(left), residual_wet_floor=len(left_wet),
-                                 resolves_equipment=len(left) == 0))
+            if m["type"] == "flood_barrier" and solver_on:
+                h, resid = m["height_m"], None
+                for _ in range(2):                                  # the solver decides whether the wall holds
+                    sb = simulate_flood(twin, sc["id"], barrier_m=h)
+                    hb = {"flood": {"comp": sb["comp"], "barrier_in_sim": True}}
+                    r = evaluate(onsite, gref, hb, [], twin.get("linear"))
+                    left = [cid for cid, st in r["components"].items() if st["flood"]["state"] in ("equipment_inundated", "submerged")]
+                    left_wet = [cid for cid, st in r["components"].items() if st["flood"]["state"] == "wet_floor"]
+                    resid = (left, left_wet)
+                    if not left and not left_wet:
+                        break
+                    h = round(h + 0.5, 1)
+                m = dict(m, height_m=h if (not resid[0] and not resid[1]) else h - 0.5 if False else h)
+                verified.append(dict(m, residual_equipment_inundated=len(resid[0]), residual_wet_floor=len(resid[1]),
+                                     resolves_equipment=len(resid[0]) == 0, verified_by="2D solver with the wall in the model"))
+            else:
+                r = evaluate(onsite, gref, hz, [m], twin.get("linear"))
+                left = [cid for cid, st in r["components"].items() if st["flood"]["state"] in ("equipment_inundated", "submerged")]
+                left_wet = [cid for cid, st in r["components"].items() if st["flood"]["state"] == "wet_floor"]
+                verified.append(dict(m, residual_equipment_inundated=len(left), residual_wet_floor=len(left_wet),
+                                     resolves_equipment=len(left) == 0, verified_by="re-evaluation of component levels against the solver depths"))
         worst = sorted(bad, key=lambda c: -base["components"][c]["flood"]["depth_m"])[:12]
+        fast = [c for c in bad if (base["components"][c]["flood"].get("velocity_ms") or 0) >= 1.0]
         findings.append({
             "id": f"f_{sc['id']}", "hazard": "flood", "scenario": sc["id"], "title": f"{sc['label']}: {len(bad)} component(s) reached by water",
             "components": bad, "worst": worst,
             "problem": _group_flood(worst, by, base),
-            "cause": (f"The {sc['kind']} flood map gives a mean depth of {sc['depth_m']} m (90th percentile {sc['depth_p90_m']} m) over the site, "
-                      f"with {int(round(100 * sc['wet_share']))}% of the ground wet. The affected components stand on the lowest ground "
-                      f"({min(by[c]['ground_m'] for c in bad)}–{max(by[c]['ground_m'] for c in bad)} m above sea level) with floors only "
-                      f"0.15 m above it unless edited, so water gets in before the equipment inside is lifted clear."),
-            "consequence": sector_text["flood"],
+            "cause": (_flood_cause(sc, sim, solver_on, bad, by, twin)),
+            "consequence": sector_text["flood"] + (f" Flow speeds of 1 m/s or more reach {len(fast)} structure(s): at that speed foundations scour and light structures and "
+                                                    "stored items are moved." if fast else ""),
             "protection": verified,
-            "after": {"flood_tally": after["tally"]["flood"], "combined_applied": bool(props)},
+            "after": {"flood_tally": base["tally"]["flood"], "combined_applied": bool(props)},
             "access": sorted([a for a in base["access"] if a["state"] != "passable"], key=lambda a: -a["max_depth_m"])[:6],
         })
-        steps.append({"step": "Protect and verify", "tool": "re-evaluation",
+        steps.append({"step": "Protect and verify", "tool": "solver / re-evaluation",
                       "result": "; ".join(f"{m['type'].replace('_', ' ')} {m.get('delta_m', m.get('height_m'))} m → "
-                                          f"{m['residual_equipment_inundated']} inundated, {m['residual_wet_floor']} wet" for m in verified) or "no measure needed"})
+                                          f"{m['residual_equipment_inundated']} inundated, {m['residual_wet_floor']} wet ({m['verified_by']})" for m in verified) or "no measure needed"})
+    twin["agent_notes"] = notes
 
     # wind diagnosis
-    wsc = [s for s in hazards["wind"] if s.get("rp") in (100, 250)] + list(extra_scenarios or [])
+    wsc = [s for s in hazards["wind"] if (s["kind"] == "design" and s.get("rp") in (100, 250)) or (s["kind"] == "allcause" and s.get("rp") in (50, 100))] + list(extra_scenarios or [])
     st = twin["history"]["storms"]
     if st:
         w = max(st, key=lambda e: e["peak_wind_ms"])
@@ -887,7 +1021,24 @@ def analyse(twin: dict, extra_scenarios: Optional[list] = None) -> dict:
     steps.append({"step": "Residual risk", "tool": "limits",
                   "result": "Events rarer than the scenarios shown, wave loading, debris impact, rainfall drainage and structural detail are not covered; "
                             "protection measures here are sized to the modelled water level or gust and stated freeboard."})
-    return {"findings": findings, "transcript": steps, "assumptions": _assumptions(twin)}
+    return {"findings": findings, "transcript": steps, "assumptions": _assumptions(twin), "notes": twin.get("agent_notes", [])}
+
+
+def _flood_cause(sc, sim, solver_on, bad, by, twin) -> str:
+    if solver_on:
+        b = sim.get("boundary") or {}
+        lv = b.get("level_m_p10_p50_p90")
+        arr = [by[c]["id"] for c in bad]
+        ams = [sim["comp"][c]["arrival_min"] for c in bad if sim["comp"].get(c, {}).get("arrival_min") is not None]
+        gz = [by[c]["ground_m"] for c in bad]
+        return (f"The {sc['kind']} flood map puts the water surface at about {lv[1] if lv else '–'} m above datum at the edge of the site model "
+                f"(range {lv[0]}–{lv[2]} m). The solver routes that water over the terrain around the buildings"
+                + (f"; it reaches the first affected structure after about {int(min(ams))} min of the rise" if ams else "")
+                + f". The affected structures stand at {min(gz):.1f}–{max(gz):.1f} m above datum with floors 0.15 m above ground unless edited, "
+                  "so water gets in before the equipment inside is lifted clear.")
+    return (f"The {sc['kind']} flood map gives a mean depth of {sc['depth_m']} m (90th percentile {sc['depth_p90_m']} m) over the site, with "
+            f"{int(round(100 * sc['wet_share']))}% of the ground wet. The affected components stand on the lowest ground "
+            f"({min(by[c]['ground_m'] for c in bad)}–{max(by[c]['ground_m'] for c in bad)} m above datum) with floors 0.15 m above it unless edited.")
 
 
 def _rng(vals, unit="") -> str:

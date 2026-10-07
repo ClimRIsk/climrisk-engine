@@ -45,13 +45,17 @@ FLOOD = {
 }
 TC = {"years": 45, "rp_wind_ms": {10: 33.0, 50: 48.5, 100: 55.2, 250: 64.0},
       "rp_category": {10: "Cat 1", 50: "Cat 2", 100: "Cat 3", 250: "Cat 4"}}
+from cri import wind_extreme as WX
+_days = [f"{1950 + i // 365}-{(i % 365) // 31 + 1:02d}-{(i % 31) + 1:02d}" for i in range(76 * 365)]
+ERA = WX.analyse({"daily": {"time": _days, "wind_gusts_10m_max": [8.0 + (i % 97) / 10.0 + (14.0 if i % 4001 == 0 else 0) for i in range(len(_days))],
+                            "wind_speed_10m_max": [5.0] * len(_days), "wind_direction_10m_dominant": [200.0] * len(_days)}})
 STORMS = [{"id": "storm_1", "kind": "cyclone", "name": "Sidr", "year": 2007, "peak_wind_ms": 52.0, "category_at_site": "Cat 3",
            "closest_km": 40.0, "bearing_to_centre_deg": 90.0, "wind_to_deg": 160.0}]
 
 
 def twin(osm=None, **kw):
     return T.build_twin(LAT, LON, "Test plant", sector="cement", radius_m=300, _osm=_osm() if osm is None else osm, _grid=_grid(),
-                        _flood=FLOOD, _tc=TC, _storms=STORMS, _sar={"available": False}, **kw)
+                        _flood=FLOOD, _tc=TC, _storms=STORMS, _sar={"available": False}, _era=ERA, run_hydraulics=False, **kw)
 
 
 def test_classify_tags_and_names():
@@ -89,7 +93,7 @@ def test_osm_failure_falls_back_with_gap():
     orig = T.fetch_osm
     T.fetch_osm = boom
     try:
-        tw = T.build_twin(LAT, LON, "x", sector="steel", _grid=_grid(), _flood=FLOOD, _tc=TC, _storms=[], _sar={"available": False})
+        tw = T.build_twin(LAT, LON, "x", sector="steel", _grid=_grid(), _flood=FLOOD, _tc=TC, _storms=[], _sar={"available": False}, _era=ERA, run_hydraulics=False)
     finally:
         T.fetch_osm = orig
     assert tw["site"]["layout_source"] == "parametric" and any("OpenStreetMap" in g for g in tw["data_gaps"])
@@ -99,7 +103,7 @@ def test_scenarios_and_history():
     tw = twin(incidents=[{"date": "2019-08-02", "hazard": "flood", "note": "MCC room flooded", "depth_m": 0.4}])
     ids = [s["id"] for s in tw["scenarios"]["flood"]]
     assert "river_100" in ids and len(next(s for s in tw["scenarios"]["flood"] if s["id"] == "river_100")["q"]) == 21
-    assert [w["rp"] for w in tw["scenarios"]["wind"]] == [10, 50, 100, 250]
+    assert [w["rp"] for w in tw["scenarios"]["wind"] if w["kind"] == "design"] == [10, 50, 100, 250]
     assert tw["history"]["storms"][0]["name"] == "Sidr"
     assert tw["history"]["incidents"][0]["year"] == 2019 and tw["history"]["incidents"][0]["source"] == "user-reported"
     json.dumps(tw)                                             # fully serialisable
@@ -214,8 +218,8 @@ def test_edits_patch_and_add_and_rerun():
 
 def test_no_cyclone_hazard_no_wind_scenarios():
     tc = {"years": 45, "rp_wind_ms": {10: 0.0, 50: 0.0, 100: 0.0, 250: 0.0}, "rp_category": {}}
-    tw = T.build_twin(LAT, LON, "x", sector="cement", _osm=_osm(), _grid=_grid(), _flood=FLOOD, _tc=tc, _storms=[], _sar={"available": False})
-    assert tw["scenarios"]["wind"] == [] and any("negligible" in n for n in tw["notes"])
+    tw = T.build_twin(LAT, LON, "x", sector="cement", _osm=_osm(), _grid=_grid(), _flood=FLOOD, _tc=tc, _storms=[], _sar={"available": False}, _era=ERA, run_hydraulics=False)
+    assert [w for w in tw["scenarios"]["wind"] if w["kind"] == "design"] == [] and any("negligible" in n for n in tw["notes"])
 
 
 def test_access_road_state_follows_depth():
@@ -228,7 +232,7 @@ def test_access_road_state_follows_depth():
 
 def test_basis_states_limits():
     tw = twin()
-    assert "not a hydraulic simulation" in tw["basis"]["flood"] and "Cyclone wind only" in tw["basis"]["limits"]
+    assert "shallow-water solver" in tw["basis"]["flood"] and "tornadoes" in tw["basis"]["limits"]
     assert "money" not in json.dumps(tw).lower() or True
 
 
@@ -244,7 +248,7 @@ def test_api_routes_roundtrip(monkeypatch):
     from fastapi.testclient import TestClient
     from cri.api import main
     real = T.build_twin
-    monkeypatch.setattr(T, "build_twin", lambda *a, **k: real(*a, _osm=_osm(), _grid=_grid(), _flood=FLOOD, _tc=TC, _storms=STORMS, _sar={"available": False}, **{kk: v for kk, v in k.items()}) if False else real(a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8], a[9], _osm=_osm(), _grid=_grid(), _flood=FLOOD, _tc=TC, _storms=STORMS, _sar={"available": False}))
+    monkeypatch.setattr(T, "build_twin", lambda *a, **k: real(*a, _osm=_osm(), _grid=_grid(), _flood=FLOOD, _tc=TC, _storms=STORMS, _sar={"available": False}, **{kk: v for kk, v in k.items()}) if False else real(a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8], a[9], _osm=_osm(), _grid=_grid(), _flood=FLOOD, _tc=TC, _storms=STORMS, _sar={"available": False}, _era=ERA, run_hydraulics=False))
     c = TestClient(main.app)
     r = c.post("/asset-twin/build", json={"lat": LAT, "lon": LON, "name": "API plant", "sector": "cement", "radius_m": 300})
     assert r.status_code == 200, r.text
@@ -259,3 +263,22 @@ def test_api_routes_roundtrip(monkeypatch):
     assert an.status_code == 200 and an.json()["findings"]
     page = c.get("/asset-twin/dashboard")
     assert page.status_code == 200 and "Asset Twin" in page.text
+
+
+def test_allcause_wind_scenarios_and_history():
+    tw = twin()
+    ids = [w["id"] for w in tw["scenarios"]["wind"]]
+    assert {"gust10", "gust50", "gust100"} <= set(ids)
+    g100 = next(w for w in tw["scenarios"]["wind"] if w["id"] == "gust100")
+    assert abs(g100["v10_ms"] * T.GUST - g100["gust10_ms"]) < 0.1 and g100["uncertain"]
+    assert tw["history"]["windstorms"] and tw["history"]["windstorms"][0]["wind_to_deg"] == 20.0
+
+
+def test_gumbel_return_levels_recover_known_parameters():
+    rng = np.random.default_rng(1)
+    xi, a = 25.0, 3.0
+    x = xi - a * np.log(-np.log(rng.uniform(size=4000)))
+    xh, ah = WX.gumbel_lmom(x)
+    assert abs(xh - xi) < 0.3 and abs(ah - a) < 0.2
+    assert abs(WX.return_level(xh, ah, 100) - (xi - a * math.log(-math.log(0.99)))) < 1.0
+    assert WX.return_level(xh, ah, 250) > WX.return_level(xh, ah, 50) > WX.return_level(xh, ah, 10)

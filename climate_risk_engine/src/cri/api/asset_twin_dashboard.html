@@ -221,24 +221,32 @@ function floodSc() { return S.twin.scenarios.flood.find(s => s.id === $('scen').
 function protectedRing() { return S.measures.some(m => m.type === 'flood_barrier'); }
 function ringRadius() { const cs = onsite(); let r = 40; cs.forEach(c => { r = Math.max(r, Math.hypot(c.x, c.y) + 25); }); return r; }
 function barrierH() { return Math.max(0, ...S.measures.filter(m => m.type === 'flood_barrier').map(m => m.height_m)); }
+function simDepth(i) {
+  const sm = S.sim; if (!sm || !sm.frames) return 0;
+  const ft = sm.frame_t_s, T = ft[ft.length - 1] * S.t; let k = 0; while (k < ft.length - 1 && ft[k] < T) k++;
+  const f1 = sm.frames[k], f0 = k > 0 ? sm.frames[k - 1] : null, t1 = ft[k], t0 = k > 0 ? ft[k - 1] : 0, a = t1 > t0 ? Math.min(1, Math.max(0, (T - t0) / (t1 - t0))) : 1;
+  return ((f0 ? f0[i] : 0) * (1 - a) + f1[i] * a) / 100;
+}
 function updateWater() {
   if (!S.twin || !waterMesh) return;
   const T = S.twin.terrain, R = T.rows, C = T.cols, p = waterMesh.geometry.attributes.position, sc = floodSc();
-  const show = S.mode === 'flood' && sc, add = parseFloat($('fadd').value), t = S.t;
-  const sited = show ? (sc.q[18] + add) : 0, ring = ringRadius(); let wetN = 0;
-  const prot = show && protectedRing() && barrierH() >= sited + S.twin.site.freeboard_m;
+  const show = S.mode === 'flood' && sc, add = parseFloat($('fadd').value), t = S.t, solver = !!S.sim; let wetN = 0, dmax = 0;
   for (let r = 0; r < R; r++) for (let c = 0; c < C; c++) {
     const i = r * C + c, x = T.x0_m + c * T.dx_m, y = T.y0_m - r * T.dy_m, z = T.z[r][c];
-    let d = show ? depthAt(sc, z, add) : 0;
-    if (prot && Math.hypot(x, y) < ring) d = 0;
-    d *= t; if (d > 0.02) wetN++;
+    let d = 0;
+    if (show) d = solver ? simDepth(i) : (S.simFailed ? depthAt(sc, z, add) * t : 0);
+    if (d > 0.02) { wetN++; if (d > dmax) dmax = d; }
     p.array[i * 3] = sx(x); p.array[i * 3 + 2] = sz(y);
     p.array[i * 3 + 1] = d > 0.02 ? yv(z) + d * S.VE + 0.05 : yv(z) - 3;
   }
   p.needsUpdate = true; waterMesh.geometry.computeVertexNormals();
-  const el = $('hudDepth');
-  if (el) el.innerHTML = show ? `Map: <b>${sc.depth_m.toFixed(2)} m</b> mean depth, ${(100 * sc.wet_share).toFixed(0)}% of ground wet` +
-    (add ? ` · what-if <b>${add > 0 ? '+' : ''}${add.toFixed(1)} m</b>` : '') + ` · shown wet now: <b>${(100 * wetN / (R * C)).toFixed(0)}%</b>` : '';
+  const el = $('hudDepth'); if (!el) return;
+  if (!show) { el.innerHTML = ''; return; }
+  if (solver && S.sim.frames) { const v = S.sim.validation || {};
+    el.innerHTML = `Solver · t = <b>${(t * S.sim.frame_t_s[S.sim.frame_t_s.length - 1] / 3600).toFixed(1)} h</b> · deepest <b>${dmax.toFixed(1)} m</b> · wet now ${(100 * wetN / (R * C)).toFixed(0)}% · map wet ${(100 * (v.map_wet_share_of_open_land || 0)).toFixed(0)}% / solver ${(100 * (v.solver_wet_share_of_open_land || 0)).toFixed(0)}% of open land` + (S.sim.barrier_m ? ` · wall ${S.sim.barrier_m} m in model` : ''); }
+  else if (solver) el.innerHTML = `Solver: ${esc(S.sim.note || 'no water reaches the site in this scenario')}`;
+  else if (S.simFailed) el.innerHTML = `Solver unavailable: showing mapped depth spread over the ground (approximation)`;
+  else el.innerHTML = 'Running solver…';
 }
 
 function onsite() {
@@ -313,7 +321,7 @@ function buildWind() {
 function seedW() { const R = S.twin.site.radius_m * 1.1; return [(Math.random() * 2 - 1) * R, 2 + Math.random() * 60, (Math.random() * 2 - 1) * R]; }
 function windVec() { const a = parseFloat($('dir').value) * Math.PI / 180; return [Math.sin(a), -Math.cos(a)]; }   // east, scene-z (north = −z)
 function stepWind(dt) {
-  const sc = S.twin.scenarios.wind.find(s => s.id === $('scen').value), st = S.twin.history.storms.find(s => s.id === $('scen').value);
+  const sc = S.twin.scenarios.wind.find(s => s.id === $('scen').value), st = allStorms().find(s => s.id === $('scen').value);
   const v = ((sc ? sc.v10_ms : st ? st.peak_wind_ms : 20)) * parseFloat($('wsc').value), [wx, wz] = windVec(), R = S.twin.site.radius_m * 1.1;
   const P = windLines.userData.p, a = windLines.geometry.attributes.position, len = Math.min(40, 4 + v * 0.7);
   for (let i = 0; i < NW; i++) {
@@ -339,7 +347,8 @@ function showTip() {
   h += `<div><span class="k">Height</span> ${c.height_m} m <span class="k">(${esc(c.height_source)})</span> · <span class="k">floor</span> ${c.floor_elev_m} m asl</div>`;
   if (S.mode === 'flood' && st.flood) { const f = st.flood, f0 = b.flood || f;
     h += `<div><span class="k">Flood</span> <b>${esc(f.label)}</b>` + (f.state === 'dry' ? '' : ` — ${f.depth_m} m over floor` + (f0.depth_m !== f.depth_m ? ` (was ${f0.depth_m} m)` : '')) + `</div>`;
-    h += f.state === 'dry' ? `<div class="k">No water reaches this structure in this scenario.</div>` : `<div class="k">Water would stand ${f.depth_at_ground_m} m above ground here; ${c.equip_height_m == null ? 'nothing here is flood-sensitive' : 'flood-critical equipment sits ' + c.equip_height_m + ' m above the floor' + (f.margin_m != null ? ` → margin ${f.margin_m} m (negative = under water)` : '')}.</div>`;
+    h += f.state === 'dry' ? `<div class="k">No water reaches this structure in this scenario.</div>` : `<div class="k">Water would stand ${f.depth_at_ground_m} m above ground here; ${c.equip_height_m == null ? 'nothing here is flood-sensitive' : 'flood-critical equipment sits ' + c.equip_height_m + ' m above the floor' + (f.margin_m != null ? ` → margin ${f.margin_m} m (negative = under water)` : '')}.</div>` +
+      (f.velocity_ms != null ? `<div class="k">Solver: flow ${f.velocity_ms} m/s · depth×speed ${f.depth_velocity_m2s} m²/s${f.depth_velocity_m2s >= 1 ? ' (hazardous to people and light structures)' : ''} · water arrives ${f.arrival_min == null ? 'never' : 'after ' + f.arrival_min + ' min'}</div>` : '');
     if (f.barrier_overtopped) h += `<div style="color:#fca5a5">Barrier is overtopped in this scenario.</div>`; }
   if (S.mode === 'wind' && st.wind) { const w = st.wind;
     h += `<div><span class="k">Wind</span> <b>${esc(w.label)}</b></div><div class="k">Gust ${w.gust_ms} m/s at ${c.height_m} m = ${w.q_kpa} kPa · ${Math.round(w.ratio * 100)}% of design ${w.design_wind_ms} m/s (${esc(c.design_wind_source)})</div>`; }
@@ -347,21 +356,51 @@ function showTip() {
 }
 
 // ── scenario / evaluation ────────────────────────────────────────────────────
-function hazard() {
-  const hz = { what_if: { flood_add_m: parseFloat($('fadd').value), wind_scale: parseFloat($('wsc').value) } };
-  if (S.mode === 'flood') { const sc = floodSc(); if (sc) hz.flood = { q: sc.q, wet_share: sc.wet_share }; }
-  else { const sc = S.twin.scenarios.wind.find(s => s.id === $('scen').value), st = S.twin.history.storms.find(s => s.id === $('scen').value);
+function hazard(sim) {
+  const hz = { what_if: { flood_add_m: 0, wind_scale: parseFloat($('wsc').value) } };
+  if (S.mode === 'flood') { const sc = floodSc();
+    if (sc) hz.flood = sim && sim.comp && !sim.failed ? { comp: sim.comp, barrier_in_sim: (sim.barrier_m || 0) > 0 } : { q: sc.q, wet_share: sc.wet_share };
+    if (sc && !(sim && sim.comp) ) hz.what_if.flood_add_m = parseFloat($('fadd').value); }
+  else { const sc = S.twin.scenarios.wind.find(s => s.id === $('scen').value), st = allStorms().find(s => s.id === $('scen').value);
     hz.wind = { v10_ms: sc ? sc.v10_ms : st ? st.peak_wind_ms : 0 }; }
   return hz;
 }
-let evalTimer = null;
-function schedule() { clearTimeout(evalTimer); evalTimer = setTimeout(runEval, 120); }
-async function runEval() {
-  if (!S.twin) return; const hz = hazard();
-  if (!hz.flood && !hz.wind) { S.evalNow = S.evalBase = { components: {}, access: [], tally: {} }; colorize(); updateWater(); return; }
-  const body = { components: S.twin.components, site: S.twin.site, hazard: hz, linear: S.twin.linear };
+function slim() {
+  const tw = S.twin; return { asset: tw.asset, site: tw.site, terrain: Object.assign({}, tw.terrain, { block: undefined }), components: tw.components, linear: tw.linear, scenarios: tw.scenarios };
+}
+S.simCache = {}; S.tok = 0;
+function setBusy(on, msg) { $('busy').style.display = on ? 'flex' : 'none'; if (on) { $('busyT').textContent = msg; $('busyS').textContent = 'The solver routes the water over the terrain around every building. Usually 10–60 seconds.'; } }
+async function getSim(sid, add, bar) {
+  const key = sid + '|' + add + '|' + bar;
+  if (S.simCache[key]) return S.simCache[key];
+  if (add === 0 && bar === 0 && S.twin.sims && S.twin.sims[sid]) return (S.simCache[key] = S.twin.sims[sid]);
+  const r = await api('/asset-twin/simulate', { twin: slim(), scenario: sid, add_m: add, barrier_m: bar });
+  return (S.simCache[key] = r);
+}
+async function ensureSims() {
+  S.sim = S.simBase = null; S.simFailed = false;
+  if (!S.twin || S.mode !== 'flood') return true;
+  const sid = $('scen').value; if (!sid) return true;
+  const add = +parseFloat($('fadd').value).toFixed(1), bar = barrierH();
+  const need = !(S.simCache[sid + '|' + add + '|0'] || (add === 0 && S.twin.sims && S.twin.sims[sid])) || (bar > 0 && !S.simCache[sid + '|' + add + '|' + bar]);
+  const tok = ++S.tok; if (need) setBusy(true, 'Running the 2D flood solver…');
   try {
-    const [b, a] = await Promise.all([api('/asset-twin/evaluate', Object.assign({ measures: [] }, body)), api('/asset-twin/evaluate', Object.assign({ measures: S.measures }, body))]);
+    const base = await getSim(sid, add, 0), now = bar > 0 ? await getSim(sid, add, bar) : base;
+    if (tok !== S.tok) return false; S.simBase = base; S.sim = now;
+  } catch (e) { if (tok === S.tok) { S.simFailed = true; status('Solver failed: ' + e.message, true); } }
+  finally { if (need && tok === S.tok) setBusy(false); }
+  return tok === S.tok;
+}
+let evalTimer = null;
+function schedule() { clearTimeout(evalTimer); evalTimer = setTimeout(runEval, 500); }
+async function runEval() {
+  if (!S.twin) return;
+  if (!(await ensureSims())) return;
+  const hzB = hazard(S.simBase), hzN = hazard(S.sim);
+  if (!hzB.flood && !hzB.wind) { S.evalNow = S.evalBase = { components: {}, access: [], tally: {} }; colorize(); updateWater(); return; }
+  const body = { components: S.twin.components, site: S.twin.site, linear: S.twin.linear };
+  try {
+    const [b, a] = await Promise.all([api('/asset-twin/evaluate', Object.assign({ measures: [], hazard: hzB }, body)), api('/asset-twin/evaluate', Object.assign({ measures: S.measures, hazard: hzN }, body))]);
     S.evalBase = b; S.evalNow = a; colorize(); updateWater(); renderHud(); renderCompare(); showTip(); renderLegend();
   } catch (e) { status('Evaluation failed: ' + e.message, true); }
 }
@@ -378,8 +417,8 @@ function renderCompare() {
 }
 function renderLegend() { $('legend').innerHTML = LEG[S.mode].map(([k, t]) => `<div><i style="background:#${COL[S.mode][k].toString(16).padStart(6, '0')}"></i>${t}</div>`).join('') + '<div class="note">Grey, faded: surrounding structures, not judged.</div>'; }
 function renderHud() {
-  const sc = S.mode === 'flood' ? floodSc() : (S.twin.scenarios.wind.find(s => s.id === $('scen').value) || S.twin.history.storms.find(s => s.id === $('scen').value));
-  const lbl = sc ? (sc.label || (sc.name + ' ' + sc.year)) : 'No scenario';
+  const sc = S.mode === 'flood' ? floodSc() : (S.twin.scenarios.wind.find(s => s.id === $('scen').value) || allStorms().find(s => s.id === $('scen').value));
+  const lbl = sc ? (sc.label || (sc.name + ' ' + (sc.date || sc.year))) : 'No scenario';
   let h = `<div class="chip"><b>${esc(S.twin.asset.name)}</b> · ${S.twin.components.filter(c => !c.removed).length} structures · layout: <b>${esc(S.twin.site.layout_source)}</b></div><div class="chip">${esc(lbl)}</div>`;
   if (S.mode === 'wind' && sc) h += `<div class="chip"><b>${(sc.v10_ms || sc.peak_wind_ms)} m/s</b> sustained at 10 m (× ${$('wsc').value})</div>`;
   if (S.mode === 'flood') h += `<div class="chip" id="hudDepth"></div>`;
@@ -387,11 +426,13 @@ function renderHud() {
   if (S.twin.site.layout_source === 'parametric') h += `<div class="chip" style="color:#fcd9a0;border-color:#78350f">ILLUSTRATIVE layout — not the real plant. Use Edit to place real structures.</div>`;
   $('hud').innerHTML = h;
 }
+function allStorms() { return S.twin ? S.twin.history.storms.concat(S.twin.history.windstorms || []) : []; }
 function fillScen() {
   const sel = $('scen'); const tw = S.twin; let opts = '';
   if (S.mode === 'flood') opts = tw.scenarios.flood.map(s => `<option value="${esc(s.id)}">${esc(s.label)} — ${s.depth_m} m</option>`).join('');
   else {
     opts = tw.scenarios.wind.map(s => `<option value="${esc(s.id)}">${esc(s.label)} — ${s.v10_ms} m/s</option>`).join('');
+    if ((tw.history.windstorms || []).length) opts += '<optgroup label="Windstorms on record (ERA5)">' + tw.history.windstorms.map(s => `<option value="${esc(s.id)}">${s.date} — gust ${s.gust_ms} m/s</option>`).join('') + '</optgroup>';
     if (tw.history.storms.length) opts += '<optgroup label="Storms on record at this site">' + [...tw.history.storms].sort((a, b) => b.peak_wind_ms - a.peak_wind_ms).map(s => `<option value="${esc(s.id)}">${s.year} ${esc(s.name)} — ${s.peak_wind_ms} m/s</option>`).join('') + '</optgroup>';
   }
   sel.innerHTML = opts || '<option value="">No scenario available</option>';
@@ -401,8 +442,8 @@ function fillScen() {
   setDirFromScenario();
 }
 function setDirFromScenario() {
-  const st = S.twin && S.twin.history.storms.find(s => s.id === $('scen').value);
-  if (st) { $('dir').value = st.wind_to_deg; } else if (S.twin && S.mode === 'wind') { const w = [...S.twin.history.storms].sort((a, b) => b.peak_wind_ms - a.peak_wind_ms)[0]; if (w) $('dir').value = w.wind_to_deg; }
+  const st = S.twin && allStorms().find(s => s.id === $('scen').value);
+  if (st) { $('dir').value = st.wind_to_deg; } else if (S.twin && S.mode === 'wind') { const w = [...allStorms()].sort((a, b) => b.peak_wind_ms - a.peak_wind_ms)[0]; if (w) $('dir').value = w.wind_to_deg; }
   $('dirv').textContent = $('dir').value;
 }
 function setMode(m) {
@@ -432,14 +473,14 @@ $('clearM').onclick = () => { S.proposal = []; ['mEq', 'mPl', 'mBa', 'mWi'].forE
 // ── right-hand panes ─────────────────────────────────────────────────────────
 function renderAgent() {
   const ag = S.twin.agent || { findings: [], transcript: [], assumptions: [] }; let h = '';
-  if (S.twin.notes.length || S.twin.data_gaps.length) h += `<div class="warnbox">${S.twin.notes.concat(S.twin.data_gaps).map(esc).join('<br><br>')}</div>`;
+  const allNotes = S.twin.notes.concat(S.twin.data_gaps, ag.notes || []); if (allNotes.length) h += `<div class="warnbox">${allNotes.map(esc).join('<br><br>')}</div>`;
   if (!ag.findings.length) h += `<div class="card"><h4>No component is reached by the key scenarios</h4><p>None of the structures judged is reached by the mapped 1-in-10 or 1-in-100 floods, or goes beyond its (assumed) design wind at the 1-in-100 and 1-in-250 cyclone, or in the strongest storm on record. Check the scenario list and the Edit tab (heights, equipment levels, design winds are partly assumed).</p></div>`;
   ag.findings.forEach((f, i) => {
     h += `<div class="card"><h4>${esc(f.title)}</h4>
       <div class="lbl">What happens</div><ul>${f.problem.map(p => `<li>${esc(p)}</li>`).join('')}</ul>
       <div class="lbl">Why it happens</div><p>${esc(f.cause)}</p>
       <div class="lbl">What it means for this kind of facility</div><p>${esc(f.consequence)}</p>
-      <div class="lbl">How to protect it (checked by re-running the evaluation)</div><ul>${f.protection.map((m, j) => `<li>${esc(m.why)} <b>${esc((m.type || '').replace(/_/g, ' '))} ${m.delta_m ?? m.height_m ?? m.design_wind_ms}${m.type === 'wind_retrofit' ? ' m/s' : ' m'}</b> → ${f.hazard === 'flood' ? `${m.residual_equipment_inundated} with equipment inundated, ${m.residual_wet_floor} with wet floor left` : `${m.residual_beyond_design} still beyond design`} <button class="btn alt sm" data-prot="${i}:${j}" style="margin-left:4px">Apply in 3D</button></li>`).join('') || '<li>No measure needed.</li>'}</ul>
+      <div class="lbl">How to protect it (checked by re-running the evaluation)</div><ul>${f.protection.map((m, j) => `<li>${esc(m.why)} <b>${esc((m.type || '').replace(/_/g, ' '))} ${m.delta_m ?? m.height_m ?? m.design_wind_ms}${m.type === 'wind_retrofit' ? ' m/s' : ' m'}</b>${m.verified_by ? ` <span class="tag ok">${esc(m.verified_by)}</span>` : ''} → ${f.hazard === 'flood' ? `${m.residual_equipment_inundated} with equipment inundated, ${m.residual_wet_floor} with wet floor left` : `${m.residual_beyond_design} still beyond design`} <button class="btn alt sm" data-prot="${i}:${j}" style="margin-left:4px">Apply in 3D</button></li>`).join('') || '<li>No measure needed.</li>'}</ul>
       ${(f.access || []).length ? `<p class="note">Access: ${f.access.map(a => esc(a.name) + ' ' + a.state + ' (' + a.max_depth_m + ' m)').join('; ')}</p>` : ''}
       <div style="display:flex;gap:6px;margin-top:8px"><button class="btn sm" data-show="${i}">Show in 3D (no protection)</button></div></div>`;
   });
@@ -457,6 +498,7 @@ function showFinding(i, j) {
 function renderHistory() {
   const H = S.twin.history, ev = [];
   H.storms.forEach(s => ev.push({ y: s.year, t: `<b>${esc(s.name)}</b> — ${s.peak_wind_ms} m/s at the site (${esc(s.category_at_site)}), centre passed ${s.closest_km} km away`, small: `IBTrACS + Holland model · wind blew toward ≈${s.wind_to_deg}°`, id: s.id, mode: 'wind' }));
+  (H.windstorms || []).forEach(s => ev.push({ y: s.year, t: `<b>Windstorm ${esc(s.date)}</b> — gust ${s.gust_ms} m/s at 10 m`, small: `ERA5 reanalysis (0.25°, smooths local peaks) · wind blew toward ≈${s.wind_to_deg}°`, id: s.id }));
   H.observed.forEach(o => ev.push({ y: o.year, t: esc(o.label), small: `${esc(o.date)} · ${esc(o.source)}` }));
   S.incidents.concat(H.incidents).forEach(o => ev.push({ y: o.year || '—', t: esc(o.label) + (o.depth_m ? ` (${o.depth_m} m)` : ''), small: `${esc(o.date || '')} · ${esc(o.hazard || '')} · reported by you` }));
   ev.sort((a, b) => (a.y === '—' ? 9999 : a.y) - (b.y === '—' ? 9999 : b.y));
@@ -503,7 +545,7 @@ function applyEdit(c) {
 }
 async function rerun() {
   await runEval();
-  try { const a = await api('/asset-twin/analyse', { twin: S.twin }); S.twin.agent = a; renderAgent(); } catch (e) { status('Agent re-run failed: ' + e.message, true); }
+  try { status('Agent re-running: the flood solver runs again for the key scenarios, about a minute…'); const a = await api('/asset-twin/analyse', { twin: Object.assign({}, S.twin, { sims: undefined, agent: undefined }) }); if (a.sims) { S.twin.sims = a.sims; S.simCache = {}; } delete a.sims; S.twin.agent = a; renderAgent(); status('Agent updated'); runEval(); } catch (e) { status('Agent re-run failed: ' + e.message, true); }
 }
 function renderBasis() {
   const b = S.twin.basis; $('p-basis').innerHTML = Object.entries(b).map(([k, v]) => `<div class="card"><div class="lbl" style="margin-top:0">${esc(k)}</div><p>${esc(v)}</p></div>`).join('') +
@@ -524,15 +566,15 @@ async function build() {
   } catch (e) { status(e.message, true); } finally { $('build').disabled = false; $('busy').style.display = 'none'; }
 }
 function loadTwin(tw) {
-  S.twin = tw; S.sel = null; S.proposal = []; S.measures = []; ['mEq', 'mPl', 'mBa', 'mWi'].forEach(i => $(i).checked = false);
+  S.simCache = {}; S.sim = S.simBase = null; S.twin = tw; S.sel = null; S.proposal = []; S.measures = []; ['mEq', 'mPl', 'mBa', 'mWi'].forEach(i => $(i).checked = false);
   buildTerrain(); buildComps(); buildLinear(); buildWind(); fillScen(); renderAgent(); renderHistory(); renderEdit(); renderBasis();
   windLines.visible = S.mode === 'wind'; replay(); runEval();
 }
 $('build').onclick = build;
 $('rad').oninput = () => $('radv').textContent = $('rad').value;
-$('scen').onchange = () => { setDirFromScenario(); replay(); schedule(); };
+$('scen').onchange = () => { S.sim = S.simBase = null; setDirFromScenario(); replay(); schedule(); };
 $('dir').oninput = () => { $('dirv').textContent = $('dir').value; };
-$('fadd').oninput = () => { $('fav').textContent = (+$('fadd').value).toFixed(1); schedule(); };
+$('fadd').oninput = () => { $('fav').textContent = (+$('fadd').value).toFixed(1); }; $('fadd').onchange = () => schedule();
 $('wsc').oninput = () => { $('wsv').textContent = (+$('wsc').value).toFixed(2); schedule(); };
 $('ve').oninput = () => { $('vev').textContent = (+$('ve').value).toFixed(1); S.VE = +$('ve').value; if (S.twin) { buildTerrain(); buildComps(); buildLinear(); colorize(); updateWater(); } };
 $('replay').onclick = () => { replay(); }; $('pause').onclick = () => { S.playing = !S.playing; S.windPaused = !S.windPaused; $('pause').textContent = S.windPaused || !S.playing ? 'Resume' : 'Pause'; };
