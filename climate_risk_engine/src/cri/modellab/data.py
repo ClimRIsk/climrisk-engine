@@ -9,6 +9,10 @@ from typing import Callable, Optional
 _UA = {"User-Agent": "ClimRisk-ModelLab/1.0"}
 
 
+class QuotaExceeded(RuntimeError):
+    """The free service's daily allowance is used up: retrying will not help until it resets."""
+
+
 def _get(url: str, timeout: int = 40, waits: tuple = (12, 30, 70)) -> dict:
     """GET JSON. Free public APIs rate-limit (HTTP 429) when several large studies run back to back, so wait and retry before failing with a plain explanation."""
     import os, time, urllib.error
@@ -19,6 +23,13 @@ def _get(url: str, timeout: int = 40, waits: tuple = (12, 30, 70)) -> dict:
             with urllib.request.urlopen(urllib.request.Request(url, headers=_UA), timeout=timeout) as r:
                 return json.loads(r.read())
         except urllib.error.HTTPError as e:
+            body = ""
+            try:
+                body = e.read().decode("utf-8", "ignore")
+            except Exception:                                          # noqa: BLE001
+                pass
+            if e.code == 429 and "daily" in body.lower():
+                raise QuotaExceeded("the free weather-data service (Open-Meteo) has used up its daily allowance for this computer; it resets within 24 hours. The engine can fall back to NASA POWER for rain, wind, heat and fire weather.") from e
             if e.code in (429, 503) and i < len(waits):
                 time.sleep(waits[i])
                 continue
@@ -148,3 +159,34 @@ def usgs_gauge_near(lat: float, lon: float, y0: int, y1: int, radius_deg: float 
     if len(series) < 365 * 3:
         return None
     return {"site": best[1], "name": best[2], "lat": best[3], "lon": best[4], "km": best[0] * 111.0, "series": series, "source": "USGS National Water Information System (daily mean discharge)"}
+
+
+# ── NASA POWER: a second, independent source (MERRA-2 / IMERG based), no key, generous limits ──────────
+
+def power_daily(lat: float, lon: float, y0: int, y1: int, params: str, fetch: Callable = _get) -> dict:
+    """Daily point series from NASA POWER (1981 onward). Returns {"time": [YYYY-MM-DD], PARAM: [float|None, ...]}; fill value -999 becomes None. Cached on disk."""
+    y0 = max(y0, 1981)
+    url = ("https://power.larc.nasa.gov/api/temporal/daily/point?" + urllib.parse.urlencode(
+        {"parameters": params, "community": "AG", "longitude": round(lon, 3), "latitude": round(lat, 3), "start": f"{y0}0101", "end": f"{y1}1231", "format": "JSON"}, safe=","))
+    p = _cache_path(url)
+    j = None
+    if p.exists():
+        try:
+            j = json.loads(p.read_text())
+        except Exception:                                              # noqa: BLE001
+            j = None
+    if j is None:
+        j = fetch(url, 120) if fetch is _get else fetch(url)
+        try:
+            p.write_text(json.dumps(j))
+        except Exception:                                              # noqa: BLE001
+            pass
+    par = (j.get("properties") or {}).get("parameter")
+    if not par:
+        raise RuntimeError("NASA POWER returned no data: " + str(j.get("messages") or j)[:160])
+    names = list(par)
+    days = sorted(par[names[0]])
+    out = {"time": [f"{d[:4]}-{d[4:6]}-{d[6:]}" for d in days]}
+    for k in names:
+        out[k] = [None if par[k].get(d, -999) in (-999, -999.0) else float(par[k][d]) for d in days]
+    return out

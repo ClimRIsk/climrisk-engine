@@ -46,6 +46,49 @@ def _fire_series(lat, lon, fetch=None):
     return ys, xs, ex
 
 
+# ── NASA POWER versions (MERRA-2 / IMERG): the engine's second source, used when the first is out of quota or on request ──────────
+
+def _power_max(var, scale=1.0):
+    def f(lat, lon, fetch=None):
+        d = D.power_daily(lat, lon, 1981, 2023, var) if fetch is None else D.power_daily(lat, lon, 1981, 2023, var, fetch=fetch)
+        by: dict = {}
+        for t, v in zip(d["time"], d[var]):
+            if v is not None:
+                by[int(t[:4])] = max(by.get(int(t[:4]), -1e9), float(v) * scale)
+        ys = sorted(by)
+        return ys, [by[y] for y in ys], {}
+    return f
+
+
+def _power_heat(lat, lon, fetch=None):
+    d = D.power_daily(lat, lon, 1981, 2023, "T2M_MAX,T2MDEW") if fetch is None else D.power_daily(lat, lon, 1981, 2023, "T2M_MAX,T2MDEW", fetch=fetch)
+    ok = [i for i in range(len(d["time"])) if d["T2M_MAX"][i] is not None and d["T2MDEW"][i] is not None]
+    t = np.array([d["T2M_MAX"][i] for i in ok]); td = np.array([d["T2MDEW"][i] for i in ok])
+    w = 0.567 * t + 0.393 * heat.sat_vapour_pressure_hpa(td) + 3.94          # daily-maximum temperature with the day's dew-point vapour pressure
+    yrs = np.array([int(d["time"][i][:4]) for i in ok]); ys = sorted(set(yrs.tolist()))
+    return ys, [float(w[yrs == y].max()) for y in ys], {"days_over_28": [int((w[yrs == y] >= 28.0).sum()) for y in ys]}
+
+
+def _power_fire(lat, lon, fetch=None):
+    v = "T2M_MAX,T2MDEW,WS10M_MAX,PRECTOTCORR"
+    d = D.power_daily(lat, lon, 1981, 2023, v) if fetch is None else D.power_daily(lat, lon, 1981, 2023, v, fetch=fetch)
+    ok = [i for i in range(len(d["time"])) if None not in (d["T2M_MAX"][i], d["T2MDEW"][i], d["WS10M_MAX"][i], d["PRECTOTCORR"][i])]
+    t = np.array([d["T2M_MAX"][i] for i in ok]); td = np.array([d["T2MDEW"][i] for i in ok])
+    rh = np.clip(100.0 * heat.sat_vapour_pressure_hpa(td) / heat.sat_vapour_pressure_hpa(t), 1, 100)   # afternoon RH from Tmax and the day's dew point
+    months = [int(d["time"][i][5:7]) for i in ok]
+    out = fire.run_series(t.tolist(), rh.tolist(), [d["WS10M_MAX"][i] * 3.6 for i in ok], [d["PRECTOTCORR"][i] for i in ok], months, tropical=abs(lat) < 25)
+    yrs = np.array([int(d["time"][i][:4]) for i in ok]); f = np.array(out["fwi"])
+    ys = [y for y in sorted(set(yrs.tolist())) if y > 1981]
+    return ys, [float(f[yrs == y].max()) for y in ys], {"days_over_30": [int((f[yrs == y] >= 30).sum()) for y in ys]}
+
+
+POWER = {"rain": _power_max("PRECTOTCORR"), "wind": _power_max("WS10M_MAX"), "heat": _power_heat, "fire": _power_fire}
+POWER_NOTE = {"rain": "NASA POWER daily precipitation (MERRA-2 / IMERG-corrected), 1981 onward",
+              "wind": "NASA POWER daily maximum hourly 10 m wind (MERRA-2), a smoother quantity than an instantaneous gust, so levels read lower than gusts",
+              "heat": "NASA POWER daily maximum temperature with the day's dew-point vapour pressure (MERRA-2), a daily proxy for the hourly peak",
+              "fire": "NASA POWER daily maximum temperature, dew point, maximum wind and rain (MERRA-2); afternoon humidity is inferred from the dew point, so absolute index levels differ from the ERA5-based index (compare shape and trend, not level)"}
+
+
 HAZ = {
     "heat": {"label": "Extreme heat", "unit": "WBGT °C", "var": "hourly peak wet-bulb globe temperature (shade)",
              "physics": ["Heat stress is set by how well the body can lose heat to the air, which depends on temperature and humidity together. The wet-bulb globe temperature (WBGT) blends them; the engine uses the Australian Bureau of Meteorology shade form **WBGT = 0.567 T + 0.393 e + 3.94**, where e is the vapour pressure (hPa) from the Magnus relation **e = RH · 6.1094 exp(17.625 T / (T + 243.04))**.",
@@ -77,9 +120,17 @@ def run(hazard: str, lat: float, lon: float, name: str = "Study site", series: t
     cfg = HAZ[hazard]
     nb = Notebook(progress)
     if series is None:
-        got = cfg["extract"](lat, lon, fetch)
-        years, x, extra = got[0], np.array(got[1], float), got[2]
+        import os
         src = "ERA5 reanalysis (ECMWF) via Open-Meteo"
+        try:
+            if os.environ.get("CRI_DATA_PROVIDER", "auto") == "power":
+                raise D.QuotaExceeded("NASA POWER requested")
+            got = cfg["extract"](lat, lon, fetch)
+        except D.QuotaExceeded:
+            got = POWER[hazard](lat, lon, fetch)
+            src = POWER_NOTE[hazard]
+            nb("2b", "Data source", f"The primary source (ERA5 via Open-Meteo) is unavailable (daily allowance used or NASA POWER requested), so the engine used a second independent source: {src}.", warn=True)
+        years, x, extra = got[0], np.array(got[1], float), got[2]
     else:
         years, x, extra = list(series[0]), np.array(series[1], float), (series[2] if len(series) > 2 else {})
         src = "supplied series"
@@ -168,5 +219,5 @@ def run(hazard: str, lat: float, lon: float, name: str = "Study site", series: t
             "standfirst": f'The engine built an extreme-value model of {cfg["var"]} at {name} from {n} years of data, hid the last third to test it, and found a 100-year level of {fmt.format(lv[100])} {cfg["unit"]} (50-year {fmt.format(lv[50])}). '
                           + ("It predicted the held-out years." if validated else "It did NOT predict the held-out years." if hc["ok"] else "The record was too short to test it.") + f' Status: {status}.',
             "status": status, "ok": nfail == 0, "headline": head, "blocks": blocks, "verification": bench, "sensitivity": [], "assumptions": cfg["assumptions"] + [f"Annual maxima are treated as independent and identically distributed (tested by the hindcast and trend tests)."],
-            "limitations": cfg["limits"] + [f"{src}: a 25 km grid-cell model, not a point measurement."], "next_steps": steps, "notebook": nb.rows, "numbers": {"drift50": drift, "step": stp if stp.get("ok") else None, "levels": lv, "ci": {str(k): v for k, v in ci.items()}, "trend": tr, "hindcast": {k: v for k, v in hc.items() if k != "pit"}},
+            "limitations": cfg["limits"] + [f"{src}: a 25 km grid-cell model, not a point measurement."], "next_steps": steps, "notebook": nb.rows, "numbers": {"source": src, "drift50": drift, "step": stp if stp.get("ok") else None, "levels": lv, "ci": {str(k): v for k, v in ci.items()}, "trend": tr, "hindcast": {k: v for k, v in hc.items() if k != "pit"}},
             "elapsed_s": round(__import__("time").time() - nb.t0, 1)}

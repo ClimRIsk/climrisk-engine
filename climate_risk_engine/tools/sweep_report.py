@@ -34,6 +34,9 @@ def main(path):
     print("| hazard | n | " + " | ".join(cats) + " |\n|---|---|" + "---|" * len(cats))
     for h, c in by.items():
         print(f"| {h} | {sum(c.values())} | " + " | ".join(str(c.get(k, 0)) for k in cats) + " |")
+    srcs = collections.Counter((d["hazard"], d.get("source")) for d in D if d.get("source"))
+    if srcs:
+        print("\nData source used by the extreme-value studies: " + ", ".join(f"{h}: {s} ×{n}" for (h, s), n in sorted(srcs.items())) + "\n")
     print("\n## Errors\n")
     for d in D:
         if d.get("status") == "ERROR":

@@ -25,6 +25,8 @@ def brief(r: dict) -> dict:
             out["exceed_p"] = [e["p"] for e in hc["exceedances"]]
     elif isinstance(hc, list):
         out["hc_p"] = [h.get("p") for h in hc]
+    if n.get("source"):
+        out["source"] = "POWER" if "POWER" in n["source"] else "ERA5"
     if n.get("drift50") is not None:
         out["drift"] = n["drift50"]
     if "trend" in n:
@@ -66,6 +68,10 @@ def main():
                 r = hazards.run_generic(hz, lat, lon, name, {})
                 rec.update(brief(r))
             except Exception as e:
+                from cri.modellab.data import QuotaExceeded
+                if isinstance(e, QuotaExceeded):
+                    print(f"{name:14s} {hz:10s} DEFERRED (data quota used up; rerun after it resets)", flush=True)
+                    continue
                 rec.update({"status": "ERROR", "ok": False, "error": f"{type(e).__name__}: {str(e)[:200]}"})
             rec["wall_s"] = round(time.time() - t0, 1)
             with open(path, "a") as f:
