@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClimRisk — Insurer view</title>
+<style>
+  *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+  :root { --bg:#070b14; --surface:#0d1524; --border:#1c2a44; --primary:#38bdf8; --muted:#8a9bbd; --text:#e2eaf8;
+          --critical:#ef4444; --moderate:#eab308; --low:#22c55e; --mono:ui-monospace,'SF Mono',Menlo,monospace;
+          --sans:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',sans-serif; }
+  body { font-family:var(--sans); background:var(--bg); color:var(--text); font-size:13px; }
+  .header { display:flex; align-items:center; gap:14px; padding:10px 18px; background:var(--surface); border-bottom:1px solid var(--border); }
+  .logo { font-weight:800; letter-spacing:3px; color:var(--primary); font-size:16px; }
+  .sub { font-size:11px; color:var(--muted); }
+  .pill { margin-left:auto; font-size:10px; color:var(--muted); border:1px solid var(--border); border-radius:20px; padding:3px 10px; font-family:var(--mono); }
+  .wrap { padding:16px 20px; max-width:1500px; }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:14px; margin-bottom:14px; }
+  .card h3 { font-size:12px; letter-spacing:1px; text-transform:uppercase; color:var(--muted); margin-bottom:10px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:8px; }
+  label { font-size:11px; color:var(--muted); display:block; margin:4px 0 3px; }
+  input, select, textarea { width:100%; background:var(--bg); border:1px solid var(--border); border-radius:6px; color:var(--text); font:inherit; padding:5px 7px; outline:none; }
+  table { width:100%; border-collapse:collapse; font-size:11.5px; }
+  th, td { text-align:left; padding:4px 5px; border-bottom:1px solid var(--border); vertical-align:middle; }
+  th { color:var(--muted); font-weight:600; font-size:10.5px; }
+  td.n, th.n { text-align:right; font-family:var(--mono); white-space:nowrap; }
+  #sites input, #sites select { min-width:70px; }
+  .btn { padding:8px 14px; border:none; border-radius:6px; font:inherit; font-weight:700; cursor:pointer; background:var(--primary); color:#04121d; }
+  .btn.ghost { background:transparent; border:1px solid var(--primary); color:var(--primary); }
+  .x { background:none; border:1px solid var(--border); color:var(--muted); border-radius:5px; cursor:pointer; padding:2px 7px; }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .status { font-size:11px; color:var(--muted); }
+  .status.error { color:var(--critical); }
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:10px; margin-bottom:14px; }
+  .kpi { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:12px; }
+  .kpi .v { font-size:20px; font-weight:800; font-family:var(--mono); }
+  .kpi .l { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-top:3px; }
+  .kpi .s { font-size:10.5px; color:var(--muted); margin-top:2px; font-family:var(--mono); }
+  .ok { color:var(--low); } .bad { color:var(--critical); } .warn { color:var(--moderate); }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  @media (max-width:1100px) { .grid2 { grid-template-columns:1fr; } }
+  .legend { display:flex; gap:12px; flex-wrap:wrap; font-size:10.5px; color:var(--muted); margin-top:6px; }
+  .legend i { display:inline-block; width:10px; height:3px; margin-right:4px; vertical-align:middle; }
+  .foot { font-size:10.5px; color:var(--muted); line-height:1.6; }
+  .foot li { margin-left:16px; margin-bottom:3px; }
+  .bar { height:9px; background:var(--primary); border-radius:2px; }
+  .tag { font-size:10px; border:1px solid var(--border); border-radius:4px; padding:1px 5px; color:var(--muted); margin-left:4px; }
+  details summary { cursor:pointer; color:var(--primary); font-size:11px; margin-top:6px; }
+  @media print {
+    body { background:#fff; color:#111; } .header, .card, .kpi { background:#fff; border-color:#ccc; color:#111; }
+    #inputs, .btn, .x, .row.noprint { display:none !important; } .sub, .foot, th, label, .kpi .l, .kpi .s { color:#444; }
+    svg text { fill:#333 !important; } svg line { stroke:#ccc !important; }
+  }
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="logo">CLIMRISK</div>
+  <div class="sub">Insurer view · policy terms → loss, exceedance curves, accumulation, indicative technical price</div>
+  <div class="pill">wind · river flood · coastal flood</div>
+</div>
+<div class="wrap">
+ <div id="inputs">
+  <div class="card"><h3>Policy schedule</h3>
+    <table id="sites"><thead><tr><th>Site</th><th>Latitude</th><th>Longitude</th><th>TIV (USD)</th><th>Deductible %</th><th>Limit %</th><th>Sector</th><th>Covers</th><th></th></tr></thead><tbody></tbody></table>
+    <div class="row" style="margin-top:10px">
+      <button class="btn ghost" id="add">+ site</button>
+      <button class="btn ghost" id="ex">Load worked example</button>
+      <label class="btn ghost" style="margin:0;display:inline-block">Upload CSV<input id="csv" type="file" accept=".csv,text/csv" style="display:none"></label>
+      <span class="status">CSV columns: name, lat, lon, tiv_usd, deductible_pct, limit_pct, sector, covers (wind|flood|wind;flood)</span>
+    </div>
+  </div>
+  <div class="grid2">
+    <div class="card"><h3>Run settings</h3>
+      <div class="grid">
+        <div><label>Simulated years</label><select id="ny"><option>2000</option><option selected>5000</option><option>10000</option><option>20000</option></select></div>
+        <div><label>Spatial correlation (assumed)</label><select id="cs"><option value="0.5">Low (×0.5)</option><option value="1" selected>Base</option><option value="2">High (×2)</option></select></div>
+        <div><label>Climate pathway</label><select id="ssp"><option value="">Today only</option><option value="ssp126">SSP1-2.6</option><option value="ssp245">SSP2-4.5</option><option value="ssp370">SSP3-7.0</option><option value="ssp585">SSP5-8.5</option></select></div>
+        <div><label>Year</label><select id="yr"><option>2030</option><option selected>2050</option><option>2070</option><option>2090</option></select></div>
+        <div><label>Model range</label><select id="band"><option value="low">Low (p10 / p17)</option><option value="median" selected>Median</option><option value="high">High (p90 / p83)</option></select></div>
+      </div>
+    </div>
+    <div class="card"><h3>Reinsurance and pricing</h3>
+      <div class="grid">
+        <div><label>Quota share %</label><input id="qs" type="number" step="any" value="0"></div>
+        <div><label>XL attachment (USD)</label><input id="xa" type="number" step="any" placeholder="e.g. 5000000"></div>
+        <div><label>XL limit (USD)</label><input id="xl" type="number" step="any" placeholder="e.g. 20000000"></div>
+        <div><label>Reinstatements</label><input id="xr" type="number" step="1" value="1"></div>
+        <div><label>Cost of capital</label><input id="coc" type="number" step="any" value="0.08"></div>
+        <div><label>Expense ratio</label><input id="exp" type="number" step="any" value="0.25"></div>
+        <div><label>Model-uncertainty load</label><input id="unc" type="number" step="any" value="0.10"></div>
+      </div>
+    </div>
+  </div>
+  <div class="row" style="margin-bottom:14px"><button class="btn" id="run">Run analysis</button><span class="status" id="status"></span></div>
+ </div>
+ <div id="out"></div>
+</div>
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt = (v, d = 0) => v == null ? '—' : Number(v).toLocaleString('en-US', {maximumFractionDigits: d, minimumFractionDigits: d});
+const usd = v => v == null ? '—' : (Math.abs(v) >= 1e9 ? '$' + fmt(v / 1e9, 2) + 'bn' : Math.abs(v) >= 1e6 ? '$' + fmt(v / 1e6, 2) + 'm' : Math.abs(v) >= 1e3 ? '$' + fmt(v / 1e3, 1) + 'k' : '$' + fmt(v));
+const pct = v => v == null ? '—' : (v >= 0 ? '+' : '') + fmt(v, 1) + '%';
+let LAST = null;
+const EXAMPLE = [
+  {name: 'Plant A, Chattogram', lat: 22.2645, lon: 91.805, tiv_usd: 250e6, deductible_pct: 2, limit_pct: 100, sector: 'cement', covers: 'wind;flood'},
+  {name: 'Port terminal, Chattogram', lat: 22.31, lon: 91.80, tiv_usd: 120e6, deductible_pct: 2, limit_pct: 100, sector: 'logistics', covers: 'wind;flood'},
+  {name: 'Refinery, Houston', lat: 29.72, lon: -95.24, tiv_usd: 400e6, deductible_pct: 5, limit_pct: 100, sector: 'refining', covers: 'wind;flood'},
+  {name: 'Warehouse, Manila', lat: 14.60, lon: 120.98, tiv_usd: 60e6, deductible_pct: 3, limit_pct: 100, sector: 'logistics', covers: 'wind;flood'},
+  {name: 'Plant, Rotterdam', lat: 51.90, lon: 4.30, tiv_usd: 180e6, deductible_pct: 1, limit_pct: 100, sector: 'chemicals', covers: 'wind;flood'},
+  {name: 'Plant, Kolkata', lat: 22.55, lon: 88.35, tiv_usd: 90e6, deductible_pct: 2, limit_pct: 100, sector: 'steel', covers: 'wind;flood'}];
+function siteRow(s = {}) {
+  const tr = document.createElement('tr');
+  const cv = s.covers || 'wind;flood';
+  tr.innerHTML = `<td><input value="${esc(s.name || '')}" style="min-width:150px"></td><td><input type="number" step="any" value="${s.lat ?? ''}"></td><td><input type="number" step="any" value="${s.lon ?? ''}"></td>
+    <td><input type="number" step="any" value="${s.tiv_usd ?? ''}"></td><td><input type="number" step="any" value="${s.deductible_pct ?? 2}"></td><td><input type="number" step="any" value="${s.limit_pct ?? 100}"></td>
+    <td><input value="${esc(s.sector || '')}"></td><td><select><option value="wind;flood"${cv === 'wind;flood' ? ' selected' : ''}>Wind + flood</option><option value="wind"${cv === 'wind' ? ' selected' : ''}>Wind only</option><option value="flood"${cv === 'flood' ? ' selected' : ''}>Flood only</option></select></td>
+    <td><button class="x">×</button></td>`;
+  tr.querySelector('.x').onclick = () => tr.remove();
+  $('sites').querySelector('tbody').append(tr);
+}
+function sites() {
+  return Array.from($('sites').querySelectorAll('tbody tr')).map((tr, k) => {
+    const f = tr.querySelectorAll('input,select'), v = i => f[i].value;
+    if (v(1) === '' || v(2) === '' || v(3) === '') throw new Error('Row ' + (k + 1) + ': latitude, longitude and TIV are required');
+    return {name: v(0).trim() || ('Site ' + (k + 1)), lat: Number(v(1)), lon: Number(v(2)), tiv_usd: Number(v(3)), deductible_pct: Number(v(4)), limit_pct: Number(v(5)),
+            sector: v(6).trim() || 'other', covers: v(7).split(';')};
+  });
+}
+function payload() {
+  const S = sites(); if (!S.length) throw new Error('Add at least one site');
+  const n = id => $(id).value === '' ? null : Number($(id).value);
+  const p = {sites: S, n_years: n('ny'), corr_scale: n('cs'), cost_of_capital: n('coc'), expense_ratio: n('exp'), uncertainty_load: n('unc')};
+  if (n('qs') || (n('xa') != null && n('xl'))) p.reinsurance = {quota_share_pct: n('qs') || 0, xl: (n('xa') != null && n('xl')) ? [{attach: n('xa'), limit: n('xl'), reinstatements: n('xr') ?? 1}] : []};
+  if ($('ssp').value) p.climate = {ssp: $('ssp').value, year: n('yr'), band: $('band').value};
+  return p;
+}
+async function run() {
+  let body; try { body = payload(); } catch (e) { $('status').className = 'status error'; $('status').textContent = e.message; return; }
+  $('status').className = 'status'; $('status').textContent = 'Reading hazard maps and simulating… flood maps are fetched live, so allow about a minute per site on a first run (faster once cached); a climate pathway adds a little more.';
+  $('run').disabled = true;
+  try {
+    const k = new URLSearchParams(location.hash.slice(1)).get('key');
+    const r = await fetch('/insurance/analyse', {method: 'POST', headers: Object.assign({'Content-Type': 'application/json'}, k ? {'X-API-Key': k} : {}), body: JSON.stringify(body)});
+    const j = await r.json();
+    if (!r.ok) { $('status').className = 'status error'; $('status').textContent = typeof j.detail === 'string' ? j.detail : JSON.stringify(j.detail); return; }
+    LAST = j; $('status').textContent = `Done in ${j.elapsed_s}s · ${fmt(j.n_years)} simulated years.`; render(j);
+  } catch (e) { $('status').className = 'status error'; $('status').textContent = String(e.message || e); }
+  finally { $('run').disabled = false; }
+}
+function epChart(g, net, cc) {
+  const W = 760, H = 280, L = 70, R = 12, T = 12, B = 30, rps = g.rows.map(r => r.rp);
+  const series = [{n: 'Aggregate (AEP)', c: '#38bdf8', v: g.rows.map(r => r.aep)}, {n: 'Occurrence (OEP)', c: '#22c55e', v: g.rows.map(r => r.oep)}];
+  if (net) series.push({n: 'Net of reinsurance (AEP)', c: '#eab308', v: net.rows.map(r => r.aep), d: true});
+  if (cc) series.push({n: cc.label + ' (AEP)', c: '#ef4444', v: cc.rows.map(r => r.aep), d: true});
+  const max = Math.max(...series.flatMap(s => s.v)) * 1.08 || 1;
+  const x = rp => L + (W - L - R) * (Math.log(rp) - Math.log(rps[0])) / (Math.log(rps[rps.length - 1]) - Math.log(rps[0]));
+  const y = v => T + (H - T - B) * (1 - v / max);
+  let s = `<svg viewBox="0 0 ${W} ${H}" width="100%">`;
+  for (let k = 0; k <= 4; k++) { const v = max * k / 4; s += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="#1c2a44"/><text x="${L - 6}" y="${y(v) + 3}" fill="#8a9bbd" font-size="10" text-anchor="end">${usd(v)}</text>`; }
+  rps.forEach(rp => s += `<text x="${x(rp)}" y="${H - 8}" fill="#8a9bbd" font-size="10" text-anchor="middle">1-in-${rp}</text>`);
+  series.forEach(se => s += `<polyline fill="none" stroke="${se.c}" stroke-width="2" ${se.d ? 'stroke-dasharray="5 4"' : ''} points="${se.v.map((p, i) => `${x(rps[i])},${y(p)}`).join(' ')}"/>`);
+  return s + '</svg><div class="legend">' + series.map(se => `<span><i style="background:${se.c}"></i>${esc(se.n)}</span>`).join('') + '</div>';
+}
+function render(r) {
+  const g = r.stats.gross, n = r.stats.net, at = (st, rp) => st.rows.find(x => x.rp === rp);
+  const cc = r.climate;
+  let h = `<div class="kpis">
+    <div class="kpi"><div class="v">${usd(r.tiv)}</div><div class="l">total insured value</div><div class="s">${r.n_sites} sites</div></div>
+    <div class="kpi"><div class="v">${usd(g.aal)}</div><div class="l">average annual loss (insured)</div><div class="s">ground-up ${usd(r.stats.ground_up.aal)} · ±${usd(g.se)} (1 s.e.)</div></div>
+    <div class="kpi"><div class="v">${usd(at(g, 100).oep)}</div><div class="l">1-in-100 occurrence (PML)</div><div class="s">aggregate ${usd(at(g, 100).aep)}</div></div>
+    <div class="kpi"><div class="v">${usd(at(g, 250).oep)}</div><div class="l">1-in-250 occurrence</div><div class="s">${at(g, 250).reliable ? 'aggregate ' + usd(at(g, 250).aep) : '<span class="warn">few years: noisy</span>'}</div></div>
+    <div class="kpi"><div class="v">${usd(g.tvar99)}</div><div class="l">TVaR 99% (aggregate)</div><div class="s">loss in ${fmt(100 * g.prob_loss, 0)}% of years</div></div>
+    <div class="kpi"><div class="v">${usd(r.premium.technical_total)}</div><div class="l">indicative technical premium</div><div class="s">${fmt(r.premium.rate_permille, 1)}‰ of TIV · not a quote</div></div>
+    ${n ? `<div class="kpi"><div class="v">${usd(n.aal)}</div><div class="l">net AAL after reinsurance</div><div class="s">ceded ${usd(r.stats.ceded_aal)} · net 1-in-100 ${usd(at(n, 100).aep)}</div></div>` : ''}
+  </div>`;
+  if (cc) {
+    const d = cc.tail;
+    h += `<div class="card"><h3>Climate change · ${esc(cc.ssp.toUpperCase())} · ${cc.year} · ${esc(cc.band)} model range</h3>
+      <div class="kpis" style="margin-bottom:8px">
+        <div class="kpi"><div class="v ${cc.aal.change > 0 ? 'bad' : 'ok'}">${pct(cc.aal.change_pct)}</div><div class="l">average annual loss</div><div class="s">${usd(cc.aal.today)} → ${usd(cc.aal.scenario)}</div></div>
+        <div class="kpi"><div class="v ${d.oep100.change > 0 ? 'bad' : 'ok'}">${pct(d.oep100.change_pct)}</div><div class="l">1-in-100 occurrence</div><div class="s">${usd(d.oep100.today)} → ${usd(d.oep100.scenario)}</div></div>
+        <div class="kpi"><div class="v ${d.aep100.change > 0 ? 'bad' : 'ok'}">${pct(d.aep100.change_pct)}</div><div class="l">1-in-100 aggregate</div><div class="s">${usd(d.aep100.today)} → ${usd(d.aep100.scenario)}</div></div>
+        <div class="kpi"><div class="v">${usd(cc.premium_total_scenario)}</div><div class="l">technical premium in ${cc.year}</div><div class="s">today ${usd(r.premium.technical_total)}</div></div>
+      </div>
+      <table><tr><th>Site</th><th class="n">AAL today</th><th class="n">AAL ${cc.year}</th><th class="n">Change</th><th class="n">Rain ×</th><th class="n">River depth ×</th><th class="n">Sea level +m</th><th class="n">Wind ×</th></tr>
+      ${cc.per_site.map(s => { const c = s.climate || {}; return `<tr><td>${esc(s.name)}</td><td class="n">${usd(s.aal_today)}</td><td class="n">${usd(s.aal_scenario)}</td><td class="n ${s.change_pct > 0 ? 'bad' : ''}">${pct(s.change_pct)}</td>
+        ${c.ok ? `<td class="n">${fmt(c.rain_ratio, 2)}</td><td class="n">${fmt(c.river_depth_factor, 2)}</td><td class="n">${c.sea_available ? fmt(c.sea_add_m, 2) : '—'}</td><td class="n">${fmt(c.wind_scale, 3)}</td>` : `<td colspan="4" class="warn">no projection: today's hazard kept (${esc(c.why || '')})</td>`}</tr>`; }).join('')}</table>
+      <details><summary>How sure is this?</summary><table style="margin-top:6px">${(cc.confidence || []).map(c => `<tr><td style="width:170px">${esc(c.factor)} <span class="tag">${esc(c.level)}</span></td><td class="foot">${esc(c.why)}</td></tr>`).join('')}</table>
+      <p class="foot" style="margin-top:6px">${esc(cc.method)}</p><ul class="foot">${(cc.limits || []).map(l => `<li>${esc(l)}</li>`).join('')}</ul></details></div>`;
+  }
+  h += `<div class="grid2"><div class="card"><h3>Exceedance probability curves</h3>${epChart(g, n, cc ? {label: cc.ssp.toUpperCase() + ' ' + cc.year, rows: cc.stats.gross.rows} : null)}</div>
+    <div class="card"><h3>Return periods</h3><table><tr><th>Return period</th><th class="n">Occurrence (OEP)</th><th class="n">Aggregate (AEP)</th>${n ? '<th class="n">Net AEP</th>' : ''}</tr>
+    ${g.rows.map((x, i) => `<tr><td>1-in-${x.rp}${x.reliable ? '' : ' <span class="tag warn">noisy</span>'}</td><td class="n">${usd(x.oep)}</td><td class="n">${usd(x.aep)}</td>${n ? `<td class="n">${usd(n.rows[i].aep)}</td>` : ''}</tr>`).join('')}</table>
+    <div class="foot" style="margin-top:6px">By peril (AAL): wind ${usd(r.stats.by_peril.wind)} · flood ${usd(r.stats.by_peril.flood)} (river ${usd(r.stats.by_peril.river)}, coast ${usd(r.stats.by_peril.coast)}). Ground-up before terms: ${usd(r.stats.ground_up.aal)}.</div></div></div>`;
+  const mx = Math.max(1, ...r.sites.map(s => s.aal));
+  h += `<div class="card"><h3>Sites · loss, tail contribution and indicative technical premium</h3><table><tr><th>Site</th><th class="n">TIV</th><th class="n">Deductible</th><th class="n">AAL</th><th></th><th class="n">Rate ‰</th><th class="n">Wind</th><th class="n">River</th><th class="n">Coast</th><th class="n">Alone 1-in-100</th><th class="n">In portfolio tail</th><th class="n">Technical premium</th></tr>
+    ${r.sites.map(s => `<tr title="${esc((s.notes || []).join(' · '))}"><td>${esc(s.name)}${(s.notes || []).length ? ' <span class="tag warn">notes</span>' : ''}</td><td class="n">${usd(s.tiv)}</td><td class="n">${usd(s.deductible)}</td><td class="n">${usd(s.aal)}</td><td style="width:90px"><div class="bar" style="width:${100 * s.aal / mx}%"></div></td>
+      <td class="n">${fmt(s.rate_permille, 2)}</td><td class="n">${usd(s.aal_wind)}</td><td class="n">${usd(s.aal_river)}</td><td class="n">${usd(s.aal_coast)}</td><td class="n">${usd(s.stand_alone_1in100)}</td><td class="n">${usd(s.tail_contribution)}</td><td class="n"><b>${usd(s.technical_premium)}</b></td></tr>`).join('')}</table>
+    <div class="foot" style="margin-top:6px">${esc(r.premium.formula)}. ${esc(r.premium.status)}. Hover a site with notes to see data gaps (for example no flood map coverage).</div></div>`;
+  const acc = r.accumulation;
+  h += `<div class="grid2"><div class="card"><h3>Accumulation · 2° zones</h3><table><tr><th>Zone</th><th class="n">Sites</th><th class="n">TIV</th><th class="n">AAL</th><th class="n">Zone 1-in-100</th><th class="n">Share of tail</th></tr>
+      ${acc.zones.map(z => `<tr><td>${esc(z.zone)}</td><td class="n">${z.sites}</td><td class="n">${usd(z.tiv)}</td><td class="n">${usd(z.aal)}</td><td class="n">${usd(z.pml100)}</td><td class="n">${fmt(100 * z.share_of_tail, 0)}%</td></tr>`).join('')}</table></div>
+    <div class="card"><h3>By country and sector</h3><table><tr><th>Country</th><th class="n">TIV</th><th class="n">AAL</th></tr>${acc.countries.map(c => `<tr><td>${esc(c.key)}</td><td class="n">${usd(c.tiv)}</td><td class="n">${usd(c.aal)}</td></tr>`).join('')}</table>
+      <table style="margin-top:8px"><tr><th>Sector</th><th class="n">TIV</th><th class="n">AAL</th></tr>${acc.sectors.map(c => `<tr><td>${esc(c.key)}</td><td class="n">${usd(c.tiv)}</td><td class="n">${usd(c.aal)}</td></tr>`).join('')}</table></div></div>`;
+  h += `<div class="card"><h3>What a deductible does · same deductible on every site</h3><table><tr><th>Deductible</th><th class="n">AAL</th><th class="n">1-in-100 occurrence</th><th class="n">1-in-100 aggregate</th><th class="n">TVaR 99%</th></tr>
+    ${r.deductible_ladder.map(d => `<tr><td>${d.deductible_pct}% of TIV</td><td class="n">${usd(d.aal)}</td><td class="n">${usd(d.oep100)}</td><td class="n">${usd(d.aep100)}</td><td class="n">${usd(d.tvar99)}</td></tr>`).join('')}</table></div>`;
+  h += `<div class="card"><h3>Method and limits</h3><ul class="foot">${r.method.map(m => `<li>${esc(m)}</li>`).join('')}</ul><p class="foot" style="margin-top:8px"><b>What this is not</b></p><ul class="foot">${r.limits.map(m => `<li>${esc(m)}</li>`).join('')}</ul>
+    <p class="foot" style="margin-top:8px">Sources: ${r.sources.map(esc).join(' · ')}.</p>
+    <p class="foot">Correlation lengths used (km): wind ${fmt(r.correlation_km.wind)}, river ${fmt(r.correlation_km.river)}, coast ${fmt(r.correlation_km.coast)}.${(r.notes || []).map(x => ' ' + esc(x)).join('')}</p></div>
+    <div class="row noprint"><button class="btn ghost" id="csvd">Download site table (.csv)</button><button class="btn ghost" id="jsond">Download full result (.json)</button><button class="btn ghost" id="prt">Print / save as PDF</button></div>`;
+  $('out').innerHTML = h;
+  $('csvd').onclick = () => {
+    const cols = ['name', 'country', 'sector', 'lat', 'lon', 'tiv', 'deductible', 'limit', 'ground_up_aal', 'aal', 'aal_wind', 'aal_river', 'aal_coast', 'rate_permille', 'stand_alone_1in100', 'tail_contribution', 'capital_proxy', 'technical_premium', 'premium_rate_permille'];
+    const q = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+    dl('insurer_sites.csv', [cols.join(',')].concat(r.sites.map(s => cols.map(c => q(s[c])).join(','))).join('\n'), 'text/csv');
+  };
+  $('jsond').onclick = () => dl('insurer_view.json', JSON.stringify(r, null, 2), 'application/json');
+  $('prt').onclick = () => window.print();
+}
+function dl(name, text, type) { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], {type})); a.download = name; a.click(); }
+function parseCSV(text) {
+  const rows = []; let cur = [], f = '', q = false;
+  for (let i = 0; i < text.length; i++) { const c = text[i];
+    if (q) { if (c === '"' && text[i + 1] === '"') { f += '"'; i++; } else if (c === '"') q = false; else f += c; }
+    else if (c === '"') q = true; else if (c === ',') { cur.push(f); f = ''; } else if (c === '\n' || c === '\r') { if (c === '\r' && text[i + 1] === '\n') i++; cur.push(f); rows.push(cur); cur = []; f = ''; } else f += c; }
+  if (f !== '' || cur.length) { cur.push(f); rows.push(cur); }
+  return rows.filter(r => r.some(x => x.trim() !== ''));
+}
+$('csv').onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  const rows = parseCSV(await f.text()); const head = rows.shift().map(h => h.trim().toLowerCase());
+  const ix = n => head.indexOf(n);
+  if (['lat', 'lon'].some(n => ix(n) < 0) || (ix('tiv_usd') < 0 && ix('value_usd') < 0)) { $('status').className = 'status error'; $('status').textContent = 'CSV needs columns lat, lon and tiv_usd'; return; }
+  $('sites').querySelector('tbody').innerHTML = '';
+  rows.forEach(r => { const g = n => ix(n) >= 0 ? r[ix(n)] : undefined; const cv = (g('covers') || 'wind;flood').toLowerCase().replace(/[|, ]+/g, ';');
+    siteRow({name: g('name'), lat: g('lat'), lon: g('lon'), tiv_usd: g('tiv_usd') ?? g('value_usd'), deductible_pct: g('deductible_pct') || 2, limit_pct: g('limit_pct') || 100, sector: g('sector'), covers: ['wind', 'flood', 'wind;flood'].includes(cv) ? cv : 'wind;flood'}); });
+  $('status').className = 'status'; $('status').textContent = rows.length + ' sites loaded.'; e.target.value = '';
+};
+$('add').onclick = () => siteRow();
+$('ex').onclick = () => { $('sites').querySelector('tbody').innerHTML = ''; EXAMPLE.forEach(siteRow); };
+$('run').onclick = run;
+EXAMPLE.slice(0, 3).forEach(siteRow);
+</script>
+</body>
+</html>

@@ -6568,6 +6568,43 @@ def transition_plan_dashboard():
 
 
 # ──────────────────────────────────────────────────────────────────────────────
+# INSURER VIEW — policy terms -> AAL, exceedance curves, PML, accumulation, indicative technical premium, climate change
+# ──────────────────────────────────────────────────────────────────────────────
+
+@app.post("/insurance/analyse", dependencies=[_AUTH], tags=["Insurance"])
+def insurance_analyse(payload: dict) -> dict:
+    """sites: [{name, lat, lon, tiv_usd, deductible_pct|deductible_usd, limit_pct|limit_usd, wind_/flood_ deductible_usd and limit_usd, covers, sector}]
+    options: n_years, seed, corr_scale, reinsurance {quota_share_pct, xl:[{attach, limit, reinstatements}]}, climate {ssp, year, band},
+    cost_of_capital, expense_ratio, uncertainty_load, capital_quantile."""
+    from .. import insurance as ins
+    p = dict(payload)
+    sites = p.pop("sites", None)
+    if not isinstance(sites, list) or not sites:
+        raise HTTPException(status_code=422, detail="sites: give a non-empty list")
+    allowed = {"n_years", "seed", "corr_scale", "cost_of_capital", "expense_ratio", "uncertainty_load", "capital_quantile"}
+    kw = {k: p[k] for k in allowed if p.get(k) is not None}
+    if p.get("reinsurance"):
+        kw["reinsurance_program"] = p["reinsurance"]
+    if p.get("climate"):
+        c = p["climate"]
+        if c.get("ssp") not in ("ssp126", "ssp245", "ssp370", "ssp585") or c.get("band", "median") not in ("low", "median", "high"):
+            raise HTTPException(status_code=422, detail="climate: ssp must be ssp126, ssp245, ssp370 or ssp585 and band low, median or high")
+        kw["climate"] = {"ssp": c["ssp"], "year": int(c.get("year", 2070)), "band": c.get("band", "median")}
+    if "n_years" in kw:
+        kw["n_years"] = int(max(500, min(int(kw["n_years"]), 20000)))
+    try:
+        return _jsonable(ins.run(sites, **kw))
+    except ins.InsuranceError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+
+
+@app.get("/insurance/dashboard", tags=["Insurance"])
+def insurance_dashboard():
+    from fastapi.responses import HTMLResponse
+    return HTMLResponse((Path(__file__).parent / "insurance_dashboard.html").read_text(encoding="utf-8"))
+
+
+# ──────────────────────────────────────────────────────────────────────────────
 # REAL ESTATE — operational carbon, stranding vs a supplied pathway (e.g. CRREM), regulatory checks
 # ──────────────────────────────────────────────────────────────────────────────
 
