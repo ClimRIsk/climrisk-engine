@@ -313,6 +313,14 @@ def main(corpus_dir: Path, out: Path, seed: int = 7):
     _keyterms(ps)
     rows = build_qa(ps, rng, per=3) + build_refuse(ps, rng, 360)
     rows += build_insurer(random.Random(seed + 1), 560, "train") + build_insurer(random.Random(seed + 2), 48, "valid") + build_insurer(random.Random(seed + 3), 64, "test")
+    if "--v2" in sys.argv:
+        from . import synth_v2
+        v2 = synth_v2.build(seed=seed + 10)
+        r2 = random.Random(seed + 11)
+        for r in v2:
+            x = r2.random()
+            r["split"] = "test" if x < 0.08 else "valid" if x < 0.16 else "train"
+        rows += v2
     gold = build_gold()
     rows += gold + [dict(r) for r in gold if r["split"] == "train"] * 2        # gold is scarce and high quality: upweight x3
     for r in rows:

@@ -40,7 +40,18 @@ def score(row, out):
     u = row["messages"][1]["content"]
     ref = row["messages"][2]["content"]
     s = {}
-    if k in ("qa", "refuse"):
+    if k == "chain":
+        cites = {int(x) for x in re.findall(r"\[(\d+)\]", out)}
+        need = set(row["meta"]["need"])
+        s["cites_all_needed"] = float(need <= cites)
+        s["cites_valid"] = float(bool(cites) and max(cites) <= row["meta"]["n"])
+        s["no_invented_numbers"] = float(nums(out) <= nums(u) | nums(out) & set())
+        s["hedges_inference"] = float(bool(re.search(r"do not (give|state|contain)|not stated|inference|no (carbon|volumes|damage)", out)))
+    elif k == "narr":
+        s["numbers_ok"] = float(nums(out) <= nums(row["meta"]["facts"]) | nums(u))
+        s["says_not_forecast"] = float("forecast" in out.lower())
+        s["length_ok"] = float(40 <= len(out.split()) <= 150)
+    elif k in ("qa", "refuse"):
         n = row["meta"].get("n", 0)
         cites = [int(x) for x in re.findall(r"\[(\d+)\]", out)]
         norm = re.sub(r"([.!?])\s*((?:\[\d+\]\s*)+)", r" \2\1", out)
