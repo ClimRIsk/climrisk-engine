@@ -56,7 +56,15 @@ def all_domains() -> dict:
 
 
 def run_generic(key: str, lat: float, lon: float, name: str, options: dict, progress: Optional[Callable] = None) -> dict:
-    """Build, verify and validate a non-flood, non-air hazard; returns the standard study result dict."""
+    """Build, verify and validate a non-flood, non-air hazard; returns the standard study result dict. 'No model here' findings are results, not errors."""
+    try:
+        return _run_generic(key, lat, lon, name, options, progress)
+    except dossier.NoModel as e:
+        label = (REG.get(key, {}).get("label") or key).split(" (")[0]
+        return dossier.no_model_result(key, label, name, lat, lon, str(e), ["Use the study that fits this climate, or move the site."])
+
+
+def _run_generic(key: str, lat: float, lon: float, name: str, options: dict, progress: Optional[Callable] = None) -> dict:
     opts = dict(options or {})
     if key in ("heat", "rain", "wind", "fire"):
         from . import studies_evt

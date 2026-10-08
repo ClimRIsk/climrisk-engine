@@ -200,3 +200,39 @@ def test_river_without_discharge_is_a_finding_not_an_error():
     data = {"daily": {"time": days, "precipitation_sum": [1.0] * len(days), "et0_fao_evapotranspiration": [3.0] * len(days)}}
     out = hazards.run_generic("river", 14.7, -17.4, "Desert", {"data": data, "flow": {"series": {}}})
     assert out["status"].startswith("no model") and out["numbers"] == {}
+
+
+def test_fire_index_stays_finite_in_extreme_dry_heat():
+    f = fire.ffmc(95.0, 50.0, 2.0, 120.0, 0.0)
+    assert 0 <= f <= 101.0
+    assert isinstance(fire.isi(101.5, 60.0), float) and isinstance(fire.isi(-5.0, 10.0), float)       # was a complex number in the Riyadh sweep
+
+
+def test_hyper_arid_site_gets_no_fire_model(monkeypatch):
+    monkeypatch.setitem(studies_evt.HAZ["fire"], "extract", lambda la, lo, fetch=None: (list(range(1982, 2024)), [200.0] * 42, {"days_over_30": [300] * 42, "_rain_mm": 46.0}))
+    r = hazards.run_generic("fire", 24.7, 46.7, "Desert", {})
+    assert r["status"].startswith("no model") and "arid" in r["standfirst"]
+
+
+def test_second_data_source_takes_over_when_the_first_is_out_of_quota(monkeypatch):
+    from cri.modellab import data as D
+
+    def boom(*a, **k):
+        raise D.QuotaExceeded("daily")
+    monkeypatch.setitem(studies_evt.HAZ["rain"], "extract", boom)
+    days = [str(np.datetime64("1981-01-01") + i) for i in range(365 * 40)]
+    rng = np.random.default_rng(3)
+    vals = np.where(rng.random(len(days)) < 0.3, rng.gamma(1.2, 12.0, len(days)), 0.0).tolist()
+    monkeypatch.setattr(D, "power_daily", lambda lat, lon, y0, y1, params, fetch=None: {"time": days, "PRECTOTCORR": vals})
+    monkeypatch.setitem(studies_evt.POWER, "rain", studies_evt._power_max("PRECTOTCORR"))
+    r = studies_evt.run("rain", 1.0, 2.0, "Fallback", bootstrap=20)
+    assert "NASA POWER" in r["numbers"]["source"] and r["ok"]
+    assert any(n["title"] == "Data source" for n in r["notebook"])
+
+
+def test_trend_adjusted_level_is_reported_when_the_trend_is_significant():
+    yrs = list(range(1981, 2024))
+    x = np.random.default_rng(5).gumbel(50, 6, len(yrs)) + 0.6 * np.arange(len(yrs))
+    r = studies_evt.run("rain", 1.0, 2.0, "Trend", series=(yrs, x), bootstrap=20)
+    lt = r["numbers"]["levels_today"]
+    assert lt and lt[10] > r["numbers"]["levels"][10] * 0.98        # trend variance inflates a stationary tail, so compare the 10-year level, which is not tail-dominated

@@ -34,7 +34,7 @@ def _get(url: str, timeout: int = 40, waits: tuple = (12, 30, 70)) -> dict:
                 time.sleep(waits[i])
                 continue
             if e.code == 429:
-                raise RuntimeError("the free weather-data service (Open-Meteo) is rate-limiting this computer after many large downloads; wait a few minutes (hourly/daily limits reset) and ask again. Data already downloaded are cached.") from e
+                raise QuotaExceeded("the free weather-data service (Open-Meteo) is rate-limiting this computer after many large downloads (its hourly or daily allowance); wait and ask again. Data already downloaded are cached, and rain, wind, heat and fire weather fall back to NASA POWER.") from e
             raise
 
 

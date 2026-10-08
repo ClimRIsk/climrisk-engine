@@ -5,6 +5,7 @@ import numpy as np
 
 from . import data as D, evt, fire, heat, plots
 from .generic_report import Notebook
+from .dossier import NoModel
 
 
 def _annual_max_daily(lat, lon, var, y0, y1, scale=1.0, fetch=None):
@@ -43,6 +44,7 @@ def _fire_series(lat, lon, fetch=None):
     ys = [y for y in sorted(set(yrs.tolist())) if y > y0]                 # first year is spin-up
     xs = [float(f[yrs == y].max()) for y in ys]
     ex = {"days_over_30": [int((f[yrs == y] >= 30).sum()) for y in ys]}
+    ex["_rain_mm"] = float(sum(dd["precipitation_sum"][i] for i in ok) / (len(ok) / 365.25))
     return ys, xs, ex
 
 
@@ -79,7 +81,7 @@ def _power_fire(lat, lon, fetch=None):
     out = fire.run_series(t.tolist(), rh.tolist(), [d["WS10M_MAX"][i] * 3.6 for i in ok], [d["PRECTOTCORR"][i] for i in ok], months, tropical=abs(lat) < 25)
     yrs = np.array([int(d["time"][i][:4]) for i in ok]); f = np.array(out["fwi"])
     ys = [y for y in sorted(set(yrs.tolist())) if y > 1981]
-    return ys, [float(f[yrs == y].max()) for y in ys], {"days_over_30": [int((f[yrs == y] >= 30).sum()) for y in ys]}
+    return ys, [float(f[yrs == y].max()) for y in ys], {"days_over_30": [int((f[yrs == y] >= 30).sum()) for y in ys], "_rain_mm": float(sum(d["PRECTOTCORR"][i] for i in ok) / (len(ok) / 365.25))}
 
 
 POWER = {"rain": _power_max("PRECTOTCORR"), "wind": _power_max("WS10M_MAX"), "heat": _power_heat, "fire": _power_fire}
@@ -131,6 +133,9 @@ def run(hazard: str, lat: float, lon: float, name: str = "Study site", series: t
             src = POWER_NOTE[hazard]
             nb("2b", "Data source", f"The primary source (ERA5 via Open-Meteo) is unavailable (daily allowance used or NASA POWER requested), so the engine used a second independent source: {src}.", warn=True)
         years, x, extra = got[0], np.array(got[1], float), got[2]
+        rain_mm = extra.pop("_rain_mm", None)
+        if hazard == "fire" and rain_mm is not None and rain_mm < 150.0:
+            raise NoModel(f"Hyper-arid site (about {rain_mm:.0f} mm of rain a year): there is too little vegetation to carry a fire, so a fire weather index would measure dry air, not fire hazard.")
     else:
         years, x, extra = list(series[0]), np.array(series[1], float), (series[2] if len(series) > 2 else {})
         src = "supplied series"
@@ -201,7 +206,8 @@ def run(hazard: str, lat: float, lon: float, name: str = "Study site", series: t
         blocks += [("callout", f'Hindcast not possible: {hc["reason"]}.', "warn")]
     blocks += [("h2", "result", "Return levels"),
                ("fig", plots.return_level_plot(x, lambda T: evt.level(model, T), ci, cfg["unit"], f'{cfg["label"]}: how large, how often', (lambda T: evt.trend_level(tr, 2050, T)) if tr["significant"] else None), "Black dots: observed maxima by their empirical return period. Band: 90 % bootstrap range."),
-               ("table", ["Return period", "Level", "90 % range"], [[f"{T} years", fmt.format(lv[T]) + f' {cfg["unit"]}', f'{fmt.format(ci[T][0])} – {fmt.format(ci[T][1])}' if T in ci else "n/a"] for T in (10, 50, 100)],
+               ("table", ["Return period", "Level (average of the record)"] + ([f"Level today ({years[-1]}, trend-adjusted)"] if tr["significant"] else []) + ["90 % range (average)"],
+                [[f"{T} years", fmt.format(lv[T]) + f' {cfg["unit"]}'] + ([fmt.format(evt.trend_level(tr, years[-1], T)) + f' {cfg["unit"]}'] if tr["significant"] else []) + [f'{fmt.format(ci[T][0])} – {fmt.format(ci[T][1])}' if T in ci else "n/a"] for T in (10, 50, 100)],
                 "Return periods beyond the length of the record are extrapolations; the range widens accordingly." + (" 100 years exceeds the record: treat it as indicative." if n < 100 else "")),
                ("p", f'Trend: the typical annual maximum changes by {tr["slope_per_decade"]:+.2g} {cfg["unit"]} per decade (p = {tr["p"]:.3f}). ' + (f'Extending that trend to 2050 would put the 100-year level at {fmt.format(tl)} {cfg["unit"]}, against {fmt.format(lv[100])} now; this is an extrapolation of a linear trend, not a climate projection.' if tr["significant"] else "The change is not distinguishable from noise in this record, so the stationary model stands.")),
                ("p", cfg["meaning"])]
@@ -219,5 +225,5 @@ def run(hazard: str, lat: float, lon: float, name: str = "Study site", series: t
             "standfirst": f'The engine built an extreme-value model of {cfg["var"]} at {name} from {n} years of data, hid the last third to test it, and found a 100-year level of {fmt.format(lv[100])} {cfg["unit"]} (50-year {fmt.format(lv[50])}). '
                           + ("It predicted the held-out years." if validated else "It did NOT predict the held-out years." if hc["ok"] else "The record was too short to test it.") + f' Status: {status}.',
             "status": status, "ok": nfail == 0, "headline": head, "blocks": blocks, "verification": bench, "sensitivity": [], "assumptions": cfg["assumptions"] + [f"Annual maxima are treated as independent and identically distributed (tested by the hindcast and trend tests)."],
-            "limitations": cfg["limits"] + [f"{src}: a 25 km grid-cell model, not a point measurement."], "next_steps": steps, "notebook": nb.rows, "numbers": {"source": src, "drift50": drift, "step": stp if stp.get("ok") else None, "levels": lv, "ci": {str(k): v for k, v in ci.items()}, "trend": tr, "hindcast": {k: v for k, v in hc.items() if k != "pit"}},
+            "limitations": cfg["limits"] + [f"{src}: a 25 km grid-cell model, not a point measurement."], "next_steps": steps, "notebook": nb.rows, "numbers": {"levels_today": ({T: evt.trend_level(tr, years[-1], T) for T in (10, 50, 100)} if tr["significant"] else None), "source": src, "drift50": drift, "step": stp if stp.get("ok") else None, "levels": lv, "ci": {str(k): v for k, v in ci.items()}, "trend": tr, "hindcast": {k: v for k, v in hc.items() if k != "pit"}},
             "elapsed_s": round(__import__("time").time() - nb.t0, 1)}

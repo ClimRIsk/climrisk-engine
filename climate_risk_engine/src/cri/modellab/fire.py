@@ -26,7 +26,8 @@ def ffmc(f0, t, h, w, rain):
             m = ew - (ew - mo) * 10 ** (-(k1 * 0.581 * math.exp(0.0365 * t)))
         else:
             m = mo
-    return 59.5 * (250 - m) / (147.2 + m)
+    m = min(max(m, 0.0), 250.0)                                   # Van Wagner & Pickett (1985): fine-fuel moisture stays within 0-250
+    return min(59.5 * (250 - m) / (147.2 + m), 101.0)
 
 
 def dmc(p0, t, h, rain, month, tropical=False):
@@ -54,6 +55,7 @@ def dc(d0, t, rain, month, tropical=False):
 
 
 def isi(f, w):
+    f = min(max(f, 0.0), 101.0)
     m = 147.2 * (101 - f) / (59.5 + f)
     return 0.208 * math.exp(0.05039 * w) * 91.9 * math.exp(-0.1386 * m) * (1 + m ** 5.31 / 4.93e7)
 
