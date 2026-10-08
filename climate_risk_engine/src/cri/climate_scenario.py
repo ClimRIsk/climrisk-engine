@@ -136,9 +136,11 @@ def twin_forcing(twin: dict, comp: dict, rp: int = 100, kind: Optional[str] = No
     else:
         f = comp["river_depth_factor"]["p90" if band == "high" else "p10" if band == "low" else "median"]
         h = max(base.get("depth_p90_m") or 0.0, base.get("depth_m") or 0.0)
+        dry = h < 1.0
+        h = max(h, 1.0)                    # where the site itself is dry, the regional water the solver routes in is still about a metre deep for a 1-in-100 river flood: an assumption, said in the derivation
         add = h * (f - 1.0)
         out["add_m"] = round(add, 2)
-        out["derivation"].append(f"{base['label']}: rainfall ×{comp['rain']['p90' if band == 'high' else 'p10' if band == 'low' else 'median']:.2f} gives flow ×~{comp['rain']['median'] ** 1.0:.2f} and depth ×{f:.2f} (Q^0.6) on a {h:.1f} m reference depth: {add:+.2f} m on the water level.")
+        out["derivation"].append(f"{base['label']}: rainfall ×{comp['rain']['p90' if band == 'high' else 'p10' if band == 'low' else 'median']:.2f} gives flow ×~{comp['rain']['median'] ** 1.0:.2f} and depth ×{f:.2f} (Q^0.6) on a {h:.1f} m reference depth{' (assumed: the mapped depth at the site is under 1 m, so the regional flood level is used)' if dry else ''}: {add:+.2f} m on the water level.")
     if comp["wind"]["tc_exposed"]:
         out["derivation"].append(f"Cyclone wind ×{out['wind_scale']:.3f} (Knutson et al. 2020, low confidence).")
     return out
@@ -150,6 +152,9 @@ def apply_to_twin(twin: dict, comp: dict, rp: int = 100, kind: Optional[str] = N
     fo = twin_forcing(twin, comp, rp, kind, band)
     sim = None
     if fo["scenario_id"] and run_solver and twin["site"].get("hydraulics", True):
+        sims = twin.setdefault("sims", {})
+        if fo["scenario_id"] not in sims:                          # 'now' must come from the same solver, or the comparison mixes methods
+            b = AT.simulate_flood(twin, fo["scenario_id"]); b.pop("block", None); sims[fo["scenario_id"]] = b
         sim = AT.simulate_flood(twin, fo["scenario_id"], add_m=fo["add_m"])
         sim.pop("block", None)
     comps = [c for c in twin["components"] if not c.get("removed") and c.get("on_site", True)]
