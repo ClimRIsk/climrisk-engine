@@ -80,3 +80,15 @@ def test_station_check_with_mocked_download():
     txt = "\n".join(rows)
     one = SK._one("rain", {"id": "X", "name": "Site", "km": 5.0}, ys, [g[y] for y in ys], lambda url: txt, None)
     assert one["n"] == 22 and one["rho"] > 0.9 and 0.6 < one["ratio50"] < 1.7
+
+
+def test_hargreaves_hand_value_and_power_drought_data():
+    from cri.modellab import studies_series as SS
+    e = float(SS.hargreaves_et0([30.0], [20.0], [80.0], 0.0)[0])          # equator near equinox: Ra ≈ 36 MJ/m²/day -> 0.0023*(25+17.8)*sqrt(10)*36*0.408 ≈ 4.6 mm
+    assert 4.3 < e < 4.9
+    assert float(SS.hargreaves_et0([30.0], [30.0], [80.0], 0.0)[0]) == 0.0   # no temperature range, no demand
+    days = [f"2000{m:02d}{d:02d}" for m in (1, 2) for d in range(1, 29)]
+    par = {k: {dd: v for dd in days} for k, v in (("PRECTOTCORR", 1.0), ("GWETROOT", 0.5), ("T2M_MAX", 20.0), ("T2M_MIN", 10.0))}
+    out = SS.power_drought_data(51.5, 0.0, fetch=lambda url: {"properties": {"parameter": par}})
+    dd = out["daily"]
+    assert len(dd["time"]) == 56 and dd["soil_moisture_7_to_28cm_mean"][0] == 0.5 and dd["et0_fao_evapotranspiration"][0] > 0

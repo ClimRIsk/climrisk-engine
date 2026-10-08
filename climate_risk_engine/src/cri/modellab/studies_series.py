@@ -54,9 +54,9 @@ def _soil_sim(key, x, P, E0, doy):
     return p["b"] + p["a"] * (S / p["Sc"])
 
 
-def drought(lat: float, lon: float, name: str = "Study site", data: dict = None, fetch=None, progress=None, scenarios=None, scenario_fetch=None) -> dict:
+def drought_core(lat: float, lon: float, name: str = "Study site", data: dict = None, fetch=None, progress=None, scenarios=None, scenario_fetch=None, want_scen_auto: bool = False) -> dict:
     nb = Notebook(progress)
-    want_scen = scenarios if scenarios is not None else (data is None and fetch is None)
+    want_scen = scenarios if scenarios is not None else (want_scen_auto or (data is None and fetch is None))
     if data is None:
         v = "precipitation_sum,et0_fao_evapotranspiration,soil_moisture_7_to_28cm_mean"
         data = D.archive(lat, lon, 1991, 2023, daily=v) if fetch is None else D.archive(lat, lon, 1991, 2023, daily=v, fetch=fetch)
@@ -152,6 +152,61 @@ def drought(lat: float, lon: float, name: str = "Study site", data: dict = None,
             "assumptions": ["One bucket for the root zone; no irrigation, groundwater, snow or lateral flow.", "Evaporative demand is FAO-56 reference ET from ERA5; actual vegetation use is calibrated through the coefficients."],
             "limitations": ["Licence: the ERA5-Land / GloFAS series were fetched through the Open-Meteo free tier, which is licensed for non-commercial use only. Fine for development; for commercial release fetch the same datasets directly from the Copernicus data store (free, commercial use permitted with attribution) or use a paid Open-Meteo plan.", "The 'observations' are ERA5-Land soil moisture, itself a land-surface model, not probes or satellites.", "Agricultural drought in irrigated areas is decided by water management, which this model cannot see."] + fut_lim,
             "next_steps": steps, "notebook": nb.rows, "numbers": {"validation": val, "structure": best, "params": dict(zip(pn, xb)), "scenarios": fut_num}}
+
+
+def hargreaves_et0(tmax, tmin, doy, lat) -> np.ndarray:
+    """Hargreaves-Samani reference evapotranspiration (mm/day) from daily temperature range and extraterrestrial radiation (FAO-56 eq. 21 and 52). Needs no humidity or wind."""
+    tmax, tmin, doy = (np.asarray(a, float) for a in (tmax, tmin, doy))
+    phi = math.radians(lat); dr = 1 + 0.033 * np.cos(2 * math.pi * doy / 365.0); dl = 0.409 * np.sin(2 * math.pi * doy / 365.0 - 1.39)
+    ws = np.arccos(np.clip(-math.tan(phi) * np.tan(dl), -1, 1))
+    ra = 24 * 60 / math.pi * 0.0820 * dr * (ws * math.sin(phi) * np.sin(dl) + math.cos(phi) * np.cos(dl) * np.sin(ws))
+    return np.maximum(0.0023 * ((tmax + tmin) / 2 + 17.8) * np.sqrt(np.maximum(tmax - tmin, 0.0)) * ra * 0.408, 0.0)
+
+
+def power_drought_data(lat: float, lon: float, fetch=None) -> dict:
+    """Drought drivers and target from NASA POWER (CC BY 4.0, commercial use allowed): corrected rain, Hargreaves evaporative demand from temperature, and MERRA-2 root-zone soil wetness (a model product)."""
+    d = D.power_daily(lat, lon, 1991, 2023, "PRECTOTCORR,GWETROOT,T2M_MAX,T2M_MIN") if fetch is None else D.power_daily(lat, lon, 1991, 2023, "PRECTOTCORR,GWETROOT,T2M_MAX,T2M_MIN", fetch=fetch)
+    doy = _doy(d["time"])
+    ok = [None not in (a, b, c) for a, b, c in zip(d["T2M_MAX"], d["T2M_MIN"], d["PRECTOTCORR"])]
+    tmx = np.array([v if v is not None else np.nan for v in d["T2M_MAX"]]); tmn = np.array([v if v is not None else np.nan for v in d["T2M_MIN"]])
+    e0 = hargreaves_et0(tmx, tmn, doy, lat)
+    return {"daily": {"time": d["time"], "precipitation_sum": [p if o else None for p, o in zip(d["PRECTOTCORR"], ok)],
+                      "et0_fao_evapotranspiration": [float(e) if o else None for e, o in zip(e0, ok)], "soil_moisture_7_to_28cm_mean": d["GWETROOT"]}, "source": "power"}
+
+
+_SWAP = (("m³/m³", "wetness fraction"), ("ERA5-Land soil moisture", "MERRA-2 root-zone soil wetness"), ("ERA5-Land", "MERRA-2"), ("FAO-56 reference ET from ERA5", "Hargreaves-Samani reference ET from NASA POWER temperature"))
+_LIC = "Data: NASA POWER (MERRA-2 root-zone soil wetness, corrected rain, temperature; CC BY 4.0, commercial use permitted with attribution). Evaporative demand is Hargreaves-Samani from daily temperature range and latitude, not Penman-Monteith. The soil-wetness 'observations' are a land-surface model product, not probes. These data were obtained from the NASA Langley Research Center POWER Project funded through the NASA Earth Science Directorate Applied Science Program."
+
+
+def _swap(o):
+    if isinstance(o, str):
+        for a, b in _SWAP:
+            o = o.replace(a, b)
+        return o
+    if isinstance(o, list):
+        return [_swap(x) for x in o]
+    if isinstance(o, tuple):
+        return tuple(_swap(x) for x in o)
+    if isinstance(o, dict):
+        return {k: (v if k in ("numbers", "verification") else _swap(v)) for k, v in o.items()}
+    return o
+
+
+def drought(lat: float, lon: float, name: str = "Study site", data: dict = None, fetch=None, progress=None, scenarios=None, scenario_fetch=None) -> dict:
+    """Default source NASA POWER (commercial use permitted). Set CRI_DATA_PROVIDER=openmeteo to use ERA5-Land through the Open-Meteo free tier (non-commercial, development only)."""
+    import os
+    if data is not None or fetch is not None:
+        return drought_core(lat, lon, name, data, fetch, progress, scenarios, scenario_fetch)
+    if os.environ.get("CRI_DATA_PROVIDER", "power") != "power":
+        try:
+            return drought_core(lat, lon, name, None, None, progress, scenarios, scenario_fetch, True)
+        except D.QuotaExceeded:
+            pass
+    pd = power_drought_data(lat, lon)
+    r = _swap(drought_core(lat, lon, name, pd, None, progress, scenarios, scenario_fetch, True))
+    r["limitations"] = [x for x in r["limitations"] if not x.startswith("Licence: the ERA5-Land")] + [_LIC]
+    r["assumptions"] = [_swap(x) for x in r["assumptions"]]
+    return r
 
 
 # ── river flow ───────────────────────────────────────────────────────────────
