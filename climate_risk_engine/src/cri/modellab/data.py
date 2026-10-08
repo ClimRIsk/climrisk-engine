@@ -9,9 +9,22 @@ from typing import Callable, Optional
 _UA = {"User-Agent": "ClimRisk-ModelLab/1.0"}
 
 
-def _get(url: str, timeout: int = 40) -> dict:
-    with urllib.request.urlopen(urllib.request.Request(url, headers=_UA), timeout=timeout) as r:
-        return json.loads(r.read())
+def _get(url: str, timeout: int = 40, waits: tuple = (12, 30, 70)) -> dict:
+    """GET JSON. Free public APIs rate-limit (HTTP 429) when several large studies run back to back, so wait and retry before failing with a plain explanation."""
+    import os, time, urllib.error
+    if os.environ.get("CRI_NO_RETRY_SLEEP"):
+        waits = ()
+    for i in range(len(waits) + 1):
+        try:
+            with urllib.request.urlopen(urllib.request.Request(url, headers=_UA), timeout=timeout) as r:
+                return json.loads(r.read())
+        except urllib.error.HTTPError as e:
+            if e.code in (429, 503) and i < len(waits):
+                time.sleep(waits[i])
+                continue
+            if e.code == 429:
+                raise RuntimeError("the free weather-data service (Open-Meteo) is rate-limiting this computer after many large downloads; wait a few minutes (hourly/daily limits reset) and ask again. Data already downloaded are cached.") from e
+            raise
 
 
 def annual_max_daily_rain(lat: float, lon: float, y0: int = 1991, y1: int = 2020, fetch: Callable = _get) -> dict:
