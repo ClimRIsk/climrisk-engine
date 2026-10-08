@@ -47,3 +47,91 @@ def hourly_met_and_pm(lat: float, lon: float, days: int = 21, fetch: Callable = 
     if len(rows) < 72:
         raise RuntimeError(f"only {len(rows)} usable hours of meteorology and PM2.5 returned")
     return {"rows": rows, "source": "Open-Meteo: ECMWF/GFS meteorology and CAMS (Copernicus) PM2.5 analysis"}
+
+
+# ── cached archive access (ERA5 / ERA5-Land via Open-Meteo) ──────────────────
+
+def _cache_path(key: str):
+    import hashlib, os
+    from pathlib import Path
+    d = Path(os.environ.get("CRI_CACHE_DIR", Path.home() / ".climrisk" / "cache")) / "modellab"
+    d.mkdir(parents=True, exist_ok=True)
+    return d / (hashlib.md5(key.encode()).hexdigest() + ".json")
+
+
+def archive(lat: float, lon: float, y0: int, y1: int, daily: str = "", hourly: str = "", fetch: Callable = _get, cache: bool = True) -> dict:
+    """ERA5/ERA5-Land time series. Results are cached on disk, so a hazard is only downloaded once per place."""
+    q = {"latitude": round(lat, 3), "longitude": round(lon, 3), "start_date": f"{y0}-01-01", "end_date": f"{y1}-12-31", "timezone": "UTC"}
+    if daily:
+        q["daily"] = daily
+    if hourly:
+        q["hourly"] = hourly
+    url = "https://archive-api.open-meteo.com/v1/archive?" + urllib.parse.urlencode(q)
+    p = _cache_path(url)
+    if cache and p.exists():
+        try:
+            return json.loads(p.read_text())
+        except Exception:                                              # noqa: BLE001
+            pass
+    d = fetch(url, 150) if fetch is _get else fetch(url)
+    if cache and "error" not in d:
+        try:
+            p.write_text(json.dumps(d))
+        except Exception:                                              # noqa: BLE001
+            pass
+    if "error" in d:
+        raise RuntimeError(str(d.get("reason", d["error"]))[:200])
+    return d
+
+
+def river_discharge(lat: float, lon: float, y0: int, y1: int, fetch: Callable = _get) -> dict:
+    url = "https://flood-api.open-meteo.com/v1/flood?" + urllib.parse.urlencode({"latitude": round(lat, 3), "longitude": round(lon, 3), "start_date": f"{y0}-01-01", "end_date": f"{y1}-12-31", "daily": "river_discharge"})
+    p = _cache_path(url)
+    if p.exists():
+        try:
+            return json.loads(p.read_text())
+        except Exception:                                              # noqa: BLE001
+            pass
+    d = fetch(url, 120)
+    try:
+        p.write_text(json.dumps(d))
+    except Exception:                                                  # noqa: BLE001
+        pass
+    return d
+
+
+def usgs_gauge_near(lat: float, lon: float, y0: int, y1: int, radius_deg: float = 0.25, fetch: Callable = _get) -> Optional[dict]:
+    """Nearest USGS stream gauge with daily discharge in the window (United States only). Returns None if there is none."""
+    if not (24 <= lat <= 50 and -125 <= lon <= -66):
+        return None
+    bbox = f"{lon - radius_deg:.4f},{lat - radius_deg:.4f},{lon + radius_deg:.4f},{lat + radius_deg:.4f}"
+    try:
+        req = urllib.request.Request("https://waterservices.usgs.gov/nwis/site/?" + urllib.parse.urlencode({"format": "rdb", "bBox": bbox, "parameterCd": "00060", "siteType": "ST", "hasDataTypeCd": "dv", "siteStatus": "all"}), headers=_UA)
+        txt = urllib.request.urlopen(req, timeout=40).read().decode()
+    except Exception:                                                  # noqa: BLE001
+        return None
+    best = None
+    for ln in txt.splitlines():
+        if ln.startswith("#") or ln.startswith("agency_cd") or ln.startswith("5s"):
+            continue
+        c = ln.split("\t")
+        if len(c) < 8:
+            continue
+        try:
+            sla, slo = float(c[4]), float(c[5])
+        except ValueError:
+            continue
+        d = ((sla - lat) ** 2 + (slo - lon) ** 2) ** 0.5
+        if best is None or d < best[0]:
+            best = (d, c[1], c[2], sla, slo)
+    if not best:
+        return None
+    try:
+        j = fetch("https://waterservices.usgs.gov/nwis/dv/?" + urllib.parse.urlencode({"format": "json", "sites": best[1], "parameterCd": "00060", "startDT": f"{y0}-01-01", "endDT": f"{y1}-12-31"}), 90)
+        vals = j["value"]["timeSeries"][0]["values"][0]["value"]
+        series = {v["dateTime"][:10]: float(v["value"]) * 0.0283168 for v in vals if v["value"] not in ("", None) and float(v["value"]) >= 0}   # ft³/s → m³/s
+    except Exception:                                                  # noqa: BLE001
+        return None
+    if len(series) < 365 * 3:
+        return None
+    return {"site": best[1], "name": best[2], "lat": best[3], "lon": best[4], "km": best[0] * 111.0, "series": series, "source": "USGS National Water Information System (daily mean discharge)"}

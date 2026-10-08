@@ -1,6 +1,6 @@
 [project]
 name = "cri"
-version = "0.5.0"
+version = "0.6.0"
 description = "Climate Risk Intelligence engine — scenario-driven climate-to-finance translation"
 readme = "README.md"
 requires-python = ">=3.10"

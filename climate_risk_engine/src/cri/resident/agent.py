@@ -336,25 +336,34 @@ class Agent:
         t = text.strip(); low = t.lower()
         if re.search(r"\b(model lab|modelling lab|modeling lab)\b", low) and re.search(r"\b(what|which|list|can|do)\b", low):
             rows = [[k, v["label"], v["needs"], v["validates_with"]] for k, v in L.DOMAINS.items()]
+            names = ", ".join(v["label"].split(" (")[0].lower() for k, v in L.DOMAINS.items() if "dossier" not in v["label"])
             return {"reply": ("The Model Lab builds a physics model the way a researcher would, without being walked through it: it chooses the equations, fetches the data, builds and runs the model, "
                               "proves it is solved correctly against analytic solutions and conservation laws, calibrates on part of the record, tests on part it never saw, finds which assumption matters most, and writes the methods and results. "
-                              "It says plainly whether the result is only verified, or also calibrated and validated. Say, for example: \"build a flood model for Chattogram\" or \"air quality model for Delhi\"."),
+                              "It says plainly whether the result is only verified, or also calibrated and validated, and for a hazard it has no verified solver for it researches the physics and data and tells you what is missing instead of guessing. "
+                              f"It covers {names}. Say, for example: \"build a flood model for Chattogram\", \"earthquake hazard for Tokyo\" or \"air quality model for Delhi\"."),
                     "blocks": [_blk("table", head=["Domain", "Physics", "Needs", "Validates with"], rows=rows)], "actions": []}
         domain = L.detect_domain(t)
-        if not domain or not re.search(r"\b(build|construct|develop|create|make|run|simulate|simulation|calibrate|validate|set up|prepare|do|model|study)\b", low) or re.match(r"\s*(what|why|how|explain|define|tell|describe|list|which|is|are|does|do you)\b", low):
+        verb = re.search(r"\b(build|construct|develop|create|make|run|simulate|simulation|calibrate|validate|set up|prepare|do|model|study)\b", low)
+        short_place = None
+        if domain not in (None, "flood", "air"):                         # flood/air phrases overlap the ordinary risk tools: those need an explicit build verb
+            verb = verb or re.search(r"\b(hazard|return levels?|assess\w*|analy[sz]e)\b", low)
+            short_place = len(low.split()) <= 9 and re.search(r"\b(for|in|near|at|around)\b|\d+\.\d+", low)
+        if not domain or not (verb or short_place) or re.match(r"\s*(what|why|how|explain|define|tell|describe|list|which|is|are|does|do you)\b", low):
             return None
         ent = N.entities(t)
         pl = resolve_place(t, ent, session)
         if not pl:
-            return {"reply": f"Which place is the {domain.replace('air', 'air-quality')} model for? Give coordinates or a city name and I will take it from there.", "blocks": [], "actions": []}
+            return {"reply": f"Which place is the {L.DOMAINS[domain]['label'].split(' (')[0].lower()} model for? Give coordinates or a city name and I will take it from there.", "blocks": [], "actions": []}
         M.set_state("last_place", pl)
         opts: dict = {}
         m = re.search(r"(\d{2,3})[\s\-]*(?:year|yr)", low)
-        if m and domain == "flood":
+        if m and domain in ("flood", "landslide"):
             opts["return_period"] = max(2, min(1000, int(m.group(1))))
         m = re.search(r"(\d+(?:\.\d+)?)\s*km", low)
         if m and domain == "flood":
             opts["radius_km"] = max(0.5, min(5.0, float(m.group(1))))
+        if m and domain in ("landslide", "earthquake"):
+            opts["radius_km"] = max(1.0, min(5.0 if domain == "landslide" else 500.0, float(m.group(1))))
         if m and domain == "air":
             opts["city_km"] = max(5.0, min(80.0, float(m.group(1))))
         holder: dict = {}
@@ -372,10 +381,11 @@ class Agent:
                 blocks.append(_blk("sources", items=[{"n": i + 1, "title": b["title"], "url": b["url"], "learned": False} for i, b in enumerate(out["basis"])]))
             blocks.append(_blk("list", items=[f'{n["step"]}. {n["title"]}' for n in r["notebook"]]))
             return {"reply": f'**{out["story"]["title"]}**\n{out["story"].get("standfirst", "")}', "blocks": blocks,
-                    "actions": [{"type": "say", "label": "Run the other model for this place", "text": ("air quality model for " if domain == "flood" else "flood model for ") + pl["name"]}]}
+                    "actions": [{"type": "say", "label": lab_, "text": txt_ + pl["name"]} for lab_, txt_ in (("Flood model for this place", "flood model for "), ("Air quality model for this place", "air quality model for "), ("Earthquake hazard for this place", "earthquake hazard for "), ("Extreme heat for this place", "extreme heat model for ")) if not txt_.startswith(domain)][:3]}
         holder["j"] = _job(work, f"{domain} model study")
-        steps = ("physics choice, terrain and rainfall data, model run, five verification tests, sensitivity" if domain == "flood" else "physics choice, three competing model structures, validation on unseen hours, verification tests, sensitivity")
-        return {"reply": f"Starting a {domain.replace('air', 'air-quality')} study for {pl['name']}. I will work through: {steps}, then write the methods and results. This takes a few minutes; I will post it here.",
+        steps = {"flood": "physics choice, terrain and rainfall data, model run, five verification tests, sensitivity", "air": "physics choice, three competing model structures, validation on unseen hours, verification tests, sensitivity"}.get(
+            domain, "physics choice, public data, model fit, verification tests, and a hindcast on data the model never saw" if domain in L.DOMAINS and "dossier" not in L.DOMAINS[domain]["label"] else "reading up on the physics and the public datasets, and checking what a verified model would need")
+        return {"reply": f"Starting a {L.DOMAINS[domain]['label'].split(' (')[0].lower()} study for {pl['name']}. I will work through: {steps}, then write the methods and results. This takes a few minutes; I will post it here.",
                 "blocks": [], "actions": [], "job": holder["j"]["id"], "intent": "modellab"}
 
     def _knowledge_commands(self, session, text) -> Optional[dict]:

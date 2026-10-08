@@ -7,25 +7,14 @@ import uuid
 from pathlib import Path
 from typing import Callable, Optional
 
-DOMAINS = {
-    "flood": {"label": "Flood inundation (rain-driven, 2-D shallow-water)", "needs": "a place (coordinates or name)", "validates_with": "observed flood depths or extents"},
-    "air": {"label": "Air quality (PM2.5 and AQI, physical box model)", "needs": "a city (coordinates or name)", "validates_with": "ground-station PM2.5 series"},
-}
+from . import hazards as _H
 
-_FLOOD = re.compile(r"\b(flood\w*|inundat\w*|storm\s*water|pluvial|rain(?:fall)?[\s\-]*runoff|waterlogg\w*|drainage)\b", re.I)
-_AIR = re.compile(r"\b(air[\s\-]*quality|aqi|pm\s*2\.?5|pm\s*10|particulate\w*|smog|pollution|air pollution)\b", re.I)
-_MODEL = re.compile(r"\b(model|simulat\w*|build|construct|develop|calibrat\w*|validat\w*|phd|thesis|study)\b", re.I)
+DOMAINS = _H.all_domains()
+_MODEL = re.compile(r"\b(model|simulat\w*|build|construct|develop|calibrat\w*|validat\w*|phd|thesis|study|assess\w*|analy[sz]e)\b", re.I)
 
 
 def detect_domain(text: str) -> Optional[str]:
-    f, a = bool(_FLOOD.search(text)), bool(_AIR.search(text))
-    if a and not f:
-        return "air"
-    if f and not a:
-        return "flood"
-    if f and a:
-        return "air" if _AIR.search(text).start() < _FLOOD.search(text).start() else "flood"
-    return None
+    return _H.detect(text)
 
 
 def is_model_request(text: str) -> bool:
@@ -43,6 +32,15 @@ def lab_dir() -> Path:
 _BASIS_Q = {
     "flood": ["shallow water equations", "Manning formula", "curve number runoff", "Gumbel distribution return period"],
     "air": ["atmospheric dispersion modeling Gaussian plume", "box model air pollution", "air quality index PM2.5", "planetary boundary layer"],
+    "heat": ["wet-bulb globe temperature", "heat wave", "Gumbel distribution return period"],
+    "rain": ["Gumbel distribution return period", "generalized extreme value distribution", "rainfall intensity duration frequency"],
+    "wind": ["generalized extreme value distribution", "wind engineering design wind speed", "return period"],
+    "fire": ["Canadian Forest Fire Weather Index System", "wildfire", "generalized extreme value distribution"],
+    "drought": ["drought", "soil moisture", "water balance hydrology", "evapotranspiration"],
+    "river": ["rainfall-runoff model hydrology", "unit hydrograph", "Nash–Sutcliffe model efficiency coefficient"],
+    "cyclone": ["Holland model tropical cyclone", "Saffir–Simpson scale", "International Best Track Archive for Climate Stewardship"],
+    "earthquake": ["Gutenberg–Richter law", "peak ground acceleration", "seismic hazard", "declustering earthquake catalog"],
+    "landslide": ["landslide", "infinite slope stability factor of safety", "slope stability"],
 }
 
 
@@ -111,12 +109,16 @@ def run_study(domain: str, lat: float, lon: float, name: str, options: Optional[
     elif domain == "air":
         r = air_study.run(lat, lon, name, progress=progress, **opts)
         story_fn = report.air_story
+    elif domain in DOMAINS:
+        from . import generic_report
+        r = _H.run_generic(domain, lat, lon, name, opts, progress=progress)
+        story_fn = lambda rr, text, basis: generic_report.build_story(rr, basis)
     else:
         raise ValueError(f"unknown domain {domain!r}; available: {', '.join(DOMAINS)}")
     basis = physics_basis(domain)
     st0 = story_fn(r, "", basis)
     default = st0["standfirst"]
-    text = narrate(domain, r, default) if use_llm else default
+    text = narrate(domain, r, default) if (use_llm and domain in ('flood', 'air')) else default
     st = story_fn(r, text, basis) if text != default else st0
     files = []
     if write:
@@ -137,7 +139,8 @@ def summary(r: dict) -> list:
     """Rows for a chat table: what was established and what was not."""
     rows = [["Status", r["status"]]]
     nv = sum(1 for v in r["verification"] if v["ok"])
-    rows.append(["Verification", f'{nv} of {len(r["verification"])} tests passed'])
+    if r["verification"]:
+        rows.append(["Verification", f'{nv} of {len(r["verification"])} tests passed'])
     if r["domain"] == "flood":
         o = r["out"]
         rows += [["Peak depth at the site", f'{o["site_depth_m"]:.2f} m'], ["Time under water", f'{o["wet_hours"]:.1f} h'], ["Area deeper than 30 cm", f'{o["flooded_area_km2"]:.2f} km²'],
@@ -145,6 +148,11 @@ def summary(r: dict) -> list:
         if r["sensitivity"]:
             rows.append(["Biggest uncertainty", r["sensitivity"][0]["label"]])
         rows.append(["Calibrated / validated", "yes" if r["validation"]["done"] else "no: no observations supplied"])
+    elif r["domain"] not in ("air",):
+        for val, lab in r.get("headline", [])[:6]:
+            rows.append([lab, val])
+        if r.get("limitations"):
+            rows.append(["Main limit", r["limitations"][0]])
     else:
         v = r["validation"]
         rows += [["Chosen structure", f'{r["structure"]}: {r["structures"][r["structure"]]["label"]}'], ["Unseen-data correlation", f'{v["r"]:.2f}'], ["Unseen-data RMSE", f'{v["rmse"]:.1f} µg/m³'],

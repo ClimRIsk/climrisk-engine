@@ -52,12 +52,12 @@ class AskReq(BaseModel):
     context: Optional[str] = None
 
 class LabReq(BaseModel):
-    domain: str = Field(..., pattern="^(flood|air)$")
+    domain: str = Field(..., pattern="^[a-z]{3,12}$")
     lat: float = Field(..., ge=-90, le=90)
     lon: float = Field(..., ge=-180, le=180)
     name: str = Field("Study site", max_length=80)
     return_period: Optional[int] = Field(None, ge=2, le=1000)
-    radius_km: Optional[float] = Field(None, ge=0.5, le=5.0)
+    radius_km: Optional[float] = Field(None, ge=0.5, le=500.0)
     city_km: Optional[float] = Field(None, ge=5.0, le=80.0)
     manning: Optional[float] = Field(None, ge=0.01, le=0.3)
     cn: Optional[float] = Field(None, ge=40, le=98)
@@ -225,13 +225,22 @@ def make_router(auth_dep) -> tuple:
     def lab_run(req: LabReq) -> dict:
         """Start a Model Lab study as a background job; poll /resident/job/{id}. Result blocks carry the report links."""
         from ..modellab import lab as L
+        if req.domain not in L.DOMAINS:
+            raise HTTPException(status_code=422, detail=f"unknown domain; available: {', '.join(L.DOMAINS)}")
         opts: dict = {}
         if req.domain == "flood":
             for k in ("return_period", "radius_km", "manning", "cn"):
                 if getattr(req, k) is not None:
                     opts[k] = getattr(req, k)
+            if "radius_km" in opts:
+                opts["radius_km"] = min(5.0, opts["radius_km"])
             if req.observed_depths:
                 opts["observed"] = {"points": [p for p in req.observed_depths if isinstance(p, dict) and "depth_m" in p], "source": "supplied by the user"}
+        elif req.domain != "air":
+            if req.radius_km is not None and req.domain in ("landslide", "earthquake"):
+                opts["radius_km"] = req.radius_km
+            if req.return_period is not None and req.domain == "landslide":
+                opts["return_period"] = req.return_period
         else:
             if req.city_km is not None:
                 opts["city_km"] = req.city_km
