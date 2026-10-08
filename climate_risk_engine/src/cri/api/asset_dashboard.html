@@ -820,7 +820,7 @@ function renderCompanyPanel() {
       <td style="text-align:right;white-space:nowrap">${esc(a.cyclone.rp100_category === 'below tropical-storm force' ? '—' : a.cyclone.rp100_category)}<div class="sub">${a.elev_m != null ? a.elev_m + ' m' : ''}</div></td></tr>`).join('');
   document.getElementById('panel').innerHTML = `
     <div class="section-title">Company exposure</div>
-    <div class="headline"><b>${esc(d.companies.slice(0, 3).join(' + '))}</b>${d.companies.length > 3 ? ` <a href="#" style="color:var(--primary)" onclick="this.outerHTML='<b> + ' + ${JSON.stringify(esc(d.companies.slice(3).join(' + ')))} + '</b>';return false">and ${d.companies.length - 3} more entities (show all)</a>` : ''}
+    <div class="headline"><b>${esc(d.companies.slice(0, 3).join(' + '))}</b>${d.companies.length > 3 ? ` <a href="#" style="color:var(--primary)" data-more="${esc(d.companies.slice(3).join(' + '))}" onclick="const b=document.createElement('b');b.textContent=' + '+this.dataset.more;this.replaceWith(b);return false">and ${d.companies.length - 3} more entities (show all)</a>` : ''}
       <div class="meta">All ${d.companies.length} selected entities are included in the figures, map and list below.</div></div>
     <div class="kpis">
       <div class="kpi"><div class="v">${d.n_assets}</div><div class="l">assets in ${Object.keys(S.countries).length} countries</div></div>
