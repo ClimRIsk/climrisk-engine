@@ -78,6 +78,8 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+# PRIVATE maintainer tools (authenticated git push) never ship in the wheel / Docker / commercial build.
+exclude = ["cri.maintainer", "cri.maintainer.*"]
 
 # Non-Python files that must ship inside the installed package (Docker does
 # `pip install ./climate_risk_engine`, which copies only .py files otherwise —

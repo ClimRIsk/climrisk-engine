@@ -138,7 +138,7 @@ class Agent:
         text = (text or "").strip()
         if not text:
             return {"reply": "Ask me something — for example \"build a 3D twin of 22.2645, 91.805\".", "blocks": [], "actions": [], "intent": "empty"}
-        quick = self._autopilot_commands(session, text) or self._knowledge_commands(session, text) or self._lab_commands(session, text)
+        quick = self._autopilot_commands(session, text) or self._knowledge_commands(session, text) or self._lab_commands(session, text) or self._extension_commands(session, text)
         if quick:
             if quick.get("intent") in (None, "knowledge", "learn"):      # autopilot commands log themselves
                 quick.setdefault("intent", "knowledge")
@@ -162,6 +162,20 @@ class Agent:
         out["intent"] = pred["intent"]; out["confidence"] = pred["confidence"]; out["top"] = pred["top"]; out["entities"] = ent
         M.add_message(session, "agent", out["reply"], pred["intent"], {"actions": out.get("actions"), "job": out.get("job")})
         return out
+
+    def _extension_commands(self, session, text) -> Optional[dict]:
+        """Chat commands from private extensions (modules listed in CRI_EXTENSIONS or ~/.climrisk/extensions); none are loaded in a normal or commercial install."""
+        from .. import extensions as X
+        for m in X.modules():
+            h = getattr(m, "handle", None)
+            if h:
+                try:
+                    r = h(session, text)
+                except Exception:                                  # noqa: BLE001
+                    r = None
+                if r:
+                    return r
+        return None
 
     def _autopilot_commands(self, session, text) -> Optional[dict]:
         """Inbox, autopilot and watch commands: keyword-routed, no model needed."""

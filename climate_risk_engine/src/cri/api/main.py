@@ -196,6 +196,12 @@ _res_prot, _res_pub = _resident_router(_AUTH)
 app.include_router(_res_pub)
 app.include_router(_res_prot)
 
+from .. import extensions as _ext   # noqa: E402  (private extensions load only where listed; absent in commercial builds)
+for _m in _ext.modules():
+    if hasattr(_m, "make_router"):
+        for _r in _m.make_router(_AUTH):
+            app.include_router(_r)
+
 from ..story_api import make_router as _story_router   # noqa: E402
 _st_prot, _st_pub = _story_router(_AUTH)
 app.include_router(_st_pub)
