@@ -225,6 +225,7 @@ def test_second_data_source_takes_over_when_the_first_is_out_of_quota(monkeypatc
     vals = np.where(rng.random(len(days)) < 0.3, rng.gamma(1.2, 12.0, len(days)), 0.0).tolist()
     monkeypatch.setattr(D, "power_daily", lambda lat, lon, y0, y1, params, fetch=None: {"time": days, "PRECTOTCORR": vals})
     monkeypatch.setitem(studies_evt.POWER, "rain", studies_evt._power_max("PRECTOTCORR"))
+    monkeypatch.setenv("CRI_DATA_PROVIDER", "auto")
     r = studies_evt.run("rain", 1.0, 2.0, "Fallback", bootstrap=20)
     assert "NASA POWER" in r["numbers"]["source"] and r["ok"]
     assert any(n["title"] == "Data source" for n in r["notebook"])
@@ -236,3 +237,14 @@ def test_trend_adjusted_level_is_reported_when_the_trend_is_significant():
     r = studies_evt.run("rain", 1.0, 2.0, "Trend", series=(yrs, x), bootstrap=20)
     lt = r["numbers"]["levels_today"]
     assert lt and lt[10] > r["numbers"]["levels"][10] * 0.98        # trend variance inflates a stationary tail, so compare the 10-year level, which is not tail-dominated
+
+
+def test_default_source_is_the_commercially_licensed_one(monkeypatch):
+    from cri.modellab import data as D
+    monkeypatch.delenv("CRI_DATA_PROVIDER", raising=False)
+    days = [str(np.datetime64("1981-01-01") + i) for i in range(365 * 40)]
+    vals = np.random.default_rng(4).gamma(1.1, 6.0, len(days)).tolist()
+    monkeypatch.setattr(D, "power_daily", lambda lat, lon, y0, y1, params, fetch=None: {"time": days, "PRECTOTCORR": vals})
+    monkeypatch.setitem(studies_evt.HAZ["rain"], "extract", lambda *a, **k: (_ for _ in ()).throw(AssertionError("Open-Meteo must not be called by default")))
+    r = studies_evt.run("rain", 1.0, 2.0, "Default", bootstrap=20)
+    assert "POWER" in r["numbers"]["source"] and any("Attribution" in s for s in r["limitations"])

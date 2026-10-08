@@ -123,15 +123,21 @@ def run(hazard: str, lat: float, lon: float, name: str = "Study site", series: t
     nb = Notebook(progress)
     if series is None:
         import os
+        # default: NASA POWER (CC BY 4.0, commercial use permitted, no tight quota). "auto"/"openmeteo": try ERA5 via Open-Meteo first (free tier is non-commercial: development only).
+        prov = os.environ.get("CRI_DATA_PROVIDER", "power")
         src = "ERA5 reanalysis (ECMWF) via Open-Meteo"
-        try:
-            if os.environ.get("CRI_DATA_PROVIDER", "auto") == "power":
-                raise D.QuotaExceeded("NASA POWER requested")
-            got = cfg["extract"](lat, lon, fetch)
-        except D.QuotaExceeded:
+        if prov == "power":
             got = POWER[hazard](lat, lon, fetch)
             src = POWER_NOTE[hazard]
-            nb("2b", "Data source", f"The primary source (ERA5 via Open-Meteo) is unavailable (daily allowance used or NASA POWER requested), so the engine used a second independent source: {src}.", warn=True)
+            nb("2b", "Data source", f"Data: {src}. Licence: CC BY 4.0, commercial use permitted with attribution.")
+        else:
+            try:
+                got = cfg["extract"](lat, lon, fetch)
+                nb("2b", "Data source", "Data: ERA5 via the Open-Meteo free tier. That tier is licensed for non-commercial use only: fine for development, replace before commercial release.", warn=True)
+            except D.QuotaExceeded:
+                got = POWER[hazard](lat, lon, fetch)
+                src = POWER_NOTE[hazard]
+                nb("2b", "Data source", f"The primary source (ERA5 via Open-Meteo) is unavailable (daily allowance used), so the engine used a second independent source: {src}.", warn=True)
         years, x, extra = got[0], np.array(got[1], float), got[2]
         rain_mm = extra.pop("_rain_mm", None)
         if hazard == "fire" and rain_mm is not None and rain_mm < 150.0:
@@ -225,5 +231,5 @@ def run(hazard: str, lat: float, lon: float, name: str = "Study site", series: t
             "standfirst": f'The engine built an extreme-value model of {cfg["var"]} at {name} from {n} years of data, hid the last third to test it, and found a 100-year level of {fmt.format(lv[100])} {cfg["unit"]} (50-year {fmt.format(lv[50])}). '
                           + ("It predicted the held-out years." if validated else "It did NOT predict the held-out years." if hc["ok"] else "The record was too short to test it.") + f' Status: {status}.',
             "status": status, "ok": nfail == 0, "headline": head, "blocks": blocks, "verification": bench, "sensitivity": [], "assumptions": cfg["assumptions"] + [f"Annual maxima are treated as independent and identically distributed (tested by the hindcast and trend tests)."],
-            "limitations": cfg["limits"] + [f"{src}: a 25 km grid-cell model, not a point measurement."], "next_steps": steps, "notebook": nb.rows, "numbers": {"levels_today": ({T: evt.trend_level(tr, years[-1], T) for T in (10, 50, 100)} if tr["significant"] else None), "source": src, "drift50": drift, "step": stp if stp.get("ok") else None, "levels": lv, "ci": {str(k): v for k, v in ci.items()}, "trend": tr, "hindcast": {k: v for k, v in hc.items() if k != "pit"}},
+            "limitations": cfg["limits"] + [f"{src}: a gridded model, not a point measurement."] + (["Attribution: These data were obtained from the NASA Langley Research Center POWER Project funded through the NASA Earth Science Directorate Applied Science Program."] if "POWER" in src else []), "next_steps": steps, "notebook": nb.rows, "numbers": {"levels_today": ({T: evt.trend_level(tr, years[-1], T) for T in (10, 50, 100)} if tr["significant"] else None), "source": src, "drift50": drift, "step": stp if stp.get("ok") else None, "levels": lv, "ci": {str(k): v for k, v in ci.items()}, "trend": tr, "hindcast": {k: v for k, v in hc.items() if k != "pit"}},
             "elapsed_s": round(__import__("time").time() - nb.t0, 1)}
