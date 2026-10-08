@@ -40,6 +40,8 @@ _BASIS_Q = {
     "river": ["rainfall-runoff model hydrology", "unit hydrograph", "Nash–Sutcliffe model efficiency coefficient"],
     "cyclone": ["Holland model tropical cyclone", "Saffir–Simpson scale", "International Best Track Archive for Climate Stewardship"],
     "earthquake": ["Gutenberg–Richter law", "peak ground acceleration", "seismic hazard", "declustering earthquake catalog"],
+    "surge": ["storm surge", "inverse barometer effect", "wind setup storm surge shallow water"],
+    "sealevel": ["sea level rise", "IPCC Sixth Assessment Report sea level", "Bruun rule shoreline retreat"],
     "landslide": ["landslide", "infinite slope stability factor of safety", "slope stability"],
 }
 

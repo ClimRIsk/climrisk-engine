@@ -54,8 +54,9 @@ def _soil_sim(key, x, P, E0, doy):
     return p["b"] + p["a"] * (S / p["Sc"])
 
 
-def drought(lat: float, lon: float, name: str = "Study site", data: dict = None, fetch=None, progress=None) -> dict:
+def drought(lat: float, lon: float, name: str = "Study site", data: dict = None, fetch=None, progress=None, scenarios=None, scenario_fetch=None) -> dict:
     nb = Notebook(progress)
+    want_scen = scenarios if scenarios is not None else (data is None and fetch is None)
     if data is None:
         v = "precipitation_sum,et0_fao_evapotranspiration,soil_moisture_7_to_28cm_mean"
         data = D.archive(lat, lon, 1991, 2023, daily=v) if fetch is None else D.archive(lat, lon, 1991, 2023, daily=v, fetch=fetch)
@@ -112,6 +113,21 @@ def drought(lat: float, lon: float, name: str = "Study site", data: dict = None,
     for r in sens:
         r["label"] = {"Sc": "Root-zone storage capacity", "kc": "Crop/vegetation coefficient", "P": "Rainfall", "E": "Evaporative demand"}[r["param"]]
     nb("8", "Sensitivity", f'Mean soil moisture on the test period moves most with {sens[0]["label"].lower()} (swing {sens[0]["swing"]:.3f} m³/m³).')
+    fut_blocks, fut_num, fut_lim = [], None, []
+    if want_scen:
+        from . import futureclimate as FC
+        try:
+            dr = FC.drivers(lat, lon, scenario_fetch)
+            fp = FC.drought_projection(lambda P_, E_, d_: _soil_sim(best, xb, P_, E_, d_), P, E0, doy, burn, dr)
+            nb("9", "Climate scenarios", "Re-ran the fitted soil water balance on this site's own daily weather with the CMIP6 ensemble's change in annual-mean temperature and precipitation applied.")
+            fut_blocks = [("h2", "scenarios", "Drought in a warmer climate"),
+                          ("p", f"The fitted water balance is re-run on the site's observed daily rain and evaporative demand, after scaling rain by the CMIP6 ensemble's change in annual-mean precipitation and raising evaporative demand with warming (grid cell {dr['cell'][0]:.2f}°, {dr['cell'][1]:.2f}°). How fast evaporative demand rises with temperature is not settled, so the engine reports 0 %, 3 % and 6 % per kelvin; the centre value is the table entry and the bracket is the range. A drought day is a day below the driest 10 % of the model's present-day soil moisture, so the present-day value is 10 %."),
+                          ("table", ["Scenario", "Horizon", "Warming", "Annual rain", "Change in mean soil moisture (m³/m³)", "Share of days in drought (range)"], fp["rows"], "Ensemble medians. Rain is scaled uniformly; changes in the length of dry spells, in irrigation and in vegetation water use are not captured."),
+                          ("callout", "This is a sensitivity of the validated water balance to the climate-model change in the mean, not a validated drought forecast: it has not been backtested against past climate change at this site.", "warn")]
+            fut_num = {"rows": fp["numbers"], "baseline_mean": fp["baseline_mean"], "threshold": fp["threshold"]}
+            fut_lim = ["Future drought: temperature and precipitation changes from the CMIP6 ensemble applied to observed daily weather; the evaporative-demand response to warming (0–6 % per kelvin) is an assumption bracketed in the table. " + FC.ATTRIBUTION]
+        except Exception as e:                                         # noqa: BLE001
+            fut_lim = [f"Drought projections were not available for this run ({str(e)[:120]})."]
     x_ = np.arange(n) / 365.25 + 1991
     status = "FAILED verification" if nfail else ("verified, calibrated and validated against ERA5-Land soil moisture (a model product)" if skilful else "verified and calibrated; validation shows no skill over climatology")
     blocks = [("h2", "question", "The question"),
@@ -124,6 +140,7 @@ def drought(lat: float, lon: float, name: str = "Study site", data: dict = None,
               ("h2", "validation", "How it performs on years it never saw"),
               ("fig", plots.series_fig(x_[te][:1500], {"ERA5-Land soil moisture": o[:1500], "Water-balance model": s[:1500], "Calendar-day climatology": base[:1500]}, "soil moisture (m³/m³)", "First four years of the held-out period"), "A model must do better than simply knowing the usual wetness of each calendar day."),
               ("table", ["Measure", "Model", "Climatology"], [["RMSE (m³/m³)", f'{val["rmse"]:.3f}', f'{val["rmse_clim"]:.3f}'], ["Anomaly correlation", f'{val["r_anom"]:.2f}', "0 (by construction)"], ["Drought-day detection (driest 10 %)", f'POD {val["drought_pod"]:.0%} · FAR {val["drought_far"]:.0%} · CSI {val["drought_csi"]:.2f}', "–"]], "Anomaly = departure from the calendar-day climatology; a drought day is one in the driest 10 % of anomalies.")]
+    blocks += fut_blocks
     head = [(f'{val["r_anom"]:.2f}', "anomaly correlation on unseen years"), (f'{val["skill_vs_clim"]:+.0%}', "skill vs climatology"), (f'{val["drought_pod"]:.0%}', "drought days detected"), (f'{val["drought_far"]:.0%}', "false-alarm ratio"), (f'{val["rmse"]:.3f}', "RMSE (m³/m³)")]
     steps = ["Supply soil-moisture observations (in-situ probes, SMAP satellite) so the model is validated against measurements rather than a reanalysis."]
     if not skilful:
@@ -133,8 +150,8 @@ def drought(lat: float, lon: float, name: str = "Study site", data: dict = None,
             "standfirst": f'The engine built a soil water balance for {name}, chose among three structures on the early years, and tested it on the last {len(o) / 365.25:.0f}: anomaly correlation {val["r_anom"]:.2f}, skill {val["skill_vs_clim"]:+.0%} against climatology. Status: {status}.',
             "headline": head, "blocks": blocks, "verification": bench, "sensitivity": sens, "sens_unit": "m³/m³ of mean soil moisture",
             "assumptions": ["One bucket for the root zone; no irrigation, groundwater, snow or lateral flow.", "Evaporative demand is FAO-56 reference ET from ERA5; actual vegetation use is calibrated through the coefficients."],
-            "limitations": ["Licence: the ERA5-Land / GloFAS series were fetched through the Open-Meteo free tier, which is licensed for non-commercial use only. Fine for development; for commercial release fetch the same datasets directly from the Copernicus data store (free, commercial use permitted with attribution) or use a paid Open-Meteo plan.", "The 'observations' are ERA5-Land soil moisture, itself a land-surface model, not probes or satellites.", "Agricultural drought in irrigated areas is decided by water management, which this model cannot see."],
-            "next_steps": steps, "notebook": nb.rows, "numbers": {"validation": val, "structure": best, "params": dict(zip(pn, xb))}}
+            "limitations": ["Licence: the ERA5-Land / GloFAS series were fetched through the Open-Meteo free tier, which is licensed for non-commercial use only. Fine for development; for commercial release fetch the same datasets directly from the Copernicus data store (free, commercial use permitted with attribution) or use a paid Open-Meteo plan.", "The 'observations' are ERA5-Land soil moisture, itself a land-surface model, not probes or satellites.", "Agricultural drought in irrigated areas is decided by water management, which this model cannot see."] + fut_lim,
+            "next_steps": steps, "notebook": nb.rows, "numbers": {"validation": val, "structure": best, "params": dict(zip(pn, xb)), "scenarios": fut_num}}
 
 
 # ── river flow ───────────────────────────────────────────────────────────────
@@ -153,7 +170,7 @@ def _flow_sim(key, x, P, E0):
     return bucket.route2(Q, Dr, p["g"], p["kf"], p["ks"], p["wf"], p["A"])
 
 
-def river(lat: float, lon: float, name: str = "Study site", data: dict = None, flow: dict = None, fetch=None, progress=None) -> dict:
+def river(lat: float, lon: float, name: str = "Study site", data: dict = None, flow: dict = None, fetch=None, progress=None, scenarios=None, scenario_fetch=None) -> dict:
     nb = Notebook(progress)
     obs_src = "GloFAS v4 river-discharge reanalysis (Copernicus/ECMWF), a model product, not a gauge"
     if data is None:

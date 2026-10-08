@@ -138,7 +138,7 @@ class Agent:
         text = (text or "").strip()
         if not text:
             return {"reply": "Ask me something — for example \"build a 3D twin of 22.2645, 91.805\".", "blocks": [], "actions": [], "intent": "empty"}
-        quick = self._autopilot_commands(session, text) or self._lab_commands(session, text) or self._knowledge_commands(session, text)
+        quick = self._autopilot_commands(session, text) or self._knowledge_commands(session, text) or self._lab_commands(session, text)
         if quick:
             if quick.get("intent") in (None, "knowledge", "learn"):      # autopilot commands log themselves
                 quick.setdefault("intent", "knowledge")

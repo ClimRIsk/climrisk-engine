@@ -4,6 +4,7 @@ from __future__ import annotations
 import numpy as np
 
 from . import data as D, evt, fire, heat, plots
+SCN_NOTE = 'CMIP6 multi-model ensemble (World Bank CCKP, NASA NEX-GDDP-CMIP6 downscaled, 0.25°). CC0 model output; commercial use allowed with acknowledgement.'
 from .generic_report import Notebook
 from .dossier import NoModel
 
@@ -45,6 +46,7 @@ def _fire_series(lat, lon, fetch=None):
     xs = [float(f[yrs == y].max()) for y in ys]
     ex = {"days_over_30": [int((f[yrs == y] >= 30).sum()) for y in ys]}
     ex["_rain_mm"] = float(sum(dd["precipitation_sum"][i] for i in ok) / (len(ok) / 365.25))
+    ex["_inputs"] = ([dd["temperature_2m_max"][i] for i in ok], [dd["relative_humidity_2m_min"][i] for i in ok], [dd["wind_speed_10m_max"][i] for i in ok], [dd["precipitation_sum"][i] for i in ok], months, yrs.tolist())
     return ys, xs, ex
 
 
@@ -81,7 +83,7 @@ def _power_fire(lat, lon, fetch=None):
     out = fire.run_series(t.tolist(), rh.tolist(), [d["WS10M_MAX"][i] * 3.6 for i in ok], [d["PRECTOTCORR"][i] for i in ok], months, tropical=abs(lat) < 25)
     yrs = np.array([int(d["time"][i][:4]) for i in ok]); f = np.array(out["fwi"])
     ys = [y for y in sorted(set(yrs.tolist())) if y > 1981]
-    return ys, [float(f[yrs == y].max()) for y in ys], {"days_over_30": [int((f[yrs == y] >= 30).sum()) for y in ys], "_rain_mm": float(sum(d["PRECTOTCORR"][i] for i in ok) / (len(ok) / 365.25))}
+    return ys, [float(f[yrs == y].max()) for y in ys], {"days_over_30": [int((f[yrs == y] >= 30).sum()) for y in ys], "_rain_mm": float(sum(d["PRECTOTCORR"][i] for i in ok) / (len(ok) / 365.25)), "_inputs": (t.tolist(), rh.tolist(), [d["WS10M_MAX"][i] * 3.6 for i in ok], [d["PRECTOTCORR"][i] for i in ok], months, yrs.tolist())}
 
 
 POWER = {"rain": _power_max("PRECTOTCORR"), "wind": _power_max("WS10M_MAX"), "heat": _power_heat, "fire": _power_fire}
@@ -156,7 +158,29 @@ def _scenario_section(hazard, lat, lon, lv, fmt, unit, scenario_fetch=None):
     return blocks, {"table": tab["numbers"], "baseline": fac["baseline_1995_2014"], "cell": fac["cell"], "backtest": bt, "mode": fac["mode"], "source": SC.NOTE}, lim
 
 
-def run(hazard: str, lat: float, lon: float, name: str = "Study site", series: tuple = None, fetch=None, progress=None, bootstrap: int = 200, scenarios=None, scenario_fetch=None) -> dict:
+def _station_section(hazard, lat, lon, years, x, station_fetch=None):
+    """Compare the gridded series with the nearest long-record weather stations (NOAA GHCN-Daily). Returns (blocks, crosscheck dict or None, limitation lines). Never raises."""
+    from . import stationcheck as SK, scenarios as SC
+    try:
+        if hazard == "heat":
+            years, x = SC.observed_series("heat", lat, lon)            # the station measures air temperature, not WBGT
+        res = SK.compare(hazard, lat, lon, years, list(x), fetch=station_fetch)
+    except Exception as e:                                             # noqa: BLE001
+        return [], None, [f"The weather-station check could not run ({str(e)[:100]})."]
+    if not res.get("ok"):
+        return [("h2", "stations", "Compared with a weather station"), ("callout", "Not checked: " + res["reason"] + ".", "warn")], None, []
+    col = {"consistent": "good", "inconsistent": "bad"}.get(res["verdict"], "warn")
+    what = "daily rainfall" if hazard == "rain" else "the hottest day of each year"
+    blocks = [("h2", "stations", "Compared with a weather station"),
+              ("p", f"The gridded series above is a model product. As an independent check, the engine compared {what} with the nearest long-record weather stations (NOAA GHCN-Daily): " + res["detail"]),
+              ("callout", res["note"] + (" A grid cell averages over tens of kilometres, so point rainfall extremes are expected to exceed it; a ratio far outside the band means the product misses local extremes." if hazard == "rain" else " A grid cell is cooler than a built-up station on the hottest days."), col)]
+    if hazard == "rain" and res.get("station_levels"):
+        blocks.append(("table", ["Return period", "Gridded series (mm/day)", "Weather stations, median (mm/day)"], [[f"{T} years", f"{res['grid_levels'][T]:.0f}", f"{res['station_levels'][T]:.0f}"] for T in (10, 50)],
+                       "For an asset at a point, the station value is the better estimate of what falls on the ground when the two disagree; the gridded value is an area average."))
+    return blocks, {"agree": res["agree"], "note": res["note"], "verdict": res["verdict"], "stations": res["stations"], "rho": res["rho"], "station_levels": res.get("station_levels"), "grid_levels": res.get("grid_levels")}, ["Station data: " + SK.ATTRIBUTION]
+
+
+def run(hazard: str, lat: float, lon: float, name: str = "Study site", series: tuple = None, fetch=None, progress=None, bootstrap: int = 200, scenarios=None, scenario_fetch=None, stations=None, station_fetch=None) -> dict:
     cfg = HAZ[hazard]
     nb = Notebook(progress)
     if series is None:
@@ -178,11 +202,13 @@ def run(hazard: str, lat: float, lon: float, name: str = "Study site", series: t
                 nb("2b", "Data source", f"The primary source (ERA5 via Open-Meteo) is unavailable (daily allowance used), so the engine used a second independent source: {src}.", warn=True)
         years, x, extra = got[0], np.array(got[1], float), got[2]
         rain_mm = extra.pop("_rain_mm", None)
+        fire_in = extra.pop("_inputs", None)
         if hazard == "fire" and rain_mm is not None and rain_mm < 150.0:
             raise NoModel(f"Hyper-arid site (about {rain_mm:.0f} mm of rain a year): there is too little vegetation to carry a fire, so a fire weather index would measure dry air, not fire hazard.")
     else:
         years, x, extra = list(series[0]), np.array(series[1], float), (series[2] if len(series) > 2 else {})
         src = "supplied series"
+    fire_in = locals().get("fire_in")
     n = len(x)
     fmt = cfg["fmt"]
     nb("1", "Problem", f'How bad does {cfg["label"].lower()} get at {name} ({lat:.3f}, {lon:.3f}) once in 10, 50 and 100 years, is that estimate trustworthy, and is it getting worse? Measure: {cfg["var"]}, {n} years ({years[0]}–{years[-1]}).')
@@ -265,6 +291,25 @@ def run(hazard: str, lat: float, lon: float, name: str = "Study site", series: t
         nb("7", "Climate scenarios", "Reading the CMIP6 multi-model ensemble at this grid cell (World Bank CCKP, CC0 model output) and backtesting it against the observed record.")
         sb, scen_num, scen_lim = _scenario_section(hazard, lat, lon, lv, fmt, cfg["unit"], scenario_fetch)
         blocks += sb
+    if want and hazard == "fire" and fire_in is not None:
+        from . import futureclimate as FC
+        try:
+            dr = FC.drivers(lat, lon, scenario_fetch)
+            fp = FC.fire_projection(*fire_in[:5], fire_in[5], dr, tropical=abs(lat) < 25)
+            blocks += [("h2", "scenarios", "Fire weather in a warmer climate"),
+                       ("p", f"The engine re-runs the Fire Weather Index on this site's own 1981–2023 daily weather after adding the CMIP6 ensemble's change in annual-mean temperature and scaling rainfall by its change in annual-mean precipitation (grid cell {dr['cell'][0]:.2f}°, {dr['cell'][1]:.2f}°). Humidity is bounded two ways: relative humidity unchanged, and specific humidity unchanged (the air gets drier in relative terms as it warms). Wind is unchanged. Today (baseline weather) the mean annual maximum is {fp['baseline_annual_max']:.0f} and the mean number of days above FWI 30 is {fp['baseline_days30']:.1f} a year."),
+                       ("table", ["Scenario", "Horizon", "Warming", "Annual rain", "Mean annual-maximum FWI", "Days above FWI 30 per year"], fp["rows"], "Ranges span the two humidity assumptions. Ensemble medians. The change in how rain is spread through the year, and in wind, is not captured."),
+                       ("callout", "These projections apply climate-model changes in the mean to observed daily weather. They are not backtested at this site (the backtest in the rain and heat studies covers extremes of those variables only), so treat the direction as informative and the size as indicative.", "warn")]
+            scen_num = {"fire": fp["numbers"], "baseline_annual_max": fp["baseline_annual_max"], "baseline_days30": fp["baseline_days30"], "source": SCN_NOTE}
+            scen_lim += ["Fire projections: temperature and mean-rain changes from the CMIP6 ensemble applied to observed daily weather; vegetation, fuel load and ignitions are not modelled. " + FC.ATTRIBUTION]
+        except Exception as e:                                         # noqa: BLE001
+            scen_lim += [f"Fire-weather projections were not available for this run ({str(e)[:120]})."]
+    xcheck = None
+    want_st = stations if stations is not None else (series is None and fetch is None)
+    if want_st and hazard in ("rain", "heat"):
+        nb("8", "Weather-station check", "Comparing with the nearest long-record weather stations (NOAA GHCN-Daily).")
+        stb, xcheck, stl = _station_section(hazard, lat, lon, years, x, station_fetch)
+        blocks += stb; scen_lim += stl
     steps = []
     if hc["ok"] and not hc["passed"]:
         steps.append("The hazard is not stationary here: fit a model with a time-varying location, or restrict the record to the most recent decades, before using the return levels.")
@@ -276,5 +321,5 @@ def run(hazard: str, lat: float, lon: float, name: str = "Study site", series: t
             "standfirst": f'The engine built an extreme-value model of {cfg["var"]} at {name} from {n} years of data, hid the last third to test it, and found a 100-year level of {fmt.format(lv[100])} {cfg["unit"]} (50-year {fmt.format(lv[50])}). '
                           + ("It predicted the held-out years." if validated else "It did NOT predict the held-out years." if hc["ok"] else "The record was too short to test it.") + f' Status: {status}.',
             "status": status, "ok": nfail == 0, "headline": head, "blocks": blocks, "verification": bench, "sensitivity": [], "assumptions": cfg["assumptions"] + [f"Annual maxima are treated as independent and identically distributed (tested by the hindcast and trend tests)."],
-            "limitations": cfg["limits"] + scen_lim + [f"{src}: a gridded model, not a point measurement."] + (["Attribution: These data were obtained from the NASA Langley Research Center POWER Project funded through the NASA Earth Science Directorate Applied Science Program."] if "POWER" in src else []), "next_steps": steps, "notebook": nb.rows, "numbers": {"n_years": n, "scenarios": scen_num, "levels_today": ({T: evt.trend_level(tr, years[-1], T) for T in (10, 50, 100)} if tr["significant"] else None), "source": src, "drift50": drift, "step": stp if stp.get("ok") else None, "levels": lv, "ci": {str(k): v for k, v in ci.items()}, "trend": tr, "hindcast": {k: v for k, v in hc.items() if k != "pit"}},
+            "limitations": cfg["limits"] + scen_lim + [f"{src}: a gridded model, not a point measurement."] + (["Attribution: These data were obtained from the NASA Langley Research Center POWER Project funded through the NASA Earth Science Directorate Applied Science Program."] if "POWER" in src else []), "next_steps": steps, "notebook": nb.rows, "numbers": {"n_years": n, "crosscheck": xcheck, "scenarios": scen_num, "levels_today": ({T: evt.trend_level(tr, years[-1], T) for T in (10, 50, 100)} if tr["significant"] else None), "source": src, "drift50": drift, "step": stp if stp.get("ok") else None, "levels": lv, "ci": {str(k): v for k, v in ci.items()}, "trend": tr, "hindcast": {k: v for k, v in hc.items() if k != "pit"}},
             "elapsed_s": round(__import__("time").time() - nb.t0, 1)}

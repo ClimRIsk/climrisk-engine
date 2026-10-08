@@ -17,6 +17,10 @@ from __future__ import annotations
 
 def _validation(status: str):
     s = status.lower()
+    if "backtested against a tide gauge" in s or "validated against tide-gauge" in s:
+        return 2, "reproduced what a tide gauge recorded"
+    if "backtest against the tide gauge failed" in s or "tide-gauge hindcast failed" in s:
+        return 0, "did NOT reproduce what the tide gauge recorded"
     if "validated against era5-land" in s or "glofas" in s or "model product" in s:
         return 1, "validated against another model's product, not an observation"
     if "hindcast-validated" in s or "validated against a gauge" in s or "validated against the inventory" in s:

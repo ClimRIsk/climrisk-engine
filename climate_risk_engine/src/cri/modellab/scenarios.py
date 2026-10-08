@@ -29,7 +29,9 @@ SSPS = ("ssp126", "ssp245", "ssp370", "ssp585")
 SSP_LABEL = {"ssp126": "SSP1-2.6 (strong mitigation)", "ssp245": "SSP2-4.5 (middle road)", "ssp370": "SSP3-7.0 (high emissions)", "ssp585": "SSP5-8.5 (very high emissions)"}
 PERIODS = ("2020-2039", "2040-2059", "2060-2079", "2080-2099")
 VARS = {"rain": {"cckp": "rx1day", "mode": "ratio", "unit": "mm/day", "label": "annual maximum one-day rainfall (Rx1day)"},
-        "heat": {"cckp": "txx", "mode": "shift", "unit": "°C", "label": "annual maximum daily temperature (TXx)"}}
+        "heat": {"cckp": "txx", "mode": "shift", "unit": "°C", "label": "annual maximum daily temperature (TXx)"},
+        "pr": {"cckp": "pr", "mode": "ratio", "unit": "ratio", "label": "annual mean precipitation"},
+        "tas": {"cckp": "tas", "mode": "shift", "unit": "°C", "label": "annual mean air temperature"}}
 WBGT_PER_K = (0.567, 1.36)        # d(WBGT)/dT: humidity unchanged (0.567) ... relative humidity unchanged (0.567 + 0.393 de/dT with de/dT ~ 2 hPa/K near 33 C)
 ATTRIBUTION = ("World Bank Climate Change Knowledge Portal (https://climateknowledgeportal.worldbank.org), CMIP6 0.25° ensemble statistically downscaled from NASA NEX-GDDP-CMIP6 (Thrasher et al. 2021). "
                "We acknowledge the World Climate Research Programme, which, through its Working Group on Coupled Modelling, coordinated and promoted CMIP6, and the climate modelling groups who produced and shared their output (CC0).")

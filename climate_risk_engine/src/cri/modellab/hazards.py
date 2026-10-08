@@ -18,6 +18,8 @@ REG = {
     "river": {"label": "River flow (rainfall-runoff, linear reservoirs)", "rx": r"river[\s\-]*(?:flow|flood\w*|discharge|level)|stream[\s\-]*flow|discharge|hydrograph|fluvial|rainfall[\s\-]*runoff model", "needs": "a place on a river", "validates_with": "USGS gauge (US) or GloFAS discharge"},
     "cyclone": {"label": "Tropical cyclone wind (Holland profile on IBTrACS)", "rx": r"cyclone\w*|hurricane\w*|typhoon\w*|tropical storm\w*", "needs": "a place", "validates_with": "held-out seasons of IBTrACS (hindcast)"},
     "earthquake": {"label": "Earthquake shaking (Gutenberg–Richter, Joyner–Boore)", "rx": r"earthquake\w*|seismic\w*|quake\w*|ground shaking|\bpga\b|gutenberg", "needs": "a place", "validates_with": "held-out years of the USGS catalogue (hindcast)"},
+    "surge": {"label": "Storm surge and extreme sea level (cyclone surge physics + tide-gauge extremes)", "rx": r"storm[\s\-]*(?:surge|tide)\w*|coastal (?:surge|flood\w*|inundat\w*)|extreme sea[\s\-]*level\w*|surge|water[\s\-]*level extremes?", "needs": "a coastal place", "validates_with": "storms recorded by NOAA tide gauges (US coasts)"},
+    "sealevel": {"label": "Sea-level rise and shoreline retreat (IPCC AR6, Bruun rule)", "rx": r"sea[\s\-]*level(?:[\s\-]*rise)?|\bslr\b|shoreline retreat|coastal retreat|rising seas?", "needs": "a coastal place", "validates_with": "the nearest NOAA tide gauge (US coasts)"},
     "landslide": {"label": "Landslide susceptibility (infinite slope + pore pressure)", "rx": r"landslide\w*|slope (?:failure|stability)|mudslide\w*|debris flow\w*", "needs": "a place", "validates_with": "a landslide inventory (if supplied)"},
 }
 
@@ -69,14 +71,20 @@ def _run_generic(key: str, lat: float, lon: float, name: str, options: dict, pro
     opts = dict(options or {})
     if key in ("heat", "rain", "wind", "fire"):
         from . import studies_evt
-        return studies_evt.run(key, lat, lon, name, progress=progress, **{k: v for k, v in opts.items() if k in ("series", "fetch", "bootstrap", "scenarios", "scenario_fetch")})
+        return studies_evt.run(key, lat, lon, name, progress=progress, **{k: v for k, v in opts.items() if k in ("series", "fetch", "bootstrap", "scenarios", "scenario_fetch", "stations", "station_fetch")})
     if key in ("drought", "river"):
         from . import studies_series
         try:
-            return getattr(studies_series, key)(lat, lon, name, progress=progress, **{k: v for k, v in opts.items() if k in ("fetch", "data", "flow")})
+            return getattr(studies_series, key)(lat, lon, name, progress=progress, **{k: v for k, v in opts.items() if k in ("fetch", "data", "flow", "scenarios", "scenario_fetch")})
         except dossier.NoModel as e:
             labs = {"drought": "Drought", "river": "River flow"}
             return dossier.no_model_result(key, labs[key], name, lat, lon, str(e), ["Use a nearby site on a river or with land cover, or a gauge record if one exists."] if key == "river" else ["Move the site a few kilometres inland."])
+    if key == "surge":
+        from . import surge
+        return surge.run(lat, lon, name, progress=progress, **{k: v for k, v in opts.items() if k in ("fetch", "tile_fetch", "T", "global_alpha", "events_fetch")})
+    if key == "sealevel":
+        from . import slr
+        return slr.run(lat, lon, name, progress=progress, **{k: v for k, v in opts.items() if k in ("fetch", "tile_fetch", "backtest_fetch")})
     if key == "cyclone":
         from . import cyclone
         return cyclone.run(lat, lon, name, progress=progress, **{k: v for k, v in opts.items() if k in ("search_km",)})

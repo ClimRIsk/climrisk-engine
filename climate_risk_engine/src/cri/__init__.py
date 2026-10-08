@@ -4,7 +4,7 @@ Translating physical and transition climate risks into quantifiable
 financial outcomes at the company and portfolio level.
 """
 
-__version__ = "0.7.0"
+__version__ = "0.8.0"
 
 
 def _trust_store() -> None:

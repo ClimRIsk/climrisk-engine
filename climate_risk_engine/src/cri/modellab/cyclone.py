@@ -135,6 +135,14 @@ def run(lat: float, lon: float, name: str = "Study site", progress=None, search_
                     f"Exponential peak-over-threshold tail above 17.5 m/s: mean excess {scale:.1f} m/s, {lam:.2f} storms/yr. Beyond {n} years these are extrapolations.")]
     else:
         blocks.append(("p", "Too few tropical-storm-force events (fewer than five) to fit a wind tail; only event rates are reported."))
+    fut = None
+    if lv:
+        from . import futureclimate as FC
+        fut = FC.cyclone_scaling(lv)
+        blocks += [("h2", "future", "Under a warmer climate (literature scaling, low confidence)"),
+                   ("p", "No climate-model ensemble resolves individual cyclones, so the engine does not simulate future storms. It applies the expert-assessment result that, for 2 °C of global warming, the lifetime-peak wind of tropical cyclones rises by about 5 % (range 1–10 %), the rain rate by about 14 %, and the share of category 4–5 storms by about 13 %, scaled linearly by the global warming of each pathway. The frequency of all tropical cyclones is expected to stay the same or fall, with low confidence, so the rate is left unchanged."),
+                   ("table", ["Pathway", "Global warming by 2081–2100 vs 1995–2014", "Change in peak wind (median, range)", "50-year wind (m/s)", "100-year wind (m/s)"], fut["rows"],
+                    "Scaling of the site's own return levels by the published assessment, not a simulation. " + FC.KNUTSON_CITE + " Global warming values: IPCC AR6.")]
     blocks.append(("table", ["Rank", "Storm", "Season", "Peak wind at site", "Closest approach"], [[i + 1, r[3].title(), r[0], f"{r[1]:.0f} m/s ({TC.category(r[1])})", f"{r[2]:.0f} km"] for i, r in enumerate(top)], "Strongest modelled winds at the site."))
     if np.isfinite(disp):
         blocks.append(("p", f"Seasons are {'clustered (variance-to-mean ratio ' + f'{disp:.1f}' + ', more than a Poisson process)' if disp > 1.5 else 'close to Poisson (variance-to-mean ratio ' + f'{disp:.1f}' + ')'}, " + ("so year-to-year swings in climate drivers such as ENSO matter." if disp > 1.5 else "so a constant annual rate is a fair description.")))
@@ -145,5 +153,5 @@ def run(lat: float, lon: float, name: str = "Study site", progress=None, search_
             "standfirst": f"The engine rebuilt the {len(rows)} storms that passed near {name} since {y0} with the Holland wind profile, found {cat_rates['tropical storm']:.2f} tropical-storm-wind events a year" + (f" and a 100-year peak wind near {lv[100]:.0f} m/s" if lv else "") + ", then tested its forecast on seasons it had not seen. " + f"Status: {status}.",
             "status": status, "ok": nfail == 0, "headline": head, "blocks": blocks, "verification": bench, "sensitivity": [],
             "assumptions": ["Winds are best-track 1-minute sustained at 10 m, open terrain; no land friction or topographic speed-up.", "Each season's events are treated as a Poisson process (dispersion reported)."],
-            "limitations": ["Storm surge, rainfall and tornadoes are separate perils not modelled here.", "A 45-season record is short for the 100-year wind."],
-            "next_steps": steps, "notebook": nb.rows, "numbers": {"rates": cat_rates, "levels": lv, "n_storms": len(rows), "hindcast": [{"label": l, **h} for l, _, h in hc]}, "elapsed_s": round(__import__("time").time() - nb.t0, 1)}
+            "limitations": ["Storm surge, rainfall and tornadoes are separate perils not modelled here (surge has its own study).", "A 45-season record is short for the 100-year wind.", "Future cyclone winds are a literature scaling of the observed return levels (low confidence), not a simulation; regional differences in the response are not resolved."],
+            "next_steps": steps, "notebook": nb.rows, "numbers": {"future": (fut["numbers"] if fut else None), "rates": cat_rates, "levels": lv, "n_storms": len(rows), "hindcast": [{"label": l, **h} for l, _, h in hc]}, "elapsed_s": round(__import__("time").time() - nb.t0, 1)}

@@ -3,10 +3,6 @@ from __future__ import annotations
 
 # hazard → (label, aliases regex, physics lines, datasets [(name, url, what)], what a model needs, nearest capability inside the engine)
 CATALOG = {
-    "surge": ("Storm surge", r"storm[\s\-]*surge|coastal surge|sea[\s\-]*level (?:rise|extreme)|coastal flood\w*|tide\w*",
-              ["Wind stress piles water against the coast, and low pressure lifts the sea surface by about 1 cm per hPa (the inverse-barometer effect).", "The depth-averaged shallow-water equations with a wind-stress term, **τ = ρ_air C_d |U| U**, on a coastal bathymetry grid, are the standard physics (the engine's flood solver already solves the same equations)."],
-              [("GEBCO bathymetry", "https://www.gebco.net", "sea-floor depth for the surge grid"), ("UHSLC / PSMSL tide gauges", "https://uhslc.soest.hawaii.edu", "observed sea level for validation"), ("IBTrACS", "https://www.ncei.noaa.gov/products/international-best-track-archive", "storm tracks and pressure (bundled)")],
-              "A coastal bathymetry grid, a wind-stress term in the flood solver, a tide model, and tide-gauge records to validate against.", "The cyclone study gives winds and pressure along each track; the flood solver gives the shallow-water engine."),
     "tsunami": ("Tsunami", r"tsunami", ["Long ocean waves travel at **c = √(g h)**; the linear shallow-water equations propagate them from an earthquake-source displacement (Okada 1985) and the wave amplifies on shoaling (Green's law, amplitude ∝ h^(−1/4))."],
                 [("GEBCO bathymetry", "https://www.gebco.net", "ocean depth"), ("NOAA NCEI tsunami database", "https://www.ngdc.noaa.gov/hazel/view/hazards/tsunami/event-data", "past events and run-ups for validation"), ("USGS ComCat", "https://earthquake.usgs.gov", "source earthquakes")],
                 "An ocean-basin bathymetry grid, an earthquake-source deformation model, and the NOAA run-up database to validate against.", "The earthquake study gives source rates and magnitudes; the flood solver gives the wave propagation numerics."),
