@@ -24,7 +24,7 @@ from typing import Optional
 from . import knowledge as K
 
 _OLLAMA = os.environ.get("CRI_OLLAMA_URL", "http://127.0.0.1:11434")
-_PREFER = ["qwen2.5:7b", "qwen2.5:3b", "llama3.2:3b", "llama3.1:8b", "llama3.2", "llama3.1", "mistral", "gemma2", "phi3"]
+_PREFER = ["climrisk-llm", "qwen2.5:7b", "qwen2.5:3b", "llama3.2:3b", "llama3.1:8b", "llama3.2", "llama3.1", "mistral", "gemma2", "phi3"]
 _LLM_CACHE: dict = {"t": 0.0, "v": None}
 
 
@@ -40,7 +40,8 @@ def llm_status(force: bool = False) -> dict:
             tags = [m["name"] for m in json.loads(r.read()).get("models", [])]
         if tags:
             want = os.environ.get("CRI_LLM_MODEL")
-            pick = want if want in tags else next((p for p in _PREFER if p in tags), None) or next((t for t in tags if not re.search(r"embed|nomic", t)), tags[0])
+            norm = {t.split(":latest")[0]: t for t in tags}              # "climrisk-llm:latest" is found as "climrisk-llm"
+            pick = want if want in tags else next((norm[p] for p in _PREFER if p in norm), None) or next((t for t in tags if not re.search(r"embed|nomic", t)), tags[0])
             v = {"available": True, "model": pick, "why": "ok"}
         else:
             v["why"] = "Ollama is running but has no model; run: ollama pull llama3.2"

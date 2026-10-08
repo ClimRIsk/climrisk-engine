@@ -1,0 +1,107 @@
+"""Score models served by Ollama on the held-out set.  python -m cri.llmtrain.evaluate DS_DIR OUT.json model1 [model2 ...] [--limit N]
+
+Metrics are mechanical, so a model cannot win by sounding good:
+  qa       cites at least one source, every cited number exists, cites the source that holds the answer, share of sentences carrying a citation
+  refuse   says what is missing instead of answering from nothing
+  insurer  every number in the answer appears in the facts or the question (no invented figures); declines what the facts lack
+  gold     word overlap with the reference answer; numbers that are in neither question nor reference (fabrication proxy)
+"""
+from __future__ import annotations
+
+import json
+import re
+import sys
+import time
+import urllib.request
+from collections import defaultdict
+
+OLLAMA = "http://127.0.0.1:11434"
+NUM = re.compile(r"\d[\d,]*\.?\d*")
+MISSING = re.compile(r"do(es)? not (cover|contain|include|discuss|address)|cannot answer|can't answer|not enough|no source|is missing|won't guess|will not guess|without guessing|cannot say|can't say|need a source|would need", re.I)
+
+
+def chat(model, messages, n_ctx=6144, n_pred=420):
+    body = json.dumps({"model": model, "stream": False, "keep_alive": "20m", "options": {"temperature": 0.0, "num_ctx": n_ctx, "num_predict": n_pred}, "messages": messages}).encode()
+    req = urllib.request.Request(OLLAMA + "/api/chat", data=body, headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=600) as r:
+        return json.loads(r.read()).get("message", {}).get("content", "").strip()
+
+
+def nums(t):
+    return {x.replace(",", "").rstrip(".").lstrip("0") or "0" for x in NUM.findall(t)}
+
+
+def words(t):
+    return re.findall(r"[a-z]{3,}", t.lower())
+
+
+def score(row, out):
+    k = row["kind"]
+    u = row["messages"][1]["content"]
+    ref = row["messages"][2]["content"]
+    s = {}
+    if k in ("qa", "refuse"):
+        n = row["meta"].get("n", 0)
+        cites = [int(x) for x in re.findall(r"\[(\d+)\]", out)]
+        norm = re.sub(r"([.!?])\s*((?:\[\d+\]\s*)+)", r" \2\1", out)
+        sents = [x for x in re.split(r"(?<=[.!?])\s+", norm) if len(x.split()) > 4]
+        if k == "qa":
+            s["cited"] = float(bool(cites))
+            s["cites_valid"] = float(bool(cites) and max(cites) <= n)
+            s["cites_target"] = float(row["meta"]["target"] in cites)
+            s["sent_cited"] = sum(bool(re.search(r"\[\d+\]", x)) for x in sents) / max(1, len(sents))
+        else:
+            s["says_missing"] = float(bool(MISSING.search(out)))
+            s["cites_valid"] = float(not cites or max(cites) <= n)
+    elif k == "insurer":
+        allowed = nums(row["meta"]["facts"]) | nums(u)
+        used = nums(out)
+        s["numbers_ok"] = float(used <= allowed)
+        s["new_numbers"] = float(len(used - allowed))
+        wc = len(out.split())
+        s["length_ok"] = float(40 <= wc <= 190)
+        if row["meta"]["qtype"] in ("cost_unknown",) or (row["meta"]["qtype"] == "climate" and "Climate SSP" not in row["meta"]["facts"]) or (row["meta"]["qtype"] == "reinsurance" and "Reinsurance ceded" not in row["meta"]["facts"]):
+            s["declines_unknown"] = float(bool(MISSING.search(out) or re.search(r"cannot|can't|not (in|part of) the facts", out, re.I)))
+    elif k == "gold":
+        a, b = set(words(out)), set(words(ref))
+        p = len(a & b) / max(1, len(a))
+        r = len(a & b) / max(1, len(b))
+        s["overlap_f1"] = 0.0 if not (p + r) else 2 * p * r / (p + r)
+        s["invented_numbers"] = float(len(nums(out) - nums(ref) - nums(u)))
+        s["length_ok"] = float(40 <= len(out.split()) <= 170)
+    return s
+
+
+def main():
+    a = sys.argv[1:]
+    limit = None
+    if "--limit" in a:
+        i = a.index("--limit"); limit = int(a[i + 1]); del a[i:i + 2]
+    ds, outp, models = a[0], a[1], a[2:]
+    rows = [json.loads(l) for l in open(f"{ds}/test_meta.jsonl")]
+    if limit:
+        by = defaultdict(list)
+        for r in rows:
+            by[r["kind"]].append(r)
+        rows = [r for k in by for r in by[k][:limit]]
+    res = {}
+    for m in models:
+        agg, samples, t0 = defaultdict(list), [], time.time()
+        for i, r in enumerate(rows):
+            try:
+                out = chat(m, r["messages"][:2])
+            except Exception as e:                                   # noqa: BLE001
+                out = f"[error {type(e).__name__}]"
+            sc = score(r, out)
+            for k, v in sc.items():
+                agg[(r["kind"], k)].append(v)
+            if len(samples) < 12 and i % 5 == 0:
+                samples.append({"kind": r["kind"], "q": r["messages"][1]["content"][-300:], "out": out[:600]})
+            print(f"{m} {i + 1}/{len(rows)}", flush=True)
+        res[m] = {"metrics": {f"{k}.{n}": round(sum(v) / len(v), 3) for (k, n), v in sorted(agg.items())}, "n_rows": len(rows), "seconds": round(time.time() - t0), "samples": samples}
+        json.dump(res, open(outp, "w"), indent=1, ensure_ascii=False)
+    print(json.dumps({m: v["metrics"] for m, v in res.items()}, indent=1))
+
+
+if __name__ == "__main__":
+    main()
