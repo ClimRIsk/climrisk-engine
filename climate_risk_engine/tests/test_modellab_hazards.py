@@ -164,3 +164,39 @@ def test_generic_study_renders_a_report_and_chat_lists_all_hazards(tmp_path, mon
     assert "earthquake" in txt and "landslide" in txt and "cyclone" in txt
     hz = ag.handle("s", "earthquake hazard")
     assert "Which place" in hz["reply"] or hz.get("job")
+
+
+# ── precision across the world: what the global sweep taught the engine ──────
+
+def test_step_change_separates_a_data_step_from_a_trend():
+    yrs = np.arange(1979, 2024)
+    rng = np.random.default_rng(11)
+    step = np.where(yrs < 2000, 30.0, 45.0) + rng.normal(0, 3, len(yrs))
+    trend = 30.0 + 0.4 * (yrs - 1979) + rng.normal(0, 3, len(yrs))
+    s1, s2 = evt.step_change(yrs, step), evt.step_change(yrs, trend)
+    assert s1["step_like"] and abs(s1["year"] - 2000) <= 2
+    assert not s2["step_like"]
+
+
+def test_a_failed_hindcast_with_a_small_effect_is_called_minor_not_failed():
+    yrs = list(range(1979, 2024))
+    rng = np.random.default_rng(21)
+    x = rng.gumbel(12.0, 0.6, len(yrs)) + 0.025 * np.arange(len(yrs))      # significant trend, but ~1 m/s over 45 years on a 12 m/s base
+    r = studies_evt.run("wind", 1.0, 100.0, "Equator", series=(yrs, x), bootstrap=30)
+    if not r["numbers"]["hindcast"]["passed"]:
+        assert "practically minor" in r["status"] and abs(r["numbers"]["drift50"]) < 0.10
+    big = np.concatenate([rng.gumbel(40, 8, 30), rng.gumbel(80, 8, 15)])
+    r2 = studies_evt.run("rain", 1.0, 100.0, "Shift", series=(yrs, big), bootstrap=30)
+    assert "FAILED" in r2["status"] and r2["numbers"]["step"]["step_like"]
+
+
+def test_no_cyclone_exposure_is_stated_not_modelled():
+    r = cyclone.run(52.0, 10.0, "Hamburg")
+    assert r["status"].startswith("no model") and r["ok"] and r["numbers"]["levels"] == {}
+
+
+def test_river_without_discharge_is_a_finding_not_an_error():
+    days = [str(np.datetime64("2010-01-01") + i) for i in range(365 * 3)]
+    data = {"daily": {"time": days, "precipitation_sum": [1.0] * len(days), "et0_fao_evapotranspiration": [3.0] * len(days)}}
+    out = hazards.run_generic("river", 14.7, -17.4, "Desert", {"data": data, "flow": {"series": {}}})
+    assert out["status"].startswith("no model") and out["numbers"] == {}

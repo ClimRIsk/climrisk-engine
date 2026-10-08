@@ -40,6 +40,10 @@ def bench_holland() -> list:
     return out
 
 
+def cat_rates_zero(cnt, n):
+    return {"tropical storm": float(cnt[TS].mean()), "hurricane (Cat 1+)": float(cnt[CAT1].mean()), "major (Cat 3+)": float(cnt[CAT3].mean())}
+
+
 def site_peaks(lat: float, lon: float, search_km: float = 600.0, T: dict = None) -> tuple:
     T = T or TC.tracks()
     d = TC._haversine_km(T["lat"], T["lon"], lat, lon)
@@ -92,6 +96,15 @@ def run(lat: float, lon: float, name: str = "Study site", progress=None, search_
     nfail = sum(1 for b in bench if not b["ok"])
     nb("6", "Verification", f"{len(bench) - nfail} of {len(bench)} tests passed." if not nfail else f"{nfail} verification test(s) FAILED.", warn=bool(nfail))
     ints_ok = ks_p is None or ks_p > 0.05
+    if int((peaks >= TS).sum()) < 3:
+        n_ts = int((peaks >= TS).sum())
+        nb("7", "Exposure", f"Only {n_ts} storm(s) in {n} seasons brought tropical-storm-force wind to this site, so tropical cyclones are not a material hazard here and no rate or wind-tail model is fitted.")
+        return {"domain": "cyclone", "label": "Tropical cyclone", "kind": "cyclone", "name": name, "lat": lat, "lon": lon, "title": f"Tropical cyclones at {name}: no material exposure",
+                "standfirst": f"In {n} seasons of best-track data ({y0}–{y1}), only {n_ts} tropical cyclone(s) brought tropical-storm-force wind (17.5 m/s) to {name}. The engine treats tropical cyclone wind as not applicable here instead of fitting a model to almost no events. Status: no exposure.",
+                "status": "no model (no tropical cyclone exposure)", "ok": nfail == 0, "headline": [(str(n_ts), f"storms with damaging wind in {n} seasons"), (str(len(rows)), f"storms within {search_km:.0f} km")],
+                "blocks": [("h2", "result", "Exposure"), ("p", f"{len(rows)} storms passed within {search_km:.0f} km since {y0}; the strongest modelled wind at the site was {peaks.max() if len(peaks) else 0:.0f} m/s, below the 17.5 m/s tropical-storm threshold in all but {n_ts} case(s). Extratropical storms, thunderstorms and monsoon winds are not tropical cyclones: use the extreme-wind study for them."), ("basis",)],
+                "verification": bench, "sensitivity": [], "assumptions": [], "limitations": ["Best tracks cover 1980 onward: a very rare landfall outside that window would not show."], "next_steps": ["Use the extreme-wind study for non-tropical wind at this site."], "notebook": nb.rows,
+                "numbers": {"n_storms": len(rows), "n_ts": n_ts, "levels": {}, "rates": cat_rates_zero(cnt, n)}, "elapsed_s": round(__import__("time").time() - nb.t0, 1)}
     validated = passed and ints_ok
     status = ("FAILED verification" if nfail else "verified; too few storms to hindcast" if not hc else "verified and hindcast-validated" if validated else "verified; hindcast FAILED (rates changed between early and late record)")
     cat_rates = {"tropical storm": float(cnt[TS].mean()), "hurricane (Cat 1+)": float(cnt[CAT1].mean()), "major (Cat 3+)": float(cnt[CAT3].mean())}

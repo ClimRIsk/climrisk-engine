@@ -7,6 +7,7 @@ import time
 
 import numpy as np
 
+from .dossier import NoModel
 from . import bucket, calib, data as D, metrics, plots
 from .generic_report import Notebook
 
@@ -60,6 +61,8 @@ def drought(lat: float, lon: float, name: str = "Study site", data: dict = None,
         data = D.archive(lat, lon, 1991, 2023, daily=v) if fetch is None else D.archive(lat, lon, 1991, 2023, daily=v, fetch=fetch)
     dd = data["daily"]
     keep = [i for i in range(len(dd["time"])) if None not in (dd["precipitation_sum"][i], dd["et0_fao_evapotranspiration"][i], dd["soil_moisture_7_to_28cm_mean"][i])]
+    if len(keep) < 365 * 6:
+        raise NoModel(f"Too little soil-moisture data: {len(keep)} days (ERA5-Land has no land cell here, typical of open sea and some coasts).")
     t = [dd["time"][i] for i in keep]
     P = np.array([dd["precipitation_sum"][i] for i in keep], float); E0 = np.array([dd["et0_fao_evapotranspiration"][i] for i in keep], float)
     th = np.array([dd["soil_moisture_7_to_28cm_mean"][i] for i in keep], float)
@@ -163,12 +166,12 @@ def river(lat: float, lon: float, name: str = "Study site", data: dict = None, f
         else:
             j = D.river_discharge(lat, lon, 1991, 2023)
             if "daily" not in j:
-                raise RuntimeError("river discharge is not available for this location: " + str(j.get("reason", "no data"))[:120])
+                raise NoModel("No river discharge data exist for this exact location (the GloFAS river network has no river cell here, typical of deserts and sites away from a river): " + str(j.get("reason", "no data"))[:120])
             flow = {"series": {t: v for t, v in zip(j["daily"]["time"], j["daily"]["river_discharge"]) if v is not None}}
     dd = data["daily"]
     idx = [i for i, t in enumerate(dd["time"]) if t in flow["series"] and dd["precipitation_sum"][i] is not None and dd["et0_fao_evapotranspiration"][i] is not None]
     if len(idx) < 365 * 6:
-        raise RuntimeError(f"only {len(idx)} days with both rainfall and discharge")
+        raise NoModel(f"Too little overlapping data to calibrate: only {len(idx)} days with both rainfall and river discharge.")
     t = [dd["time"][i] for i in idx]
     P = np.array([dd["precipitation_sum"][i] for i in idx], float); E0 = np.array([dd["et0_fao_evapotranspiration"][i] for i in idx], float)
     q = np.array([flow["series"][x] for x in t], float)

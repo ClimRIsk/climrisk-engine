@@ -57,12 +57,12 @@ HAZ = {
     "rain": {"label": "Extreme rainfall", "unit": "mm per day", "var": "annual maximum daily rainfall",
              "physics": ["Extreme rainfall is a statistical hazard: the largest daily total in each year is a block maximum, and the Fisher–Tippett–Gnedenko theorem says block maxima follow a GEV distribution (Gumbel when the shape parameter is zero). Return level for period T: **x_T = μ − β ln(−ln(1 − 1/T))**.",
                          "Rainfall depth drives the flood model (cri.modellab flood study) through the SCS curve-number runoff relation."],
-             "extract": lambda la, lo, fetch=None: (*_annual_max_daily(la, lo, "precipitation_sum", 1950, 2023, 1.0, fetch), {}), "benchmarks": lambda: [], "fmt": "{:.0f}",
-             "assumptions": ["Daily totals; short, intense bursts (an hour of cloudburst) are not resolved."], "limits": ["ERA5 smooths convective extremes: the numbers are a floor."], "meaning": "Daily rain beyond the 100-year level overwhelms most urban drainage designed for 10 to 25 years."},
+             "extract": lambda la, lo, fetch=None: (*_annual_max_daily(la, lo, "precipitation_sum", 1979, 2023, 1.0, fetch), {}), "benchmarks": lambda: [], "fmt": "{:.0f}",
+             "assumptions": ["Daily totals; short, intense bursts (an hour of cloudburst) are not resolved.", "The record starts in 1979, the satellite era: ERA5 before 1979 has a documented step in tropical rainfall (found by the engine's own hindcast at Singapore, where 1950–78 annual maxima average 35 mm and 1979 onward 65 mm)."], "limits": ["ERA5 smooths convective extremes: the numbers are a floor."], "meaning": "Daily rain beyond the 100-year level overwhelms most urban drainage designed for 10 to 25 years."},
     "wind": {"label": "Extreme wind", "unit": "m/s gust", "var": "annual maximum daily 10 m gust",
              "physics": ["Strong winds also follow a block-maxima law. A structure's wind load scales with the square of speed (**q = ½ ρ V²**), so a 10 % higher gust means about 21 % more load, which is why return levels matter more than averages.",
                          "Tropical cyclones are poorly resolved by a 25 km reanalysis; the cyclone study (cri.modellab cyclone) is the better source where they dominate."],
-             "extract": lambda la, lo, fetch=None: (*_annual_max_daily(la, lo, "wind_gusts_10m_max", 1950, 2023, 1 / 3.6, fetch), {}), "benchmarks": lambda: [], "fmt": "{:.1f}",
+             "extract": lambda la, lo, fetch=None: (*_annual_max_daily(la, lo, "wind_gusts_10m_max", 1979, 2023, 1 / 3.6, fetch), {}), "benchmarks": lambda: [], "fmt": "{:.1f}",
              "assumptions": ["Gusts at 10 m over open terrain; local exposure and building height change the design wind."], "limits": ["Tornadoes, downbursts and the core of tropical cyclones are not in ERA5."], "meaning": "Design standards use the 50-year gust; assets built to 25 m/s are outside their design envelope whenever a gust passes it."},
     "fire": {"label": "Fire weather", "unit": "FWI", "var": "annual maximum Fire Weather Index",
              "physics": ["The Canadian Fire Weather Index system (Van Wagner 1987) turns daily weather into fuel dryness and spread potential: three moisture codes (fine fuels FFMC, duff DMC, deep drought DC) each dry with heat and wind and wet with rain, combine into the Initial Spread Index (**ISI = 0.208 e^{0.05039 W} f(FFMC)**), the Buildup Index and finally the FWI.",
@@ -105,7 +105,28 @@ def run(hazard: str, lat: float, lon: float, name: str = "Study site", series: t
     nb("6", "Verification", f'{len(bench) - nfail} of {len(bench)} tests passed: the fitter recovers known parameters, the return-level formula is exact, the hindcast test is calibrated on synthetic stationary records and detects a strong trend' + ("; domain physics checked against hand values and limits." if cfg["benchmarks"]() else ".") if not nfail else f"{nfail} verification test(s) FAILED.", warn=bool(nfail))
 
     validated = hc["ok"] and hc["passed"]
-    status = ("FAILED verification" if nfail else "verified and hindcast-validated" + (", trend detected" if tr["significant"] else "") if validated else "verified; hindcast FAILED (the early record does not predict the recent one)" if hc["ok"] else "verified only (record too short to hindcast)")
+    # a failed test is judged by size as well as significance: how far do the 2-, 10- and 50-year levels move when the recent years are included?
+    drift = None
+    if hc["ok"] and not validated:
+        try:
+            ptr, pall = evt.best_model(x[:hc["n_train"]])["params"], model
+            sh = [(evt.level(pall, T_) - evt.level(ptr, T_)) / abs(evt.level(ptr, T_)) for T_ in (2, 10, 50)]
+            drift = max(sh, key=abs)
+        except Exception:                                              # noqa: BLE001
+            drift = None
+    minor = drift is not None and abs(drift) < 0.10
+    stp = evt.step_change(years, x) if (hc["ok"] and not validated) or tr["significant"] else {"ok": False}
+    step_txt = ""
+    if stp.get("ok") and stp["step_like"]:
+        step_txt = (f'The change looks like one abrupt step around {stp["year"]} (mean {fmt.format(stp["mean_before"])} before, {fmt.format(stp["mean_after"])} after) rather than a steady trend. '
+                    "An abrupt step usually means the data changed (instrument, reanalysis input or production stream) or the regime shifted; check the source before reading it as climate change.")
+        nb("5b", "Diagnosis", step_txt, warn=True)
+    elif stp.get("ok") and (not validated) and tr["significant"]:
+        step_txt = "The change fits a steady trend better than a single step, which is what a gradually changing climate would give."
+        nb("5b", "Diagnosis", step_txt)
+    status = ("FAILED verification" if nfail else "verified and hindcast-validated" + (", trend detected" if tr["significant"] else "") if validated else
+              f"verified; hindcast detects a small drift ({drift:+.0%} in the design levels): statistically real, practically minor" if minor else
+              "verified; hindcast FAILED (the early record does not predict the recent one)" if hc["ok"] else "verified only (record too short to hindcast)")
     L50 = lv[50]
     tl = evt.trend_level(tr, 2050, 100) if tr["significant"] else None
     head = [(fmt.format(lv[10]) + f' {cfg["unit"]}', "10-year level"), (fmt.format(lv[50]) + f' {cfg["unit"]}', "50-year level"), (fmt.format(lv[100]) + f' {cfg["unit"]}', "100-year level"),
@@ -122,7 +143,9 @@ def run(hazard: str, lat: float, lon: float, name: str = "Study site", series: t
         blocks += [("table", ["Level (from fitting period)", "Value", "Exceeded in held-out years", "Expected", "p-value"],
                     [[f'{r["T"]}-year', fmt.format(r["level"]) + f' {cfg["unit"]}', r["observed"], f'{r["expected"]:.1f}', f'{r["p"]:.2f}'] for r in hc["exceedances"]],
                     f'Probability-integral-transform uniformity test p = {hc["ks_p"]:.2f}; p-values below 0.05 would mean the model failed. ' + (hc["bias_note"] or "")),
-                   ("callout", ("The hindcast PASSED: the early record predicted the recent years within sampling error." if hc["passed"] else "The hindcast FAILED. " + (hc["bias_note"] or "The early record does not describe the recent years.") + " Do not use the stationary estimate without adjustment."), "good" if hc["passed"] else "bad")]
+                   ("callout", ("The hindcast PASSED: the early record predicted the recent years within sampling error." if hc["passed"] else
+                                f"The hindcast detected a drift, but it is small: including the recent years moves the design levels by up to {drift:+.0%}. The stationary estimate is usable; the trend is reported above." if minor else
+                                "The hindcast FAILED. " + (hc["bias_note"] or "The early record does not describe the recent years.") + (f" Including the recent years moves the design levels by up to {drift:+.0%}." if drift is not None else "") + " Do not use the stationary estimate without adjustment."), "good" if hc["passed"] else "warn" if minor else "bad")] + ([("p", step_txt)] if step_txt else [])
     else:
         blocks += [("callout", f'Hindcast not possible: {hc["reason"]}.', "warn")]
     blocks += [("h2", "result", "Return levels"),
@@ -145,5 +168,5 @@ def run(hazard: str, lat: float, lon: float, name: str = "Study site", series: t
             "standfirst": f'The engine built an extreme-value model of {cfg["var"]} at {name} from {n} years of data, hid the last third to test it, and found a 100-year level of {fmt.format(lv[100])} {cfg["unit"]} (50-year {fmt.format(lv[50])}). '
                           + ("It predicted the held-out years." if validated else "It did NOT predict the held-out years." if hc["ok"] else "The record was too short to test it.") + f' Status: {status}.',
             "status": status, "ok": nfail == 0, "headline": head, "blocks": blocks, "verification": bench, "sensitivity": [], "assumptions": cfg["assumptions"] + [f"Annual maxima are treated as independent and identically distributed (tested by the hindcast and trend tests)."],
-            "limitations": cfg["limits"] + [f"{src}: a 25 km grid-cell model, not a point measurement."], "next_steps": steps, "notebook": nb.rows, "numbers": {"levels": lv, "ci": {str(k): v for k, v in ci.items()}, "trend": tr, "hindcast": {k: v for k, v in hc.items() if k != "pit"}},
+            "limitations": cfg["limits"] + [f"{src}: a 25 km grid-cell model, not a point measurement."], "next_steps": steps, "notebook": nb.rows, "numbers": {"drift50": drift, "step": stp if stp.get("ok") else None, "levels": lv, "ci": {str(k): v for k, v in ci.items()}, "trend": tr, "hindcast": {k: v for k, v in hc.items() if k != "pit"}},
             "elapsed_s": round(__import__("time").time() - nb.t0, 1)}

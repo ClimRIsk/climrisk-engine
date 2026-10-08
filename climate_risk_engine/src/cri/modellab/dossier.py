@@ -72,3 +72,14 @@ def learn_hazard(key: str, name: str = "", lat: float = None, lon: float = None,
             "standfirst": f"The engine has no verified solver for {label.lower()} yet. It identified the governing physics and {len(datasets)} public datasets that could validate a model, and listed what is missing. No numbers were produced.",
             "status": "no model yet (dossier only)", "ok": True, "headline": [("none", "no model run"), (str(len(datasets)), "public datasets identified")], "blocks": blocks, "verification": [], "sensitivity": [],
             "assumptions": [], "limitations": ["This is a research dossier, not a hazard assessment."], "next_steps": [needs], "notebook": nb.rows, "numbers": {}, "elapsed_s": 0.0}
+
+
+class NoModel(Exception):
+    """A hazard study cannot be built here because the data or the exposure do not exist (not an error: an honest finding)."""
+
+
+def no_model_result(domain: str, label: str, name: str, lat: float, lon: float, why: str, next_steps: list) -> dict:
+    return {"domain": domain, "label": label, "kind": "no_model", "name": name, "lat": lat, "lon": lon, "title": f"{label} at {name}: no model could be built here",
+            "standfirst": f"The engine did not build a {label.lower()} model for {name}. {why} It gives no numbers rather than guess.", "status": "no model (" + why.rstrip(".").split(":")[0][:60] + ")", "ok": True,
+            "headline": [("none", "no model run")], "blocks": [("h2", "result", "Why there is no model"), ("p", why), ("callout", "No numbers were produced.", "warn")], "verification": [], "sensitivity": [],
+            "assumptions": [], "limitations": [why], "next_steps": next_steps, "notebook": [{"step": "1", "title": "Applicability check", "detail": why, "t": 0.0, "warn": True}], "numbers": {}, "elapsed_s": 0.0}

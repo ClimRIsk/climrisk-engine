@@ -61,12 +61,13 @@ def run_generic(key: str, lat: float, lon: float, name: str, options: dict, prog
     if key in ("heat", "rain", "wind", "fire"):
         from . import studies_evt
         return studies_evt.run(key, lat, lon, name, progress=progress, **{k: v for k, v in opts.items() if k in ("series", "fetch", "bootstrap")})
-    if key == "drought":
+    if key in ("drought", "river"):
         from . import studies_series
-        return studies_series.drought(lat, lon, name, progress=progress, **{k: v for k, v in opts.items() if k in ("fetch",)})
-    if key == "river":
-        from . import studies_series
-        return studies_series.river(lat, lon, name, progress=progress, **{k: v for k, v in opts.items() if k in ("fetch",)})
+        try:
+            return getattr(studies_series, key)(lat, lon, name, progress=progress, **{k: v for k, v in opts.items() if k in ("fetch", "data", "flow")})
+        except dossier.NoModel as e:
+            labs = {"drought": "Drought", "river": "River flow"}
+            return dossier.no_model_result(key, labs[key], name, lat, lon, str(e), ["Use a nearby site on a river or with land cover, or a gauge record if one exists."] if key == "river" else ["Move the site a few kilometres inland."])
     if key == "cyclone":
         from . import cyclone
         return cyclone.run(lat, lon, name, progress=progress, **{k: v for k, v in opts.items() if k in ("search_km",)})

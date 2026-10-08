@@ -186,3 +186,30 @@ def bench_hindcast_detects_a_trend() -> dict:
 
 def run_benchmarks() -> list:
     return [bench_return_level_formula(), bench_recovers_known_parameters(), bench_hindcast_is_calibrated(), bench_hindcast_detects_a_trend()]
+
+
+def step_change(years, x, min_seg: int = 8) -> dict:
+    """Is the record better described by one abrupt step (a change in the data, e.g. a new instrument or reanalysis stream, or a regime shift) than by a steady trend?
+    Scans every split, compares the sum of squared errors with a straight-line trend; a step is called when it explains clearly more."""
+    import numpy as np
+    from scipy import stats
+    y = np.asarray(x, float); t = np.asarray(years, float)
+    n = len(y)
+    if n < 2 * min_seg + 4:
+        return {"ok": False}
+    sse_flat = float(((y - y.mean()) ** 2).sum())
+    best = None
+    for k in range(min_seg, n - min_seg + 1):
+        a, b = y[:k], y[k:]
+        s = float(((a - a.mean()) ** 2).sum() + ((b - b.mean()) ** 2).sum())
+        if best is None or s < best[0]:
+            best = (s, k)
+    s_step, k = best
+    sl = stats.linregress(t, y)
+    sse_trend = float(((y - (sl.intercept + sl.slope * t)) ** 2).sum())
+    a, b = y[:k], y[k:]
+    welch = stats.ttest_ind(a, b, equal_var=False)
+    # the scan picks the most favourable split, so the Welch p-value is a lower bound: demand a strong effect on top of it
+    big = welch.pvalue < 1e-3 and abs(b.mean() - a.mean()) > 0.5 * np.sqrt((a.var(ddof=1) + b.var(ddof=1)) / 2)
+    return {"ok": True, "year": int(t[k]), "mean_before": float(a.mean()), "mean_after": float(b.mean()), "sse_step": s_step, "sse_trend": sse_trend, "sse_flat": sse_flat,
+            "step_like": bool(big and s_step < 0.85 * sse_trend), "p": float(welch.pvalue)}
