@@ -118,7 +118,45 @@ HAZ = {
 }
 
 
-def run(hazard: str, lat: float, lon: float, name: str = "Study site", series: tuple = None, fetch=None, progress=None, bootstrap: int = 200) -> dict:
+def _scenario_section(hazard, lat, lon, lv, fmt, unit, scenario_fetch=None):
+    """Forward-looking CMIP6 projection of the design levels plus its backtest. Returns (blocks, numbers, limitation_lines). Never raises: a failure becomes a plain note."""
+    from . import scenarios as SC
+    try:
+        fac = SC.change_factors(hazard, lat, lon, fetch=scenario_fetch)
+    except Exception as e:                                             # noqa: BLE001
+        return [], {"error": str(e)[:200]}, [f"Climate-scenario projections were not available for this run ({str(e)[:120]})."]
+    tab = SC.projection_table(fac, lv, fmt, unit, wbgt=(hazard == "heat"))
+    try:
+        oy, ox = SC.observed_series(hazard, lat, lon)
+        bt = SC.backtest(hazard, lat, lon, oy, ox, fetch=scenario_fetch)
+    except Exception as e:                                             # noqa: BLE001
+        bt = {"ok": False, "reason": str(e)[:160]}
+    cfg = SC.VARS[hazard]
+    short = cfg["label"].split(" (")[0]
+    if hazard == "rain":
+        how = f"The projected change in the {cfg['label']} is applied as a ratio to this site's own return levels (a delta method: the site's observed level is kept and only the change comes from the models)."
+    else:
+        how = (f"The projected change in the {cfg['label']} is added to this site's own return levels. The wet-bulb-globe temperature rises by 0.57 of the air-temperature change if humidity stays as it is, "
+               "and by about 1.4 of it if relative humidity stays as it is; the table shows the midpoint of the two.")
+    blocks = [("h2", "scenarios", "Where the hazard is heading: climate scenarios to 2099"),
+              ("p", f"The records above describe the last four decades. For the decades an asset will live through, the engine reads the CMIP6 multi-model ensemble (World Bank Climate Change Knowledge Portal; four twenty-year horizons, four emissions pathways) at the grid cell {fac['cell'][0]:.2f}°, {fac['cell'][1]:.2f}°. {how}"),
+              ("table", ["Scenario", "Horizon", f"Change in {short} (median; 10th–90th percentile of models)", f"100-year level ({unit}), median (range)"], tab["rows"],
+               "The range is the spread across climate models for the same pathway. It excludes the uncertainty of the extreme-value fit (the 90 % range in the return-level table) and the choice of emissions pathway.")]
+    if bt and bt.get("ok"):
+        col = {"pass": "good", "partial": "warn", "fail": "bad"}[bt["verdict"]]
+        weak = "" if bt["trend_resolvable"] else " The observed record is too short to separate a climate trend from natural variability, so the trend comparison is weak evidence either way."
+        blocks += [("h2", "backtest", "Can the climate models be trusted here? A backtest"),
+                   ("p", f"Before using a projection, the engine asks whether the same models reproduce what was observed at this site over 1981–2014: {bt['bias_text']}; trend over the same years {bt['obs_slope_decade']:+.2g} per decade observed (90 % range {bt['obs_slope_range'][0]:+.2g} to {bt['obs_slope_range'][1]:+.2g}) against {bt['model_slope_decade']:+.2g} for the ensemble median."),
+                   ("callout", bt["summary"] + " The observations are a reanalysis (NASA POWER), not a weather station, so a mismatch can come from the reanalysis rather than the climate models." + weak, col)]
+    else:
+        blocks += [("callout", "Backtest not possible: " + (bt or {}).get("reason", "no observed series") + ". The projection above has not been checked against observations here.", "warn")]
+    lim = ["Climate-model projections are scenarios, not forecasts: they depend on the emissions pathway society follows, and the 10th–90th percentile range covers model differences, not every uncertainty.",
+           "Downscaled models smooth the extreme tail; the change in the annual maximum is taken as the change in the design levels (a delta method). " + ("Short convective storms may intensify faster than the annual-maximum change." if hazard == "rain" else "Humidity changes are uncertain, so the wet-bulb-globe change is a range."),
+           "Scenario data: " + SC.ATTRIBUTION]
+    return blocks, {"table": tab["numbers"], "baseline": fac["baseline_1995_2014"], "cell": fac["cell"], "backtest": bt, "mode": fac["mode"], "source": SC.NOTE}, lim
+
+
+def run(hazard: str, lat: float, lon: float, name: str = "Study site", series: tuple = None, fetch=None, progress=None, bootstrap: int = 200, scenarios=None, scenario_fetch=None) -> dict:
     cfg = HAZ[hazard]
     nb = Notebook(progress)
     if series is None:
@@ -220,6 +258,13 @@ def run(hazard: str, lat: float, lon: float, name: str = "Study site", series: t
     if extra:
         k, v = next(iter(extra.items()))
         blocks.append(("p", f'Supporting count ({k.replace("_", " ")} per year): mean {np.mean(v):.1f}, highest {max(v)} in {years[int(np.argmax(v))]}, last 10 years mean {np.mean(v[-10:]):.1f}.'))
+    scen_lim: list = []
+    scen_num = None
+    want = scenarios if scenarios is not None else (series is None and fetch is None)
+    if want and hazard in ("rain", "heat"):
+        nb("7", "Climate scenarios", "Reading the CMIP6 multi-model ensemble at this grid cell (World Bank CCKP, CC0 model output) and backtesting it against the observed record.")
+        sb, scen_num, scen_lim = _scenario_section(hazard, lat, lon, lv, fmt, cfg["unit"], scenario_fetch)
+        blocks += sb
     steps = []
     if hc["ok"] and not hc["passed"]:
         steps.append("The hazard is not stationary here: fit a model with a time-varying location, or restrict the record to the most recent decades, before using the return levels.")
@@ -231,5 +276,5 @@ def run(hazard: str, lat: float, lon: float, name: str = "Study site", series: t
             "standfirst": f'The engine built an extreme-value model of {cfg["var"]} at {name} from {n} years of data, hid the last third to test it, and found a 100-year level of {fmt.format(lv[100])} {cfg["unit"]} (50-year {fmt.format(lv[50])}). '
                           + ("It predicted the held-out years." if validated else "It did NOT predict the held-out years." if hc["ok"] else "The record was too short to test it.") + f' Status: {status}.',
             "status": status, "ok": nfail == 0, "headline": head, "blocks": blocks, "verification": bench, "sensitivity": [], "assumptions": cfg["assumptions"] + [f"Annual maxima are treated as independent and identically distributed (tested by the hindcast and trend tests)."],
-            "limitations": cfg["limits"] + [f"{src}: a gridded model, not a point measurement."] + (["Attribution: These data were obtained from the NASA Langley Research Center POWER Project funded through the NASA Earth Science Directorate Applied Science Program."] if "POWER" in src else []), "next_steps": steps, "notebook": nb.rows, "numbers": {"levels_today": ({T: evt.trend_level(tr, years[-1], T) for T in (10, 50, 100)} if tr["significant"] else None), "source": src, "drift50": drift, "step": stp if stp.get("ok") else None, "levels": lv, "ci": {str(k): v for k, v in ci.items()}, "trend": tr, "hindcast": {k: v for k, v in hc.items() if k != "pit"}},
+            "limitations": cfg["limits"] + scen_lim + [f"{src}: a gridded model, not a point measurement."] + (["Attribution: These data were obtained from the NASA Langley Research Center POWER Project funded through the NASA Earth Science Directorate Applied Science Program."] if "POWER" in src else []), "next_steps": steps, "notebook": nb.rows, "numbers": {"n_years": n, "scenarios": scen_num, "levels_today": ({T: evt.trend_level(tr, years[-1], T) for T in (10, 50, 100)} if tr["significant"] else None), "source": src, "drift50": drift, "step": stp if stp.get("ok") else None, "levels": lv, "ci": {str(k): v for k, v in ci.items()}, "trend": tr, "hindcast": {k: v for k, v in hc.items() if k != "pit"}},
             "elapsed_s": round(__import__("time").time() - nb.t0, 1)}

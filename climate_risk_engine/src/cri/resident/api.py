@@ -64,6 +64,10 @@ class LabReq(BaseModel):
     observed_depths: Optional[list] = None
     pm25_series: Optional[list] = None
 
+class PortfolioReq(BaseModel):
+    csv: str = Field(..., max_length=200000)
+    hazards: Optional[list] = None
+
 class EditReq(BaseModel):
     text: str = Field(..., max_length=3000)
 
@@ -256,14 +260,46 @@ def make_router(auth_dep) -> tuple:
         holder["j"] = A._job(work, f"{req.domain} model study")
         return {"job": holder["j"]["id"]}
 
+    @prot.post("/portfolio/run")
+    def portfolio_run(req: PortfolioReq) -> dict:
+        """Screen a CSV of assets (name, lat, lon[, value]) for several hazards as a background job. Assets in the same 0.25° cell share one study; results are stored so a re-run resumes."""
+        from ..modellab import portfolio as PF, lab as L
+        try:
+            assets = PF.parse_assets(req.csv)
+        except ValueError as e:
+            raise HTTPException(status_code=422, detail=str(e))
+        hz = [h for h in (req.hazards or PF.DEFAULT_HAZARDS) if h in L.DOMAINS and h not in ("flood", "air")] or list(PF.DEFAULT_HAZARDS)
+        holder: dict = {}
+
+        def work():
+            import os, time as _t
+            from pathlib import Path
+            store = Path(os.environ.get("CRI_CACHE_DIR", Path.home() / ".climrisk" / "cache")) / "portfolio.jsonl"
+            store.parent.mkdir(parents=True, exist_ok=True)
+            res = PF.screen(assets, hz, store=str(store), progress=lambda m: holder["j"].__setitem__("progress", m))
+            head, rows = PF.table(res)
+            name = "portfolio-" + _t.strftime("%Y%m%d-%H%M%S")
+            (A.report_dir() / (name + ".csv")).write_text(PF.to_csv(res), encoding="utf-8")
+            d = PF.digest(res)
+            lines = [f"{len(assets)} assets in {res['cells']} grid cells; {res['runs']} new studies run, {res['reused']} reused."]
+            if d["movers"]:
+                lines.append("Largest projected change by mid-century (SSP2-4.5): " + "; ".join(f"{n} ({h}) {c:+.1f}{u}" for n, h, c, u in d["movers"][:3]) + ".")
+            if d["weak"]:
+                lines.append(f"{len(d['weak'])} asset-hazard results have thin evidence (grade C/D or a failed hindcast): check the table.")
+            return {"reply": "\n".join(lines), "blocks": [{"type": "files", "items": [{"label": "Download the table (CSV)", "url": f"/resident/file/{name}.csv"}]}, {"type": "table", "head": head, "rows": rows[:200]}], "actions": []}
+        holder["j"] = A._job(work, f"portfolio screening of {len(assets)} assets")
+        return {"job": holder["j"]["id"]}
+
     @pub.get("/file/{name}")
     def report_file(name: str) -> Response:
         import re as _re
-        if not _re.fullmatch(r"[A-Za-z0-9_\-]+\.(html|pdf)", name):
+        if not _re.fullmatch(r"[A-Za-z0-9_\-]+\.(html|pdf|csv)", name):
             raise HTTPException(status_code=404, detail="no such file")
         p = A.report_dir() / name
         if not p.exists():
             raise HTTPException(status_code=404, detail="no such file")
+        if name.endswith(".csv"):
+            return Response(p.read_text(encoding="utf-8"), media_type="text/csv", headers={"Content-Disposition": f'attachment; filename="{name}"'})
         if name.endswith(".pdf"):
             return Response(p.read_bytes(), media_type="application/pdf", headers={"Content-Disposition": f'inline; filename="{name}"'})
         return Response(p.read_text(encoding="utf-8"), media_type="text/html")
