@@ -79,6 +79,13 @@
     <label>Scenario</label><select id="scen"></select>
     <div id="windDir" style="display:none"><label>Wind blowing toward <span id="dirv">0</span>° (0 = north)</label><input id="dir" type="range" min="0" max="359" value="0"></div>
     <div class="row" style="margin-top:6px"><button class="btn alt sm" id="replay" style="width:100%">Replay</button><button class="btn alt sm" id="pause" style="width:100%">Pause</button></div>
+    <h3>Climate scenario <span class="tag">engine-composed, not a forecast</span></h3>
+    <div class="row"><div><label>Pathway</label><select id="cSsp"><option value="ssp126">SSP1-2.6 strong mitigation</option><option value="ssp245" selected>SSP2-4.5 middle road</option><option value="ssp370">SSP3-7.0 high emissions</option><option value="ssp585">SSP5-8.5 very high</option></select></div>
+    <div><label>Year</label><select id="cYear"><option>2030</option><option>2050</option><option selected>2070</option><option>2090</option></select></div></div>
+    <div class="row"><div><label>Event</label><select id="cRp"><option value="10">1-in-10</option><option value="100" selected>1-in-100</option><option value="200">1-in-200</option><option value="500">1-in-500</option></select></div>
+    <div><label>Models</label><select id="cBand"><option value="low">Lower (10th pct)</option><option value="median" selected>Median</option><option value="high">Upper (90th pct)</option></select></div></div>
+    <button class="btn" id="cGo">Apply climate scenario</button>
+    <div id="cOut" class="note"></div>
     <h3>What if it changes <span class="tag">user what-if, not a forecast</span></h3>
     <label>Extra water depth <span id="fav">0.0</span> m</label><input id="fadd" type="range" min="-0.5" max="2" step="0.1" value="0">
     <label>Wind speed × <span id="wsv">1.00</span></label><input id="wsc" type="range" min="0.8" max="1.4" step="0.01" value="1">
@@ -577,7 +584,35 @@ function loadTwin(tw) {
   S.simCache = {}; S.sim = S.simBase = null; S.twin = tw; S.sel = null; S.proposal = []; S.measures = []; ['mEq', 'mPl', 'mBa', 'mWi'].forEach(i => $(i).checked = false);
   buildTerrain(); buildComps(); buildLinear(); buildWind(); fillScen(); renderAgent(); renderHistory(); renderEdit(); renderBasis();
   windLines.visible = S.mode === 'wind'; replay(); runEval();
+  if (S.pendingClimate) { const [a, b, c2] = S.pendingClimate.split(':'); S.pendingClimate = null; if (a) $('cSsp').value = a; if (b) $('cYear').value = b; if (c2) $('cRp').value = c2; setTimeout(applyClimate, 600); }
 }
+
+// ── climate scenario: engine-composed (CMIP6 rain, AR6 sea level, cyclone scaling) -> solver re-run -> same 3D view ──
+async function applyClimate() {
+  if (!S.twin) { $('cOut').textContent = 'Build the twin first.'; return; }
+  const body = { twin: slim(), ssp: $('cSsp').value, year: +$('cYear').value, rp: +$('cRp').value, band: $('cBand').value, run_solver: S.twin.site.hydraulics !== false };
+  setBusy(true, 'Composing the climate scenario and re-running the flood solver…'); $('cGo').disabled = true;
+  try {
+    const r = await api('/asset-twin/climate', body), fo = r.forcing, c = r.composed;
+    if (!fo.scenario_id) { $('cOut').textContent = 'This twin has no mapped flood scenario to replay.'; return; }
+    setMode('flood'); $('scen').value = fo.scenario_id;
+    const add = Math.max(-0.5, Math.min(2, +fo.add_m.toFixed(1)));
+    $('fadd').value = add; $('fav').textContent = add.toFixed(1);
+    $('wsc').value = Math.max(0.8, Math.min(1.4, fo.wind_scale)); $('wsv').textContent = (+$('wsc').value).toFixed(2);
+    S.simCache = {}; S.sim = S.simBase = null;
+    if (r.sim && r.sim.comp) S.simCache[fo.scenario_id + '|' + add + '|0'] = r.sim;
+    replay(); await runEval();
+    const rows = c.confidence.map(x => `<div><b>${esc(x.factor)}</b> · ${esc(x.level)}<br><span style="opacity:.8">${esc(x.why)}</span></div>`).join('');
+    const nb = (a) => a ? `${a.equipment_inundated} structure(s) with equipment inundated, ${a.wet} with a wet floor` : '–';
+    $('cOut').innerHTML = `<b>${esc(c.ssp_label)}, ${c.year}</b> (${c.warming_k.toFixed(1)} °C global warming vs 1995–2014).<br>` + fo.derivation.map(esc).join('<br>') +
+      `<br><b>Now:</b> ${nb(r.now)}.<br><b>Then:</b> ${nb(r.future)}${r.future && r.future.solver ? ' (2D solver re-run)' : ' (depth shifted; solver not run)'}.` +
+      (c.heat ? `<br>Hottest day of the year: ${c.heat.median >= 0 ? '+' : ''}${c.heat.median.toFixed(1)} °C (models ${c.heat.p10.toFixed(1)} to ${c.heat.p90.toFixed(1)}).` : '') +
+      `<details><summary>How sure is this?</summary>${rows}<div style="margin-top:4px">${c.limits.map(esc).join('<br>')}</div></details>`;
+    status('Climate scenario applied: ' + c.ssp_label + ', ' + c.year);
+  } catch (e) { $('cOut').textContent = 'Could not apply: ' + e.message; }
+  finally { setBusy(false); $('cGo').disabled = false; }
+}
+$('cGo').onclick = applyClimate;
 $('build').onclick = build;
 $('rad').oninput = () => $('radv').textContent = $('rad').value;
 $('scen').onchange = () => { S.sim = S.simBase = null; setDirFromScenario(); replay(); schedule(); };
@@ -592,6 +627,7 @@ $('incAdd').onclick = () => { const d = $('incDate').value, n = $('incNote').val
 const q = new URLSearchParams(location.search);
 if (q.get('lat')) { $('lat').value = q.get('lat'); $('lon').value = q.get('lon') || ''; $('name').value = q.get('name') || ''; if (q.get('sector')) $('sector').value = q.get('sector'); }
 initGL(); renderLegend();
+if (q.get('climate')) S.pendingClimate = q.get('climate');
 if (q.get('auto') === '1' && q.get('lat')) setTimeout(build, 300);   // opened by the resident agent
 window.__twin = { S, loadTwin, depthAt, interp };   // for tests
 </script>

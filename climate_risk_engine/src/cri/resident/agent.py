@@ -138,7 +138,7 @@ class Agent:
         text = (text or "").strip()
         if not text:
             return {"reply": "Ask me something — for example \"build a 3D twin of 22.2645, 91.805\".", "blocks": [], "actions": [], "intent": "empty"}
-        quick = self._autopilot_commands(session, text) or self._knowledge_commands(session, text) or self._lab_commands(session, text) or self._extension_commands(session, text)
+        quick = self._autopilot_commands(session, text) or self._knowledge_commands(session, text) or self._scenario_commands(session, text) or self._lab_commands(session, text) or self._extension_commands(session, text)
         if quick:
             if quick.get("intent") in (None, "knowledge", "learn"):      # autopilot commands log themselves
                 quick.setdefault("intent", "knowledge")
@@ -162,6 +162,47 @@ class Agent:
         out["intent"] = pred["intent"]; out["confidence"] = pred["confidence"]; out["top"] = pred["top"]; out["entities"] = ent
         M.add_message(session, "agent", out["reply"], pred["intent"], {"actions": out.get("actions"), "job": out.get("job")})
         return out
+
+    _SSP_WORDS = (("ssp126", r"ssp\s*-?\s*1[\s.\-]*2\.?6|strong(?:ly)? mitigat\w*|paris|net[\s\-]*zero pathway|low emissions?"), ("ssp245", r"ssp\s*-?\s*2[\s.\-]*4\.?5|middle[\s\-]*of[\s\-]*the[\s\-]*road|moderate emissions?|current policies"),
+                  ("ssp370", r"ssp\s*-?\s*3[\s.\-]*7\.?0|high emissions?|regional rivalry"), ("ssp585", r"ssp\s*-?\s*5[\s.\-]*8\.?5|very high emissions?|worst[\s\-]*case|business[\s\-]*as[\s\-]*usual|fossil[\s\-]*fuel(?:ed)? (?:future|pathway)"))
+
+    def _scenario_commands(self, session, text) -> Optional[dict]:
+        """Free-form climate scenarios: "what does the SSP5-8.5 world look like at Chattogram in 2070 for a 1-in-100 flood", "worst case sea level and storm by mid-century at 22.26, 91.80".
+        Composes rain, river depth, sea level, heat and cyclone wind from the engine's own results, says how sure each is, and opens it in the 3D twin."""
+        t = text.strip(); low = t.lower()
+        ssp = next((k for k, rx in self._SSP_WORDS if re.search(rx, low)), None)
+        yr = re.search(r"\b(20[3-9]\d)\b", low)
+        year = int(yr.group(1)) if yr else (2050 if re.search(r"mid[\s\-]*century", low) else 2090 if re.search(r"end of (?:the )?century|late[\s\-]*century", low) else None)
+        climate = ssp or re.search(r"climate (?:change|scenario|future)|warmer (?:world|climate)|future (?:flood|climate|risk)", low)
+        if not (climate and (year or ssp)) or re.match(r"\s*(what is|what are|explain|define|why|how does|how do)\b", low) and not re.search(r"\b(at|in|for|near)\b.*(\d+\.\d+|[A-Z][a-z]+)", t):
+            return None
+        if not re.search(r"flood|surge|sea[\s\-]*level|storm|rain|wind|cyclone|hurricane|typhoon|heat|scenario|risk|site|asset|plant", low):
+            return None
+        ent = N.entities(t)
+        pl = resolve_place(t, ent, session)
+        if not pl:
+            return {"reply": "Which place is the climate scenario for? Give coordinates or a city name, plus a pathway (for example SSP2-4.5) and a year.", "blocks": [], "actions": []}
+        M.set_state("last_place", pl)
+        ssp = ssp or "ssp245"; year = year or 2070
+        rp = int(ent.get("rp") or 100)
+
+        def work():
+            from .. import climate_scenario as CS
+            c = CS.compose(pl["lat"], pl["lon"], ssp, year)
+            rows = [["Heavier extreme rain (1-day)", f"{100 * (c['rain']['median'] - 1):+.0f} %", f"{100 * (c['rain']['p10'] - 1):+.0f} to {100 * (c['rain']['p90'] - 1):+.0f} %", next(x["level"] for x in c["confidence"] if x["factor"] == "Heavier extreme rain")],
+                    ["River flood depth", f"×{c['river_depth_factor']['median']:.2f}", f"×{c['river_depth_factor']['p10']:.2f} to ×{c['river_depth_factor']['p90']:.2f}", "low"]]
+            if c["sea"].get("available"):
+                a = c["sea"]["add_m"]; rows.append(["Sea level since 2020", f"{a['median']:+.2f} m", f"{a['p17']:+.2f} to {a['p83']:+.2f} m (likely range)", next(x["level"] for x in c["confidence"] if x["factor"] == "Sea-level rise")])
+            if c["heat"]:
+                rows.append(["Hottest day of the year", f"{c['heat']['median']:+.1f} °C", f"{c['heat']['p10']:+.1f} to {c['heat']['p90']:+.1f} °C", "medium-high"])
+            rows.append(["Cyclone peak wind", f"×{c['wind']['scale']['median']:.3f}" if c["wind"]["tc_exposed"] else "unchanged", f"×{c['wind']['scale']['low']:.3f} to ×{c['wind']['scale']['high']:.3f}" if c["wind"]["tc_exposed"] else "not projected here", "low" if c["wind"]["tc_exposed"] else "n/a"])
+            url = f"/asset-twin/dashboard?lat={pl['lat']:.5f}&lon={pl['lon']:.5f}&name={(pl.get('name') or 'Site').replace(' ', '%20')}&auto=1&climate={ssp}:{year}:{rp}"
+            return {"reply": f"{c['ssp_label']}, {year} at {pl.get('name') or 'the site'} ({c['warming_k']:.1f} °C global warming against 1995–2014). Medians with the model range, and how sure the engine is of each. "
+                             "Scenarios are not forecasts; the 3D twin replays the mapped 1-in-%d event with these changes applied and re-runs the flood solver." % rp,
+                    "blocks": [_blk("table", head=["Factor", "Median change", "Range", "Confidence"], rows=rows), _blk("note", text=" ".join(c["limits"][:2]))],
+                    "actions": [{"type": "open", "label": "Open in 3D (re-runs the flood solver)", "url": url}]}
+        j = _job(work, "climate scenario")
+        return {"reply": f"Composing the {ssp.upper().replace('SSP', 'SSP')} scenario for {year} at {pl.get('name') or 'the site'} from the climate-model ensemble and sea-level projections …", "blocks": [], "actions": [], "job": j["id"], "intent": "scenario"}
 
     def _extension_commands(self, session, text) -> Optional[dict]:
         """Chat commands from private extensions (modules listed in CRI_EXTENSIONS or ~/.climrisk/extensions); none are loaded in a normal or commercial install."""

@@ -1594,6 +1594,50 @@ def asset_twin_simulate(request: AssetTwinSimulateRequest) -> dict:
     return _jsonable(sim)
 
 
+class ClimateScenarioRequest(BaseModel):
+    lat: float
+    lon: float
+    ssp: str = "ssp245"
+    year: int = 2070
+
+
+class AssetTwinClimateRequest(BaseModel):
+    twin: dict
+    ssp: str = "ssp245"
+    year: int = 2070
+    rp: int = 100
+    kind: Optional[str] = None            # auto | river | coastal
+    band: str = "median"                  # low | median | high
+    run_solver: bool = True
+
+
+@app.post("/climate-scenario/compose", dependencies=[_AUTH], tags=["Climate Scenario"])
+def climate_scenario_compose(request: ClimateScenarioRequest) -> dict:
+    """One emissions pathway and year -> the physical inputs (rain ratio, river depth factor, sea-level rise, heat shift, cyclone wind scale) with a stated confidence for each."""
+    from .. import climate_scenario as CS
+    try:
+        return _jsonable(CS.compose(request.lat, request.lon, request.ssp, request.year))
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    except Exception as exc:                                    # noqa: BLE001
+        raise HTTPException(status_code=502, detail=f"Scenario data unavailable: {type(exc).__name__}: {str(exc)[:160]}")
+
+
+@app.post("/asset-twin/climate", dependencies=[_AUTH], tags=["Asset Twin"])
+def asset_twin_climate(request: AssetTwinClimateRequest) -> dict:
+    """Compose a climate scenario at the twin's location, re-run the 2D solver with the climate-shifted water level, and compare every structure now and then."""
+    from .. import climate_scenario as CS
+    try:
+        a = request.twin["asset"]
+        comp = CS.compose(a["lat"], a["lon"], request.ssp, request.year)
+        res = CS.apply_to_twin(request.twin, comp, request.rp, request.kind, request.band, request.run_solver)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    except Exception as exc:                                    # noqa: BLE001
+        raise HTTPException(status_code=502, detail=f"Scenario could not run: {type(exc).__name__}: {str(exc)[:160]}")
+    return _jsonable(res)
+
+
 @app.post("/asset-twin/analyse", dependencies=[_AUTH], tags=["Asset Twin"])
 def asset_twin_analyse(request: AssetTwinAnalyseRequest) -> dict:
     """Re-run the agent on an edited twin (after the user corrected heights, equipment levels or design winds)."""
