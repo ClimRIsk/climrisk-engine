@@ -116,6 +116,23 @@ def _timing(r: dict) -> dict:
             "prompt_tokens": r.get("prompt_eval_count"), "output_tokens": r.get("eval_count")}
 
 
+def unload_others(keep: str) -> list:
+    """Models left resident by earlier evaluations compete for memory (a 16 GB machine starts swapping with two 3B-class models loaded, and answers then take minutes).
+    Ask Ollama to drop every loaded model except the one we answer with."""
+    gone = []
+    try:
+        with urllib.request.urlopen(urllib.request.Request(_OLLAMA + "/api/ps"), timeout=3) as r:
+            loaded = [m.get("name") for m in json.loads(r.read()).get("models", [])]
+        for name in loaded:
+            if name and name != keep:
+                body = json.dumps({"model": name, "prompt": "", "stream": False, "keep_alive": 0}).encode()
+                _ollama_post("/api/generate", body, 20)
+                gone.append(name)
+    except Exception:                                                # noqa: BLE001
+        pass
+    return gone
+
+
 _WARM: dict = {"t": 0.0}
 
 
@@ -128,10 +145,11 @@ def warm(force: bool = False) -> dict:
         return {"warmed": False, "why": ls["why"]}
     t0 = time.time()
     try:
+        freed = unload_others(ls["model"])
         body = json.dumps({"model": ls["model"], "prompt": "", "stream": False, "keep_alive": "60m"}).encode()
         _ollama_post("/api/generate", body, 180)
         _WARM["t"] = time.time()
-        return {"warmed": True, "model": ls["model"], "seconds": round(time.time() - t0, 1)}
+        return {"warmed": True, "model": ls["model"], "seconds": round(time.time() - t0, 1), "unloaded": freed}
     except Exception as e:                                           # noqa: BLE001
         return {"warmed": False, "why": f"{type(e).__name__}: {e}"[:200]}
 
