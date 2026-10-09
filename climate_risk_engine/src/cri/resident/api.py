@@ -220,6 +220,26 @@ def make_router(auth_dep) -> tuple:
         from . import answer as AN
         return AN.ask(req.question, context=req.context)
 
+    # ── the case library: real events, company filings and financials ──
+    @prot.get("/cases")
+    def cases_stats() -> dict:
+        from . import casebase as CB, answer as AN
+        if not CB.available():
+            return {"available": False, "note": "no case index installed yet (run Run-V4-Mac.command)"}
+        return {"available": True, **CB.stats(), "language_model": AN.llm_status()}
+
+    @prot.post("/cases/analogs")
+    def cases_analogs(req: dict) -> dict:
+        """{hazard, assets, channels?, region?, text?} -> closest real cases, checked and cited. Used by reports and the insurer view."""
+        from . import answer as AN
+        text = str(req.get("text") or f"closest cases for {req.get('hazard', '')} at {req.get('assets', '')}")
+        return AN.ask_analogs(text, assets=str(req.get("assets") or ""), hazard=str(req.get("hazard") or ""), channels=req.get("channels"))
+
+    @prot.post("/cases/warm")
+    def cases_warm() -> dict:
+        from . import answer as AN
+        return AN.warm(force=True)
+
     @prot.get("/lab/domains")
     def lab_domains() -> dict:
         from ..modellab import lab as L

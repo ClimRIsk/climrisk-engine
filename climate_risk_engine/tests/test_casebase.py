@@ -202,3 +202,17 @@ def test_active_model_file_selects_the_installed_model(tmp_path, monkeypatch):
     monkeypatch.setenv("CRI_HOME", str(tmp_path))
     assert AN._active_model({"climrisk-llm-v4": "climrisk-llm-v4:latest", "climrisk-llm-v3": "climrisk-llm-v3:latest"}) == "climrisk-llm-v4:latest"
     assert AN._active_model({"climrisk-llm-v3": "x"}) is None
+
+
+def test_cases_endpoints(index, monkeypatch):
+    from fastapi import Depends, FastAPI
+    from fastapi.testclient import TestClient
+    from cri.resident.api import make_router
+    prot, pub = make_router(Depends(lambda: None))
+    app = FastAPI()
+    app.include_router(prot)
+    c = TestClient(app)
+    r = c.get("/resident/cases").json()
+    assert r["available"] and r["curated_cards"] >= 20 and r["company_event_cases"] >= 3
+    a = c.post("/resident/cases/analogs", json={"hazard": "flood", "assets": "a chemical plant on a river", "channels": ["business_interruption"]}).json()
+    assert a["ok"] and a["cases"] and "The closest case is" in a["reply"]
