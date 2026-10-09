@@ -17,13 +17,18 @@ from collections import Counter
 from pathlib import Path
 
 
+def _ids(tok, text: str) -> int:
+    """Token count of an already-templated string (the template carries its own special tokens, so none are added here)."""
+    x = tok.encode(text, add_special_tokens=False)
+    x = x["input_ids"] if hasattr(x, "keys") else x            # some tokenizers return a BatchEncoding, whose len() is its number of keys, not tokens
+    return len(x)
+
+
 def count(tok, messages: list) -> tuple:
     """-> (prompt_tokens, total_tokens) for a chat row whose last message is the assistant answer."""
-    full = tok.apply_chat_template(messages, tokenize=True)
-    prompt = tok.apply_chat_template(messages[:-1], tokenize=True, add_generation_prompt=True)
-    full = full["input_ids"] if isinstance(full, dict) else full
-    prompt = prompt["input_ids"] if isinstance(prompt, dict) else prompt
-    return len(prompt), len(full)
+    full = tok.apply_chat_template(messages, tokenize=False)
+    prompt = tok.apply_chat_template(messages[:-1], tokenize=False, add_generation_prompt=True)
+    return _ids(tok, prompt), _ids(tok, full)
 
 
 def keep(tok, messages: list, max_seq: int, margin: int, min_target: int) -> tuple:
@@ -76,6 +81,9 @@ def run(src: str, dst: str, tok, max_seq: int = 1536, margin: int = 36, min_targ
         if (s / extra).exists():
             (d / extra).write_text((s / extra).read_text())
     (d / "length_report.json").write_text(json.dumps(rep, indent=1))
+    t = rep.get("train", {})
+    if t.get("in") and t["kept"] < 0.5 * t["in"]:
+        raise RuntimeError(f"length filter would drop {t['in'] - t['kept']} of {t['in']} training rows ({t['dropped']}); the token counting is probably wrong, refusing to write a dataset")
     return rep
 
 
