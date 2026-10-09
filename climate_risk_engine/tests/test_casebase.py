@@ -77,16 +77,13 @@ def test_ask_cases_assembles_from_sources_without_a_model(index):
 def test_a_model_answer_that_fails_the_check_is_replaced(index, monkeypatch):
     monkeypatch.setattr(AN, "llm_status", lambda force=False: {"available": True, "model": "x", "why": "ok"})
 
-    class R:
-        def __init__(self, t): self.t = t
-        def read(self): return json.dumps({"message": {"content": self.t}}).encode()
-        def __enter__(self): return self
-        def __exit__(self, *a): return False
+    def post(text):
+        return lambda path, payload, total_s: {"message": {"content": text}, "_wall_s": 0.1, "eval_count": 20}
 
-    monkeypatch.setattr(AN.urllib.request, "urlopen", lambda *a, **k: R("Bolt lost $999 million [1]."))
+    monkeypatch.setattr(AN, "_ollama_post", post("Bolt lost $999 million [1]."))
     r = AN.ask_cases("What did Bolt Utilities report about Hurricane Ian?")
     assert "999" not in r["reply"] and "assembled" in r["mode"] and "honesty check" in (r["llm_note"] or "")
-    monkeypatch.setattr(AN.urllib.request, "urlopen", lambda *a, **k: R("Bolt Utilities reported restoration costs of approximately $75 million [1]."))
+    monkeypatch.setattr(AN, "_ollama_post", post("Bolt Utilities reported restoration costs of approximately $75 million [1]."))
     r = AN.ask_cases("What did Bolt Utilities report about Hurricane Ian?")
     assert "language model" in r["mode"] and "$75 million" in r["reply"]
 

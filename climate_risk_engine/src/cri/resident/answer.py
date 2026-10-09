@@ -63,6 +63,59 @@ def llm_status(force: bool = False) -> dict:
     return v
 
 
+LLM_DEADLINE_S = float(os.environ.get("CRI_LLM_DEADLINE", "60"))     # total wall-clock budget for one model call; the answer is then assembled from the passages instead
+
+
+def _ollama_post(path: str, payload: bytes, total_s: float) -> dict:
+    """POST to the local Ollama with a hard TOTAL deadline. A plain socket timeout only limits the silence between bytes, so a server that trickles bytes
+    (or a model swapping on a small machine) can hold a request for many minutes; a watchdog timer closes the connection when the budget is spent."""
+    import http.client
+    import socket
+    import threading
+    from urllib.parse import urlparse
+    u = urlparse(_OLLAMA)
+    conn = http.client.HTTPConnection(u.hostname or "127.0.0.1", u.port or 11434, timeout=total_s)
+    holder: dict = {}
+
+    def _stop():                                                     # the response object takes over the socket (conn.sock becomes None), so we keep our own handle on it
+        try:
+            if holder.get("sock") is not None:
+                holder["sock"].shutdown(socket.SHUT_RDWR)
+            conn.close()
+        except Exception:                                            # noqa: BLE001
+            pass
+
+    timer = threading.Timer(total_s, _stop)
+    timer.daemon = True
+    timer.start()
+    t0 = time.time()
+    try:
+        conn.connect()
+        holder["sock"] = conn.sock
+        conn.request("POST", path, payload, {"Content-Type": "application/json"})
+        resp = conn.getresponse()
+        raw = resp.read()
+        if resp.status != 200:
+            raise RuntimeError(f"Ollama answered HTTP {resp.status}: {raw[:120]!r}")
+        out = json.loads(raw)
+        out["_wall_s"] = round(time.time() - t0, 2)
+        return out
+    except Exception as e:                                           # noqa: BLE001
+        if time.time() - t0 >= total_s - 0.5:
+            raise TimeoutError(f"the local model did not answer within {total_s:.0f} s") from e
+        raise
+    finally:
+        timer.cancel()
+        conn.close()
+
+
+def _timing(r: dict) -> dict:
+    """What Ollama itself reports (seconds): where the time went."""
+    ns = lambda k: round((r.get(k) or 0) / 1e9, 2)                   # noqa: E731
+    return {"wall": r.get("_wall_s"), "load": ns("load_duration"), "prompt_eval": ns("prompt_eval_duration"), "generate": ns("eval_duration"), "total": ns("total_duration"),
+            "prompt_tokens": r.get("prompt_eval_count"), "output_tokens": r.get("eval_count")}
+
+
 _WARM: dict = {"t": 0.0}
 
 
@@ -76,7 +129,7 @@ def warm(force: bool = False) -> dict:
     t0 = time.time()
     try:
         body = json.dumps({"model": ls["model"], "prompt": "", "stream": False, "keep_alive": "60m"}).encode()
-        urllib.request.urlopen(urllib.request.Request(_OLLAMA + "/api/generate", data=body, headers={"Content-Type": "application/json"}), timeout=180).read()
+        _ollama_post("/api/generate", body, 180)
         _WARM["t"] = time.time()
         return {"warmed": True, "model": ls["model"], "seconds": round(time.time() - t0, 1)}
     except Exception as e:                                           # noqa: BLE001
@@ -127,7 +180,7 @@ def _extractive(question: str, passages: list, max_sent: int = 5) -> str:
     return " ".join(f"{s} [{pi + 1}]" for pi, si, s in chosen)
 
 
-LAST_LLM: dict = {"why": "not called", "raw": ""}
+LAST_LLM: dict = {"why": "not called", "raw": "", "timing": None}
 
 
 def _normalise_cites(out: str, n: int) -> str:
@@ -159,13 +212,14 @@ def _llm_once(question: str, passages: list, model: str, context: Optional[str],
                    "'Storm surge is wind-driven sea-level rise [2]. River floods come from rainfall upstream [3].' "
                    "An answer with no [n] markers is invalid.")
     user = (f"Context from the user's session: {context}\n\n" if context else "") + f"Question: {question}\n\nSources:\n{src}"
+    LAST_LLM["timing"] = None
     body = json.dumps({"model": model, "stream": False, "keep_alive": "30m",
                        "options": {"temperature": 0.0 if strict else 0.2, "num_ctx": 6144, "num_predict": 520},
                        "messages": [{"role": "system", "content": sysmsg}, {"role": "user", "content": user}]}).encode()
     try:
-        req = urllib.request.Request(_OLLAMA + "/api/chat", data=body, headers={"Content-Type": "application/json"})
-        with urllib.request.urlopen(req, timeout=240) as r:
-            out = json.loads(r.read()).get("message", {}).get("content", "").strip()
+        resp = _ollama_post("/api/chat", body, max(LLM_DEADLINE_S, 90.0))
+        LAST_LLM["timing"] = _timing(resp)
+        out = resp.get("message", {}).get("content", "").strip()
         out = _normalise_cites(out, len(passages))
         cited = {int(x) for x in re.findall(r"\[(\d+)\]", out)}
         LAST_LLM.update(raw=out[:400])
@@ -198,13 +252,14 @@ def _case_llm(question: str, ps: list, model: str, context: Optional[str]) -> Op
     from . import casebase as CB
     src = "\n\n".join(f"[{i + 1}] {p['text']}" for i, p in enumerate(ps))
     user = (f"Context from the user's session: {context}\n\n" if context else "") + f"Question: {question}\n\nSources:\n{src}"
+    LAST_LLM["timing"] = None
     body = json.dumps({"model": model, "stream": False, "keep_alive": "60m",
                        "options": {"temperature": 0.0, "num_ctx": 4096, "num_predict": 380},
                        "messages": [{"role": "system", "content": CB.system_prompt(ps)}, {"role": "user", "content": user}]}).encode()
     try:
-        req = urllib.request.Request(_OLLAMA + "/api/chat", data=body, headers={"Content-Type": "application/json"})
-        with urllib.request.urlopen(req, timeout=120) as r:
-            out = json.loads(r.read()).get("message", {}).get("content", "").strip()
+        resp = _ollama_post("/api/chat", body, LLM_DEADLINE_S)
+        LAST_LLM["timing"] = _timing(resp)
+        out = resp.get("message", {}).get("content", "").strip()
     except Exception as e:                                           # noqa: BLE001
         LAST_LLM.update(why=f"call to the local model failed: {type(e).__name__}: {e}"[:300], raw="")
         return None
@@ -257,7 +312,7 @@ def ask_cases(question: str, context: Optional[str] = None, k: int = 6) -> Optio
         pass
     return {"ok": True, "reply": text, "sources": _src(ps, used), "mode": mode, "learned": [], "elapsed_s": round(time.time() - t0, 1), "case_mode": True,
             "evidence": [{"n": p["id"], "text": p["text"], "url": p["url"]} for p in ps],
-            "llm_note": (LAST_LLM["why"] if ls["available"] and "assembled" in mode else None)}
+            "llm_note": (LAST_LLM["why"] if ls["available"] and "assembled" in mode else None), "llm_timing": LAST_LLM.get("timing") if ls["available"] else None}
 
 
 def ask_analogs(text: str, assets: str = "", hazard: str = "", channels: Optional[list] = None, context: Optional[str] = None) -> dict:

@@ -85,6 +85,8 @@ def run(out: Path = Path("demo_report.json"), n: int = 24, seed: int = 7, allow_
             r = {"ok": False, "reply": f"EXCEPTION {type(e).__name__}: {e}", "elapsed_s": round(time.time() - t0, 1)}
         row = _evaluate(kind, q, r)
         row["wall_s"] = round(time.time() - t0, 2)
+        row["llm_timing"] = r.get("llm_timing")                      # where Ollama says the time went (load / prompt / generation)
+        row["llm_note"] = r.get("llm_note")
         rows.append(row)
         print(f"{'PASS' if row['ok'] else 'FAIL'}  {row['wall_s']:6.2f}s  {row['path']:15s} {kind:16s} {q[:70]}", flush=True)
     secs = sorted(r["wall_s"] for r in rows)
@@ -94,6 +96,7 @@ def run(out: Path = Path("demo_report.json"), n: int = 24, seed: int = 7, allow_
                "by_kind": {k: f"{sum(r['ok'] for r in rows if r['kind'] == k)}/{sum(1 for r in rows if r['kind'] == k)}" for k in sorted({r['kind'] for r in rows})},
                "by_path": {k: sum(1 for r in rows if r["path"] == k) for k in sorted({r["path"] for r in rows})},
                "failures": [{"kind": r["kind"], "q": r["question"], "path": r["path"], "numbers_not_in_sources": r["numbers_not_in_sources"], "reply": r["reply"][:200]} for r in rows if not r["ok"]]}
+    summary["slowest"] = [{"s": r["wall_s"], "q": r["question"][:80], "timing": r.get("llm_timing")} for r in sorted(rows, key=lambda r: -r["wall_s"])[:3]]
     Path(out).write_text(json.dumps({"summary": summary, "rows": rows}, indent=1, ensure_ascii=False))
     print(json.dumps({k: v for k, v in summary.items() if k != "failures"}, indent=1))
     return summary
