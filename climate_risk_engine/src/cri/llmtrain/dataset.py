@@ -336,6 +336,10 @@ def main(corpus_dir: Path, out: Path, seed: int = 7):
     if "--no-world" not in sys.argv and _wb.exists():
         from . import worldbank_fin as WB
         rows += WB.build_rows(_wb, seed=seed + 50, per_case=1)
+    _rp = Path(sys.argv[1]) / "reports" / "report_cases.jsonl"        # v5: what companies say in their own published climate reports; picked up automatically when collected
+    if "--no-reports" not in sys.argv and _rp.exists() and _rp.stat().st_size > 0:
+        from . import edgar_cases as EC2
+        rows += EC2.build_rows(_rp, seed=seed + 60, per_case=3)
     gold = build_gold()
     rows += gold + [dict(r) for r in gold if r["split"] == "train"] * 2        # gold is scarce and high quality: upweight x3
     for r in rows:

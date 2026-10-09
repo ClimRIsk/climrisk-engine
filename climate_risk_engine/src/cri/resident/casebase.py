@@ -15,7 +15,7 @@ question names an event or a company in the index. Retrieval takes a few millise
   check(answer, passages)              mechanical honesty check: every number is in the sources, every [n] exists
   compose(q, passages)                 answer assembled from the passages themselves (used when no model is running or the model fails the check)
 
-Build the index:  python -m cri.resident.casebase build VERIFIED.json EDGAR_CASES.jsonl [OUT.jsonl] [--allow-unverified] [--xbrl XBRL_ITEMS.jsonl] [--macro MACRO_ITEMS.jsonl]
+Build the index:  python -m cri.resident.casebase build VERIFIED.json EDGAR_CASES.jsonl [OUT.jsonl] [--allow-unverified] [--xbrl XBRL_ITEMS.jsonl] [--macro MACRO_ITEMS.jsonl] [--reports REPORT_CASES.jsonl]
 """
 from __future__ import annotations
 
@@ -136,8 +136,9 @@ def stats() -> dict:
     kinds: dict = defaultdict(int)
     for r in ix["items"]:
         kinds[r["kind"]] += 1
-    pairs = {(r["event"], _co_norm(r["company"])) for r in ix["items"] if r["kind"] in _CO_KINDS and r.get("company")}
-    return {"items": len(ix["items"]), "events": len(ix["events"]), "curated_cards": len(ix["cards"]), "company_event_cases": len(pairs), "kinds": dict(kinds), "path": ix["path"]}
+    pairs = {(r["event"], _co_norm(r["company"])) for r in ix["items"] if r["kind"] in _CO_KINDS and r.get("company") and r["event"] != "climate-reports"}
+    reps = {_co_norm(r["company"]) for r in ix["items"] if r["event"] == "climate-reports" and r.get("company")}          # published climate reports are not events: counted apart from the real-event cases
+    return {"items": len(ix["items"]), "events": len(ix["events"]) - (1 if reps else 0), "curated_cards": len(ix["cards"]), "company_event_cases": len(pairs), "company_climate_reports": len(reps), "kinds": dict(kinds), "path": ix["path"]}
 
 
 # ── retrieval ───────────────────────────────────────────────────────────────
@@ -500,7 +501,7 @@ def gap_reply(q: str, ps: list) -> str:
 
 # ── building the index ──────────────────────────────────────────────────────
 
-def build(vf_path: Path, edgar_path: Optional[Path], out: Path, allow_unverified: bool = False, xbrl_path: Optional[Path] = None, macro_path: Optional[Path] = None) -> dict:
+def build(vf_path: Path, edgar_path: Optional[Path], out: Path, allow_unverified: bool = False, xbrl_path: Optional[Path] = None, macro_path: Optional[Path] = None, reports_path: Optional[Path] = None) -> dict:
     from ..llmtrain import cases as C
     from ..llmtrain.cases_data import CASES
     vf = json.loads(Path(vf_path).read_text()) if vf_path and Path(vf_path).exists() else {}
@@ -519,17 +520,25 @@ def build(vf_path: Path, edgar_path: Optional[Path], out: Path, allow_unverified
             recs.append({**base, "kind": "resp", "title": f"{c['title']} — {outlet}", "url": c["sources"][si][0], "text": f"{short} ({outlet}), response ({typ}): {text}", "response": [typ]})
     n_curated = len(recs)
     n_files = 0
-    if edgar_path and Path(edgar_path).exists():
+    if reports_path is None and edgar_path:                           # L/edgar/edgar_cases.jsonl -> L/reports/report_cases.jsonl, when the report collector has been run
+        reports_path = Path(edgar_path).parent.parent / "reports" / "report_cases.jsonl"
+    srcs = [Path(x) for x in (edgar_path, reports_path) if x and Path(x).exists()]
+    if srcs:
         from ..llmtrain.edgar_cases import clean_quote
-        for line in Path(edgar_path).read_text().splitlines():
+        for sp in srcs:
+          for line in sp.read_text().splitlines():
+            if not line.strip():
+                continue
             r = json.loads(line)
+            rep = str(r.get("form", "")).lower() == "climate report"
             for q in r["quotes"]:
                 cq = clean_quote(q["quote"])
                 if not cq:
                     continue
+                label = f"climate report {r['filed']}" if rep else f"Form {r['form']} filed {r['filed']}"
                 recs.append({"event": r["event"], "event_name": r["event_name"], "year": None, "hazard": r["hazard"], "region": r["region"], "channels": [], "company": r["company"],
-                             "kind": "filing", "title": f"{r['company']} — Form {r['form']} filed {r['filed']} ({r['event_name']})", "url": r["url"], "filed": r["filed"],
-                             "text": f"{r['company']}, Form {r['form']} filed {r['filed']}: {cq}", "amounts": q.get("amounts") or [], "response": q.get("response") or []})
+                             "kind": "filing", "title": f"{r['company']} — {label} ({r['event_name']})", "url": r["url"], "filed": r["filed"],
+                             "text": f"{r['company']}, {label}: {cq}", "amounts": q.get("amounts") or [], "response": q.get("response") or []})
             n_files += 1
     n_xbrl = 0
     if xbrl_path and Path(xbrl_path).exists():
@@ -566,7 +575,8 @@ def main():
     out = Path(a[3]) if len(a) > 3 and not a[3].startswith("--") else PACKAGED
     xb = Path(a[a.index("--xbrl") + 1]) if "--xbrl" in a else None
     mc = Path(a[a.index("--macro") + 1]) if "--macro" in a else None
-    r = build(Path(a[1]), Path(a[2]) if len(a) > 2 else None, out, "--allow-unverified" in a, xb, mc)
+    rp = Path(a[a.index("--reports") + 1]) if "--reports" in a else None
+    r = build(Path(a[1]), Path(a[2]) if len(a) > 2 else None, out, "--allow-unverified" in a, xb, mc, rp)
     print(json.dumps({**r, **stats()} if Path(r["path"]) == index_path() else r, indent=1))
 
 

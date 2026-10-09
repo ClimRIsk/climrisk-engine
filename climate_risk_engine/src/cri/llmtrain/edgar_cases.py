@@ -400,7 +400,8 @@ def _blk(items, rng):
 
 def _item(c, i):
     it = c["items"][i]
-    return (f"{c['company']}, Form {it['form']} filed {it['filed']}: {it['quote']}", (c["company"], i))
+    label = f"climate report {it['filed']}" if str(it["form"]).lower() == "climate report" else f"Form {it['form']} filed {it['filed']}"
+    return (f"{c['company']}, {label}: {it['quote']}", (c["company"], i))
 
 
 def _clean(t):
