@@ -15,7 +15,7 @@ question names an event or a company in the index. Retrieval takes a few millise
   check(answer, passages)              mechanical honesty check: every number is in the sources, every [n] exists
   compose(q, passages)                 answer assembled from the passages themselves (used when no model is running or the model fails the check)
 
-Build the index:  python -m cri.resident.casebase build VERIFIED.json EDGAR_CASES.jsonl [OUT.jsonl] [--allow-unverified]
+Build the index:  python -m cri.resident.casebase build VERIFIED.json EDGAR_CASES.jsonl [OUT.jsonl] [--allow-unverified] [--xbrl XBRL_ITEMS.jsonl]
 """
 from __future__ import annotations
 
@@ -30,6 +30,7 @@ from pathlib import Path
 from typing import Optional
 
 _HERE = Path(__file__).parent
+_CO_KINDS = ("filing", "xbrl")
 PACKAGED = _HERE / "data" / "case_index.jsonl"
 
 # ── text normalisation shared with the knowledge index ──────────────────────
@@ -116,7 +117,7 @@ def _load() -> dict:
             meta["aliases"].add(nm.lower())
             if short and short != nm.lower() and len(short) >= 3:
                 meta["aliases"].add(short)                            # "ian" for "Hurricane Ian"
-            if r["kind"] == "filing" and r.get("company"):
+            if r["kind"] in _CO_KINDS and r.get("company"):
                 co = _co_norm(r["company"])
                 if len(co) >= 3:
                     companies[co].add(ev)
@@ -124,7 +125,7 @@ def _load() -> dict:
                 cards[ev] = r
         ev_text: dict = defaultdict(str)
         for r in items:
-            if r["kind"] != "filing":
+            if r["kind"] not in _CO_KINDS:
                 ev_text[r["event"]] += " " + r["text"].lower()
         _IDX.update(path=str(p), mtime=mt, items=items, inv=dict(inv), df=dict(df), avgdl=total / max(1, len(items)), events=events, companies=dict(companies), cards=cards, ev_text=dict(ev_text))
         return _IDX
@@ -135,7 +136,7 @@ def stats() -> dict:
     kinds: dict = defaultdict(int)
     for r in ix["items"]:
         kinds[r["kind"]] += 1
-    pairs = {(r["event"], _co_norm(r["company"])) for r in ix["items"] if r["kind"] == "filing" and r.get("company")}
+    pairs = {(r["event"], _co_norm(r["company"])) for r in ix["items"] if r["kind"] in _CO_KINDS and r.get("company")}
     return {"items": len(ix["items"]), "events": len(ix["events"]), "curated_cards": len(ix["cards"]), "company_event_cases": len(pairs), "kinds": dict(kinds), "path": ix["path"]}
 
 
@@ -194,7 +195,7 @@ def coverage_gap(q: str) -> Optional[dict]:
     co = cos[0]
     own, seen = [], set()
     for r in ix["items"]:
-        if r["kind"] == "filing" and _co_norm(r.get("company") or "") == co and r["event"] not in seen:
+        if r["kind"] in _CO_KINDS and _co_norm(r.get("company") or "") == co and r["event"] not in seen:
             seen.add(r["event"])
             own.append(r)
         if len(own) >= 2:
@@ -249,7 +250,7 @@ def retrieve(q: str, k: int = 6, per_group: int = 2) -> list:
     cand = set(sc)
     if ev_set or co_set:                                             # entity-matched items are candidates even when no other question word hits them
         for i, r in enumerate(ix["items"]):
-            if r["event"] in ev_set or (r["kind"] == "filing" and _co_norm(r.get("company") or "") in co_set):
+            if r["event"] in ev_set or (r["kind"] in _CO_KINDS and _co_norm(r.get("company") or "") in co_set):
                 cand.add(i)
     ranked = []
     top = max(sc.values()) if sc else 1.0
@@ -258,7 +259,7 @@ def retrieve(q: str, k: int = 6, per_group: int = 2) -> list:
         s = sc.get(i, 0.0) / (top or 1.0)                              # 0..1 text relevance
         if r["event"] in ev_set:
             s += 1.0
-        if r["kind"] == "filing" and _co_norm(r.get("company") or "") in co_set:
+        if r["kind"] in _CO_KINDS and _co_norm(r.get("company") or "") in co_set:
             s += 1.0
             if ev_set and r["event"] not in ev_set:
                 s -= 0.7                                               # the company on a different event is only a weak lead
@@ -273,7 +274,7 @@ def retrieve(q: str, k: int = 6, per_group: int = 2) -> list:
         ranked.append((s, i))
     ranked.sort(key=lambda x: -x[0])
     if co_set:                                                       # "what did X report ...": only X's own sentences answer that
-        own = [(s, i) for s, i in ranked if ix["items"][i]["kind"] == "filing" and _co_norm(ix["items"][i].get("company") or "") in co_set
+        own = [(s, i) for s, i in ranked if ix["items"][i]["kind"] in _CO_KINDS and _co_norm(ix["items"][i].get("company") or "") in co_set
                and (not ev_set or ix["items"][i]["event"] in ev_set)]
         if own:
             ranked = own
@@ -286,7 +287,7 @@ def retrieve(q: str, k: int = 6, per_group: int = 2) -> list:
             continue
         per[key] += 1
         cov = len(qset & set(_tokens(r["text"] + " " + r.get("event_name", "")))) / max(1, len(qset))
-        if r["event"] in ev_set or (r["kind"] == "filing" and _co_norm(r.get("company") or "") in co_set):
+        if r["event"] in ev_set or (r["kind"] in _CO_KINDS and _co_norm(r.get("company") or "") in co_set):
             cov = max(cov, 0.6)
         out.append(_passage(r, s, cov, len(out) + 1))
         if len(out) >= k:
@@ -430,8 +431,12 @@ SYS_FILING = ("You are ClimRisk's climate-risk analyst. Answer using ONLY the nu
               "If the sources do not contain the answer, say exactly what is missing instead of guessing. Never add a number that is not in the sources.")
 
 
+SYS_XBRL = ("You are ClimRisk's climate-risk analyst. Answer using ONLY the numbered sources, which are structured annual figures from company filings with the SEC. Cite every factual sentence with its source number in square brackets, like [2]. "
+            "If the sources do not contain the answer, say exactly what is missing instead of guessing. Keep any inference clearly separate by starting it with 'Analysis (not stated in the sources):'. Never add a number that is not in the sources.")
+
+
 def system_prompt(ps: list) -> str:
-    return SYS_FILING if ps and all(p.get("rec") == "filing" for p in ps) else SYS_CASE
+    return SYS_FILING if ps and all(p.get("rec") == "filing" for p in ps) else SYS_XBRL if ps and all(p.get("rec") == "xbrl" for p in ps) else SYS_CASE
 
 
 _NUM = re.compile(r"\d[\d,]*\.?\d*")
@@ -480,7 +485,7 @@ def compose(q: str, ps: list, max_items: int = 4) -> str:
         if body[:1] in "“\"" and body.count("”") + body.count('"') < 1 + (body[:1] == '"'):
             body = body[1:]
         who = p.get("company")
-        lead = f"{who} reported" if who and p.get("rec") == "filing" else None
+        lead = f"{who} reported" if who and p.get("rec") == "filing" else (f"{who}'s annual SEC financial data show" if who and p.get("rec") == "xbrl" else None)
         parts.append(f"{lead}: {_clean(body)} [{p['id']}]." if lead else f"{_clean(body)} [{p['id']}].")
     return " ".join(parts)
 
@@ -493,7 +498,7 @@ def gap_reply(q: str, ps: list) -> str:
 
 # ── building the index ──────────────────────────────────────────────────────
 
-def build(vf_path: Path, edgar_path: Optional[Path], out: Path, allow_unverified: bool = False) -> dict:
+def build(vf_path: Path, edgar_path: Optional[Path], out: Path, allow_unverified: bool = False, xbrl_path: Optional[Path] = None) -> dict:
     from ..llmtrain import cases as C
     from ..llmtrain.cases_data import CASES
     vf = json.loads(Path(vf_path).read_text()) if vf_path and Path(vf_path).exists() else {}
@@ -524,13 +529,22 @@ def build(vf_path: Path, edgar_path: Optional[Path], out: Path, allow_unverified
                              "kind": "filing", "title": f"{r['company']} — Form {r['form']} filed {r['filed']} ({r['event_name']})", "url": r["url"], "filed": r["filed"],
                              "text": f"{r['company']}, Form {r['form']} filed {r['filed']}: {cq}", "amounts": q.get("amounts") or [], "response": q.get("response") or []})
             n_files += 1
+    n_xbrl = 0
+    if xbrl_path and Path(xbrl_path).exists():
+        for line in Path(xbrl_path).read_text().splitlines():
+            if not line.strip():
+                continue
+            x = json.loads(line)
+            recs.append({"event": x["event"], "event_name": x["event_name"], "year": None, "hazard": None, "region": None, "channels": [], "company": x["company"], "kind": "xbrl",
+                         "title": f"{x['company']} — annual financial data (SEC XBRL) around {x['event_name']}", "url": x["url"], "filed": None, "text": x["text"], "amounts": x.get("amounts") or []})
+            n_xbrl += 1
     out.parent.mkdir(parents=True, exist_ok=True)
     tmp = out.with_suffix(".tmp")
     with open(tmp, "w", encoding="utf-8") as f:
         for r in recs:
             f.write(json.dumps(r, ensure_ascii=False) + "\n")
     tmp.replace(out)
-    return {"records": len(recs), "curated_records": n_curated, "filings": n_files, "path": str(out)}
+    return {"records": len(recs), "curated_records": n_curated, "filings": n_files, "xbrl": n_xbrl, "path": str(out)}
 
 
 def main():
@@ -539,7 +553,8 @@ def main():
         print(__doc__)
         return
     out = Path(a[3]) if len(a) > 3 and not a[3].startswith("--") else PACKAGED
-    r = build(Path(a[1]), Path(a[2]) if len(a) > 2 else None, out, "--allow-unverified" in a)
+    xb = Path(a[a.index("--xbrl") + 1]) if "--xbrl" in a else None
+    r = build(Path(a[1]), Path(a[2]) if len(a) > 2 else None, out, "--allow-unverified" in a, xb)
     print(json.dumps({**r, **stats()} if Path(r["path"]) == index_path() else r, indent=1))
 
 

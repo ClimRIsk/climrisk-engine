@@ -328,6 +328,10 @@ def main(corpus_dir: Path, out: Path, seed: int = 7):
     if "--edgar" in sys.argv:                                        # v3: real company disclosures from SEC filings (verbatim quotes)
         from . import edgar_cases as EC
         rows += EC.build_rows(Path(sys.argv[sys.argv.index("--edgar") + 1]), seed=seed + 30, per_case=2)
+    _xb = Path(sys.argv[1]) / "xbrl" / "xbrl_items.jsonl"             # v4: structured annual financials around each event; picked up automatically when collected
+    if "--no-xbrl" not in sys.argv and _xb.exists():
+        from . import xbrl_fin as XB
+        rows += XB.build_rows(_xb, seed=seed + 40, per_case=1)
     gold = build_gold()
     rows += gold + [dict(r) for r in gold if r["split"] == "train"] * 2        # gold is scarce and high quality: upweight x3
     for r in rows:

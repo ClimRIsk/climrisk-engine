@@ -64,18 +64,41 @@ def _nums(t: str) -> list:
     return [x.replace(",", "") for x in re.findall(r"\d[\d,]*\.?\d*", t) if re.search(r"\d", x)]
 
 
+_BROWSER_UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15"
+_SEC_UA = "ClimRisk research (open-source climate-risk project; polite crawler) shrinivashdkannan@gmail.com"
+
+
+def _fetch(url: str) -> str:
+    """Fetch a source page: SEC-compliant agent for sec.gov, a browser agent elsewhere, three tries, and the real error text kept."""
+    import time
+    import urllib.request
+    ua = _SEC_UA if "sec.gov" in url else _BROWSER_UA
+    last = None
+    for k in range(3):
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": ua, "Accept": "text/html,application/xhtml+xml,*/*;q=0.8", "Accept-Language": "en", "Accept-Encoding": "identity"})
+            with urllib.request.urlopen(req, timeout=40) as r:
+                raw = r.read(4_000_000)
+                enc = r.headers.get_content_charset() or "utf-8"
+            return raw.decode(enc, errors="replace")
+        except Exception as e:                                       # noqa: BLE001
+            last = e
+            time.sleep(2 * (k + 1))
+    raise last
+
+
 def verify(out: Path) -> dict:
     from ..resident import knowledge as K
     res, pages = {}, {}
     for c in CASES:
         for si, (url, outlet, tier) in enumerate(c["sources"]):
             try:
-                raw = K._get(url, timeout=30)
+                raw = _fetch(url)
                 text = K._strip_html(raw)[1] if "<" in raw[:3000] else raw
                 pages[(c["id"], si)] = re.sub(r"[ \t]+", " ", text).replace(",", "").lower()
             except Exception as e:                                   # noqa: BLE001
                 pages[(c["id"], si)] = None
-                res[f"{c['id']}#src{si}"] = {"fetch": f"{type(e).__name__}"}
+                res[f"{c['id']}#src{si}"] = {"fetch": f"{type(e).__name__}: {str(e)[:100]}"}
         for fi, (text, si) in enumerate(c["facts"]):
             page = pages.get((c["id"], si))
             tier = c["sources"][si][2]
@@ -89,9 +112,14 @@ def verify(out: Path) -> dict:
             wf = sum(w in page for w in words) / max(1, len(words))
             ok = (len(found) >= max(1, round(0.8 * len(ns))) if ns else wf >= 0.6) and wf >= 0.35
             res[f"{c['id']}#{fi}"] = {"status": "verified" if ok else ("read" if tier == "read" else "unverified"), "numbers": f"{len(found)}/{len(ns)}", "words": round(wf, 2)}
-    out.write_text(json.dumps(res, indent=1))
     from collections import Counter
-    print(Counter(v.get("status") for k, v in res.items() if "#src" not in k))
+    n_src = sum(len(c["sources"]) for c in CASES)
+    n_fail = sum(1 for k in res if "#src" in k)
+    print(Counter(v.get("status") for k, v in res.items() if "#src" not in k), f"sources fetched {n_src - n_fail}/{n_src}")
+    if n_fail > 0.5 * n_src:                                          # a network outage must not be recorded as 'unverifiable': keep the evidence, write nothing the pipeline would trust
+        Path(str(out) + ".failed").write_text(json.dumps(res, indent=1))
+        raise SystemExit(f"verification aborted: only {n_src - n_fail} of {n_src} source pages could be fetched (see {out}.failed). Re-run when the network is up.")
+    out.write_text(json.dumps(res, indent=1))
     return res
 
 

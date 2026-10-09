@@ -28,6 +28,17 @@ _PREFER = ["climrisk-llm", "qwen2.5:7b", "qwen2.5:3b", "llama3.2:3b", "llama3.1:
 _LLM_CACHE: dict = {"t": 0.0, "v": None}
 
 
+def _active_model(norm: dict) -> Optional[str]:
+    """~/.climrisk/active_model holds the name of the fine-tuned model that scored best on the held-out set. Used only if that model is installed."""
+    try:
+        from pathlib import Path
+        f = Path(os.environ.get("CRI_HOME") or (Path.home() / ".climrisk")) / "active_model"
+        name = f.read_text().strip() if f.exists() else ""
+        return norm.get(name) if name else None
+    except Exception:                                                # noqa: BLE001
+        return None
+
+
 def llm_status(force: bool = False) -> dict:
     """Is a local model reachable? Cached for 60 s. Set CRI_LLM=0 to ignore it."""
     if os.environ.get("CRI_LLM", "1") == "0":
@@ -41,7 +52,8 @@ def llm_status(force: bool = False) -> dict:
         if tags:
             want = os.environ.get("CRI_LLM_MODEL")
             norm = {t.split(":latest")[0]: t for t in tags}              # "climrisk-llm:latest" is found as "climrisk-llm"
-            pick = want if want in tags else next((norm[p] for p in _PREFER if p in norm), None) or next((t for t in tags if not re.search(r"embed|nomic", t)), tags[0])
+            chosen = _active_model(norm)                                 # the model the held-out evaluation picked (written by cri.llmtrain.pick), if it is installed
+            pick = want if want in tags else chosen or next((norm[p] for p in _PREFER if p in norm), None) or next((t for t in tags if not re.search(r"embed|nomic", t)), tags[0])
             v = {"available": True, "model": pick, "why": "ok"}
         else:
             v["why"] = "Ollama is running but has no model; run: ollama pull llama3.2"

@@ -135,3 +135,70 @@ def test_analogs_rank_by_channel_and_hazard(index):
     assert set(an[0]["shared_channels"]) <= {"business_interruption", "input_shortage"}
     ps = CB.analog_passages(an)
     assert [p["id"] for p in ps] == list(range(1, len(ps) + 1))
+
+
+# ── structured financials and model promotion ────────────────────────────────
+
+def _facts():
+    def fy(end_year, val, start=True):
+        x = {"end": f"{end_year}-12-31", "val": val, "form": "10-K", "fp": "FY", "filed": f"{end_year + 1}-02-20"}
+        if start:
+            x["start"] = f"{end_year}-01-01"
+        return x
+    return {"facts": {"us-gaap": {
+        "Revenues": {"units": {"USD": [fy(2021, 4_000_000_000), fy(2022, 3_800_000_000), fy(2023, 4_200_000_000)]}},
+        "NetIncomeLoss": {"units": {"USD": [fy(2021, 300_000_000), fy(2022, 150_000_000), fy(2023, 320_000_000)]}},
+        "Assets": {"units": {"USD": [fy(2021, 9_000_000_000, False), fy(2022, 9_500_000_000, False), fy(2023, 9_900_000_000, False)]}}}}}
+
+
+def test_xbrl_sentence_is_copied_figures_plus_one_computed_change():
+    from cri.llmtrain import xbrl_fin as XB
+    series = {lab: XB.annual(_facts(), tags, lab in XB.DURATION) for lab, tags in XB.CONCEPTS.items()}
+    series = {k: v for k, v in series.items() if v}
+    text, amounts = XB.sentence("Acme Corp", "Hurricane Ian", 2022, series)
+    assert "$3.80 billion in the fiscal year ended 2022-12-31" in text and "(a change of -5.0% in the year of the event)" in text
+    assert "net income was $300.0 million" in text and "(a change of -50.0% in the year of the event)" in text
+    assert "total assets was $9.00 billion" in text and amounts
+
+
+def test_xbrl_rows_are_correct_by_construction(tmp_path):
+    from cri.llmtrain import xbrl_fin as XB
+    from cri.llmtrain.evaluate import nums
+    items = []
+    for i, (ev, nm) in enumerate([("a-2022", "Hurricane A"), ("b-2022", "Hurricane B"), ("ian-2022", "Hurricane Ian")] * 4):
+        series = {lab: XB.annual(_facts(), tags, lab in XB.DURATION) for lab, tags in XB.CONCEPTS.items()}
+        text, am = XB.sentence(f"Co{i}", nm, int(ev[-4:]), {k: v for k, v in series.items() if v})
+        items.append({"event": ev, "event_name": nm, "company": f"Co{i}", "cik": str(i), "kind": "xbrl", "text": text, "amounts": am, "url": "u", "form": "10-K (XBRL)"})
+    p = tmp_path / "x.jsonl"
+    p.write_text("\n".join(json.dumps(x) for x in items))
+    rows = XB.build_rows(p, seed=1, per_case=2)
+    assert rows and {r["meta"]["type"] for r in rows} >= {"financials"}
+    for r in rows:
+        u, a = r["messages"][1]["content"], r["messages"][2]["content"]
+        assert nums(a) <= nums(u), (nums(a) - nums(u))
+        assert max(int(x) for x in re.findall(r"\[(\d+)\]", a)) <= r["meta"]["n"]
+        assert ("test" if any(h in r["meta"]["case"] for h in XB.HELD_EVENTS) else r["split"]) == r["split"] or r["split"] in ("train", "valid")
+    assert not [r for r in rows if r["split"] != "test" and "ian-2022" in r["meta"]["case"]]            # held-out events never train
+
+
+def test_pick_promotes_only_if_not_worse(tmp_path):
+    from cri.llmtrain import pick as P
+    ev = lambda s: {"metrics": {"case.numbers_ok": s, "case.cites_valid": s, "case_gap.says_missing": s, "gold.invented_numbers": 0.0}}      # noqa: E731
+    f = tmp_path / "e1.json"
+    f.write_text(json.dumps({"climrisk-llm-v2": ev(0.90), "climrisk-llm-v3": ev(0.95), "llama3.2:3b": ev(0.99)}))
+    r = P.pick(f, tmp_path)
+    assert r["active"] == "climrisk-llm-v3" and (tmp_path / "active_model").read_text().strip() == "climrisk-llm-v3"
+    g = tmp_path / "e2.json"
+    g.write_text(json.dumps({"climrisk-llm-v2": ev(0.90), "climrisk-llm-v4": ev(0.80)}))                # the current model is not re-evaluated; its recorded score is used
+    r2 = P.pick(g, tmp_path)
+    assert r2["active"] == "climrisk-llm-v3" and not r2["changed"] and "kept" in r2["why"]
+    h = tmp_path / "e3.json"
+    h.write_text(json.dumps({"climrisk-llm-v3": ev(0.95), "climrisk-llm-v4": ev(0.97)}))
+    assert P.pick(h, tmp_path)["active"] == "climrisk-llm-v4"
+
+
+def test_active_model_file_selects_the_installed_model(tmp_path, monkeypatch):
+    (tmp_path / "active_model").write_text("climrisk-llm-v4\n")
+    monkeypatch.setenv("CRI_HOME", str(tmp_path))
+    assert AN._active_model({"climrisk-llm-v4": "climrisk-llm-v4:latest", "climrisk-llm-v3": "climrisk-llm-v3:latest"}) == "climrisk-llm-v4:latest"
+    assert AN._active_model({"climrisk-llm-v3": "x"}) is None

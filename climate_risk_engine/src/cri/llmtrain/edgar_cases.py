@@ -102,6 +102,54 @@ EVENTS = [
     ("cat-losses-generic", "catastrophe losses in the period", "catastrophe losses attributable to", "2017-01-01", "2025-12-31", "natural catastrophe", "United States"),
 ]
 
+# Added for coverage (each is a quoted-phrase search in SEC filings; events that return nothing are simply skipped and reported)
+EXTRA = [
+    ("charley-2004", "Hurricane Charley", "Hurricane Charley", "2004-08-13", "2005-12-31", "tropical cyclone", "United States"),
+    ("frances-2004", "Hurricane Frances", "Hurricane Frances", "2004-09-05", "2005-12-31", "tropical cyclone", "United States"),
+    ("ivan-2004", "Hurricane Ivan", "Hurricane Ivan", "2004-09-16", "2005-12-31", "tropical cyclone", "United States and Caribbean"),
+    ("jeanne-2004", "Hurricane Jeanne", "Hurricane Jeanne", "2004-09-26", "2005-12-31", "tropical cyclone", "United States"),
+    ("dennis-2005", "Hurricane Dennis", "Hurricane Dennis", "2005-07-10", "2006-06-30", "tropical cyclone", "United States"),
+    ("dean-2007", "Hurricane Dean", "Hurricane Dean", "2007-08-21", "2008-06-30", "tropical cyclone", "Caribbean and Mexico"),
+    ("hanna-2020", "Hurricane Hanna", "Hurricane Hanna", "2020-07-25", "2021-03-31", "tropical cyclone", "United States and Mexico"),
+    ("henri-2021", "Tropical Storm Henri", "Tropical Storm Henri", "2021-08-21", "2022-03-31", "tropical cyclone", "United States"),
+    ("nicholas-2021", "Hurricane Nicholas", "Hurricane Nicholas", "2021-09-13", "2022-03-31", "tropical cyclone", "United States"),
+    ("lee-2011", "Tropical Storm Lee", "Tropical Storm Lee", "2011-09-01", "2012-06-30", "flood", "United States"),
+    ("fay-2008", "Tropical Storm Fay", "Tropical Storm Fay", "2008-08-18", "2009-06-30", "flood", "United States"),
+    ("lane-2018", "Hurricane Lane", "Hurricane Lane", "2018-08-22", "2019-03-31", "tropical cyclone", "Hawaii"),
+    ("debby-2024", "Hurricane Debby", "Hurricane Debby", "2024-08-05", "2025-06-30", "tropical cyclone", "United States"),
+    ("francine-2024", "Hurricane Francine", "Hurricane Francine", "2024-09-11", "2025-06-30", "tropical cyclone", "United States"),
+    ("otis-2023", "Hurricane Otis", "Hurricane Otis", "2023-10-25", "2024-06-30", "tropical cyclone", "Mexico"),
+    ("haiyan-2013", "Typhoon Haiyan", "Typhoon Haiyan", "2013-11-08", "2014-06-30", "tropical cyclone", "Philippines"),
+    ("hato-2017", "Typhoon Hato", "Typhoon Hato", "2017-08-23", "2018-03-31", "tropical cyclone", "Macau and Hong Kong"),
+    ("mangkhut-2018", "Typhoon Mangkhut", "Typhoon Mangkhut", "2018-09-14", "2019-03-31", "tropical cyclone", "Philippines and Hong Kong"),
+    ("debbie-2017", "Cyclone Debbie", "Cyclone Debbie", "2017-03-28", "2018-03-31", "tropical cyclone", "Australia"),
+    ("jonas-2016", "Winter Storm Jonas", "Winter Storm Jonas", "2016-01-22", "2016-12-31", "extreme cold", "United States"),
+    ("bomb-cyclone-2018", "the January 2018 bomb cyclone", "bomb cyclone", "2018-01-04", "2018-12-31", "extreme cold", "United States"),
+    ("tx-drought-2011", "the 2011 Texas drought", "Texas drought", "2011-06-01", "2012-06-30", "drought", "United States"),
+    ("moore-2013", "the Moore tornado", "Moore tornado", "2013-05-20", "2014-03-31", "severe convective storm", "United States"),
+    ("tuscaloosa-2011", "the Tuscaloosa tornado", "Tuscaloosa", "2011-04-27", "2012-03-31", "severe convective storm", "United States"),
+    ("denver-hail-2017", "the 2017 Denver hailstorm", "Denver hailstorm", "2017-05-08", "2018-03-31", "hail", "United States"),
+    ("louisiana-2016", "the 2016 Louisiana floods", "Louisiana flood", "2016-08-12", "2017-06-30", "flood", "United States"),
+    ("nashville-2010", "the 2010 Nashville flood", "Nashville flood", "2010-05-01", "2011-03-31", "flood", "United States"),
+    ("memorial-day-2015", "the 2015 Memorial Day floods", "Memorial Day flood", "2015-05-25", "2016-03-31", "flood", "United States"),
+    ("tax-day-2016", "the 2016 Tax Day flood", "Tax Day flood", "2016-04-17", "2017-03-31", "flood", "United States"),
+    ("missouri-2011", "the 2011 Missouri River flooding", "Missouri River flooding", "2011-06-01", "2012-06-30", "flood", "United States"),
+    ("midwest-2008", "the 2008 Midwest floods", "Midwest floods", "2008-06-01", "2009-06-30", "flood", "United States"),
+    ("carr-2018", "the Carr Fire", "Carr Fire", "2018-07-23", "2019-06-30", "wildfire", "California"),
+    ("thomas-2017", "the Thomas Fire", "Thomas Fire", "2017-12-04", "2018-12-31", "wildfire", "California"),
+    ("kincade-2019", "the Kincade Fire", "Kincade Fire", "2019-10-23", "2020-12-31", "wildfire", "California"),
+    ("gatlinburg-2016", "the Gatlinburg wildfire", "Gatlinburg", "2016-11-28", "2017-12-31", "wildfire", "Tennessee"),
+    ("waldo-2012", "the Waldo Canyon fire", "Waldo Canyon", "2012-06-23", "2013-03-31", "wildfire", "Colorado"),
+    ("ira-2022", "the US Inflation Reduction Act", "Inflation Reduction Act", "2022-08-16", "2025-06-30", "transition policy", "United States"),
+    ("cpp-2015", "the US Clean Power Plan", "Clean Power Plan", "2015-08-03", "2017-12-31", "transition policy", "United States"),
+    ("rggi", "the Regional Greenhouse Gas Initiative", "Regional Greenhouse Gas Initiative", "2009-01-01", "2024-12-31", "transition policy", "United States"),
+    ("ca-cap-trade", "California cap-and-trade", "cap-and-trade", "2013-01-01", "2024-12-31", "transition policy", "California"),
+    ("eu-ets", "the EU Emissions Trading System", "Emissions Trading System", "2012-01-01", "2025-06-30", "transition policy", "European Union"),
+    ("coal-retire", "coal plant retirements and stranded costs", "coal plant retirement", "2012-01-01", "2025-06-30", "transition market", "United States"),
+    ("ev-mandate", "the shift to electric vehicles", "transition to electric vehicles", "2019-01-01", "2025-06-30", "transition market", "Global"),
+]
+ALL_EVENTS = EVENTS + EXTRA
+
 RESP = [
     ("transfer", re.compile(r"reinsur|catastrophe bond|cat bond|retrocession|quota share|aggregate cover|insurance (recover|proceeds)|recoveries? from insur|business interruption (insurance|claim)", re.I)),
     ("financial", re.compile(r"revolv|credit facilit|borrow|securitiz|rights issue|equity (offering|raise)|issued (notes|debt|shares)|impairment|write-?off|reserves?\\b|dividend|liquidity|covenant|credit rating|\\brating (agenc|downgrade|action)", re.I)),
@@ -198,11 +246,19 @@ def _doc_job(args):
     return {"url": url, "ok": True, "company": company, "cik": src["ciks"][0], "form": src["form"], "filed": src["file_date"], "sic": (src.get("sics") or [""])[0], "quotes": q}
 
 
-def collect(out: Path, max_docs=90, only=None, forms="8-K,10-Q,10-K"):
+def collect(out: Path, max_docs=90, only=None, forms="8-K,10-Q,10-K", merge=False):
+    """merge=True: keep what is already in out/, and collect only events not yet done (or that failed before). Lets a second pass extend the first."""
     out.mkdir(parents=True, exist_ok=True)
     recs, report = [], {}
-    for ev in EVENTS:
+    if merge and (out / "edgar_cases.jsonl").exists():
+        recs = [json.loads(x) for x in (out / "edgar_cases.jsonl").read_text().splitlines() if x.strip()]
+        report = json.loads((out / "edgar_report.json").read_text()) if (out / "edgar_report.json").exists() else {}
+    for ev in ALL_EVENTS:
         if only and ev[0] not in only:
+            continue
+        if merge and ev[0] in report and "error" not in report[ev[0]]:
+            continue
+        if merge and ev[0] in report and report[ev[0]].get("error") == "no hits":
             continue
         hits, err = [], None
         for form_set in (forms, "8-K"):                              # the combined-form query sometimes 500s; fall back to 8-K alone
@@ -382,11 +438,12 @@ def main():
     if a[0] == "collect":
         md = 90
         only = None
+        merge = "--merge" in a
         if "--max-docs-per-event" in a:
             md = int(a[a.index("--max-docs-per-event") + 1])
         if "--only" in a:
             only = a[a.index("--only") + 1].split(",")
-        collect(Path(a[1]), md, only)
+        collect(Path(a[1]), md, only, merge=merge)
     elif a[0] == "rows":
         write_rows(Path(a[1]) / "edgar_cases.jsonl", Path(a[2]))
 
