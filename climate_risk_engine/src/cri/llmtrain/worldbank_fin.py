@@ -40,7 +40,7 @@ COUNTRIES = {
     "panama-2023": ["PAN"], "otis-2023": ["MEX"], "dean-2007": ["JAM", "MEX"], "maria-2017": ["PRI"], "fiona-2022": ["PRI"], "dorian-2019": ["BHS"],
     "day-zero-2018": ["ZAF"], "kzn-2022": ["ZAF"], "freddy-2023": ["MOZ", "MWI"], "idai-2019": ["MOZ", "ZWE"], "kariba-2024": ["ZMB", "ZWE"], "kenya-drought": ["KEN"],
     "dubai-2024": ["ARE"], "bc-floods-2021": ["CAN"], "lytton-2021": ["CAN"], "alberta-2013": ["CAN"], "calgary-hail-2020": ["CAN"], "heat-dome-2021": ["CAN"], "mcmurray-2016": ["CAN"], "canada-fires-2023": ["CAN"],
-    "china-ets": ["CHN"],
+    "china-ets": ["CHN"], "tata-port-talbot": ["GBR"], "uk-freeze-2022": ["GBR"],
 }
 
 
