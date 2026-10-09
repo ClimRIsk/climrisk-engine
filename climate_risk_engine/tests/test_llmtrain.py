@@ -78,3 +78,73 @@ def test_qa_and_refuse_examples(tmp_path):
     rf = D.build_refuse(ps, rng, 20)
     for r in rf:
         assert E.score({"kind": "refuse", "meta": r["meta"], "messages": r["messages"]}, r["messages"][2]["content"])["says_missing"] == 1.0
+
+
+def test_case_library_is_consistent():
+    from cri.llmtrain import cases as CS
+    from cri.llmtrain.cases_data import CASES
+    ids = [c["id"] for c in CASES]
+    assert len(ids) == len(set(ids)) >= 24
+    for c in CASES:
+        assert c["sources"] and c["facts"] and c["gaps"] and c["lessons"], c["id"]
+        for _, si in c["facts"]:
+            assert si < len(c["sources"]), c["id"]
+        for _, _, si in c["responses"]:
+            assert si < len(c["sources"]), c["id"]
+        for ch in c["channels"]:
+            assert ch in CS.CH_DESC, (c["id"], ch)
+        for lesson in c["lessons"]:
+            assert not re.search(r"\d", lesson), (c["id"], lesson)      # lessons are analysis: no numbers
+    assert set(CS.HELD_OUT) <= set(ids)
+
+
+def _nums(t):
+    return {x.replace(",", "").rstrip(".").lstrip("0") or "0" for x in re.findall(r"\d[\d,]*\.?\d*", t)}
+
+
+def test_case_rows_are_correct_by_construction_and_do_not_leak():
+    from cri.llmtrain import cases as CS
+    for seed in range(3):
+        rows = CS.build({}, seed=seed, allow_unverified=True)
+        assert len(rows) > 300
+        for r in rows:
+            u, a = r["messages"][1]["content"], r["messages"][2]["content"]
+            assert _nums(a) <= _nums(u), (r["meta"], _nums(a) - _nums(u))
+            cites = {int(x) for x in re.findall(r"\[(\d+)\]", a)}
+            assert not cites or max(cites) <= r["meta"]["n"]
+            if r["kind"] == "case_gap":
+                assert E.MISSING.search(a)
+            if r["split"] != "test":
+                for h in CS.HELD_OUT:
+                    assert CS.SHORT[h] not in u, (h, r["meta"])
+
+
+def test_edgar_rows_use_only_quoted_text(tmp_path):
+    import json as _j
+    from cri.llmtrain import edgar_cases as EC
+    recs = []
+    for ev in ("ida-2021", "uri-2021", "camp-2018"):
+        for k in range(6):
+            recs.append({"event": ev, "event_name": ev.upper(), "hazard": "x", "region": "y", "company": f"{ev[:3].title()}Co{k} Inc", "cik": f"{ev[:3]}{k}", "form": "8-K", "filed": "2021-09-01",
+                         "url": f"http://x/{ev}{k}", "quotes": [{"quote": f"{ev[:3].title()}Co{k} recorded a ${k + 2} million loss from {ev.upper()} and drew on its revolving credit facility.", "amounts": [f"${k + 2} million"], "response": ["financial"]}]})
+    p = tmp_path / "edgar_cases.jsonl"
+    p.write_text("\n".join(_j.dumps(r) for r in recs))
+    rows = EC.build_rows(p, per_case=2)
+    assert rows
+    for r in rows:
+        u, a = r["messages"][1]["content"], r["messages"][2]["content"]
+        assert _nums(a) <= _nums(u)
+        cites = {int(x) for x in re.findall(r"\[(\d+)\]", a)}
+        assert not cites or max(cites) <= r["meta"]["n"]
+    assert any(r["kind"] == "case_gap" for r in rows)
+
+
+def test_edgar_extractor_keeps_complete_event_sentences_only():
+    from cri.llmtrain import edgar_cases as EC
+    ev = [e for e in EC.EVENTS if e[0] == "ian-2022"][0]
+    text = ("\n• Hurricane Ian caused $35 million of property damage at the resort and insurance recoveries will offset part of it.\n"
+            "Adjusted EBITDA represents earnings before items such as Hurricane Ian charges of $4 million in the period.\n"
+            "Hurricane Ian made landfall in September and affected many customers across the whole region quickly\n"
+            "The company has no other comment about the weather this year across its business areas.\n")
+    q = EC.extract(text, ev)
+    assert len(q) == 1 and q[0]["amounts"] and "transfer" in q[0]["response"]

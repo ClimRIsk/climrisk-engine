@@ -47,6 +47,19 @@ def score(row, out):
         s["cites_valid"] = float(bool(cites) and max(cites) <= row["meta"]["n"])
         s["no_invented_numbers"] = float(nums(out) <= nums(u) | nums(out) & set())
         s["hedges_inference"] = float(bool(re.search(r"do not (give|state|contain)|not stated|inference|no (carbon|volumes|damage)", out)))
+    elif k in ("case", "case_gap"):
+        cites = {int(x) for x in re.findall(r"\[(\d+)\]", out)}
+        need = set(row["meta"].get("need", []))
+        s["numbers_ok"] = float(nums(out) <= nums(u))
+        s["cites_valid"] = float(not cites or max(cites) <= row["meta"]["n"])
+        if k == "case":
+            s["cites_needed"] = len(need & cites) / max(1, len(need))
+            norm = re.sub(r"([.!?])\s*((?:\[\d+\]\s*)+)", r" \2\1", out)
+            sents = [x for x in re.split(r"(?<=[.!?])\s+", norm) if len(x.split()) > 4 and not x.lower().startswith("analysis")]
+            s["sent_cited"] = sum(bool(re.search(r"\[\d+\]", x)) for x in sents) / max(1, len(sents))
+            s["flags_inference"] = float("analysis (not stated" in out.lower())
+        else:
+            s["says_missing"] = float(bool(MISSING.search(out)))
     elif k == "narr":
         s["numbers_ok"] = float(nums(out) <= nums(row["meta"]["facts"]) | nums(u))
         s["says_not_forecast"] = float("forecast" in out.lower())

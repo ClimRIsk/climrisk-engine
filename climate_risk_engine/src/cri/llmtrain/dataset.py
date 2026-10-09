@@ -321,6 +321,13 @@ def main(corpus_dir: Path, out: Path, seed: int = 7):
             x = r2.random()
             r["split"] = "test" if x < 0.08 else "valid" if x < 0.16 else "train"
         rows += v2
+    if "--cases" in sys.argv:                                        # v3: real events, company financials and responses (verified facts only)
+        from . import cases as CS
+        vf = json.loads(Path(sys.argv[sys.argv.index("--cases") + 1]).read_text())
+        rows += CS.build(vf, seed=seed + 20, reps=3)
+    if "--edgar" in sys.argv:                                        # v3: real company disclosures from SEC filings (verbatim quotes)
+        from . import edgar_cases as EC
+        rows += EC.build_rows(Path(sys.argv[sys.argv.index("--edgar") + 1]), seed=seed + 30, per_case=2)
     gold = build_gold()
     rows += gold + [dict(r) for r in gold if r["split"] == "train"] * 2        # gold is scarce and high quality: upweight x3
     for r in rows:
