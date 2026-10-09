@@ -133,6 +133,12 @@ def run(ds: str, out: str, models: list, limit: int = 160, seed: int = 3, chat=_
     res["_baselines"] = baselines(oracle)
     for mdl in models:
         t0, scored = time.time(), []
+        if chat is _chat:                                            # 16 GB: never keep two models resident while timing one (this caused the 15-minute stalls)
+            try:
+                from ..resident import answer as AN
+                AN.unload_others(mdl)
+            except Exception:                                        # noqa: BLE001
+                pass
         for i, r in enumerate(rows):
             ans = chat(mdl, r["messages"][:2])
             scored.append(score_row(r, ans))
@@ -180,8 +186,43 @@ def sheet(eval_json: str, out: str, n: int = 12) -> str:
     return out
 
 
+def report(eval_json: str, out: str) -> str:
+    """Plain-language results: every model against the baselines and the teacher, with what the numbers do and do not show."""
+    d = json.loads(Path(eval_json).read_text())
+    models = {k: v for k, v in d.items() if not k.startswith("_") and not k.startswith("oracle") and isinstance(v, dict) and "metrics" in v}
+    cols = [("verdict_accuracy", "verdict"), ("near_limit_verdict_accuracy", "near limit"), ("ood_verdict_accuracy", "out of range"), ("sensitivity_follows_change", "follows a change"),
+            ("ablation_not_computable", "says not computable"), ("distractor_ignored", "ignores irrelevant"), ("numbers_in_sources", "no invented numbers"), ("all_checks_pass", "all checks")]
+    f = lambda v: "n/a" if v is None else f"{100 * v:.0f}%"
+    L = ["# Reasoning evaluation", "", f"{d['_meta']['rows']} held-out rows from precedent events never used in training, scored by code (no model grades another model).", "",
+         "| model | composite | " + " | ".join(c[1] for c in cols) + " |", "|---|---|" + "---|" * len(cols)]
+    for k, v in sorted(models.items(), key=lambda kv: -kv[1]["composite"]):
+        L.append(f"| {k} | {v['composite']:.3f} | " + " | ".join(f(v["metrics"].get(c[0])) for c in cols) + " |")
+    o = d.get("oracle (rule-based teacher)")
+    if o:
+        L.append(f"| rule-based teacher (ceiling) | {o['composite']:.3f} | " + " | ".join(f(o["metrics"].get(c[0])) for c in cols) + " |")
+    b = d["_baselines"]
+    L += ["", f"Baselines: always answering the commonest verdict ({b['always_the_commonest_verdict']['verdict']}) scores {f(b['always_the_commonest_verdict']['verdict_accuracy'])} on verdict accuracy; ignoring the change in a counterfactual pair scores 0% on following a change.", ""]
+    if models:
+        best = max(models, key=lambda k: models[k]["composite"])
+        bm = models[best]["metrics"]
+        maj = b["always_the_commonest_verdict"]["verdict_accuracy"] or 0
+        L += [f"Best model: **{best}**. " + ("It beats the commonest-verdict baseline on verdict accuracy." if (bm.get("verdict_accuracy") or 0) > maj + 0.05 else "It does NOT clearly beat the commonest-verdict baseline, so it is not reasoning from the numbers.")
+              + (" It follows a changed input in " + f(bm.get("sensitivity_follows_change")) + " of pairs whose true verdict changes." if bm.get("sensitivity_follows_change") is not None else ""), ""]
+    L += ["What this does and does not show", "",
+          "- The engine computes every figure. A model is scored on whether it reads those figures correctly, reaches the verdict they imply, refuses when the engine result is absent, and ignores a passage that does not bear on the question.",
+          "- The reference answers come from a rule-based reasoner, so a model that matches them has learned the analysis procedure and its phrasing; this is not evidence of general intelligence or of new knowledge.",
+          "- Scenarios are synthetic inputs paired with real precedent passages from only a few dozen curated events. Real covenant packages are more varied. A lender's or insurer's own calculation remains the authority.",
+          "- At run time every chain is re-checked by the same code; a failing chain is replaced by the rule-based chain and labelled as such.",
+          "- A blind review by risk professionals is still needed before anyone relies on the narrative: see the review sheet."]
+    Path(out).write_text("\n".join(L) + "\n")
+    return "\n".join(L)
+
+
 def main() -> None:
     a = sys.argv[1:]
+    if a and a[0] == "report":
+        print(report(a[1], a[2]))
+        return
     if a and a[0] == "pick":
         home = Path(a[a.index("--home") + 1]) if "--home" in a else Path(os.environ.get("CRI_HOME") or (Path.home() / ".climrisk"))
         tol = float(a[a.index("--tolerance") + 1]) if "--tolerance" in a else 0.02

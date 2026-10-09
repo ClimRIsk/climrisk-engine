@@ -77,3 +77,9 @@ def test_review_sheet(ds):
     out = RE.sheet(os.path.join(ds, "e5.json"), os.path.join(ds, "sheet.md"), 3)
     t = open(out).read()
     assert "Item 1" in t and "m" not in t.split("Item 1")[0].split("# Blind")[1][:0] and "VERDICT" in t
+
+
+def test_report_is_written_and_says_when_a_model_does_not_beat_the_baseline(ds, tmp_path):
+    res = RE.run(ds, os.path.join(ds, "e2.json"), ["lazy"], limit=40, seed=1, chat=lambda m, msgs: "No idea.")
+    md = RE.report(os.path.join(ds, "e2.json"), str(tmp_path / "r.md"))
+    assert "lazy" in md and "NOT clearly beat" in md and "rule-based reasoner" in md
