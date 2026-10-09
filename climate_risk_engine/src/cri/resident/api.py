@@ -278,6 +278,54 @@ def make_router(auth_dep) -> tuple:
             return str(q) if str(q).startswith(str(root)) else None
         return RM.validation_pack(safe(demo) or safe("llm/demo_report.json"), safe(evaluation) or safe("llm/eval.json"), tests)
 
+    # ── insurer and bank bridges (cri.oasis, cri.creditbridge) ─────────────────────────────────────────────────────────────────
+    def _rows(v):
+        from .. import oasis as OA
+        if isinstance(v, str):
+            return OA.parse_csv(v)
+        if isinstance(v, list):
+            return v
+        return []
+
+    @prot.post("/oed/import")
+    def oed_import(req: dict) -> dict:
+        """{location: CSV text or rows, account?: CSV text or rows, occupancy_map?: {code: sector}, fx?: {EUR: usd_per_unit}} -> sites + hierarchy + every row/term not carried over."""
+        from .. import oasis as OA
+        loc = _rows(req.get("location"))
+        if not loc:
+            raise HTTPException(422, "location (OED location file as CSV text or a list of rows) required")
+        if len(loc) > 20000:
+            raise HTTPException(422, "at most 20,000 locations per call")
+        return OA.read_oed(loc, _rows(req.get("account")) or None, req.get("occupancy_map"), req.get("fx"))
+
+    @prot.post("/oed/run")
+    def oed_run(req: dict) -> dict:
+        """Import an OED exposure file, run the insurer simulation, and return the result with ORD-style tables (and their CSV text)."""
+        from .. import oasis as OA, insurance as INS
+        imp = oed_import(req)
+        if not imp["sites"]:
+            raise HTTPException(422, {"error": "no location could be loaded", "warnings": imp["warnings"][:20]})
+        try:
+            res = INS.run(imp["sites"], n_years=int(req.get("n_years", 5000)), seed=int(req.get("seed", 11)), reinsurance_program=req.get("reinsurance"))
+        except INS.InsuranceError as e:
+            raise HTTPException(422, str(e))
+        t = OA.ord_tables(res, imp["meta"])
+        return {"import": {k: imp[k] for k in ("read", "loaded", "skipped", "hierarchy", "warnings")}, "result": res, "ord": t, "ord_csv": {k: OA.to_csv(v) for k, v in t.items() if isinstance(v, list) and v and isinstance(v[0], dict)}}
+
+    @prot.get("/credit/schema")
+    def credit_schema() -> dict:
+        from .. import creditbridge as CR
+        return CR.SCHEMA
+
+    @prot.post("/credit/assess")
+    def credit_assess(req: dict) -> dict:
+        """{entities: [...Entity -> Facility -> Collateral...], return_period?, n_years?, seed?} -> LTV, covenant effects and portfolio view. No PD/LGD is produced."""
+        from .. import creditbridge as CR
+        try:
+            return CR.assess(req.get("entities") or [], int(req.get("return_period", 100)), int(req.get("n_years", 5000)), int(req.get("seed", 11)), float(req.get("corr_scale", 1.0)))
+        except ValueError as e:
+            raise HTTPException(422, str(e))
+
     @prot.post("/cases/warm")
     def cases_warm() -> dict:
         from . import answer as AN
