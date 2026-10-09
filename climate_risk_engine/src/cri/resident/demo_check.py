@@ -22,7 +22,7 @@ from pathlib import Path
 from . import answer as AN
 from . import casebase as CB
 
-MISSING = ("do not cover", "does not cover", "not covered", "do not report", "no information", "would need", "could not find", "will not guess", "not in the sources", "do not hold")
+MISSING = ("do not mention", "do not cover", "does not cover", "not covered", "do not report", "no information", "would need", "could not find", "will not guess", "not in the sources", "do not hold")
 
 
 def _questions(n: int, seed: int) -> list:
@@ -60,9 +60,7 @@ def _evaluate(kind: str, q: str, r: dict) -> dict:
     chk = CB.check(r["reply"], ps) if ps else {"ok": None, "numbers_not_in_sources": [], "bad_citations": [], "uncited_sentences": [], "cited": []}
     says_missing = any(m in r["reply"].lower() for m in MISSING)
     if kind in ("company_unknown", "outside_library"):
-        good = says_missing or not r.get("ok")
-        # a general-knowledge answer that carries its own citations is acceptable for a question outside the case library
-        good = good or (kind == "outside_library" and r.get("ok") and "[1]" in r["reply"])
+        good = says_missing or not r.get("ok")                       # a question about something the library does not hold must be declined, not answered
     else:
         good = bool(r.get("ok")) and (chk["ok"] is not False)
     return {"kind": kind, "question": q, "ok": bool(good), "path": ("case/model" if r.get("case_mode") and "language model" in r.get("mode", "") else "case/assembled" if r.get("case_mode") else "general" if r.get("ok") else "declined"),

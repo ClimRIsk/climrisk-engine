@@ -106,3 +106,19 @@ def test_warm_unloads_other_resident_models(monkeypatch):
     assert AN.unload_others("climrisk-llm-v5b:latest") == ["climrisk-llm-v2:latest"]
     assert calls == [{"model": "climrisk-llm-v2:latest", "prompt": "", "stream": False, "keep_alive": 0}]
     srv.shutdown()
+
+
+def test_general_path_rejects_invented_numbers_and_unmentioned_entities(monkeypatch):
+    from cri.resident import knowledge as K
+    ps = [{"title": "Alba", "url": "u", "text": "Alba Smelter in Bahrain has four power stations with a capacity of 2,265 megawatts.", "coverage": 0.9, "score": 5.0, "id": 1, "learned": "2026-01-01"}]
+    monkeypatch.setattr(K, "search", lambda q, k=6: ps)
+    monkeypatch.setattr(AN, "llm_status", lambda force=False: {"available": True, "model": "x", "why": "ok"})
+    monkeypatch.setattr(AN, "ask_cases", lambda *a, **k: None)
+    assert AN.ungrounded_names("What did the 1998 ice storm cost Hydro-Quebec?", ps) == ["Hydro-Quebec"]
+    assert AN.ungrounded_names("How much capacity does Alba Smelter have?", ps) == []
+    r = AN.ask("What did the 1998 ice storm cost Hydro-Quebec?", allow_learn=False)
+    assert not r["ok"] and "Hydro-Quebec" in r["reply"]
+    # the model invents a figure for a question the sources do cover by name: rejected, extractive answer used
+    monkeypatch.setattr(AN, "_ollama_post", lambda path, payload, total_s: {"message": {"content": "Alba Smelter has a capacity of 9,999 megawatts [1]."}, "_wall_s": 0.1})
+    r = AN.ask("How much capacity does Alba Smelter have?", allow_learn=False)
+    assert r["ok"] and "9,999" not in r["reply"] and "2,265" in r["reply"] and "numbers that are not in the sources" in (r["llm_note"] or "")

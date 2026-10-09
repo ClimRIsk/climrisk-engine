@@ -250,11 +250,34 @@ def _llm_once(question: str, passages: list, model: str, context: Optional[str],
         if max(cited) > len(passages):
             LAST_LLM["why"] = "the model cited a source number that does not exist, so the answer was rejected"
             return None
+        from . import casebase as CB                                 # the same mechanical rule as the case path: every number must be in the sources
+        bad = CB.check(out, [{"id": i + 1, "text": p["text"]} for i, p in enumerate(passages)])["numbers_not_in_sources"]
+        if bad:
+            LAST_LLM["why"] = f"the model's answer contained numbers that are not in the sources ({bad[:4]}), so it was rejected"
+            return None
         LAST_LLM["why"] = "ok"
         return out
     except Exception as e:                                           # noqa: BLE001
         LAST_LLM.update(why=f"call to the local model failed: {type(e).__name__}: {e}"[:300], raw="")
         return None
+
+
+_NAME_SKIP = {"what", "which", "who", "when", "where", "why", "how", "does", "did", "the", "and", "january", "february", "march", "april", "may", "june", "july", "august", "september", "october",
+              "november", "december", "north", "south", "east", "west", "american", "european", "asian", "african", "global", "world", "climate"}
+
+
+def ungrounded_names(question: str, passages: list) -> list:
+    """Proper names in the question (not the first word) that appear in none of the passages. If the sources never mention the entity asked about, they cannot answer
+    a question about it, however close the topic words are."""
+    words = re.findall(r"[A-Za-z][A-Za-z'\-]+", question)
+    blob = " ".join(p["text"] for p in passages).lower()
+    out = []
+    for i, w in enumerate(words):
+        if i == 0 or not w[0].isupper() or len(w) < 4 or w.lower() in _NAME_SKIP:
+            continue
+        if w.lower().strip("'s") not in blob and w.lower() not in blob:
+            out.append(w)
+    return list(dict.fromkeys(out))
 
 
 def _confident(ps: list) -> bool:
@@ -377,6 +400,11 @@ def ask(question: str, context: Optional[str] = None, allow_learn: bool = True, 
         return {"ok": False, "reply": ("I could not find reliable material on that, so I will not guess. "
                                        "Give me a page to read (say \"learn from <web address>\") or rephrase with the hazard, place or regulation you mean."),
                 "sources": [], "mode": "none", "learned": learned, "elapsed_s": round(time.time() - t0, 1)}
+    miss = ungrounded_names(question, ps)
+    if miss:
+        return {"ok": False, "reply": (f"The sources I hold do not mention {', '.join(miss)}, so I do not cover that and will not guess. "
+                                       "Give me a page to read (say \"learn from <web address>\") or ask about something the sources do cover."),
+                "sources": _src(ps), "mode": "none", "learned": learned, "elapsed_s": round(time.time() - t0, 1), "llm_note": None}
     ls = llm_status()
     text, mode = None, "extractive"
     if ls["available"]:
