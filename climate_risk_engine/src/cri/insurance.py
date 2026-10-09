@@ -558,6 +558,16 @@ def run(sites_in: list, hazards: Optional[list] = None, n_years: int = 5000, see
     res["limits"] = LIMITS
     res["sources"] = SOURCES
     res["elapsed_s"] = round(time.time() - t0, 1)
+    try:                                                             # reproducibility record: input hash, seed, versions, headline results
+        from . import riskmgmt as _rm
+        _g = stats["gross"]
+        rec = _rm.audit_log("insurer_run", {"sites": sites_in, "n_years": n_years, "seed": seed, "corr_scale": corr_scale, "reinsurance": reinsurance_program, "climate": climate,
+                                           "cost_of_capital": cost_of_capital, "expense_ratio": expense_ratio, "uncertainty_load": uncertainty_load, "capital_quantile": capital_quantile},
+                            {"n_sites": len(sites), "tiv": tiv_total, "aal": _g.get("aal"), "seed": seed, "n_years": ny})
+        if rec:
+            res["audit"] = {"id": rec["id"], "input_sha256": rec["input_sha256"], "engine_version": rec["engine_version"], "seed": seed}
+    except Exception:                                                # noqa: BLE001 — auditing must never break a run
+        pass
     return res
 
 

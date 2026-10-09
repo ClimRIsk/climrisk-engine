@@ -249,6 +249,12 @@ def ask_cases(question: str, context: Optional[str] = None, k: int = 6) -> Optio
     if not text:
         return None
     used = sorted({int(x) for x in re.findall(r"\[(\d+)\]", text) if int(x) <= len(ps)})
+    try:
+        from .. import riskmgmt as _rm
+        _rm.audit_log("case_answer", {"question": question, "passages": [p["id"] for p in ps]},
+                      {"mode": mode, "cited": used, "check_ok": bool(CB.check(text, ps).get("ok")) if hasattr(CB, "check") else None}, model=ls.get("model") if ls["available"] else None)
+    except Exception:                                                # noqa: BLE001
+        pass
     return {"ok": True, "reply": text, "sources": _src(ps, used), "mode": mode, "learned": [], "elapsed_s": round(time.time() - t0, 1), "case_mode": True,
             "evidence": [{"n": p["id"], "text": p["text"], "url": p["url"]} for p in ps],
             "llm_note": (LAST_LLM["why"] if ls["available"] and "assembled" in mode else None)}

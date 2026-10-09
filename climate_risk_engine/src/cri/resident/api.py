@@ -235,6 +235,49 @@ def make_router(auth_dep) -> tuple:
         text = str(req.get("text") or f"closest cases for {req.get('hazard', '')} at {req.get('assets', '')}")
         return AN.ask_analogs(text, assets=str(req.get("assets") or ""), hazard=str(req.get("hazard") or ""), channels=req.get("channels"))
 
+    # ── risk-manager tools (cri.riskmgmt) ─────────────────────────────────────────────────────────────────────────────────────
+    @prot.get("/audit")
+    def audit(n: int = 50, kind: Optional[str] = None) -> dict:
+        """Recent audit records: every insurer run and case answer, with input hash, seed, engine and index versions."""
+        from .. import riskmgmt as RM
+        return {"records": RM.audit_recent(max(1, min(n, 500)), kind)}
+
+    @prot.post("/risk/translate")
+    def risk_translate(req: dict) -> dict:
+        """{fin:{revenue,ebitda,net_debt,interest_expense,equity,total_assets}, loss:{asset_damage,insured_recovery,bi_revenue_lost,...}, covenants:{max_net_debt_to_ebitda,...}}"""
+        from .. import riskmgmt as RM
+        try:
+            return RM.translate(req.get("fin") or {}, req.get("loss") or {}, req.get("covenants"))
+        except ValueError as e:
+            raise HTTPException(422, str(e))
+
+    @prot.post("/risk/exposure-quality")
+    def risk_exposure_quality(req: dict) -> dict:
+        from .. import riskmgmt as RM
+        sites = req.get("sites")
+        if not isinstance(sites, list):
+            raise HTTPException(422, "sites (a list) required")
+        return RM.exposure_quality(sites)
+
+    @prot.post("/risk/issb-draft")
+    def risk_issb(req: dict) -> dict:
+        from .. import riskmgmt as RM
+        return RM.issb_s2_draft(req.get("outputs") or {}, req.get("org"))
+
+    @prot.get("/risk/validation-pack")
+    def risk_validation(demo: Optional[str] = None, evaluation: Optional[str] = None, tests: Optional[str] = None) -> dict:
+        """Paths are read only from the engine's own output folder (CRI_HOME), never from arbitrary locations."""
+        import os
+        from .. import riskmgmt as RM
+        root = RM._home().resolve()
+
+        def safe(p):
+            if not p:
+                return None
+            q = (root / p).resolve()
+            return str(q) if str(q).startswith(str(root)) else None
+        return RM.validation_pack(safe(demo) or safe("llm/demo_report.json"), safe(evaluation) or safe("llm/eval.json"), tests)
+
     @prot.post("/cases/warm")
     def cases_warm() -> dict:
         from . import answer as AN
