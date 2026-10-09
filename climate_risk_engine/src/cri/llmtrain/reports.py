@@ -18,6 +18,7 @@ import json
 import re
 import sys
 import time
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -39,6 +40,26 @@ SEEDS = [
     {"company": "SL Green", "year": 2023, "region": "United States", "url": "https://sustainability.slgreen.com/sl-green-tcfd-report-2"},
     {"company": "PSP Swiss Property", "year": 2025, "region": "Switzerland", "url": "https://www.psp.info/fileadmin/internet/nachhaltigkeit/pdf/2025/PSP_Nachhaltigkeit_TCFD_GB25_en.pdf"},
     {"company": "Borregaard", "year": 2023, "region": "Norway", "url": "https://borregaard.no/media/kcfdebzj/scenario-analysis-borregaard.pdf"},
+    {"company": "TSMC", "year": 2021, "region": "Taiwan", "url": "https://esg.tsmc.com/download/csr/TSMC_TCFD_Report_E.pdf"},
+    {"company": "Entergy", "year": 2019, "region": "United States", "url": "https://www.entergy.com/wp-content/uploads/EntergyClimateScenarioAnalysis.pdf"},
+    {"company": "Entergy", "year": 2022, "region": "United States", "url": "https://www.entergy.com/ClimateReport"},
+    {"company": "NextEra Energy", "year": 2025, "region": "United States", "url": "https://www.investor.nexteraenergy.com/~/media/Files/N/NEE-IR/Sustainability/2025/Risk Management.pdf"},
+    {"company": "Florida Power & Light", "year": 2023, "region": "United States", "url": "https://www.floridapsc.com/pscfiles/website-files/PDF/Utilities/Electricgas/StormProtectionPlans/2023/2023 Florida Power & Light Company SPP Annual Status Report.pdf"},
+    {"company": "Equinix", "year": 2025, "region": "Global", "url": "https://sustainability.equinix.com/wp-content/uploads/2025/05/Equinix_TCFD-financial-disclosure.pdf"},
+    {"company": "Equinix", "year": 2025, "region": "Global", "url": "https://sustainability.equinix.com/wp-content/uploads/2025/12/Equinix_Global-Climate-Risk-Report.pdf"},
+    {"company": "Digital Realty", "year": 2022, "region": "Global", "url": "https://go2.digitalrealty.com/rs/087-YZJ-646/images/DOC_Digital_Realty_2307_2022_TCFD_Alignment.pdf"},
+    {"company": "Texas Instruments", "year": 2022, "region": "United States", "url": "https://www.ti.com/lit/pdf/szzl014"},
+    {"company": "TE Connectivity", "year": 2025, "region": "Switzerland", "url": "https://www.te.com/content/dam/te-com/documents/about-te/corporate-responsibility/global/climateriskreport2025.pdf"},
+    {"company": "Nomad Foods", "year": 2024, "region": "United Kingdom", "url": "https://www.nomadfoods.com/wp-content/uploads/2024/08/nomad-foods-tcfd-statement.pdf"},
+    {"company": "Verisk", "year": 2022, "region": "United States", "url": "https://www.verisk.com/siteassets/media/corporate-social-responsibility/downloads/verisk-climate-disclosure-report.pdf"},
+    {"company": "Zurich Insurance Malaysia", "year": 2025, "region": "Malaysia", "url": "https://www.zurich.com.my/-/media-assets/project/zurich-headless/malaysia/docs/about-zurich/corporate-responsibility/zurich-malaysia-task-force-on-climate-related-financial-disclosures-report-2025.pdf"},
+    {"company": "BHP", "year": 2025, "region": "Australia", "url": "https://www.bhp.com/sustainability/climate-change/climate-related-physical-risk-and-adaptation"},
+    {"company": "BHP", "year": 2026, "region": "Australia", "url": "https://www.bhp.com/sustainability/climate-change/physical-climate-related-risk-and-adaptation"},
+    {"company": "Alliander", "year": 2023, "region": "Netherlands", "url": "https://annualreport.alliander.com/annual-report-2023/other-information/tcfd-index"},
+    {"company": "Merck KGaA", "year": 2022, "region": "Germany", "url": "https://www.emdgroup.com/en/sustainability-report/2022/_assets/downloads/tcfd-index-emd-sr22.pdf"},
+    {"company": "Sun Pharma", "year": 2023, "region": "India", "url": "https://www.sunpharma.com/responsibility/sustainability-new/pdf/TCFD-and-Climate-Risk-Management-Approach.pdf"},
+    {"company": "Hitachi High-Tech", "year": 2024, "region": "Japan", "url": "https://www.hitachi-hightech.com/global/en/sustainability/environment/tnfd/strategy/"},
+    {"company": "Lancashire Group", "year": 2023, "region": "United Kingdom", "url": "https://www.lancashiregroup.com/en/responsibility/tcfd.html"},
 ]
 
 PHYS = re.compile(r"flood|wildfire|hurricane|cyclone|typhoon|storm|heat ?wave|extreme heat|heat stress|drought|water (stress|scarcity|shortage)|low[- ]water|sea[- ]level|physical (climate )?risk|extreme weather|hail|substation|sea walls?", re.I)
@@ -47,6 +68,7 @@ JUNK = re.compile(r"forward-looking|this report|table of contents|click here|cop
 
 
 def _fetch(url: str, timeout: int = 60) -> tuple:
+    url = urllib.parse.quote(url, safe=":/?&=%#~@+,;")                 # spaces and & in some addresses
     last = None
     for k in range(3):
         try:
