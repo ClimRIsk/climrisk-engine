@@ -432,3 +432,103 @@ def _src(ps: list, used: Optional[list] = None) -> list:
         seen.add(key)
         out.append({"n": i, "title": p["title"], "url": p["url"], "learned": p["learned"]})
     return out
+
+
+# ── reasoned scenario analysis: engine arithmetic + cited precedent + a checkable chain of steps ─────────────────────────────
+
+def reasoning_model() -> Optional[str]:
+    """The model the reasoning evaluation picked (~/.climrisk/active_reasoning_model), if installed; else the general model."""
+    ls = llm_status()
+    if not ls["available"]:
+        return None
+    try:
+        from pathlib import Path
+        f = Path(os.environ.get("CRI_HOME") or (Path.home() / ".climrisk")) / "active_reasoning_model"
+        name = f.read_text().strip() if f.exists() else ""
+        if name:
+            with urllib.request.urlopen(urllib.request.Request(_OLLAMA + "/api/tags"), timeout=1.5) as r:
+                tags = {m["name"].split(":latest")[0]: m["name"] for m in json.loads(r.read()).get("models", [])}
+            if name in tags:
+                return tags[name]
+    except Exception:                                                # noqa: BLE001
+        pass
+    return ls["model"]
+
+
+def _precedent(hazard: str, assets: str) -> tuple:
+    """Deterministic: the closest curated precedent, its frame and one fact or response. -> (passages, label, channel phrases, event)."""
+    from . import casebase as CB
+    from ..llmtrain.cases import CH_DESC
+    try:
+        an = CB.analogs(hazard, assets, None, k=3)
+    except Exception:                                                # noqa: BLE001
+        an = []
+    if not an:
+        return [], None, [], None
+    a = an[0]
+    items = a["items"]
+    pick = [items[0]]
+    rest = [r for r in items[1:] if r["kind"] in ("fact", "resp")]
+    if rest:
+        pick.append(rest[0])
+    ch = [CH_DESC[c] for c in (a.get("shared_channels") or []) if c in CH_DESC][:3]
+    return [{"text": r["text"]} for r in pick], a["title"].split(" (")[0], ch, a["event"]
+
+
+def ask_reasoned(scenario: dict, question_index: int = 0, use_llm: bool = True, model: Optional[str] = None) -> dict:
+    """
+    scenario = {"name", "hazard", "assets", "fin": {revenue, ebitda, net_debt, interest_expense, equity, total_assets}, "loss": {...} or "insurer": {"gross_loss", "insured_loss"}, "cov": {...}}
+    The engine computes the financial effect; a model (or the rule-based reasoner) writes numbered steps from the engine results and one cited precedent; code verifies every step.
+    A model chain that fails any check is discarded and the rule-based chain is shown instead, labelled as such.
+    """
+    from .. import reasoning as R
+    t0 = time.time()
+    scn = {k: v for k, v in scenario.items() if k in ("name", "hazard", "assets", "fin", "loss", "cov")}
+    ins = scenario.get("insurer")
+    if not scn.get("loss") and isinstance(ins, dict) and ins.get("gross_loss") is not None:
+        scn["loss"] = {"asset_damage": float(ins["gross_loss"]), "insured_recovery": float(ins.get("insured_loss") or 0.0)}
+    for need in ("name", "hazard", "fin", "loss"):
+        if not scn.get(need):
+            return {"ok": False, "reply": f"I need '{need}' to reason about this scenario; I will not guess it.", "mode": "none"}
+    scn.setdefault("assets", "its assets")
+    scn.setdefault("cov", {})
+    try:
+        led = R.ledger(scn)
+    except Exception as e:                                           # noqa: BLE001
+        return {"ok": False, "reply": f"The engine could not compute this scenario: {e}", "mode": "none"}
+    passages, label, channels, event = _precedent(scn["hazard"], scn["assets"])
+    scn["analogs"] = passages
+    S, ids = R.sources(scn, led)
+    expected = R.expected_verdict(led)
+    attribution = {"new": [R.COV_NAMES[k] for k in led["breach_new"]], "pre": [R.COV_NAMES[k] for k in led["breach_pre"]]}
+    rule_chain = R.compose(scn, led, ids, channels, True, label)
+    text, mode, note, timing, checks = None, "rule-based reasoning from the engine results and the cited precedent", None, None, None
+    mdl = model or (reasoning_model() if use_llm else None)
+    if mdl:
+        body = json.dumps({"model": mdl, "stream": False, "keep_alive": "30m", "options": {"temperature": 0.0, "num_ctx": 4096, "num_predict": 760},
+                           "messages": [{"role": "system", "content": R.SYS_REASON}, {"role": "user", "content": R.user_message(scn, S, question_index)}]}).encode()
+        try:
+            resp = _ollama_post("/api/chat", body, max(LLM_DEADLINE_S, 90.0))
+            timing = _timing(resp)
+            out = resp.get("message", {}).get("content", "").strip()
+            v = R.verify(out, S, expected, ids, ids["distractor"], attribution)
+            checks = v["checks"]
+            if v["ok"]:
+                text, mode = out, f"language model ({mdl}, running on this computer); every step checked by code against the engine results"
+            else:
+                note = "the model's chain failed the checks (" + "; ".join(v["problems"][:3]) + "), so the rule-based chain is shown"
+        except Exception as e:                                       # noqa: BLE001
+            note = f"call to the local model failed: {type(e).__name__}: {e}"[:300]
+    text = text or rule_chain
+    final = R.verify(text, S, expected, ids, ids["distractor"], attribution)
+    tr = led["tr"]
+    summary = {"verdict": final["verdict"], "pre_tax_loss": tr["loss"]["pre_tax_loss"], "pct_of_ebitda": led["pct_of_ebitda"], "after": tr["after"], "covenants": tr["covenants"],
+               "binding_headroom_pct": led["binding"]["headroom_pct"] if led["binding"] else None}
+    try:
+        from .. import riskmgmt as _rm
+        _rm.audit_log("reasoned_answer", {"scenario": scn, "question_index": question_index}, {"mode": mode, "verdict": final["verdict"], "checks_ok": final["ok"], "llm_note": note}, model=mdl)
+    except Exception:                                                # noqa: BLE001
+        pass
+    return {"ok": True, "reply": R.render_plain(text), "verdict": final["verdict"], "checks": final["checks"], "checks_ok": final["ok"], "mode": mode, "llm_note": note, "llm_timing": timing,
+            "summary": summary, "evidence": [{"n": i + 1, "text": t} for i, t in enumerate(S)], "precedent": {"event": event, "label": label}, "elapsed_s": round(time.time() - t0, 1),
+            "caveat": "Screening-grade: the loss and financials are your inputs; the engine does the arithmetic, and a verdict is only as good as those inputs. Not a substitute for a lender's own covenant calculation."}

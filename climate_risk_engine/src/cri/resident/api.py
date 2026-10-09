@@ -220,6 +220,12 @@ def make_router(auth_dep) -> tuple:
         from . import answer as AN
         return AN.ask(req.question, context=req.context)
 
+    @prot.post("/reason")
+    def reason(req: dict) -> dict:
+        """Scenario in (company financials, loss or insurer-run loss, covenants) -> engine-computed effect + cited, checked reasoning steps + verdict."""
+        from . import answer as AN
+        return AN.ask_reasoned(req.get("scenario") or req, int(req.get("question_index", 0) or 0), bool(req.get("use_llm", True)))
+
     # ── the case library: real events, company filings and financials ──
     @prot.get("/cases")
     def cases_stats() -> dict:
