@@ -95,7 +95,7 @@ def test_case_library_is_consistent():
             assert ch in CS.CH_DESC, (c["id"], ch)
         for lesson in c["lessons"]:
             assert not re.search(r"\d", lesson), (c["id"], lesson)      # lessons are analysis: no numbers
-    assert set(CS.HELD_OUT) <= set(ids)
+    assert {"basf-rhine-2018", "panama-2023", "tsmc-2021", "valencia-2024", "rs-brazil-2024", "kariba-2024", "ian-2022", "uri-2021"} <= set(CS.HELD_OUT) & set(ids)
 
 
 def _nums(t):
@@ -115,7 +115,7 @@ def test_case_rows_are_correct_by_construction_and_do_not_leak():
             if r["kind"] == "case_gap":
                 assert E.MISSING.search(a)
             if r["split"] != "test":
-                for h in CS.HELD_OUT:
+                for h in [x for x in CS.HELD_OUT if x in CS.SHORT]:
                     assert CS.SHORT[h] not in u, (h, r["meta"])
 
 

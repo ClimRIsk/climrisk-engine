@@ -216,3 +216,34 @@ def test_cases_endpoints(index, monkeypatch):
     assert r["available"] and r["curated_cards"] >= 20 and r["company_event_cases"] >= 3
     a = c.post("/resident/cases/analogs", json={"hazard": "flood", "assets": "a chemical plant on a river", "channels": ["business_interruption"]}).json()
     assert a["ok"] and a["cases"] and "The closest case is" in a["reply"]
+
+
+def test_world_bank_sentence_rows_and_index(tmp_path):
+    from cri.llmtrain import worldbank_fin as WB
+    from cri.llmtrain.evaluate import nums
+    series = {"real GDP growth": {"2010": 7.512, "2011": 0.84, "2012": 7.24}, "consumer-price inflation": {"2010": 3.25, "2011": 3.81, "2012": 3.0}}
+    text, am = WB.sentence("Thailand", "the 2011 Thailand floods", 2011, series)
+    assert "real GDP growth was 7.5% in 2010, 0.8% in 2011, 7.2% in 2012" in text and "3.8% in 2011" in text and am
+    assert WB.sentence("X", "e", 2011, {"consumer-price inflation": series["consumer-price inflation"]})[0] is None        # no GDP, no sentence
+    items = []
+    for i, (ev, nm) in enumerate([("a-2012", "Event A"), ("b-2013", "Event B"), ("ian-2022", "Event Ian")] * 3):
+        t, a = WB.sentence(f"Land{i}", nm, 2011, series)
+        items.append({"event": ev, "event_name": nm, "country": f"Land{i}", "iso3": f"L{i:02d}", "kind": "macro", "company": f"Land{i}", "text": t, "amounts": a, "url": "u", "form": "World Bank WDI"})
+    p = tmp_path / "m.jsonl"
+    p.write_text("\n".join(json.dumps(x) for x in items))
+    rows = WB.build_rows(p, seed=2)
+    assert rows
+    for r in rows:
+        u, a = r["messages"][1]["content"], r["messages"][2]["content"]
+        assert nums(a) <= nums(u)
+        assert not (r["split"] != "test" and "ian-2022" in r["meta"]["case"])                 # held-out events never train
+    out = tmp_path / "idx.jsonl"
+    res = CB.build(None, None, out, allow_unverified=True, macro_path=p)
+    assert res["macro"] == len(items)
+    import os
+    os.environ["CRI_CASE_INDEX"] = str(out)
+    try:
+        ps = CB.retrieve("How did Land1 economy do around Event B?", 4)
+        assert ps and any(x["rec"] == "macro" for x in ps)
+    finally:
+        os.environ.pop("CRI_CASE_INDEX", None)

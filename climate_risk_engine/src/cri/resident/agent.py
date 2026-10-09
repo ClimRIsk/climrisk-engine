@@ -30,7 +30,8 @@ HELP = ("I can: **build a 3D twin** of a site and replay flood and wind on it; *
         "**write story reports** (physical, transition, financial, LCA, ISO 14067, carbon audit, CBAM); **run the risk analyst** on a company or coordinates; "
         "**list a company's assets**; **research** live hazards and map them onto the asset register; **draft LinkedIn posts** (and publish only after you approve); "
         "**build and test physics models on my own** (flood inundation, air quality: I choose the equations, verify them, calibrate, validate and write the methods); "
-        "and **remember** facts about your sites. Try: \"build a flood model for 22.2645, 91.805\", \"air quality model for 28.6139, 77.2090\", \"build a 3D twin of 22.2645, 91.805\", \"how do I protect it?\", \"scan this week's events\", \"write the CBAM report for Holcim\".")
+        "**recall real precedents**: what happened to company assets and finances in past events (from SEC filings and checked case studies, every figure quoted with its source, and I say when the sources do not cover something); "
+        "and **remember** facts about your sites. Try: \"how did Allstate respond to Hurricane Ian?\", \"closest past cases for a flood at a chemical plant on a river\",\"build a flood model for 22.2645, 91.805\", \"air quality model for 28.6139, 77.2090\", \"build a 3D twin of 22.2645, 91.805\", \"how do I protect it?\", \"scan this week's events\", \"write the CBAM report for Holcim\".")
 
 FAQ = [
     (r"solver|hydraul|how.*flood.*(model|calcul)", "Flood depths come from a 2D shallow-water solver (local-inertial form, Bates 2010) on 9 m terrain, with every building a solid obstruction. "

@@ -332,6 +332,10 @@ def main(corpus_dir: Path, out: Path, seed: int = 7):
     if "--no-xbrl" not in sys.argv and _xb.exists():
         from . import xbrl_fin as XB
         rows += XB.build_rows(_xb, seed=seed + 40, per_case=1)
+    _wb = Path(sys.argv[1]) / "world" / "macro_items.jsonl"           # v5: national statistics around events outside the US (World Bank, CC BY)
+    if "--no-world" not in sys.argv and _wb.exists():
+        from . import worldbank_fin as WB
+        rows += WB.build_rows(_wb, seed=seed + 50, per_case=1)
     gold = build_gold()
     rows += gold + [dict(r) for r in gold if r["split"] == "train"] * 2        # gold is scarce and high quality: upweight x3
     for r in rows:

@@ -25,7 +25,7 @@ SYS = ("You are ClimRisk's climate-risk analyst. Answer using ONLY the numbered 
        "If the sources do not contain the answer, say exactly what is missing instead of guessing. Keep any inference clearly separate by starting it with 'Analysis (not stated in the sources):'. "
        "Never add a number that is not in the sources.")
 
-HELD_OUT = ["basf-rhine-2018", "panama-2023", "tsmc-2021", "valencia-2024", "rs-brazil-2024", "kariba-2024"]
+from .heldout import EVENTS as HELD_OUT
 
 CH_DESC = {
     "asset_damage": "physical damage to buildings and equipment",

@@ -15,7 +15,7 @@ question names an event or a company in the index. Retrieval takes a few millise
   check(answer, passages)              mechanical honesty check: every number is in the sources, every [n] exists
   compose(q, passages)                 answer assembled from the passages themselves (used when no model is running or the model fails the check)
 
-Build the index:  python -m cri.resident.casebase build VERIFIED.json EDGAR_CASES.jsonl [OUT.jsonl] [--allow-unverified] [--xbrl XBRL_ITEMS.jsonl]
+Build the index:  python -m cri.resident.casebase build VERIFIED.json EDGAR_CASES.jsonl [OUT.jsonl] [--allow-unverified] [--xbrl XBRL_ITEMS.jsonl] [--macro MACRO_ITEMS.jsonl]
 """
 from __future__ import annotations
 
@@ -431,12 +431,14 @@ SYS_FILING = ("You are ClimRisk's climate-risk analyst. Answer using ONLY the nu
               "If the sources do not contain the answer, say exactly what is missing instead of guessing. Never add a number that is not in the sources.")
 
 
+SYS_MACRO = ("You are ClimRisk's climate-risk analyst. Answer using ONLY the numbered sources, which are official national statistics from the World Bank. Cite every factual sentence with its source number in square brackets, like [2]. "
+             "If the sources do not contain the answer, say exactly what is missing instead of guessing. Keep any inference clearly separate by starting it with 'Analysis (not stated in the sources):'. Never add a number that is not in the sources.")
 SYS_XBRL = ("You are ClimRisk's climate-risk analyst. Answer using ONLY the numbered sources, which are structured annual figures from company filings with the SEC. Cite every factual sentence with its source number in square brackets, like [2]. "
             "If the sources do not contain the answer, say exactly what is missing instead of guessing. Keep any inference clearly separate by starting it with 'Analysis (not stated in the sources):'. Never add a number that is not in the sources.")
 
 
 def system_prompt(ps: list) -> str:
-    return SYS_FILING if ps and all(p.get("rec") == "filing" for p in ps) else SYS_XBRL if ps and all(p.get("rec") == "xbrl" for p in ps) else SYS_CASE
+    return SYS_FILING if ps and all(p.get("rec") == "filing" for p in ps) else SYS_XBRL if ps and all(p.get("rec") == "xbrl" for p in ps) else SYS_MACRO if ps and all(p.get("rec") == "macro" for p in ps) else SYS_CASE
 
 
 _NUM = re.compile(r"\d[\d,]*\.?\d*")
@@ -498,7 +500,7 @@ def gap_reply(q: str, ps: list) -> str:
 
 # ── building the index ──────────────────────────────────────────────────────
 
-def build(vf_path: Path, edgar_path: Optional[Path], out: Path, allow_unverified: bool = False, xbrl_path: Optional[Path] = None) -> dict:
+def build(vf_path: Path, edgar_path: Optional[Path], out: Path, allow_unverified: bool = False, xbrl_path: Optional[Path] = None, macro_path: Optional[Path] = None) -> dict:
     from ..llmtrain import cases as C
     from ..llmtrain.cases_data import CASES
     vf = json.loads(Path(vf_path).read_text()) if vf_path and Path(vf_path).exists() else {}
@@ -538,13 +540,22 @@ def build(vf_path: Path, edgar_path: Optional[Path], out: Path, allow_unverified
             recs.append({"event": x["event"], "event_name": x["event_name"], "year": None, "hazard": None, "region": None, "channels": [], "company": x["company"], "kind": "xbrl",
                          "title": f"{x['company']} — annual financial data (SEC XBRL) around {x['event_name']}", "url": x["url"], "filed": None, "text": x["text"], "amounts": x.get("amounts") or []})
             n_xbrl += 1
+    n_macro = 0
+    if macro_path and Path(macro_path).exists():
+        for line in Path(macro_path).read_text().splitlines():
+            if not line.strip():
+                continue
+            x = json.loads(line)
+            recs.append({"event": x["event"], "event_name": x["event_name"], "year": None, "hazard": None, "region": x.get("country"), "channels": [], "company": None, "kind": "macro",
+                         "title": f"{x['country']} — World Bank national statistics around {x['event_name']}", "url": x["url"], "filed": None, "text": x["text"], "amounts": x.get("amounts") or []})
+            n_macro += 1
     out.parent.mkdir(parents=True, exist_ok=True)
     tmp = out.with_suffix(".tmp")
     with open(tmp, "w", encoding="utf-8") as f:
         for r in recs:
             f.write(json.dumps(r, ensure_ascii=False) + "\n")
     tmp.replace(out)
-    return {"records": len(recs), "curated_records": n_curated, "filings": n_files, "xbrl": n_xbrl, "path": str(out)}
+    return {"records": len(recs), "curated_records": n_curated, "filings": n_files, "xbrl": n_xbrl, "macro": n_macro, "path": str(out)}
 
 
 def main():
@@ -554,7 +565,8 @@ def main():
         return
     out = Path(a[3]) if len(a) > 3 and not a[3].startswith("--") else PACKAGED
     xb = Path(a[a.index("--xbrl") + 1]) if "--xbrl" in a else None
-    r = build(Path(a[1]), Path(a[2]) if len(a) > 2 else None, out, "--allow-unverified" in a, xb)
+    mc = Path(a[a.index("--macro") + 1]) if "--macro" in a else None
+    r = build(Path(a[1]), Path(a[2]) if len(a) > 2 else None, out, "--allow-unverified" in a, xb, mc)
     print(json.dumps({**r, **stats()} if Path(r["path"]) == index_path() else r, indent=1))
 
 

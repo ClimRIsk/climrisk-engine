@@ -169,7 +169,7 @@ def collect(edgar_jsonl: Path, out: Path, workers: int = 4) -> dict:
 SYS = ("You are ClimRisk's climate-risk analyst. Answer using ONLY the numbered sources, which are structured annual figures from company filings with the SEC. Cite every factual sentence with its source number in square brackets, like [2]. "
        "If the sources do not contain the answer, say exactly what is missing instead of guessing. Keep any inference clearly separate by starting it with 'Analysis (not stated in the sources):'. Never add a number that is not in the sources.")
 CAVEAT = "Analysis (not stated in the sources): these are company-wide annual figures, so they show the movement around the event but do not isolate how much of it the event caused."
-HELD_EVENTS = ["ian-2022", "uri-2021", "maui-2023", "thailand-2011", "jebi-2018", "idalia-2023"]
+from .heldout import EVENTS as HELD_EVENTS
 
 
 def load(path: Path) -> list:

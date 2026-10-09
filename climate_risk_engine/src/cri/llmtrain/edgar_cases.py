@@ -148,7 +148,55 @@ EXTRA = [
     ("coal-retire", "coal plant retirements and stranded costs", "coal plant retirement", "2012-01-01", "2025-06-30", "transition market", "United States"),
     ("ev-mandate", "the shift to electric vehicles", "transition to electric vehicles", "2019-01-01", "2025-06-30", "transition market", "Global"),
 ]
-ALL_EVENTS = EVENTS + EXTRA
+
+# Events outside the United States. Searched in the SEC's foreign-company forms (20-F annual report, 6-K press release, 40-F) as well as the US forms.
+GLOBAL_EVENTS = [
+    ("hagibis-2019", "Typhoon Hagibis", "Typhoon Hagibis", "2019-10-12", "2020-06-30", "tropical cyclone", "Japan"),
+    ("faxai-2019", "Typhoon Faxai", "Typhoon Faxai", "2019-09-09", "2020-03-31", "tropical cyclone", "Japan"),
+    ("japan-rain-2018", "the July 2018 western Japan floods", "heavy rain in western Japan", "2018-07-06", "2019-03-31", "flood", "Japan"),
+    ("lekima-2019", "Typhoon Lekima", "Typhoon Lekima", "2019-08-09", "2020-03-31", "tropical cyclone", "China"),
+    ("yagi-2024", "Typhoon Yagi", "Typhoon Yagi", "2024-09-06", "2025-06-30", "tropical cyclone", "Vietnam, China and the Philippines"),
+    ("doksuri-2023", "Typhoon Doksuri", "Typhoon Doksuri", "2023-07-26", "2024-03-31", "tropical cyclone", "China and the Philippines"),
+    ("henan-2021", "the 2021 Henan floods", "Henan floods", "2021-07-17", "2022-03-31", "flood", "China"),
+    ("ketsana-2009", "Typhoon Ketsana", "Typhoon Ketsana", "2009-09-26", "2010-06-30", "tropical cyclone", "Philippines and Vietnam"),
+    ("odette-2021", "Typhoon Odette", "Typhoon Odette", "2021-12-16", "2022-09-30", "tropical cyclone", "Philippines"),
+    ("jakarta-2020", "the 2020 Jakarta floods", "Jakarta floods", "2020-01-01", "2020-12-31", "flood", "Indonesia"),
+    ("chennai-2015", "the 2015 Chennai floods", "Chennai floods", "2015-11-30", "2016-09-30", "flood", "India"),
+    ("kerala-2018", "the 2018 Kerala floods", "Kerala floods", "2018-08-08", "2019-06-30", "flood", "India"),
+    ("amphan-2020", "Cyclone Amphan", "Cyclone Amphan", "2020-05-20", "2021-03-31", "tropical cyclone", "India and Bangladesh"),
+    ("fani-2019", "Cyclone Fani", "Cyclone Fani", "2019-05-03", "2020-03-31", "tropical cyclone", "India"),
+    ("biparjoy-2023", "Cyclone Biparjoy", "Cyclone Biparjoy", "2023-06-15", "2024-03-31", "tropical cyclone", "India and Pakistan"),
+    ("yasi-2011", "Cyclone Yasi", "Cyclone Yasi", "2011-02-03", "2011-12-31", "tropical cyclone", "Australia"),
+    ("qld-floods-2011", "the 2011 Queensland floods", "Queensland floods", "2010-12-25", "2011-12-31", "flood", "Australia"),
+    ("seroja-2021", "Cyclone Seroja", "Cyclone Seroja", "2021-04-11", "2022-03-31", "tropical cyclone", "Australia"),
+    ("winston-2016", "Cyclone Winston", "Cyclone Winston", "2016-02-20", "2016-12-31", "tropical cyclone", "Fiji"),
+    ("xynthia-2010", "Storm Xynthia", "Xynthia", "2010-02-27", "2010-12-31", "windstorm", "France"),
+    ("kyrill-2007", "Storm Kyrill", "Kyrill", "2007-01-18", "2007-12-31", "windstorm", "Europe"),
+    ("ciara-2020", "Storm Ciara", "Storm Ciara", "2020-02-09", "2020-12-31", "windstorm", "United Kingdom and Europe"),
+    ("eunice-2022", "Storm Eunice", "Storm Eunice", "2022-02-18", "2022-12-31", "windstorm", "United Kingdom and Europe"),
+    ("desmond-2015", "Storm Desmond", "Storm Desmond", "2015-12-05", "2016-09-30", "flood", "United Kingdom"),
+    ("boris-2024", "Storm Boris", "Storm Boris", "2024-09-12", "2025-06-30", "flood", "Central Europe"),
+    ("emilia-2023", "the 2023 Emilia-Romagna floods", "Emilia-Romagna", "2023-05-01", "2024-03-31", "flood", "Italy"),
+    ("daniel-2023", "Storm Daniel", "Storm Daniel", "2023-09-04", "2024-03-31", "flood", "Greece and Libya"),
+    ("valencia-2024", "the 2024 Valencia floods", "Valencia floods", "2024-10-29", "2025-06-30", "flood", "Spain"),
+    ("elbe-2013", "the 2013 central European floods", "floods in Central Europe", "2013-05-30", "2014-03-31", "flood", "Germany and Central Europe"),
+    ("rs-brazil-2024", "the 2024 Rio Grande do Sul floods", "Rio Grande do Sul", "2024-04-28", "2025-03-31", "flood", "Brazil"),
+    ("brazil-drought-2021", "the 2021 Brazilian drought", "Brazilian drought", "2021-06-01", "2022-06-30", "drought", "Brazil"),
+    ("chile-megadrought", "the Chilean megadrought", "megadrought", "2014-01-01", "2024-12-31", "drought", "Chile"),
+    ("argentina-drought-2023", "the 2023 Argentine drought", "drought in Argentina", "2022-11-01", "2023-12-31", "drought", "Argentina"),
+    ("la-nina-colombia", "the 2010 to 2011 La Nina floods", "La Nina", "2010-09-01", "2011-12-31", "flood", "Colombia and Latin America"),
+    ("day-zero-2018", "the Cape Town water crisis", "Day Zero", "2018-01-01", "2018-12-31", "drought", "South Africa"),
+    ("kzn-2022", "the 2022 KwaZulu-Natal floods", "KwaZulu-Natal floods", "2022-04-11", "2023-03-31", "flood", "South Africa"),
+    ("freddy-2023", "Cyclone Freddy", "Cyclone Freddy", "2023-02-21", "2023-12-31", "tropical cyclone", "Mozambique and Malawi"),
+    ("kariba-2024", "the 2024 Kariba low water", "Kariba", "2024-01-01", "2025-03-31", "drought", "Zambia and Zimbabwe"),
+    ("dubai-2024", "the April 2024 Dubai floods", "Dubai floods", "2024-04-16", "2025-03-31", "flood", "United Arab Emirates"),
+    ("bc-floods-2021", "the 2021 British Columbia floods", "British Columbia floods", "2021-11-14", "2022-09-30", "flood", "Canada"),
+    ("lytton-2021", "the Lytton wildfire", "Lytton", "2021-06-30", "2022-03-31", "wildfire", "Canada"),
+    ("cbam", "the EU Carbon Border Adjustment Mechanism", "Carbon Border Adjustment Mechanism", "2021-07-14", "2025-06-30", "transition policy", "European Union"),
+    ("china-ets", "China's national carbon market", "national carbon market", "2021-07-16", "2025-06-30", "transition policy", "China"),
+    ("uk-ets", "the UK Emissions Trading Scheme", "UK Emissions Trading Scheme", "2020-12-01", "2025-06-30", "transition policy", "United Kingdom"),
+]
+ALL_EVENTS = EVENTS + EXTRA + [e for e in GLOBAL_EVENTS if e[0] not in {x[0] for x in EVENTS + EXTRA}]
 
 RESP = [
     ("transfer", re.compile(r"reinsur|catastrophe bond|cat bond|retrocession|quota share|aggregate cover|insurance (recover|proceeds)|recoveries? from insur|business interruption (insurance|claim)", re.I)),
@@ -246,22 +294,24 @@ def _doc_job(args):
     return {"url": url, "ok": True, "company": company, "cik": src["ciks"][0], "form": src["form"], "filed": src["file_date"], "sic": (src.get("sics") or [""])[0], "quotes": q}
 
 
-def collect(out: Path, max_docs=90, only=None, forms="8-K,10-Q,10-K", merge=False):
+def collect(out: Path, max_docs=90, only=None, forms="8-K,10-Q,10-K", merge=False, pass_name="", fallback="8-K"):
     """merge=True: keep what is already in out/, and collect only events not yet done (or that failed before). Lets a second pass extend the first."""
     out.mkdir(parents=True, exist_ok=True)
     recs, report = [], {}
     if merge and (out / "edgar_cases.jsonl").exists():
         recs = [json.loads(x) for x in (out / "edgar_cases.jsonl").read_text().splitlines() if x.strip()]
         report = json.loads((out / "edgar_report.json").read_text()) if (out / "edgar_report.json").exists() else {}
+    seen_urls = {x["url"] for x in recs}
     for ev in ALL_EVENTS:
         if only and ev[0] not in only:
             continue
-        if merge and ev[0] in report and "error" not in report[ev[0]]:
+        rk = ev[0] + (f"@{pass_name}" if pass_name else "")
+        if merge and rk in report and "error" not in report[rk]:
             continue
-        if merge and ev[0] in report and report[ev[0]].get("error") == "no hits":
+        if merge and rk in report and report[rk].get("error") == "no hits":
             continue
         hits, err = [], None
-        for form_set in (forms, "8-K"):                              # the combined-form query sometimes 500s; fall back to 8-K alone
+        for form_set in (forms, fallback):                           # the combined-form query sometimes 500s; fall back to one form alone
             for frm in (0, 100, 200):
                 for attempt in range(2):
                     try:
@@ -279,14 +329,14 @@ def collect(out: Path, max_docs=90, only=None, forms="8-K,10-Q,10-K", merge=Fals
             if hits:
                 break
         if not hits:
-            report[ev[0]] = {"error": err or "no hits"}
-            print(ev[0], report[ev[0]], flush=True)
+            report[rk] = {"error": err or "no hits"}
+            print(rk, report[rk], flush=True)
             continue
         # prefer press-release exhibits (short, rich in figures), then main documents; one document per filing
         seen, jobs = set(), []
         for h in sorted(hits, key=lambda x: (0 if x["_source"].get("file_type", "").startswith("EX-99") else 1, -x["_score"])):
             u, s = doc_url(h)
-            if u in seen:
+            if u in seen or u in seen_urls:
                 continue
             seen.add(u)
             jobs.append((u, s, ev))
@@ -295,12 +345,13 @@ def collect(out: Path, max_docs=90, only=None, forms="8-K,10-Q,10-K", merge=Fals
             res = list(ex.map(_doc_job, jobs))
         n_ok = sum(1 for r in res if r.get("ok") and r.get("quotes"))
         for r in res:
-            if r.get("ok") and r.get("quotes"):
+            if r.get("ok") and r.get("quotes") and r["url"] not in seen_urls:
+                seen_urls.add(r["url"])
                 recs.append({"event": ev[0], "event_name": ev[1], "hazard": ev[5], "region": ev[6], "company": r["company"], "cik": r["cik"], "form": r["form"], "filed": r["filed"], "url": r["url"], "quotes": r["quotes"]})
-        report[ev[0]] = {"hits": len(hits), "docs_tried": len(jobs), "docs_with_quotes": n_ok}
+        report[rk] = {"hits": len(hits), "docs_tried": len(jobs), "docs_with_quotes": n_ok}
         (out / "edgar_cases.jsonl").write_text("\n".join(json.dumps(x, ensure_ascii=False) for x in recs))
         (out / "edgar_report.json").write_text(json.dumps(report, indent=1))
-        print(ev[0], report[ev[0]], flush=True)
+        print(rk, report[rk], flush=True)
     pairs = {(r["event"], r["cik"]) for r in recs}
     summ = {"filings_with_quotes": len(recs), "company_event_cases": len(pairs), "companies": len({r["cik"] for r in recs}), "events": len({r["event"] for r in recs}),
             "quotes": sum(len(r["quotes"]) for r in recs)}
@@ -313,7 +364,7 @@ def collect(out: Path, max_docs=90, only=None, forms="8-K,10-Q,10-K", merge=Fals
 
 SYS = ("You are ClimRisk's climate-risk analyst. Answer using ONLY the numbered sources, which are sentences copied from company filings. Cite every factual sentence with its source number in square brackets, like [2]. "
        "If the sources do not contain the answer, say exactly what is missing instead of guessing. Never add a number that is not in the sources.")
-HELD_EVENTS = ["ian-2022", "uri-2021", "maui-2023", "thailand-2011", "jebi-2018", "idalia-2023"]
+from .heldout import EVENTS as HELD_EVENTS
 
 
 def clean_quote(q: str):
@@ -439,11 +490,14 @@ def main():
         md = 90
         only = None
         merge = "--merge" in a
+        forms = a[a.index("--forms") + 1] if "--forms" in a else "8-K,10-Q,10-K"
+        pass_name = a[a.index("--pass") + 1] if "--pass" in a else ""
+        fallback = a[a.index("--fallback") + 1] if "--fallback" in a else ("6-K" if "6-K" in forms else "8-K")
         if "--max-docs-per-event" in a:
             md = int(a[a.index("--max-docs-per-event") + 1])
         if "--only" in a:
             only = a[a.index("--only") + 1].split(",")
-        collect(Path(a[1]), md, only, merge=merge)
+        collect(Path(a[1]), md, only, forms=forms, merge=merge, pass_name=pass_name, fallback=fallback)
     elif a[0] == "rows":
         write_rows(Path(a[1]) / "edgar_cases.jsonl", Path(a[2]))
 
