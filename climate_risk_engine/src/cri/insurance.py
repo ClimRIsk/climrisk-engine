@@ -542,6 +542,18 @@ def run(sites_in: list, hazards: Optional[list] = None, n_years: int = 5000, see
                           "confidence": (comp or {}).get("confidence"), "limits": (comp or {}).get("limits"), "attribution": (comp or {}).get("attribution"),
                           "method": "The same random years are replayed with the pathway's hazard changes (river depth from the CMIP6 rain ratio, coastal depth plus AR6 sea-level rise, "
                                     "cyclone wind scaled per Knutson et al. 2020), so the difference is paired, not two noisy runs. Event frequency is not changed."}
+    try:                                                             # real past events with the same exposure, from the case library; context for the reader, never a model input
+        from .resident import casebase as _cb
+        if _cb.available():
+            w_aal, f_aal = float(np.mean(L["wind"])), float(np.mean(L["flood"]))
+            mix = [(h, v) for h, v in (("cyclone", w_aal), ("flood", f_aal)) if v > 0.2 * max(w_aal, f_aal, 1e-12)]
+            sectors = ", ".join(sorted({str(s.get("sector")) for s in sites_in if isinstance(s, dict) and s.get("sector")})[:4])
+            pre = _cb.precedents(mix, sectors, ["insurance_availability", "financing_liquidity", "asset_damage", "sovereign_backstop"], k=3)
+            if pre:
+                res["precedents"] = {"cases": pre, "basis": "closest real events by hazard and by how the loss reached insurers and balance sheets; each fact is quoted from its source",
+                                     "status": "historical context, not an input to the numbers above"}
+    except Exception:                                                # noqa: BLE001 — the case library must never break an insurer run
+        pass
     res["method"] = METHOD
     res["limits"] = LIMITS
     res["sources"] = SOURCES

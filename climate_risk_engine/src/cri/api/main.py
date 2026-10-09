@@ -119,6 +119,20 @@ async def _lifespan(app: FastAPI):
         threading.Thread(target=_tc_tracks, daemon=True).start()
     except Exception as exc:                        # noqa: BLE001
         logging.getLogger(__name__).warning("warm-up skipped: %s", exc)
+    try:                                            # the case index and the local model are loaded now, so the first question in a demo is as fast as the tenth
+        import threading as _th
+        from ..resident import answer as _an, casebase as _cb
+
+        def _warm_ai():
+            try:
+                if _cb.available():
+                    _cb.stats()
+                _an.warm()
+            except Exception:                       # noqa: BLE001
+                pass
+        _th.Thread(target=_warm_ai, daemon=True).start()
+    except Exception as exc:                        # noqa: BLE001
+        logging.getLogger(__name__).warning("AI warm-up skipped: %s", exc)
     yield
 
 

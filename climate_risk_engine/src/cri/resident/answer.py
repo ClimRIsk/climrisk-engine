@@ -51,6 +51,26 @@ def llm_status(force: bool = False) -> dict:
     return v
 
 
+_WARM: dict = {"t": 0.0}
+
+
+def warm(force: bool = False) -> dict:
+    """Load the local model into memory now (and keep it there for an hour) so the first question is as fast as the tenth. Safe to call often; does nothing if warmed in the last 20 minutes."""
+    if not force and time.time() - _WARM["t"] < 1200:
+        return {"warmed": False, "why": "recently warmed"}
+    ls = llm_status()
+    if not ls["available"]:
+        return {"warmed": False, "why": ls["why"]}
+    t0 = time.time()
+    try:
+        body = json.dumps({"model": ls["model"], "prompt": "", "stream": False, "keep_alive": "60m"}).encode()
+        urllib.request.urlopen(urllib.request.Request(_OLLAMA + "/api/generate", data=body, headers={"Content-Type": "application/json"}), timeout=180).read()
+        _WARM["t"] = time.time()
+        return {"warmed": True, "model": ls["model"], "seconds": round(time.time() - t0, 1)}
+    except Exception as e:                                           # noqa: BLE001
+        return {"warmed": False, "why": f"{type(e).__name__}: {e}"[:200]}
+
+
 # ── composing ────────────────────────────────────────────────────────────────
 
 _DANGLING = re.compile(r"^(this|these|those|it|they|its|their|he|she|however|also|thus|therefore|moreover|additionally|furthermore|in addition|as a result|consequently|alternatively|but|and|so)\b", re.I)
@@ -157,8 +177,104 @@ def _confident(ps: list) -> bool:
     return bool(ps) and ps[0]["coverage"] >= 0.5 and ps[0]["score"] >= 3.0
 
 
+# ── case mode: questions about real events and what happened to company assets and finances ─────────────────
+# The passages come from the case index (cri.resident.casebase) in the exact text layout the model was fine-tuned on.
+# The answer is checked mechanically (every number must be in the sources, every [n] must exist); if the model fails the
+# check, or no model is running, the answer is assembled from the passages themselves. Nothing unchecked is shown.
+
+def _case_llm(question: str, ps: list, model: str, context: Optional[str]) -> Optional[str]:
+    from . import casebase as CB
+    src = "\n\n".join(f"[{i + 1}] {p['text']}" for i, p in enumerate(ps))
+    user = (f"Context from the user's session: {context}\n\n" if context else "") + f"Question: {question}\n\nSources:\n{src}"
+    body = json.dumps({"model": model, "stream": False, "keep_alive": "60m",
+                       "options": {"temperature": 0.0, "num_ctx": 4096, "num_predict": 380},
+                       "messages": [{"role": "system", "content": CB.system_prompt(ps)}, {"role": "user", "content": user}]}).encode()
+    try:
+        req = urllib.request.Request(_OLLAMA + "/api/chat", data=body, headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=120) as r:
+            out = json.loads(r.read()).get("message", {}).get("content", "").strip()
+    except Exception as e:                                           # noqa: BLE001
+        LAST_LLM.update(why=f"call to the local model failed: {type(e).__name__}: {e}"[:300], raw="")
+        return None
+    out = _normalise_cites(out, len(ps))
+    LAST_LLM.update(raw=out[:400])
+    if not out:
+        LAST_LLM["why"] = "the model returned nothing"
+        return None
+    chk = CB.check(out, ps)
+    if not chk["ok"]:
+        LAST_LLM["why"] = ("the model's answer failed the honesty check: " + ("; ".join(
+            ([f"numbers not in the sources: {chk['numbers_not_in_sources'][:4]}"] if chk["numbers_not_in_sources"] else []) +
+            ([f"citations that do not exist: {chk['bad_citations']}"] if chk["bad_citations"] else []) +
+            (["uncited sentences"] if chk["uncited_sentences"] else []))) or "no citations")
+        return None
+    LAST_LLM["why"] = "ok"
+    return out
+
+
+def ask_cases(question: str, context: Optional[str] = None, k: int = 6) -> Optional[dict]:
+    """Answer from the case index, or None if the question is not about an indexed event/company."""
+    from . import casebase as CB
+    t0 = time.time()
+    if not CB.is_case_question(question):
+        return None
+    g = CB.coverage_gap(question)                                    # a company asked about an event it never reported on: say so, show what is held
+    if g:
+        text = CB.gap_answer(g)
+        return {"ok": True, "reply": text, "sources": _src(g["passages"], [1]), "mode": "case index, stated as not covered", "learned": [], "elapsed_s": round(time.time() - t0, 1), "case_mode": True,
+                "evidence": [{"n": p["id"], "text": p["text"], "url": p["url"]} for p in g["passages"]], "llm_note": None}
+    ps = CB.retrieve(question, k)
+    if not ps or ps[0]["coverage"] < 0.4:
+        return None
+    ls = llm_status()
+    text, mode = None, "case index, answer assembled from the cited passages"
+    if ls["available"]:
+        text = _case_llm(question, ps, ls["model"], context)
+        if text:
+            mode = f"language model ({ls['model']}, running on this computer), checked against the sources"
+    if not text:
+        text = CB.compose(question, ps)
+    if not text:
+        return None
+    used = sorted({int(x) for x in re.findall(r"\[(\d+)\]", text) if int(x) <= len(ps)})
+    return {"ok": True, "reply": text, "sources": _src(ps, used), "mode": mode, "learned": [], "elapsed_s": round(time.time() - t0, 1), "case_mode": True,
+            "evidence": [{"n": p["id"], "text": p["text"], "url": p["url"]} for p in ps],
+            "llm_note": (LAST_LLM["why"] if ls["available"] and "assembled" in mode else None)}
+
+
+def ask_analogs(text: str, assets: str = "", hazard: str = "", channels: Optional[list] = None, context: Optional[str] = None) -> dict:
+    """'Which past cases look like this exposure, and what worked?' Closest curated cases by hazard and loss channel; the model writes from them or the answer is assembled."""
+    from . import casebase as CB
+    t0 = time.time()
+    px = CB.parse_exposure(text)
+    hazard, channels = hazard or px["hazard"], channels if channels is not None else px["channels"]
+    an = CB.analogs(hazard, assets or text, channels, k=3)
+    if not an:
+        return {"ok": False, "reply": "I do not hold a case that matches that exposure, so I will not guess. Tell me the hazard and what is exposed, or ask me to learn a source on it.", "sources": [], "mode": "none", "learned": [],
+                "elapsed_s": round(time.time() - t0, 1), "case_mode": True}
+    ps, composed = CB.compose_analog(an)
+    q = f"A company owns {assets or 'the assets described'}. A hazard of this type occurs: {hazard or 'as described'}. Using only the cases, which channels should it check first, and what has worked before?"
+    ls = llm_status()
+    text_out, mode = None, "case index, answer assembled from the cited passages"
+    if ls["available"]:
+        text_out = _case_llm(q, ps, ls["model"], context)
+        if text_out:
+            mode = f"language model ({ls['model']}, running on this computer), checked against the sources"
+    text_out = text_out or composed
+    used = sorted({int(x) for x in re.findall(r"\[(\d+)\]", text_out) if int(x) <= len(ps)})
+    return {"ok": True, "reply": text_out, "sources": _src(ps, used), "mode": mode, "learned": [], "elapsed_s": round(time.time() - t0, 1), "case_mode": True,
+            "evidence": [{"n": p["id"], "text": p["text"], "url": p["url"]} for p in ps],
+            "cases": [{"event": a["event"], "title": a["title"], "shared_channels": a["shared_channels"]} for a in an]}
+
+
 def ask(question: str, context: Optional[str] = None, allow_learn: bool = True, k: int = 6) -> dict:
     t0 = time.time()
+    try:
+        cr = ask_cases(question, context, k)
+    except Exception:                                                # noqa: BLE001 — the case index must never break the general path
+        cr = None
+    if cr:
+        return cr
     ps = K.search(question, k)
     learned: list = []
     if not _confident(ps) and allow_learn:

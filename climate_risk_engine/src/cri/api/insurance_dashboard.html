@@ -206,6 +206,14 @@ function render(r) {
       <table style="margin-top:8px"><tr><th>Sector</th><th class="n">TIV</th><th class="n">AAL</th></tr>${acc.sectors.map(c => `<tr><td>${esc(c.key)}</td><td class="n">${usd(c.tiv)}</td><td class="n">${usd(c.aal)}</td></tr>`).join('')}</table></div></div>`;
   h += `<div class="card"><h3>What a deductible does · same deductible on every site</h3><table><tr><th>Deductible</th><th class="n">AAL</th><th class="n">1-in-100 occurrence</th><th class="n">1-in-100 aggregate</th><th class="n">TVaR 99%</th></tr>
     ${r.deductible_ladder.map(d => `<tr><td>${d.deductible_pct}% of TIV</td><td class="n">${usd(d.aal)}</td><td class="n">${usd(d.oep100)}</td><td class="n">${usd(d.aep100)}</td><td class="n">${usd(d.tvar99)}</td></tr>`).join('')}</table></div>`;
+  if (r.precedents && (r.precedents.cases || []).length) {
+    h += `<div class="card"><h3>Real precedents · what happened in the closest past events</h3>
+      ${r.precedents.cases.map(c => `<div style="margin:8px 0 12px"><b>${esc(c.title)}</b>${c.shared_channels.length ? ` <span class="tag">${esc(c.shared_channels.map(x => x.replace(/_/g, ' ')).join(' · '))}</span>` : ''}
+        <ul class="foot">${c.facts.slice(0, 2).map(f => `<li>${esc(f.text)} <a href="${esc(f.url)}" target="_blank" rel="noopener">${esc(f.source)}</a></li>`).join('')}
+        ${c.responses.slice(0, 1).map(f => `<li><i>Response:</i> ${esc(f.text)}</li>`).join('')}</ul>
+        ${c.lessons.length ? `<div class="foot"><i>Analysis, not a source statement:</i> ${esc(c.lessons[0])}</div>` : ''}</div>`).join('')}
+      <div class="foot">${esc(r.precedents.basis)}. ${esc(r.precedents.status)}.</div></div>`;
+  }
   h += `<div class="card"><h3>Method and limits</h3><ul class="foot">${r.method.map(m => `<li>${esc(m)}</li>`).join('')}</ul><p class="foot" style="margin-top:8px"><b>What this is not</b></p><ul class="foot">${r.limits.map(m => `<li>${esc(m)}</li>`).join('')}</ul>
     <p class="foot" style="margin-top:8px">Sources: ${r.sources.map(esc).join(' · ')}.</p>
     <p class="foot">Correlation lengths used (km): wind ${fmt(r.correlation_km.wind)}, river ${fmt(r.correlation_km.river)}, coast ${fmt(r.correlation_km.coast)}.${(r.notes || []).map(x => ' ' + esc(x)).join('')}</p></div>

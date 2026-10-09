@@ -138,7 +138,7 @@ class Agent:
         text = (text or "").strip()
         if not text:
             return {"reply": "Ask me something — for example \"build a 3D twin of 22.2645, 91.805\".", "blocks": [], "actions": [], "intent": "empty"}
-        quick = self._autopilot_commands(session, text) or self._knowledge_commands(session, text) or self._scenario_commands(session, text) or self._lab_commands(session, text) or self._extension_commands(session, text)
+        quick = self._autopilot_commands(session, text) or self._knowledge_commands(session, text) or self._scenario_commands(session, text) or self._lab_commands(session, text) or self._case_commands(session, text) or self._extension_commands(session, text)
         if quick:
             if quick.get("intent") in (None, "knowledge", "learn"):      # autopilot commands log themselves
                 quick.setdefault("intent", "knowledge")
@@ -384,6 +384,42 @@ class Agent:
             return {"reply": r["reply"], "blocks": blocks, "actions": acts}
         j = _job(work, "answering from what I have learned")
         return {"reply": "Looking through what I have learned" + (" — and reading up on it if it is new to me" if True else "") + "…", "blocks": [], "actions": [], "job": j["id"]}
+
+    # real events and what happened to company assets and finances: answered from the case library (checked, cited), never from memory
+    _ANALOG = re.compile(r"\b(closest|similar|comparable|analog(?:ue|y|ies)?|precedents?|historical (?:cases?|events?|examples?)|past (?:cases?|events?)|what (?:has )?worked|lessons? from|has this (?:ever )?happened)\b", re.I)
+    _NOT_CASE = re.compile(r"\b(build|run|simulate|twin|publish|post|draft|scan|protect|retrain|forget|learn from)\b", re.I)
+
+    def _case_commands(self, session, text) -> Optional[dict]:
+        try:
+            from . import casebase as CB
+            if not CB.available() or self._NOT_CASE.search(text):
+                return None
+            analog = bool(self._ANALOG.search(text)) and len(text.split()) >= 5
+            if not analog and not (self._Q.search(text) and CB.is_case_question(text)):
+                return None
+        except Exception:                                              # noqa: BLE001
+            return None
+        prev = M.get_state("last_question")
+        from . import knowledge as K
+        q = text
+        ctx = None
+        if not analog and prev and len(K._terms(text)) <= 2:
+            q = prev["q"] + " " + text
+            ctx = f'The user previously asked: "{prev["q"]}".'
+
+        def work():
+            from . import answer as AN
+            r = AN.ask_analogs(text, assets=text) if analog else (AN.ask_cases(q, context=ctx) or AN.ask(q, context=ctx))
+            M.set_state("last_question", {"q": q, "ts": time.time()})
+            M.add_run("cases", {"q": q[:200], "analog": analog}, [r["mode"]], bool(r["ok"]), (r["reply"] or "")[:200])
+            blocks = []
+            if r["sources"]:
+                blocks.append(_blk("sources", items=[{"n": s["n"], "title": s["title"], "url": s["url"], "learned": s["learned"]} for s in r["sources"]]))
+            if r["ok"]:
+                blocks.append(_blk("note", text="Written by: " + r["mode"] + ". Every figure above is quoted from the numbered source; the one line marked Analysis is my inference, not a source statement."))
+            return {"reply": r["reply"], "blocks": blocks, "actions": []}
+        j = _job(work, "looking up the case library")
+        return {"reply": "Checking the case library of real events and company filings…", "blocks": [], "actions": [], "job": j["id"], "intent": "knowledge"}
 
     def _lab_commands(self, session, text) -> Optional[dict]:
         """"build a flood model for <place>", "air quality model for <city>", "what can the model lab do" — the engine runs a full study on its own."""

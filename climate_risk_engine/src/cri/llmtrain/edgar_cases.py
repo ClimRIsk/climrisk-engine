@@ -260,13 +260,23 @@ SYS = ("You are ClimRisk's climate-risk analyst. Answer using ONLY the numbered 
 HELD_EVENTS = ["ian-2022", "uri-2021", "maui-2023", "thailand-2011", "jebi-2018", "idalia-2023"]
 
 
+def clean_quote(q: str):
+    """A quote is only usable as a standalone cited sentence if it starts like one. Strips bullets and '(b)' markers; returns None for mid-sentence fragments."""
+    q = re.sub(r"^[◦•▪·\-–—\*\s]+", "", (q or "").strip())
+    q = re.sub(r"^\(\w{1,2}\)\s*", "", q)
+    return q if re.match(r"[A-Z0-9“\"\$]", q) else None
+
+
 def _cases(path: Path):
     by = {}
     for line in path.read_text().splitlines():
         r = json.loads(line)
         for q in r["quotes"]:
+            cq = clean_quote(q["quote"])
+            if not cq:
+                continue
             by.setdefault((r["event"], r["cik"]), {"event": r["event"], "event_name": r["event_name"], "company": r["company"], "items": []})["items"].append(
-                {"form": r["form"], "filed": r["filed"], "url": r["url"], **q})
+                {"form": r["form"], "filed": r["filed"], "url": r["url"], **{**q, "quote": cq}})
     return by
 
 
