@@ -132,3 +132,10 @@ def test_endpoints(monkeypatch):
     cr = c.post("/resident/credit/assess", json={"entities": _book(), "n_years": 1000}).json()
     assert cr["portfolio"]["collateral_assets"] == 3
     assert c.post("/resident/credit/assess", json={"entities": []}).status_code == 422
+
+
+def test_bi_merged_into_tiv_is_warned_and_split_is_kept():
+    r = O.read_oed(O.parse_csv(LOC))
+    w = [w for w in r["warnings"] if w["issue"] == "bi_merged_into_physical_tiv"]
+    assert len(w) == 1 and "time-element" in w[0]["detail"]
+    assert r["meta"][0]["coverage_tiv"]["bi"] == 100000

@@ -136,6 +136,10 @@ def read_oed(location_rows: list, account_rows: Optional[list] = None, occupancy
     if sites and not omap:
         warn.append({"ref": "portfolio", "issue": "construction_occupancy_not_used",
                      "detail": "OccupancyCode and ConstructionCode are carried as metadata; damage curves are by hazard and sector, not by construction class. Pass occupancy_map to set the sector."})
+    n_bi = sum(1 for m in meta if m["coverage_tiv"]["bi"] > 0)
+    if n_bi:
+        warn.append({"ref": "portfolio", "issue": "bi_merged_into_physical_tiv",
+                     "detail": f"{n_bi} location(s) have BITIV; it is added to TIV, so the physical damage curve is applied to the business-interruption value as a proxy. Interruption is a time-element loss (downtime, waiting period) that does not scale with physical damage; treat the interruption share of the result as indicative. The split is kept in meta[].coverage_tiv."})
     acc_n = len({(m["PortNumber"], m["AccNumber"]) for m in meta})
     return {"sites": sites, "meta": meta, "warnings": warn, "read": len(location_rows), "loaded": len(sites), "skipped": len(location_rows) - len(sites),
             "hierarchy": {"portfolios": len({m["PortNumber"] for m in meta}), "accounts": acc_n, "locations": len(meta), "account_rows_supplied": len(account_rows or [])}}
