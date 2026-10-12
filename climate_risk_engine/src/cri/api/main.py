@@ -222,6 +222,33 @@ app.include_router(_st_pub)
 app.include_router(_st_prot)
 
 
+# ── Evaluation licence: time- and usage-limited, verified offline (cri.licence). Enforced only when CRI_LICENCE_MODE=required (the desktop app sets it). ──
+from .. import licence as _lic   # noqa: E402
+from fastapi.responses import JSONResponse as _JSONResponse   # noqa: E402
+
+
+@app.middleware("http")
+async def _licence_gate(request, call_next):
+    denied = _lic.gate(request.method, request.url.path)
+    if denied is not None:
+        return _JSONResponse(status_code=402, content={"error": "licence", **denied})
+    return await call_next(request)
+
+
+@app.get("/licence/status")
+def licence_status() -> dict:
+    """Licence state for the app's activation screen and banner: none, active (days left, remaining runs), exhausted, expired, invalid."""
+    return {"enforced": _lic.enforcement_required(), **_lic.status()}
+
+
+@app.post("/licence/install")
+def licence_install(req: dict) -> dict:
+    try:
+        return {"enforced": _lic.enforcement_required(), **_lic.install(str(req.get("key") or ""))}
+    except _lic.LicenceError as e:
+        raise HTTPException(status_code=400, detail={"state": e.state, "message": e.message})
+
+
 @app.middleware("http")
 async def _inject_resident_dock(request, call_next):
     resp = await call_next(request)
