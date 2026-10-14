@@ -10,7 +10,8 @@ This module answers the right question in three evidence layers, each labelled f
  1. RECORD     CAMS PM2.5 / PM10 / SO2 / NO2 (Open-Meteo air-quality API, hourly since Aug 2022, ~10 km cell) and ERA5 wind:
                annual means, days above the India NAAQS (60 µg/m3 PM2.5 per 24 h) and the WHO 2021 guideline (15), the
                monthly cycle, and a Diwali-day test. This is regional background. It cannot resolve a source next door.
- 2. SOURCES    nearby emitters: (a) found in OpenStreetMap, (b) DECLARED by the user. Each carries its provenance.
+ 2. SOURCES    nearby emitters FOUND BY THE ENGINE (cri.analysis.site_sources: facility register, OpenStreetMap, place knowledge, satellite heat,
+               inference). The user may declare or correct sources, but is never required to. Each source carries provenance and confidence.
                A source the engine cannot find in any database is never silently dropped: the user's word is used and said so.
  3. SCREEN     a Gaussian-plume screen (Briggs urban dispersion, hourly ERA5 wind, Pasquill stability) of each source's
                ground-level increment at the site. Emission rates are NOT measured: they are built from capacity and
@@ -305,7 +306,8 @@ def screen(lat: float, lon: float, sources: list, raw: dict) -> list:
     res = []
     for s in sources:
         em = emission(s["kind"], s.get("assumptions"))
-        item = {"kind": s["kind"], "name": s.get("name"), "provenance": s.get("provenance"), "distance_km": s.get("distance_km"), "bearing_deg": s.get("bearing_deg")}
+        item = {"kind": s["kind"], "name": s.get("name"), "provenance": s.get("provenance"), "confidence": s.get("confidence", "declared"), "distance_km": s.get("distance_km"),
+                "bearing_deg": s.get("bearing_deg"), "size_note": s.get("size_note"), "co2e_t_per_year": s.get("co2e_t_per_year")}
         if s.get("lat") is not None and s.get("distance_km") is None:
             item["distance_km"], item["bearing_deg"] = (round(v, 2) for v in _geo(lat, lon, s["lat"], s["lon"]))
         if em is None:
@@ -318,6 +320,9 @@ def screen(lat: float, lon: float, sources: list, raw: dict) -> list:
         brgs = [item["bearing_deg"]] if item["bearing_deg"] is not None else list(range(0, 360, 45))
         item["geometry_swept"] = {"distances_km": dists, "bearings_deg": brgs}
         item["emission"] = em
+        if item.get("bearing_deg") is not None:
+            dd = np.abs((met["d"] - item["bearing_deg"] + 180.0) % 360.0 - 180.0)
+            item["wind_from_source_pct"] = round(float(np.mean(dd <= 22.5) * 100.0), 1)           # share of hours the wind carries this source towards the site
         sc = {}
         for name, q in em["pm_g_s"].items():
             qf = q * em["pm25_fraction"]
@@ -347,17 +352,21 @@ def assess(lat: float, lon: float, osm: bool = True, raw: Optional[dict] = None,
             return {"status": "null", "reason": f"CAMS air-quality record could not be read ({type(e).__name__}: {str(e)[:120]}).", "research": research}
     rec = record_stats(raw)
     research.append(f"Read the CAMS record {rec['period'][0]} to {rec['period'][1]}: annual PM2.5 {rec['annual_pm25']} µg/m3 over {rec['years_used']}.")
-    srcs = list(sources_override) if sources_override is not None else declared(lat, lon)
-    found = None
-    if osm and sources_override is None:
-        found = discover_osm(lat, lon)
-        research.append(found["note"])
-        for f in found["found"]:
-            if f["kind"] in DEFAULTS and not any(s["kind"] == f["kind"] for s in srcs):
-                d, b = _geo(lat, lon, f["lat"], f["lon"])
-                srcs.append({**f, "distance_km": round(d, 2), "bearing_deg": round(b)})
+    srcs = list(sources_override) if sources_override is not None else []
+    disc = None
+    if sources_override is None:
+        from . import site_sources as SS
+        disc = SS.discover(lat, lon, osm=osm)
+        research.extend(disc["log"])
+        mine = declared(lat, lon)
+        kinds_declared = {s["kind"] for s in mine}
+        srcs = [s for s in disc["sources"] if s["kind"] not in kinds_declared or s.get("cluster")] + mine      # what the user declares overrides what was found
+        for s in srcs:
+            if s["kind"] == "cement" and s.get("co2e_t_per_year") and "clinker_mtpa" not in (s.get("assumptions") or {}):
+                s["assumptions"] = {**(s.get("assumptions") or {}), "clinker_mtpa": round(s["co2e_t_per_year"] / 0.87 / 1e6, 2)}
+                s["size_note"] = "clinker capacity inferred from the facility's annual CO2e at 0.87 t CO2 per t clinker"
     if srcs:
-        research.append("Sources used: " + "; ".join(f"{s['kind']} ({s.get('provenance')})" for s in srcs) + ".")
+        research.append("Sources used: " + "; ".join(f"{s['kind']} {s.get('name') or ''} ({s.get('confidence', 'declared')}: {str(s.get('provenance'))[:70]})" for s in srcs) + ".")
     scr = screen(lat, lon, srcs, raw) if srcs else []
     base = rec["annual_pm25"]
     inc = {}
@@ -371,5 +380,6 @@ def assess(lat: float, lon: float, osm: bool = True, raw: Optional[dict] = None,
         research.append(f"Plume screen (central scenario, worst bearing): +{inc['central']['max']} µg/m3 on top of the regional {base}; range {inc['low']['max']} to {inc['high']['max']} across low to high emission scenarios.")
     return {"status": "constructed" if modelled_src else "modelled", "record": rec, "sources": scr, "increment": inc, "annual_pm25_total_central": round(tot, 1),
             "severity": severity_pm25(tot), "thresholds": {"who_annual": WHO_ANNUAL, "naaqs_annual": NAAQS_ANNUAL, "naaqs_24h": NAAQS_24H},
-            "assumption_note": ASSUMPTION_NOTE if modelled_src else None, "not_modelled": NOT_MODELLED, "osm": found, "research": research,
-            "unverified_sources": [s["kind"] for s in srcs if "declared" in str(s.get("provenance"))]}
+            "assumption_note": ASSUMPTION_NOTE if modelled_src else None, "not_modelled": NOT_MODELLED, "osm": None, "research": research,
+            "unverified_sources": [s["kind"] for s in srcs if "declared" in str(s.get("provenance")) or s.get("confidence") in ("low", "inferred")],
+            "discovery_log": disc["log"] if disc else []}

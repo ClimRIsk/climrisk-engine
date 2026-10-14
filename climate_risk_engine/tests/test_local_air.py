@@ -79,3 +79,57 @@ def test_declare_roundtrip():
     LA.declare(9.47, 77.91, LA.parse_declaration("thermal power plant 13 MW"))
     d = LA.declared(9.47, 77.91)
     assert {x["kind"] for x in d} == {"cement", "thermal"} and all("declared" in x["provenance"] for x in d)
+
+
+from cri.analysis import site_sources as SS
+
+
+def _reg(lat, lon, r, limit=200):
+    return {"top": [{"name": "Test Cement Plant", "lat": lat + 0.02, "lon": lon + 0.01, "sector": "cement", "type": "integrated dry", "emissions_t": 1.74e6},
+                    {"name": "Solar farm", "lat": lat, "lon": lon + 0.05, "sector": "electricity-generation", "type": "solar", "emissions_t": 0}]}
+
+
+def test_register_discovery_and_inference():
+    os.environ["CRI_CACHE_DIR"] = tempfile.mkdtemp()
+    d = SS.discover(10.0, 20.0, osm=False, places=False, register=_reg)
+    kinds = [s["kind"] for s in d["sources"]]
+    assert kinds.count("cement") == 1 and "thermal" in kinds            # solar ignored, captive power inferred
+    cem = next(s for s in d["sources"] if s["kind"] == "cement")
+    assert cem["confidence"] == "high" and 2 < cem["distance_km"] < 4 and cem["bearing_deg"] < 90
+    th = next(s for s in d["sources"] if s["kind"] == "thermal")
+    assert th["confidence"] == "inferred" and "inference" in th["provenance"]
+
+
+def test_place_knowledge_is_strict():
+    import json as _j
+    def fake_get(url, *a, **k):
+        if "wikidata" in url:
+            return {"results": {"bindings": [{"c": {"value": "Point(77.8 9.45)"}, "iLabel": {"value": "Sivakasi"}, "a": {"value": "https://en.wikipedia.org/wiki/Sivakasi"}},
+                                              {"c": {"value": "Point(77.9 9.50)"}, "iLabel": {"value": "Roadville"}, "a": {"value": "https://en.wikipedia.org/wiki/Roadville"}}]}}
+        return {"query": {"pages": {"1": {"title": "Sivakasi", "extract": "The city is known for firecrackers and match factories that produce 70% of the output."},
+                                    "2": {"title": "Roadville", "extract": "The village has cement roads and a school. It is known for its temple."}}}}
+    os.environ["CRI_CACHE_DIR"] = tempfile.mkdtemp()
+    out, note = SS.from_places(9.47, 77.91, 25.0, get=fake_get)
+    assert [o["kind"] for o in out] == ["fireworks"] and out[0]["confidence"] == "low" and out[0]["cluster"]
+
+
+def test_no_firms_key_is_stated_not_hidden():
+    os.environ.pop("NASA_FIRMS_MAP_KEY", None)
+    s, note = SS.from_firms(1.0, 2.0)
+    assert s == [] and "no FIRMS key" in note
+
+
+def test_assess_uses_discovered_sources_and_user_overrides(monkeypatch):
+    os.environ["CRI_HOME"] = tempfile.mkdtemp()
+    os.environ["CRI_CACHE_DIR"] = tempfile.mkdtemp()
+    monkeypatch.setattr(SS, "discover", lambda lat, lon, **k: SS.discover.__wrapped__(lat, lon, **k) if False else {"sources": [
+        {"kind": "cement", "name": "Found Cement", "lat": 9.52, "lon": 77.92, "distance_km": 2.4, "bearing_deg": 134, "provenance": "register", "confidence": "high", "co2e_t_per_year": 1.74e6},
+        {"kind": "thermal", "name": "captive (inferred)", "distance_km": 2.4, "bearing_deg": 134, "provenance": "inference", "confidence": "inferred", "assumptions": {"mw": 15.0}}], "log": ["x"], "radius_km": 25})
+    a = LA.assess(9.5, 77.9, raw=_raw(wind_dir=134.0))
+    cem = next(s for s in a["sources"] if s["kind"] == "cement")
+    assert cem["emission"]["assumptions"]["clinker_mtpa"] == 2.0 and cem["wind_from_source_pct"] > 90
+    assert a["status"] == "constructed" and "thermal" in a["unverified_sources"]
+    LA.declare(9.5, 77.9, LA.parse_declaration("a thermal power plant of 13 MW"))        # the user's word replaces the inferred one
+    b = LA.assess(9.5, 77.9, raw=_raw(wind_dir=134.0))
+    th = [s for s in b["sources"] if s["kind"] == "thermal"]
+    assert len(th) == 1 and th[0]["emission"]["assumptions"]["mw"] == 13.0 and th[0]["confidence"] == "declared"

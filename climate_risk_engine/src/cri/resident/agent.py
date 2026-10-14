@@ -85,6 +85,13 @@ def run_site_profile(pl: dict, progress: Optional[Callable] = None, twin: Option
                            caption=fe.get("note") or ""))
     elif fe.get("outside_dense_coverage"):
         blocks.append(_blk("note", text="No recorded flood events are listed for this place, but it lies outside the regions where the engine holds event records, so that is not evidence it has never flooded."))
+    al = (p["hazards"].get("air_local") or {})
+    srcs = (al.get("metrics") or {}).get("sources") or []
+    if srcs:
+        blocks.append(_blk("table", head=["Found nearby", "Km / bearing", "How it was found", "Confidence", "PM2.5 at the site, central (annual / worst day)"],
+                           rows=[[f'{x["kind"]}: {x.get("name") or ""}'[:60], f'{x.get("distance_km")} / {x.get("bearing_deg")}', str(x.get("provenance"))[:90], x.get("confidence"),
+                                  (f'{x["scenarios"]["central"]["pm25_annual_ug_m3"]["max"]} / {x["scenarios"]["central"]["pm25_worst_24h_ug_m3_max"]} µg/m3' if x.get("modelled") else "not modelled")] for x in srcs[:10]],
+                           caption="Sources the engine found on its own. Tell me if one is wrong or missing and I will correct it."))
     blocks.append(_blk("note", text=" ".join(p["rules"])))
     return {"reply": SP.summarise(p), "blocks": blocks, "actions": [{"type": "say", "label": "Build a 3D twin here", "text": f'build a 3D twin of {pl["lat"]:.4f}, {pl["lon"]:.4f}'}], "profile": {"counts": c, "null_hazards": p["null_hazards"], "top_severity": p["top_severity"]}}
 
@@ -564,11 +571,11 @@ class Agent:
             if w and w["status"] != "null" and w.get("caveat") and "Declared nearby industrial water users" in w["caveat"]:
                 lines.append(f'Water stress is {w["severity"]} at basin scale ({w["value"]}); the declared thermal and cement users draw on the same basin, so the local picture can be worse.')
             out["reply"] = " ".join(lines)
-            out["actions"] = [{"type": "say", "label": "Give direction and distance", "text": "the cement plant is 2 km north-east"}]
+            out["actions"] = [{"type": "say", "label": "Correct a source", "text": "the cement plant is 2 km north-east"}]
             M.add_run("local_sources", {"place": pl["name"], "sources": [s["kind"] for s in srcs]}, [], True, out["reply"][:160])
             return out
         holder["j"] = _job(work, f'air quality with local sources at {pl["name"]}')
-        return {"reply": f'Noted: {", ".join(s["kind"] for s in srcs)} near {pl["name"]}. I am reading the measured air-quality record, then screening these sources against the local wind. I will say what is assumed.', "blocks": [], "actions": [], "job": holder["j"]["id"], "intent": "local_sources"}
+        return {"reply": f'Noted: {", ".join(s["kind"] for s in srcs)} near {pl["name"]}. I am reading the measured air-quality record, then screening these sources against the local wind. Your statement overrides what the engine found on its own, and I will say what is assumed.', "blocks": [], "actions": [], "job": holder["j"]["id"], "intent": "local_sources"}
 
     _PROFILE_RX = re.compile(r"\b(?:all|every|full|complete)\s+(?:the\s+)?hazards?\b|\b(?:hazard|site|risk|location)\s+profile\b|\bfull (?:profile|screen\w*)\b|\bwhat(?:'s| is| are) the (?:hazards?|risks?) (?:at|for|in|near)\b|\bhow risky (?:is|are)\b|\bprofile\b.*\d+\.\d+", re.I)
 
