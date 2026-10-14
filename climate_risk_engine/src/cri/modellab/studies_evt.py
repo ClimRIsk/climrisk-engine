@@ -19,17 +19,34 @@ def _annual_max_daily(lat, lon, var, y0, y1, scale=1.0, fetch=None):
     return ys, [by[y] for y in ys]
 
 
+_HEAT_VARS = "temperature_2m,relative_humidity_2m,surface_pressure,wind_speed_10m,shortwave_radiation"
+
+
 def _heat_series(lat, lon, fetch=None):
+    """Hourly outdoor WBGT (Liljegren et al. 2008: black-globe and natural wet-bulb heat balances) from ERA5 temperature, humidity, pressure, 10 m wind and sunshine.
+    Falls back to the shade-only shortcut when the reanalysis response lacks wind or radiation (and says so in the extras)."""
+    from . import wbgt as WB
     y0, y1 = 1981, 2023
-    d = D.archive(lat, lon, y0, y1, hourly="temperature_2m,relative_humidity_2m") if fetch is None else D.archive(lat, lon, y0, y1, hourly="temperature_2m,relative_humidity_2m", fetch=fetch)
-    t = np.array([np.nan if v is None else v for v in d["hourly"]["temperature_2m"]], float)
-    rh = np.array([np.nan if v is None else v for v in d["hourly"]["relative_humidity_2m"]], float)
-    w = heat.wbgt_shade(t, np.clip(rh, 1, 100))
-    yrs = np.array([int(s[:4]) for s in d["hourly"]["time"]])
+    d = D.archive(lat, lon, y0, y1, hourly=_HEAT_VARS) if fetch is None else D.archive(lat, lon, y0, y1, hourly=_HEAT_VARS, fetch=fetch)
+    h = d["hourly"]
+
+    def col(k):
+        return np.array([np.nan if v is None else v for v in h[k]], float) if k in h else None
+    t, rh, pr, ws, sw = col("temperature_2m"), col("relative_humidity_2m"), col("surface_pressure"), col("wind_speed_10m"), col("shortwave_radiation")
+    rh = np.clip(rh, 1, 100)
+    method = "liljegren"
+    if ws is None or sw is None:
+        w = heat.wbgt_shade(t, rh)
+        method = "shade_shortcut"
+    else:
+        pr = np.where(np.isfinite(pr), pr, 1013.25 * np.exp(-0.0001185 * 0.0)) if pr is not None else np.full_like(t, 1000.0)
+        tt = np.array(h["time"], dtype="datetime64[s]") - np.timedelta64(1800, "s")   # hourly-mean radiation is centred half an hour before the stamp
+        w = WB.wbgt(t, rh, pr, np.where(np.isfinite(ws), ws, 2.0), np.nan_to_num(sw, nan=0.0), tt, lat, lon)["wbgt"]
+    yrs = np.array([int(x[:4]) for x in h["time"]])
     ys = sorted(set(yrs.tolist()))
     xs = [float(np.nanmax(w[yrs == y])) for y in ys]
     hrs28 = [int(np.nansum(w[yrs == y] >= 28.0)) for y in ys]
-    return ys, xs, {"hours_over_28": hrs28}
+    return ys, xs, {"hours_over_28": hrs28, "_method": method}
 
 
 def _fire_series(lat, lon, fetch=None):
@@ -94,12 +111,12 @@ POWER_NOTE = {"rain": "NASA POWER daily precipitation (MERRA-2 / IMERG-corrected
 
 
 HAZ = {
-    "heat": {"label": "Extreme heat", "unit": "WBGT °C", "var": "hourly peak wet-bulb globe temperature (shade)",
-             "physics": ["Heat stress is set by how well the body can lose heat to the air, which depends on temperature and humidity together. The wet-bulb globe temperature (WBGT) blends them; the engine uses the Australian Bureau of Meteorology shade form **WBGT = 0.567 T + 0.393 e + 3.94**, where e is the vapour pressure (hPa) from the Magnus relation **e = RH · 6.1094 exp(17.625 T / (T + 243.04))**.",
+    "heat": {"label": "Extreme heat", "unit": "WBGT °C", "var": "hourly peak outdoor wet-bulb globe temperature (sun and wind included)",
+             "physics": ["Heat stress is set by how well the body can lose heat to the air, which depends on temperature, humidity, wind and sunshine together. The wet-bulb globe temperature (WBGT) blends them: **WBGT = 0.7 T_nwb + 0.2 T_g + 0.1 T_a**, with the natural wet-bulb T_nwb (a wetted wick in the wind and sun) and the black-globe T_g (radiation) each found by solving its own heat balance (Liljegren et al. 2008).",
                          "Work-safety limits are written in WBGT: about 28 °C ends heavy outdoor labour on most guidance, and above about 32 °C even light work is unsafe."],
              "extract": _heat_series, "benchmarks": heat.run_benchmarks, "fmt": "{:.1f}",
-             "assumptions": ["Shade, light-wind conditions; direct sun adds several degrees (the engine does not model radiation).", "ERA5 is a 25 km grid cell: urban street canyons run hotter than the cell average."],
-             "limits": ["ERA5 humidity and temperature are modelled, not measured; peaks in dry-season heat waves are typically under-stated."],
+             "assumptions": ["Outdoor, open ground, in the sun, 2 m wind from the ERA5 10 m wind; shade or indoor values are lower and a hot street canyon higher.", "ERA5 is a 25 km grid cell: urban street canyons run hotter than the cell average."],
+             "limits": ["ERA5 humidity and temperature are modelled, not measured. Tested against 20 airport weather stations (2018 to 2022, scripts/validate_wbgt.py) the ERA5-driven WBGT ran 0.7 °C below the station-driven value on average and about 1.1 °C below on the hottest hours, so peaks are understated by roughly that much.", "No open archive of measured WBGT exists; the WBGT solver is verified against the reference implementation, and its own accuracy rests on Liljegren et al. 2008 (about 1 °C against black-globe instruments)."],
              "meaning": "Each hour above 28 °C WBGT is an hour in which heavy outdoor work should stop; the count per year is shown above."},
     "rain": {"label": "Extreme rainfall", "unit": "mm per day", "var": "annual maximum daily rainfall",
              "physics": ["Extreme rainfall is a statistical hazard: the largest daily total in each year is a block maximum, and the Fisher–Tippett–Gnedenko theorem says block maxima follow a GEV distribution (Gumbel when the shape parameter is zero). Return level for period T: **x_T = μ − β ln(−ln(1 − 1/T))**.",
@@ -203,6 +220,7 @@ def run(hazard: str, lat: float, lon: float, name: str = "Study site", series: t
         years, x, extra = got[0], np.array(got[1], float), got[2]
         rain_mm = extra.pop("_rain_mm", None)
         fire_in = extra.pop("_inputs", None)
+        heat_method = extra.pop("_method", None)
         if hazard == "fire" and rain_mm is not None and rain_mm < 150.0:
             raise NoModel(f"Hyper-arid site (about {rain_mm:.0f} mm of rain a year): there is too little vegetation to carry a fire, so a fire weather index would measure dry air, not fire hazard.")
     else:

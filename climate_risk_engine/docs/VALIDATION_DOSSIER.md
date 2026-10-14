@@ -60,3 +60,35 @@ Hazards in the dollar loss: cyclone wind, river flood, coastal flood. Heat, drou
 ## 6. Reproduction
 
 All scripts are in `scripts/`; raw caches are under `data/backtest/raw/` (about 3 GB, not committed). Tests: `pytest tests/` (flood-event, coverage, integrity, insurance, physical report, portfolio). Data sources and licences: Copernicus EMS (open, attribution), England EA Recorded Flood Outlines (Open Government Licence), FEMA OpenFEMA NFIP (public), NOAA IBTrACS and ISD (public), WRI Aqueduct 4.0 (CC BY 4.0), JRC CEMS-GloFAS, Deltares, FLOPROS.
+
+## Heat stress: outdoor WBGT validated against weather stations (added)
+
+The engine's extreme-heat study now computes hourly outdoor WBGT with the Liljegren et al. (2008) heat-balance method (port checked against the reference implementation: max differences 0.016 °C globe, 0.034 °C wet bulb over 4000 random inputs). It replaces the earlier shade-only shortcut.
+
+Held-out test (scripts/validate_wbgt.py, 20 airport stations, 2018 to 2022, calibration and held-out sites alternate): the same solver is driven once by ERA5 temperature and humidity and once by the station's measured temperature and dew point (ERA5 wind, pressure and sunshine in both). The comparison tests the reanalysis inputs; it does not test Liljegren against black-globe measurements, because no open archive of measured WBGT exists.
+
+| Site | Split | ERA5 minus station, mean °C | hottest 5 % of hours °C | RMSE °C |
+|---|---|---|---|---|
+| Virudhunagar/Madurai IN | calibration | -1.08 | -1.16 | 1.42 |
+| Dhaka BD | held-out | -0.82 | -0.55 | 1.74 |
+| Kolkata IN | calibration | -0.69 | -1.69 | 1.50 |
+| Houston US | held-out | -0.32 | -0.56 | 1.04 |
+| Phoenix US | calibration | -0.48 | -0.15 | 1.00 |
+| Jacobabad PK | held-out | -1.52 | -2.28 | 2.42 |
+| Riyadh SA | calibration | -1.01 | -1.60 | 1.46 |
+| Oslo NO | held-out | +0.02 | +0.15 | 1.17 |
+| Bangkok TH | calibration | -0.69 | -0.67 | 1.18 |
+| Dubai AE | held-out | -0.69 | -1.11 | 1.33 |
+| Delhi IN | calibration | -0.88 | -1.11 | 1.66 |
+| Chennai IN | held-out | -1.04 | -1.47 | 1.40 |
+| Lagos NG | calibration | -0.90 | -1.50 | 1.31 |
+| Miami US | held-out | -0.74 | -0.62 | 1.15 |
+| Karachi PK | calibration | -0.56 | -1.40 | 1.29 |
+| Brisbane AU | held-out | +0.26 | -0.28 | 0.84 |
+| Manaus BR | calibration | +0.33 | -0.56 | 1.07 |
+| Singapore SG | held-out | -0.36 | -0.93 | 0.81 |
+| Basra IQ | calibration | -0.37 | -1.11 | 1.42 |
+| Lahore PK | held-out | -0.68 | -0.90 | 1.81 |
+
+A single additive correction fitted on the calibration sites (+1.1 °C) cuts the held-out hot-hour mean absolute bias from 0.89 to 0.55 °C. The engine reports uncorrected values and states that peaks are understated by about 1 °C.
+Failures and limits: ERA5 runs cool at every hot site tested except Oslo, Brisbane and Manaus (near zero); Jacobabad is worst (about -1.5 °C mean, -2.3 °C on hot hours). Station wind is missing for up to 75 % of hours and is measured at sheltered masts, so it is excluded from the primary test; using it would shift WBGT by up to about 2 °C where winds are near calm. The hot-hour column is selected on the station chain and so is biased low for the reanalysis; selecting on the reanalysis chain gives the opposite bias (see the JSON). Radiation error is not tested.

@@ -321,7 +321,7 @@ def _lab_map(key: str, r: dict, attempt_note: str) -> tuple:
     caveat = None
     status = "modelled"
     if key == "heat":
-        caveat = "Simplified WBGT: it runs 3.5–5.2 °C above a shade-bracket WBGT at hot sites tested, so levels are screening values, not safe-work thresholds."
+        caveat = "Outdoor WBGT in the sun (Liljegren) from ERA5. ERA5 inputs ran about 0.7 °C below airport station inputs (about 1.1 °C on the hottest hours, 20 sites), so peaks are slightly understated; screening values, not safe-work thresholds."
     if val is None and status == "modelled":
         caveat = ((caveat + " ") if caveat else "") + "Modelled and validated, but this study reports series and skill, not a single hazard level: see metrics."
     if r.get("skilful") is False:

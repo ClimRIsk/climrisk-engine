@@ -73,7 +73,7 @@ def test_value_is_hazard_level_not_validation_stat():
     assert ent["evidence_grade"] == "C"
     r2 = {"headline": [("38.0 WBGT °C", "100-year level"), ("0.94", "anomaly correlation"), ("A", "evidence grade (A best)")]}
     ent2, _ = SP._lab_map("heat", r2, "rung")
-    assert ent2["value"] == 38.0 and "Simplified WBGT" in ent2["caveat"]
+    assert ent2["value"] == 38.0 and "Outdoor WBGT" in ent2["caveat"]
 
 
 def test_no_skill_study_is_constructed_not_modelled():

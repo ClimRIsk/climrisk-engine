@@ -1,0 +1,1039 @@
+{
+ "sites": [
+  {
+   "site": "Virudhunagar/Madurai IN",
+   "climate": "hot-humid",
+   "station": "MADURAI (433600-99999), 1 km",
+   "n_hours": 41748,
+   "split": "calibration",
+   "t_bias_c": -1.01,
+   "era5_minus_station_wbgt": {
+    "bias_c": -1.08,
+    "rmse_c": 1.42,
+    "hot_hours_bias_c": -1.16,
+    "hot_hours_bias_selected_on_era5_c": -0.82,
+    "corr": 0.963
+   },
+   "old_shade_minus_station_wbgt": {
+    "bias_c": 2.79,
+    "hot_hours_bias_c": -1.4,
+    "rmse_c": 3.46
+   },
+   "station_wind_sensitivity": {
+    "station_wind_missing_share": 0.77,
+    "station_wind_mean_ms": 0.36,
+    "era5_wind_mean_ms": 2.63,
+    "wbgt_shift_if_station_wind_used_c": 0.41
+   },
+   "max_wbgt_c": {
+    "station_chain": 42.2,
+    "era5_chain": 40.4,
+    "old_shade": 36.1
+   },
+   "exceedance": {
+    "28.0": {
+     "station_share_%": 32.349,
+     "era5_share_%": 23.932,
+     "old_shade_share_%": 76.358
+    },
+    "30.0": {
+     "station_share_%": 19.139,
+     "era5_share_%": 12.427,
+     "old_shade_share_%": 41.997
+    },
+    "32.0": {
+     "station_share_%": 8.594,
+     "era5_share_%": 4.561,
+     "old_shade_share_%": 13.498
+    }
+   }
+  },
+  {
+   "site": "Dhaka BD",
+   "climate": "hot-humid",
+   "station": "HAZRAT SHAHJALAL INTL (419220-99999), 0 km",
+   "n_hours": 43266,
+   "split": "held-out",
+   "t_bias_c": -1.6,
+   "era5_minus_station_wbgt": {
+    "bias_c": -0.82,
+    "rmse_c": 1.74,
+    "hot_hours_bias_c": -0.55,
+    "hot_hours_bias_selected_on_era5_c": 0.28,
+    "corr": 0.965
+   },
+   "old_shade_minus_station_wbgt": {
+    "bias_c": 3.28,
+    "hot_hours_bias_c": 1.15,
+    "rmse_c": 4.1
+   },
+   "station_wind_sensitivity": {
+    "station_wind_missing_share": 0.73,
+    "station_wind_mean_ms": 0.0,
+    "era5_wind_mean_ms": 2.53,
+    "wbgt_shift_if_station_wind_used_c": 0.53
+   },
+   "max_wbgt_c": {
+    "station_chain": 40.2,
+    "era5_chain": 39.9,
+    "old_shade": 38.2
+   },
+   "exceedance": {
+    "28.0": {
+     "station_share_%": 25.258,
+     "era5_share_%": 23.416,
+     "old_shade_share_%": 59.719
+    },
+    "30.0": {
+     "station_share_%": 13.711,
+     "era5_share_%": 12.705,
+     "old_shade_share_%": 51.019
+    },
+    "32.0": {
+     "station_share_%": 4.338,
+     "era5_share_%": 3.95,
+     "old_shade_share_%": 32.069
+    }
+   }
+  },
+  {
+   "site": "Kolkata IN",
+   "climate": "hot-humid",
+   "station": "NETAJI SUBHASH CHANDRA BOSE INTL (428090-99999), 1 km",
+   "n_hours": 43363,
+   "split": "calibration",
+   "t_bias_c": -0.81,
+   "era5_minus_station_wbgt": {
+    "bias_c": -0.69,
+    "rmse_c": 1.5,
+    "hot_hours_bias_c": -1.69,
+    "hot_hours_bias_selected_on_era5_c": -0.82,
+    "corr": 0.972
+   },
+   "old_shade_minus_station_wbgt": {
+    "bias_c": 3.55,
+    "hot_hours_bias_c": 0.87,
+    "rmse_c": 4.12
+   },
+   "station_wind_sensitivity": {
+    "station_wind_missing_share": 0.61,
+    "station_wind_mean_ms": 0.13,
+    "era5_wind_mean_ms": 2.64,
+    "wbgt_shift_if_station_wind_used_c": 0.78
+   },
+   "max_wbgt_c": {
+    "station_chain": 41.9,
+    "era5_chain": 40.3,
+    "old_shade": 39.3
+   },
+   "exceedance": {
+    "28.0": {
+     "station_share_%": 34.518,
+     "era5_share_%": 26.52,
+     "old_shade_share_%": 63.616
+    },
+    "30.0": {
+     "station_share_%": 20.079,
+     "era5_share_%": 14.914,
+     "old_shade_share_%": 56.122
+    },
+    "32.0": {
+     "station_share_%": 10.682,
+     "era5_share_%": 5.689,
+     "old_shade_share_%": 39.64
+    }
+   }
+  },
+  {
+   "site": "Houston US",
+   "climate": "hot-humid",
+   "station": "G BUSH INTERCONTINENTAL AP/HOUSTON AP (722430-12960), 0 km",
+   "n_hours": 43823,
+   "split": "held-out",
+   "t_bias_c": -0.87,
+   "era5_minus_station_wbgt": {
+    "bias_c": -0.32,
+    "rmse_c": 1.04,
+    "hot_hours_bias_c": -0.56,
+    "hot_hours_bias_selected_on_era5_c": -0.17,
+    "corr": 0.992
+   },
+   "old_shade_minus_station_wbgt": {
+    "bias_c": 3.66,
+    "hot_hours_bias_c": 1.04,
+    "rmse_c": 4.15
+   },
+   "station_wind_sensitivity": {
+    "station_wind_missing_share": 0.46,
+    "station_wind_mean_ms": 0.3,
+    "era5_wind_mean_ms": 3.19,
+    "wbgt_shift_if_station_wind_used_c": 0.92
+   },
+   "max_wbgt_c": {
+    "station_chain": 40.2,
+    "era5_chain": 40.0,
+    "old_shade": 36.5
+   },
+   "exceedance": {
+    "28.0": {
+     "station_share_%": 14.009,
+     "era5_share_%": 12.651,
+     "old_shade_share_%": 36.212
+    },
+    "30.0": {
+     "station_share_%": 7.8,
+     "era5_share_%": 6.291,
+     "old_shade_share_%": 23.894
+    },
+    "32.0": {
+     "station_share_%": 2.197,
+     "era5_share_%": 1.677,
+     "old_shade_share_%": 10.545
+    }
+   }
+  },
+  {
+   "site": "Phoenix US",
+   "climate": "hot-dry",
+   "station": "PHOENIX SKY HARBOR INTL AIRPORT (722780-23183), 1 km",
+   "n_hours": 43815,
+   "split": "calibration",
+   "t_bias_c": -0.9,
+   "era5_minus_station_wbgt": {
+    "bias_c": -0.48,
+    "rmse_c": 1.0,
+    "hot_hours_bias_c": -0.15,
+    "hot_hours_bias_selected_on_era5_c": 0.01,
+    "corr": 0.995
+   },
+   "old_shade_minus_station_wbgt": {
+    "bias_c": 3.11,
+    "hot_hours_bias_c": 0.6,
+    "rmse_c": 3.78
+   },
+   "station_wind_sensitivity": {
+    "station_wind_missing_share": 0.28,
+    "station_wind_mean_ms": 0.2,
+    "era5_wind_mean_ms": 2.76,
+    "wbgt_shift_if_station_wind_used_c": 1.69
+   },
+   "max_wbgt_c": {
+    "station_chain": 39.6,
+    "era5_chain": 39.6,
+    "old_shade": 36.0
+   },
+   "exceedance": {
+    "28.0": {
+     "station_share_%": 9.613,
+     "era5_share_%": 9.469,
+     "old_shade_share_%": 21.739
+    },
+    "30.0": {
+     "station_share_%": 5.195,
+     "era5_share_%": 5.005,
+     "old_shade_share_%": 13.594
+    },
+    "32.0": {
+     "station_share_%": 1.636,
+     "era5_share_%": 1.604,
+     "old_shade_share_%": 5.322
+    }
+   }
+  },
+  {
+   "site": "Jacobabad PK",
+   "climate": "hot-dry",
+   "station": "SHAHBAZ AB (417150-99999), 0 km",
+   "n_hours": 13633,
+   "split": "held-out",
+   "t_bias_c": -0.22,
+   "era5_minus_station_wbgt": {
+    "bias_c": -1.52,
+    "rmse_c": 2.42,
+    "hot_hours_bias_c": -2.28,
+    "hot_hours_bias_selected_on_era5_c": -0.78,
+    "corr": 0.97
+   },
+   "old_shade_minus_station_wbgt": {
+    "bias_c": 2.11,
+    "hot_hours_bias_c": -0.52,
+    "rmse_c": 3.41
+   },
+   "station_wind_sensitivity": {
+    "station_wind_missing_share": 0.08,
+    "station_wind_mean_ms": 0.1,
+    "era5_wind_mean_ms": 2.5,
+    "wbgt_shift_if_station_wind_used_c": 2.1
+   },
+   "max_wbgt_c": {
+    "station_chain": 44.3,
+    "era5_chain": 42.5,
+    "old_shade": 41.1
+   },
+   "exceedance": {
+    "28.0": {
+     "station_share_%": 35.876,
+     "era5_share_%": 27.492,
+     "old_shade_share_%": 42.654
+    },
+    "30.0": {
+     "station_share_%": 23.23,
+     "era5_share_%": 16.643,
+     "old_shade_share_%": 36.045
+    },
+    "32.0": {
+     "station_share_%": 15.242,
+     "era5_share_%": 10.504,
+     "old_shade_share_%": 28.336
+    }
+   }
+  },
+  {
+   "site": "Riyadh SA",
+   "climate": "hot-dry",
+   "station": "KING KHALED INTL (404370-99999), 0 km",
+   "n_hours": 43467,
+   "split": "calibration",
+   "t_bias_c": -1.06,
+   "era5_minus_station_wbgt": {
+    "bias_c": -1.01,
+    "rmse_c": 1.46,
+    "hot_hours_bias_c": -1.6,
+    "hot_hours_bias_selected_on_era5_c": -1.09,
+    "corr": 0.986
+   },
+   "old_shade_minus_station_wbgt": {
+    "bias_c": 2.77,
+    "hot_hours_bias_c": -0.79,
+    "rmse_c": 3.47
+   },
+   "station_wind_sensitivity": {
+    "station_wind_missing_share": 0.69,
+    "station_wind_mean_ms": 0.13,
+    "era5_wind_mean_ms": 3.87,
+    "wbgt_shift_if_station_wind_used_c": 1.02
+   },
+   "max_wbgt_c": {
+    "station_chain": 40.0,
+    "era5_chain": 38.6,
+    "old_shade": 34.2
+   },
+   "exceedance": {
+    "28.0": {
+     "station_share_%": 8.105,
+     "era5_share_%": 5.018,
+     "old_shade_share_%": 14.358
+    },
+    "30.0": {
+     "station_share_%": 2.942,
+     "era5_share_%": 1.038,
+     "old_shade_share_%": 5.314
+    },
+    "32.0": {
+     "station_share_%": 0.771,
+     "era5_share_%": 0.267,
+     "old_shade_share_%": 0.676
+    }
+   }
+  },
+  {
+   "site": "Oslo NO",
+   "climate": "cool",
+   "station": "GARDERMOEN / OSLO (013840-99999), 0 km",
+   "n_hours": 43373,
+   "split": "held-out",
+   "t_bias_c": -0.16,
+   "era5_minus_station_wbgt": {
+    "bias_c": 0.02,
+    "rmse_c": 1.17,
+    "hot_hours_bias_c": 0.15,
+    "hot_hours_bias_selected_on_era5_c": 0.32,
+    "corr": 0.991
+   },
+   "old_shade_minus_station_wbgt": {
+    "bias_c": 5.27,
+    "hot_hours_bias_c": 0.57,
+    "rmse_c": 5.98
+   },
+   "station_wind_sensitivity": {
+    "station_wind_missing_share": 0.75,
+    "station_wind_mean_ms": 0.55,
+    "era5_wind_mean_ms": 2.54,
+    "wbgt_shift_if_station_wind_used_c": 0.16
+   },
+   "max_wbgt_c": {
+    "station_chain": 31.5,
+    "era5_chain": 31.3,
+    "old_shade": 29.0
+   },
+   "exceedance": {
+    "28.0": {
+     "station_share_%": 0.018,
+     "era5_share_%": 0.025,
+     "old_shade_share_%": 0.007
+    },
+    "30.0": {
+     "station_share_%": 0.005,
+     "era5_share_%": 0.007,
+     "old_shade_share_%": 0.0
+    },
+    "32.0": {
+     "station_share_%": 0.0,
+     "era5_share_%": 0.0,
+     "old_shade_share_%": 0.0
+    }
+   }
+  },
+  {
+   "site": "Bangkok TH",
+   "climate": "hot-humid",
+   "station": "CHON BURI/SATTAHIP / SUVARNABHUMI INTL (484590-99999), 1 km",
+   "n_hours": 43492,
+   "split": "calibration",
+   "t_bias_c": -1.19,
+   "era5_minus_station_wbgt": {
+    "bias_c": -0.69,
+    "rmse_c": 1.18,
+    "hot_hours_bias_c": -0.67,
+    "hot_hours_bias_selected_on_era5_c": -0.07,
+    "corr": 0.958
+   },
+   "old_shade_minus_station_wbgt": {
+    "bias_c": 3.64,
+    "hot_hours_bias_c": 0.82,
+    "rmse_c": 4.03
+   },
+   "station_wind_sensitivity": {
+    "station_wind_missing_share": 0.64,
+    "station_wind_mean_ms": 0.4,
+    "era5_wind_mean_ms": 2.39,
+    "wbgt_shift_if_station_wind_used_c": 0.51
+   },
+   "max_wbgt_c": {
+    "station_chain": 40.5,
+    "era5_chain": 40.3,
+    "old_shade": 37.9
+   },
+   "exceedance": {
+    "28.0": {
+     "station_share_%": 34.517,
+     "era5_share_%": 30.268,
+     "old_shade_share_%": 86.257
+    },
+    "30.0": {
+     "station_share_%": 19.268,
+     "era5_share_%": 15.713,
+     "old_shade_share_%": 69.824
+    },
+    "32.0": {
+     "station_share_%": 6.105,
+     "era5_share_%": 4.263,
+     "old_shade_share_%": 34.714
+    }
+   }
+  },
+  {
+   "site": "Dubai AE",
+   "climate": "hot-humid",
+   "station": "DUBAI INTL (411940-99999), 1 km",
+   "n_hours": 43189,
+   "split": "held-out",
+   "t_bias_c": -1.88,
+   "era5_minus_station_wbgt": {
+    "bias_c": -0.69,
+    "rmse_c": 1.33,
+    "hot_hours_bias_c": -1.11,
+    "hot_hours_bias_selected_on_era5_c": -0.61,
+    "corr": 0.979
+   },
+   "old_shade_minus_station_wbgt": {
+    "bias_c": 3.43,
+    "hot_hours_bias_c": 2.34,
+    "rmse_c": 4.0
+   },
+   "station_wind_sensitivity": {
+    "station_wind_missing_share": 0.67,
+    "station_wind_mean_ms": 0.1,
+    "era5_wind_mean_ms": 3.91,
+    "wbgt_shift_if_station_wind_used_c": 0.98
+   },
+   "max_wbgt_c": {
+    "station_chain": 41.5,
+    "era5_chain": 40.7,
+    "old_shade": 41.8
+   },
+   "exceedance": {
+    "28.0": {
+     "station_share_%": 34.108,
+     "era5_share_%": 30.26,
+     "old_shade_share_%": 51.377
+    },
+    "30.0": {
+     "station_share_%": 20.035,
+     "era5_share_%": 16.981,
+     "old_shade_share_%": 41.518
+    },
+    "32.0": {
+     "station_share_%": 9.144,
+     "era5_share_%": 7.048,
+     "old_shade_share_%": 32.793
+    }
+   }
+  },
+  {
+   "site": "Delhi IN",
+   "climate": "hot-semi-arid",
+   "station": "INDIRA GANDHI INTL (421810-99999), 2 km",
+   "n_hours": 42826,
+   "split": "calibration",
+   "t_bias_c": -1.01,
+   "era5_minus_station_wbgt": {
+    "bias_c": -0.88,
+    "rmse_c": 1.66,
+    "hot_hours_bias_c": -1.11,
+    "hot_hours_bias_selected_on_era5_c": -0.43,
+    "corr": 0.981
+   },
+   "old_shade_minus_station_wbgt": {
+    "bias_c": 2.94,
+    "hot_hours_bias_c": 0.9,
+    "rmse_c": 3.5
+   },
+   "station_wind_sensitivity": {
+    "station_wind_missing_share": 0.4,
+    "station_wind_mean_ms": 0.16,
+    "era5_wind_mean_ms": 2.59,
+    "wbgt_shift_if_station_wind_used_c": 1.29
+   },
+   "max_wbgt_c": {
+    "station_chain": 44.5,
+    "era5_chain": 41.4,
+    "old_shade": 39.3
+   },
+   "exceedance": {
+    "28.0": {
+     "station_share_%": 23.058,
+     "era5_share_%": 18.781,
+     "old_shade_share_%": 42.045
+    },
+    "30.0": {
+     "station_share_%": 12.962,
+     "era5_share_%": 10.743,
+     "old_shade_share_%": 34.187
+    },
+    "32.0": {
+     "station_share_%": 6.036,
+     "era5_share_%": 4.14,
+     "old_shade_share_%": 21.606
+    }
+   }
+  },
+  {
+   "site": "Chennai IN",
+   "climate": "hot-humid",
+   "station": "CHENNAI INTL (432790-99999), 0 km",
+   "n_hours": 43371,
+   "split": "held-out",
+   "t_bias_c": -1.25,
+   "era5_minus_station_wbgt": {
+    "bias_c": -1.04,
+    "rmse_c": 1.4,
+    "hot_hours_bias_c": -1.47,
+    "hot_hours_bias_selected_on_era5_c": -0.79,
+    "corr": 0.955
+   },
+   "old_shade_minus_station_wbgt": {
+    "bias_c": 3.31,
+    "hot_hours_bias_c": 0.72,
+    "rmse_c": 3.73
+   },
+   "station_wind_sensitivity": {
+    "station_wind_missing_share": 0.64,
+    "station_wind_mean_ms": 0.46,
+    "era5_wind_mean_ms": 3.16,
+    "wbgt_shift_if_station_wind_used_c": 0.56
+   },
+   "max_wbgt_c": {
+    "station_chain": 41.0,
+    "era5_chain": 40.1,
+    "old_shade": 39.0
+   },
+   "exceedance": {
+    "28.0": {
+     "station_share_%": 39.948,
+     "era5_share_%": 28.088,
+     "old_shade_share_%": 84.434
+    },
+    "30.0": {
+     "station_share_%": 20.756,
+     "era5_share_%": 14.477,
+     "old_shade_share_%": 62.217
+    },
+    "32.0": {
+     "station_share_%": 8.268,
+     "era5_share_%": 3.661,
+     "old_shade_share_%": 34.209
+    }
+   }
+  },
+  {
+   "site": "Lagos NG",
+   "climate": "hot-humid",
+   "station": "MURTALA MUHAMMED (652010-99999), 0 km",
+   "n_hours": 37771,
+   "split": "calibration",
+   "t_bias_c": -0.99,
+   "era5_minus_station_wbgt": {
+    "bias_c": -0.9,
+    "rmse_c": 1.31,
+    "hot_hours_bias_c": -1.5,
+    "hot_hours_bias_selected_on_era5_c": -0.91,
+    "corr": 0.949
+   },
+   "old_shade_minus_station_wbgt": {
+    "bias_c": 3.39,
+    "hot_hours_bias_c": -0.61,
+    "rmse_c": 3.91
+   },
+   "station_wind_sensitivity": {
+    "station_wind_missing_share": 0.64,
+    "station_wind_mean_ms": 0.58,
+    "era5_wind_mean_ms": 2.27,
+    "wbgt_shift_if_station_wind_used_c": 0.33
+   },
+   "max_wbgt_c": {
+    "station_chain": 40.4,
+    "era5_chain": 39.7,
+    "old_shade": 35.8
+   },
+   "exceedance": {
+    "28.0": {
+     "station_share_%": 31.22,
+     "era5_share_%": 25.276,
+     "old_shade_share_%": 89.436
+    },
+    "30.0": {
+     "station_share_%": 18.549,
+     "era5_share_%": 12.028,
+     "old_shade_share_%": 57.661
+    },
+    "32.0": {
+     "station_share_%": 7.432,
+     "era5_share_%": 2.497,
+     "old_shade_share_%": 20.471
+    }
+   }
+  },
+  {
+   "site": "Miami US",
+   "climate": "hot-humid",
+   "station": "MIAMI INTERNATIONAL AIRPORT (722020-12839), 3 km",
+   "n_hours": 43816,
+   "split": "held-out",
+   "t_bias_c": -1.32,
+   "era5_minus_station_wbgt": {
+    "bias_c": -0.74,
+    "rmse_c": 1.15,
+    "hot_hours_bias_c": -0.62,
+    "hot_hours_bias_selected_on_era5_c": -0.2,
+    "corr": 0.981
+   },
+   "old_shade_minus_station_wbgt": {
+    "bias_c": 3.18,
+    "hot_hours_bias_c": 1.04,
+    "rmse_c": 3.52
+   },
+   "station_wind_sensitivity": {
+    "station_wind_missing_share": 0.37,
+    "station_wind_mean_ms": 0.38,
+    "era5_wind_mean_ms": 3.16,
+    "wbgt_shift_if_station_wind_used_c": 0.82
+   },
+   "max_wbgt_c": {
+    "station_chain": 39.6,
+    "era5_chain": 39.6,
+    "old_shade": 35.7
+   },
+   "exceedance": {
+    "28.0": {
+     "station_share_%": 17.11,
+     "era5_share_%": 14.353,
+     "old_shade_share_%": 50.632
+    },
+    "30.0": {
+     "station_share_%": 7.525,
+     "era5_share_%": 5.582,
+     "old_shade_share_%": 28.798
+    },
+    "32.0": {
+     "station_share_%": 1.232,
+     "era5_share_%": 0.865,
+     "old_shade_share_%": 9.252
+    }
+   }
+  },
+  {
+   "site": "Karachi PK",
+   "climate": "hot-humid",
+   "station": "JINNAH INTL (417800-99999), 0 km",
+   "n_hours": 19360,
+   "split": "calibration",
+   "t_bias_c": -1.07,
+   "era5_minus_station_wbgt": {
+    "bias_c": -0.56,
+    "rmse_c": 1.29,
+    "hot_hours_bias_c": -1.4,
+    "hot_hours_bias_selected_on_era5_c": -0.83,
+    "corr": 0.981
+   },
+   "old_shade_minus_station_wbgt": {
+    "bias_c": 3.57,
+    "hot_hours_bias_c": 1.95,
+    "rmse_c": 4.06
+   },
+   "station_wind_sensitivity": {
+    "station_wind_missing_share": 0.3,
+    "station_wind_mean_ms": 0.26,
+    "era5_wind_mean_ms": 4.48,
+    "wbgt_shift_if_station_wind_used_c": 1.61
+   },
+   "max_wbgt_c": {
+    "station_chain": 36.9,
+    "era5_chain": 36.9,
+    "old_shade": 38.4
+   },
+   "exceedance": {
+    "28.0": {
+     "station_share_%": 25.697,
+     "era5_share_%": 18.518,
+     "old_shade_share_%": 54.747
+    },
+    "30.0": {
+     "station_share_%": 11.498,
+     "era5_share_%": 6.849,
+     "old_shade_share_%": 44.07
+    },
+    "32.0": {
+     "station_share_%": 3.037,
+     "era5_share_%": 0.842,
+     "old_shade_share_%": 26.591
+    }
+   }
+  },
+  {
+   "site": "Brisbane AU",
+   "climate": "warm-humid",
+   "station": "BRISBANE AIRPORT (945780-99999), 0 km",
+   "n_hours": 43554,
+   "split": "held-out",
+   "t_bias_c": -0.08,
+   "era5_minus_station_wbgt": {
+    "bias_c": 0.26,
+    "rmse_c": 0.84,
+    "hot_hours_bias_c": -0.28,
+    "hot_hours_bias_selected_on_era5_c": -0.11,
+    "corr": 0.989
+   },
+   "old_shade_minus_station_wbgt": {
+    "bias_c": 3.72,
+    "hot_hours_bias_c": 1.2,
+    "rmse_c": 4.2
+   },
+   "station_wind_sensitivity": {
+    "station_wind_missing_share": 0.67,
+    "station_wind_mean_ms": 0.38,
+    "era5_wind_mean_ms": 3.79,
+    "wbgt_shift_if_station_wind_used_c": 0.62
+   },
+   "max_wbgt_c": {
+    "station_chain": 37.6,
+    "era5_chain": 36.8,
+    "old_shade": 35.0
+   },
+   "exceedance": {
+    "28.0": {
+     "station_share_%": 2.519,
+     "era5_share_%": 2.135,
+     "old_shade_share_%": 11.333
+    },
+    "30.0": {
+     "station_share_%": 0.416,
+     "era5_share_%": 0.333,
+     "old_shade_share_%": 2.459
+    },
+    "32.0": {
+     "station_share_%": 0.03,
+     "era5_share_%": 0.03,
+     "old_shade_share_%": 0.321
+    }
+   }
+  },
+  {
+   "site": "Manaus BR",
+   "climate": "hot-humid",
+   "station": "EDUARDO GOMES INTL (821110-99999), 0 km",
+   "n_hours": 43455,
+   "split": "calibration",
+   "t_bias_c": 0.4,
+   "era5_minus_station_wbgt": {
+    "bias_c": 0.33,
+    "rmse_c": 1.07,
+    "hot_hours_bias_c": -0.56,
+    "hot_hours_bias_selected_on_era5_c": 0.09,
+    "corr": 0.948
+   },
+   "old_shade_minus_station_wbgt": {
+    "bias_c": 4.46,
+    "hot_hours_bias_c": -0.48,
+    "rmse_c": 5.05
+   },
+   "station_wind_sensitivity": {
+    "station_wind_missing_share": 1.0,
+    "station_wind_mean_ms": 0.3,
+    "era5_wind_mean_ms": 1.78,
+    "wbgt_shift_if_station_wind_used_c": 0.0
+   },
+   "max_wbgt_c": {
+    "station_chain": 40.1,
+    "era5_chain": 40.0,
+    "old_shade": 34.8
+   },
+   "exceedance": {
+    "28.0": {
+     "station_share_%": 28.696,
+     "era5_share_%": 28.664,
+     "old_shade_share_%": 96.553
+    },
+    "30.0": {
+     "station_share_%": 15.317,
+     "era5_share_%": 13.336,
+     "old_shade_share_%": 62.557
+    },
+    "32.0": {
+     "station_share_%": 3.588,
+     "era5_share_%": 2.764,
+     "old_shade_share_%": 15.929
+    }
+   }
+  },
+  {
+   "site": "Singapore SG",
+   "climate": "hot-humid",
+   "station": "SINGAPORE CHANGI INTL (486980-99999), 1 km",
+   "n_hours": 43538,
+   "split": "held-out",
+   "t_bias_c": -0.74,
+   "era5_minus_station_wbgt": {
+    "bias_c": -0.36,
+    "rmse_c": 0.81,
+    "hot_hours_bias_c": -0.93,
+    "hot_hours_bias_selected_on_era5_c": -0.46,
+    "corr": 0.95
+   },
+   "old_shade_minus_station_wbgt": {
+    "bias_c": 4.15,
+    "hot_hours_bias_c": 0.58,
+    "rmse_c": 4.5
+   },
+   "station_wind_sensitivity": {
+    "station_wind_missing_share": 0.67,
+    "station_wind_mean_ms": 0.7,
+    "era5_wind_mean_ms": 3.45,
+    "wbgt_shift_if_station_wind_used_c": 0.31
+   },
+   "max_wbgt_c": {
+    "station_chain": 39.0,
+    "era5_chain": 38.1,
+    "old_shade": 35.1
+   },
+   "exceedance": {
+    "28.0": {
+     "station_share_%": 30.863,
+     "era5_share_%": 26.788,
+     "old_shade_share_%": 99.258
+    },
+    "30.0": {
+     "station_share_%": 13.574,
+     "era5_share_%": 7.816,
+     "old_shade_share_%": 83.495
+    },
+    "32.0": {
+     "station_share_%": 1.847,
+     "era5_share_%": 0.774,
+     "old_shade_share_%": 22.78
+    }
+   }
+  },
+  {
+   "site": "Basra IQ",
+   "climate": "hot-humid",
+   "station": "BASRAH INTL (406890-99999), 0 km",
+   "n_hours": 35740,
+   "split": "calibration",
+   "t_bias_c": 0.4,
+   "era5_minus_station_wbgt": {
+    "bias_c": -0.37,
+    "rmse_c": 1.42,
+    "hot_hours_bias_c": -1.11,
+    "hot_hours_bias_selected_on_era5_c": -0.73,
+    "corr": 0.98
+   },
+   "old_shade_minus_station_wbgt": {
+    "bias_c": 3.31,
+    "hot_hours_bias_c": 0.92,
+    "rmse_c": 3.98
+   },
+   "station_wind_sensitivity": {
+    "station_wind_missing_share": 0.71,
+    "station_wind_mean_ms": 0.13,
+    "era5_wind_mean_ms": 4.48,
+    "wbgt_shift_if_station_wind_used_c": 0.87
+   },
+   "max_wbgt_c": {
+    "station_chain": 41.4,
+    "era5_chain": 40.5,
+    "old_shade": 39.6
+   },
+   "exceedance": {
+    "28.0": {
+     "station_share_%": 16.153,
+     "era5_share_%": 13.733,
+     "old_shade_share_%": 29.127
+    },
+    "30.0": {
+     "station_share_%": 8.693,
+     "era5_share_%": 6.284,
+     "old_shade_share_%": 18.856
+    },
+    "32.0": {
+     "station_share_%": 2.896,
+     "era5_share_%": 1.668,
+     "old_shade_share_%": 9.617
+    }
+   }
+  },
+  {
+   "site": "Lahore PK",
+   "climate": "hot-semi-arid",
+   "station": "ALLAMA IQBAL INTL (416410-99999), 0 km",
+   "n_hours": 7782,
+   "split": "held-out",
+   "t_bias_c": -0.62,
+   "era5_minus_station_wbgt": {
+    "bias_c": -0.68,
+    "rmse_c": 1.81,
+    "hot_hours_bias_c": -0.9,
+    "hot_hours_bias_selected_on_era5_c": -0.18,
+    "corr": 0.976
+   },
+   "old_shade_minus_station_wbgt": {
+    "bias_c": 2.96,
+    "hot_hours_bias_c": 0.34,
+    "rmse_c": 3.87
+   },
+   "station_wind_sensitivity": {
+    "station_wind_missing_share": 0.55,
+    "station_wind_mean_ms": 0.01,
+    "era5_wind_mean_ms": 2.22,
+    "wbgt_shift_if_station_wind_used_c": 0.96
+   },
+   "max_wbgt_c": {
+    "station_chain": 41.6,
+    "era5_chain": 40.6,
+    "old_shade": 38.4
+   },
+   "exceedance": {
+    "28.0": {
+     "station_share_%": 21.126,
+     "era5_share_%": 18.568,
+     "old_shade_share_%": 36.687
+    },
+    "30.0": {
+     "station_share_%": 13.493,
+     "era5_share_%": 11.886,
+     "old_shade_share_%": 29.324
+    },
+    "32.0": {
+     "station_share_%": 7.916,
+     "era5_share_%": 6.631,
+     "old_shade_share_%": 21.511
+    }
+   }
+  }
+ ],
+ "summary": {
+  "sites_with_data": 20,
+  "calibration_correction_c": 1.1,
+  "held_out_hot_hours_mean_abs_bias_before_c": 0.89,
+  "held_out_hot_hours_mean_abs_bias_after_c": 0.55,
+  "era5_hot_hours_bias_c_all_sites": [
+   -1.16,
+   -0.55,
+   -1.69,
+   -0.56,
+   -0.15,
+   -2.28,
+   -1.6,
+   0.15,
+   -0.67,
+   -1.11,
+   -1.11,
+   -1.47,
+   -1.5,
+   -0.62,
+   -1.4,
+   -0.28,
+   -0.56,
+   -0.93,
+   -1.11,
+   -0.9
+  ],
+  "old_shade_hot_hours_bias_c_all_sites": {
+   "Virudhunagar/Madurai IN": -1.4,
+   "Dhaka BD": 1.15,
+   "Kolkata IN": 0.87,
+   "Houston US": 1.04,
+   "Phoenix US": 0.6,
+   "Jacobabad PK": -0.52,
+   "Riyadh SA": -0.79,
+   "Oslo NO": 0.57,
+   "Bangkok TH": 0.82,
+   "Dubai AE": 2.34,
+   "Delhi IN": 0.9,
+   "Chennai IN": 0.72,
+   "Lagos NG": -0.61,
+   "Miami US": 1.04,
+   "Karachi PK": 1.95,
+   "Brisbane AU": 1.2,
+   "Manaus BR": -0.48,
+   "Singapore SG": 0.58,
+   "Basra IQ": 0.92,
+   "Lahore PK": 0.34
+  },
+  "held_out_sites": [
+   "Dhaka BD",
+   "Houston US",
+   "Jacobabad PK",
+   "Oslo NO",
+   "Dubai AE",
+   "Chennai IN",
+   "Miami US",
+   "Brisbane AU",
+   "Singapore SG",
+   "Lahore PK"
+  ]
+ },
+ "years": [
+  2018,
+  2019,
+  2020,
+  2021,
+  2022
+ ],
+ "limits": [
+  "No open archive of measured WBGT exists: Liljegren itself is not tested against black-globe data here (see Liljegren 2008, Kong & Huber 2022).",
+  "Sunshine and pressure are ERA5 in both chains, so radiation error is not tested.",
+  "Wind is ERA5 in the primary comparison: ISD-Lite wind is missing for 0 to 75% of hours and is measured at sheltered airport masts, so it is reported only as a sensitivity. Calm wind raises WBGT strongly, so this is a real uncertainty.",
+  "ISD-Lite reports at 1 to 3 hourly intervals at some stations; only reported hours are compared."
+ ]
+}
