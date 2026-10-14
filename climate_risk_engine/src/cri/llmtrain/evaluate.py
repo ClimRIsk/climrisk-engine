@@ -77,7 +77,7 @@ def score(row, out):
         else:
             s["says_missing"] = float(bool(MISSING.search(out)))
             s["cites_valid"] = float(not cites or max(cites) <= n)
-    elif k == "siteprofile":
+    elif k in ("siteprofile", "chat"):
         nul = row["meta"].get("nulls", [])
         low = out.lower()
         s["numbers_ok"] = float(nums(out) <= nums(row["meta"]["facts"]) | nums(u) | {"0"})

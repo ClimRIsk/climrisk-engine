@@ -4,6 +4,12 @@ from cri import siteprofile as SP
 from cri.resident import agent as AG
 
 
+@pytest.fixture(autouse=True)
+def _data(monkeypatch, tmp_path):
+    monkeypatch.setenv("CRI_DATA_DIR", str(tmp_path))
+    yield
+
+
 def _p():
     ok = SP._entry("cyclone", "Cyclone wind", "modelled", value=21.9, unit="m/s", severity="LOW")
     nf = SP._entry("sealevel", "Sea level", "none_found")

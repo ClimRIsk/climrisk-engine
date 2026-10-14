@@ -201,12 +201,33 @@ class Agent:
             pred = {"intent": "explain", "confidence": max(pred["confidence"], 0.6), "top": pred["top"]}   # a question about the world, not a request for a tool
         M.add_message(session, "user", text, pred["intent"], {"entities": ent, "company": comp, "top": pred["top"]})
         try:
-            out = self._dispatch(session, text, pred, ent, comp)
+            out = self._converse(session, text, pred, ent, comp) or self._dispatch(session, text, pred, ent, comp)
         except Exception as e:                                         # noqa: BLE001
             out = {"reply": f"That failed inside the engine: {type(e).__name__}: {str(e)[:200]}. Nothing was changed.", "blocks": [], "actions": []}
         out["intent"] = pred["intent"]; out["confidence"] = pred["confidence"]; out["top"] = pred["top"]; out["entities"] = ent
         M.add_message(session, "agent", out["reply"], pred["intent"], {"actions": out.get("actions"), "job": out.get("job")})
         return out
+
+    _CTX_WORDS = re.compile(r"\b(it|this|that|these|those|here|there|my|our|we|the (?:site|plant|result|numbers?|profile|air|water|heat|flood)|why|so what|what should|what does (?:that|this)|what do you (?:think|make)|you said|earlier|again|more|detail|worried|concern(?:ed)?|problem)\b", re.I)
+
+    def _converse(self, session, text, pred, ent, comp) -> Optional[dict]:
+        """Free conversation through the local language model (no key, no cloud): greetings, follow-ups about the site under discussion,
+        thinking out loud. Tool requests, coordinates, companies and plain factual questions keep their own routes."""
+        from . import converse as CV, answer as AN
+        it = pred["intent"]
+        llm = AN.llm_status()["available"]
+        if it == "smalltalk":
+            return CV.converse(session, text) if llm else CV.no_model_reply(AN.llm_status()["why"], smalltalk=True)
+        if not llm:
+            return None
+        if "lat" in ent or comp or self._ACT.search(text):
+            return None
+        has_ctx = bool(M.get_state("last_place") or M.get_state("last_result"))
+        if it == "unknown" and not self._Q.search(text):
+            return CV.converse(session, text)
+        if has_ctx and it in ("unknown", "explain", "history", "recall") and self._CTX_WORDS.search(text):
+            return CV.converse(session, text)
+        return None
 
     _SSP_WORDS = (("ssp126", r"ssp\s*-?\s*1[\s.\-]*2\.?6|strong(?:ly)? mitigat\w*|paris|net[\s\-]*zero pathway|low emissions?"), ("ssp245", r"ssp\s*-?\s*2[\s.\-]*4\.?5|middle[\s\-]*of[\s\-]*the[\s\-]*road|moderate emissions?|current policies"),
                   ("ssp370", r"ssp\s*-?\s*3[\s.\-]*7\.?0|high emissions?|regional rivalry"), ("ssp585", r"ssp\s*-?\s*5[\s.\-]*8\.?5|very high emissions?|worst[\s\-]*case|business[\s\-]*as[\s\-]*usual|fossil[\s\-]*fuel(?:ed)? (?:future|pathway)"))

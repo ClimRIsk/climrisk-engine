@@ -129,7 +129,7 @@
     push('u', text);
     var m = push('a', 'Thinking…', { pending: true });
     api('/resident/chat', 'POST', { text: text, session: session, intent: intent || null }).then(function (r) {
-      if (!r.ok) { m.pending = false; m.text = r.status === 403 ? 'The engine did not accept the key this page is using. Reopen this page from the app, or paste the key into the page\'s "API key" box, then ask again. (Do not type the key into this chat.)' : 'Error ' + r.status; save(); render(); return; }
+      if (!r.ok) { m.pending = false; m.text = r.status === 403 ? 'This page is not connected to the engine that is running (the connection code changes each time the app starts). Reopen this page from the ClimRisk app and ask again; the chat itself needs no account or key.' : 'Error ' + r.status; save(); render(); return; }
       var j = r.j; m.text = j.reply; m.blocks = j.blocks; m.actions = j.actions; m.pending = !!j.job; save(); render();
       if (j.job) poll(m, j.job);
     }).catch(function (e) { m.pending = false; m.text = 'Could not reach the engine: ' + e; save(); render(); });

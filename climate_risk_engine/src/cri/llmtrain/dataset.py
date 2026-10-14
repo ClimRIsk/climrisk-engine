@@ -351,6 +351,51 @@ def build_profile(rng, n: int, split: str):
     return rows
 
 
+def build_chat(rng, n: int, split: str):
+    """Conversation turns in exactly the deployed format (converse.SYSTEM + CONTEXT block + user turn). Answers are correct by construction:
+    they use only context numbers, call null 'not assessed', and suggest one engine step."""
+    from ..resident import converse as CV
+    rows = []
+    for _ in range(n):
+        place = rng.choice(_PROFILE_PLACES)
+        haz = rng.sample(_PROFILE_HAZ, rng.randint(5, 8))
+        lines, nul, mod, con = [], [], [], []
+        for name, unit, (lo, hi) in haz:
+            st = rng.choices(["modelled", "constructed", "none_found", "null"], [5, 2, 1.5, 2.5])[0]
+            if st == "null":
+                lines.append(f"- {name}: null (not assessed): no data and nothing could be built"); nul.append(name)
+            elif st == "none_found":
+                lines.append(f"- {name}: none found (absent here)")
+            else:
+                v = round(rng.uniform(lo, hi), 1)
+                lines.append(f"- {name}: {st} {v:g} {unit}".rstrip())
+                (mod if st == "modelled" else con).append((name, v, unit))
+        ctx = f"Place under discussion: {place}.\nAll-hazards profile held by the engine:\n" + "\n".join(lines)
+        qt = rng.choice(["why", "next", "safe", "missing", "hi"])
+        q = {"why": "Why should we care about this profile?", "next": "What should we do next?", "safe": "So is this site basically fine?",
+             "missing": "What does the engine not know here?", "hi": "hi"}[qt]
+        if qt == "hi":
+            a = "Hello. Give me a place or coordinates and I will run every hazard for it, or ask me about the site we were looking at."
+        else:
+            parts = []
+            if qt == "safe":
+                parts.append("Not on this evidence alone." if nul else "Only for the hazards listed, which is a screening result.")
+            if mod:
+                parts.append("The engine modelled " + ", ".join(f"{n} at {v:g} {u}".rstrip() for n, v, u in mod[:3]) + ".")
+            if con:
+                parts.append("Built from a fallback, so lower confidence: " + ", ".join(n for n, _, _ in con) + ".")
+            if nul:
+                parts.append("Not assessed (null, which is not low and not zero): " + ", ".join(nul) + ".")
+            if qt in ("next", "missing", "why") and nul:
+                parts.append("I would close those gaps first, with a survey, another data source or an expert view.")
+            if qt == "next":
+                parts.append("I can also build the 3D twin here or find what emits nearby, if you want a next step.")
+            a = " ".join(parts) or "The engine has nothing material for this place yet."
+        rows.append({"kind": "chat", "split": split, "meta": {"qtype": qt, "facts": ctx, "nulls": [] if qt == "hi" else nul},
+                     "messages": [{"role": "system", "content": CV.SYSTEM}, {"role": "user", "content": f"CONTEXT (from the engine, the only source of numbers):\n{ctx}\n\nUser: {q}"}, {"role": "assistant", "content": a}]})
+    return rows
+
+
 def build_gold():
     rows = []
     for i, (topic, q, a) in enumerate(G.GOLD):
@@ -394,6 +439,7 @@ def main(corpus_dir: Path, out: Path, seed: int = 7):
         from . import edgar_cases as EC2
         rows += EC2.build_rows(_rp, seed=seed + 60, per_case=3)
     rows += build_profile(random.Random(seed + 70), 150, "train") + build_profile(random.Random(seed + 71), 20, "valid") + build_profile(random.Random(seed + 72), 20, "test")
+    rows += build_chat(random.Random(seed + 80), 160, "train") + build_chat(random.Random(seed + 81), 20, "valid") + build_chat(random.Random(seed + 82), 20, "test")
     gold = build_gold()
     rows += gold + [dict(r) for r in gold if r["split"] == "train"] * 2        # gold is scarce and high quality: upweight x3
     for r in rows:

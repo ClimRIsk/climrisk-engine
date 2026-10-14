@@ -112,6 +112,12 @@ def make_router(auth_dep) -> tuple:
         return {"model": {"classes": len(m.classes), **m.meta}, "linkedin": LI.status(), "facts": len(M.facts(None, 500)),
                 "feedback_rows": len(M.feedback_rows()), "posts": len(M.posts(100)), "runs": len(M.runs(100))}
 
+    @prot.get("/llm")
+    def llm() -> dict:
+        """Is the local conversational model running? Chat needs no key; this says what answers and why if nothing does."""
+        from . import answer as AN
+        return AN.llm_status(force=True)
+
     @prot.get("/facts")
     def facts(q: Optional[str] = None) -> dict:
         return {"facts": M.facts(q, 100)}

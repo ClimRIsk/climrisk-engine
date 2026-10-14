@@ -177,3 +177,15 @@ def test_siteprofile_scorer_catches_null_called_low():
     assert bad["null_not_called_low"] == 0.0 and bad["numbers_ok"] == 0.0 and bad["says_not_assessed"] == 0.0
     good = E.score(row, "Null, meaning not assessed: earthquake shaking. It needs a survey.")
     assert good["null_not_called_low"] == 1.0 and good["says_not_assessed"] == 1.0
+
+
+def test_chat_rows_match_deployed_format_and_rules():
+    from cri.resident import converse as CV
+    rows = D.build_chat(random.Random(4), 100, "train")
+    for r in rows:
+        assert r["messages"][0]["content"] == CV.SYSTEM and "CONTEXT" in r["messages"][1]["content"]
+        a = r["messages"][2]["content"]
+        sc = E.score({"kind": "chat", "meta": r["meta"], "messages": r["messages"]}, a)
+        assert all(v == 1.0 for v in sc.values()), (sc, a)
+        if r["meta"]["nulls"]:
+            assert "not assessed" in a.lower()
