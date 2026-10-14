@@ -133,7 +133,7 @@ HAZ = {
                          "Values above about 30 mean extreme fire danger in most regimes."],
              "extract": _fire_series, "benchmarks": fire.run_benchmarks, "fmt": "{:.0f}",
              "assumptions": ["The index is driven by daily maximum temperature, minimum humidity, maximum wind and rainfall as a proxy for the noon observation, so it runs slightly harsher than the official noon index.", "Tropical day-length constants are used inside 25° of the equator."],
-             "limits": ["Fire weather is not fire: ignition and fuel load decide whether it burns. The index measures how the weather would let a fire spread."], "meaning": "The number of days above FWI 30 each year is the practical exposure."},
+             "limits": ["Fire weather is not fire: ignition and fuel load decide whether it burns. The index measures how the weather would let a fire spread.", "Tested against 7 boxes of the Canadian National Fire Database (fires of 20 ha or more, 2011-2022 unseen): the index separates large-fire days from other fire-season days with ROC area about 0.75 (0.5 = no skill), but no better than the day's maximum temperature alone (about 0.80), and adds little over the season calendar; days at FWI 30 or above were about 5 times as likely to see a large fire as an average day. Boreal Canada only (scripts/validate_wildfire.py)."], "meaning": "The number of days above FWI 30 each year is the practical exposure."},
 }
 
 

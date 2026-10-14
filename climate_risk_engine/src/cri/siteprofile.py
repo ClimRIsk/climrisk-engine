@@ -326,6 +326,8 @@ def _lab_map(key: str, r: dict, attempt_note: str) -> tuple:
     status = "modelled"
     if key == "heat":
         caveat = "Outdoor WBGT in the sun (Liljegren) from ERA5. ERA5 inputs ran about 0.7 °C below airport station inputs (about 1.1 °C on the hottest hours, 20 sites), so peaks are slightly understated; screening values, not safe-work thresholds."
+    if key == "fire":
+        caveat = "Against Canadian fire records (7 boxes, unseen years) the index ranks large-fire days with ROC area about 0.75 (0.5 = no skill), no better than daily maximum temperature, though FWI 30+ days saw about 5 times the large-fire rate. Boreal Canada only; weather, not ignition or fuel."
     if key == "drought":
         caveat = "Against the US Drought Monitor (26 counties, unseen years) the model ranks drought weeks above normal weeks with ROC area about 0.70 (0.5 = no skill) and catches only about a fifth of drought weeks at its default threshold; weaker where irrigated; untested outside the US."
     if val is None and status == "modelled":

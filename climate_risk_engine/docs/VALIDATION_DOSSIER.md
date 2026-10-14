@@ -120,3 +120,20 @@ Test (scripts/validate_drought.py): 26 US counties across humid, semi-arid, dese
 | Drought weeks caught at the engine's default threshold (median), false-alarm share | 20 %, 43 % | 22 %, 66 % |
 
 Failures and limits: skill is modest. The default flag (driest 10 % of days) is far narrower than the share of weeks the Monitor calls drought, so it misses most of them; it is a ranking tool, not a drought declaration. Irrigated places are poor (ROC area 0.56 to 0.61 at Fresno, Yakima, Salt Lake City), as are Dauphin PA and Greene MO. USDM is an expert-blended product, not a gauge. The test is US-only; monsoon, tropical and snow-fed systems, including the engine's home region, are untested. The basin water-stress layer (WRI Aqueduct) is a published indicator looked up by location; the engine does not validate it and says so.
+
+## Wildfire: fire-weather index validated against observed large fires (added)
+
+The fire study's Canadian Fire Weather Index was previously hindcast against ERA5 itself. It is now scored against where and when fires were actually reported: the Canadian National Fire Database, 2000 to 2022.
+
+Test (scripts/validate_wildfire.py): 7 one-degree boxes in the most fire-prone parts of western and central Canada (spaced 300 km apart; an eighth had too few events). Truth is a day on which a fire of 20 ha or more was reported in the box, May to September. The index is computed untuned from daily weather (ERA5 where Open-Meteo's allowance allowed, NASA POWER otherwise, labelled per box). A logistic link is fitted on 2000 to 2010 and scored on 2011 to 2022.
+
+| Measure | Result |
+|---|---|
+| Median ROC area, engine FWI (0.5 = no skill) | 0.752 |
+| Median ROC area, daily maximum temperature alone | 0.804 |
+| Median ROC area, season calendar alone | 0.726 |
+| Boxes where FWI beats maximum temperature | 0 of 7 |
+| Boxes with Brier skill above the season base rate | 4 of 7 (median 0.007) |
+| Large-fire rate on days with FWI 30 or more, relative to an average day (median, boxes where reached) | 4.7 times |
+
+Failures and limits: the index is no better than temperature alone in any box, and its probabilities add essentially nothing over the season calendar; its value is the high-end signal (days at FWI 30 or more carry about five times the average large-fire risk). Daily maxima stand in for the noon weather the official index uses, which probably costs skill; a noon-hour version is the first improvement to test. Canada's boreal forest only: Mediterranean, tropical and savanna regimes, where fuel and ignition behave differently, are untested. Large-fire days cluster, so the ROC areas are optimistic.

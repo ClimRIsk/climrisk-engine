@@ -1,0 +1,129 @@
+{
+ "boxes": [
+  {
+   "lat": 57.5,
+   "lon": -103.5,
+   "weather_source": "ERA5 (Open-Meteo)",
+   "large_fire_days_test": 29,
+   "days_test": 1836,
+   "auc_fwi": 0.767,
+   "auc_tmax_only": 0.787,
+   "auc_season_day_base_rate": 0.621,
+   "brier_skill_vs_season_base_rate": 0.022,
+   "share_large_fire_days_fwi_ge_30": 0.24,
+   "share_all_days_fwi_ge_30": 0.086,
+   "enrichment_at_fwi_30": 2.8
+  },
+  {
+   "lat": 50.5,
+   "lon": -117.5,
+   "weather_source": "ERA5 (Open-Meteo)",
+   "large_fire_days_test": 25,
+   "days_test": 1836,
+   "auc_fwi": 0.694,
+   "auc_tmax_only": 0.866,
+   "auc_season_day_base_rate": 0.75,
+   "brier_skill_vs_season_base_rate": -0.001,
+   "share_large_fire_days_fwi_ge_30": 0.16,
+   "share_all_days_fwi_ge_30": 0.038,
+   "enrichment_at_fwi_30": 4.2
+  },
+  {
+   "lat": 52.5,
+   "lon": -120.5,
+   "weather_source": "NASA POWER (MERRA-2)",
+   "large_fire_days_test": 24,
+   "days_test": 1836,
+   "auc_fwi": 0.773,
+   "auc_tmax_only": 0.812,
+   "auc_season_day_base_rate": 0.785,
+   "brier_skill_vs_season_base_rate": -0.003,
+   "share_large_fire_days_fwi_ge_30": 0.0,
+   "share_all_days_fwi_ge_30": 0.0,
+   "enrichment_at_fwi_30": null
+  },
+  {
+   "lat": 51.5,
+   "lon": -98.5,
+   "skip": "too few large-fire days"
+  },
+  {
+   "lat": 59.5,
+   "lon": -113.5,
+   "weather_source": "NASA POWER (MERRA-2)",
+   "large_fire_days_test": 29,
+   "days_test": 1836,
+   "auc_fwi": 0.752,
+   "auc_tmax_only": 0.804,
+   "auc_season_day_base_rate": 0.692,
+   "brier_skill_vs_season_base_rate": 0.007,
+   "share_large_fire_days_fwi_ge_30": 0.24,
+   "share_all_days_fwi_ge_30": 0.046,
+   "enrichment_at_fwi_30": 5.2
+  },
+  {
+   "lat": 59.5,
+   "lon": -119.5,
+   "weather_source": "NASA POWER (MERRA-2)",
+   "large_fire_days_test": 22,
+   "days_test": 1836,
+   "auc_fwi": 0.695,
+   "auc_tmax_only": 0.869,
+   "auc_season_day_base_rate": 0.734,
+   "brier_skill_vs_season_base_rate": -0.005,
+   "share_large_fire_days_fwi_ge_30": 0.05,
+   "share_all_days_fwi_ge_30": 0.007,
+   "enrichment_at_fwi_30": 7.0
+  },
+  {
+   "lat": 60.5,
+   "lon": -107.5,
+   "weather_source": "NASA POWER (MERRA-2)",
+   "large_fire_days_test": 29,
+   "days_test": 1836,
+   "auc_fwi": 0.767,
+   "auc_tmax_only": 0.783,
+   "auc_season_day_base_rate": 0.726,
+   "brier_skill_vs_season_base_rate": 0.009,
+   "share_large_fire_days_fwi_ge_30": 0.0,
+   "share_all_days_fwi_ge_30": 0.003,
+   "enrichment_at_fwi_30": null
+  },
+  {
+   "lat": 56.5,
+   "lon": -108.5,
+   "weather_source": "NASA POWER (MERRA-2)",
+   "large_fire_days_test": 30,
+   "days_test": 1836,
+   "auc_fwi": 0.746,
+   "auc_tmax_only": 0.764,
+   "auc_season_day_base_rate": 0.633,
+   "brier_skill_vs_season_base_rate": 0.008,
+   "share_large_fire_days_fwi_ge_30": 0.0,
+   "share_all_days_fwi_ge_30": 0.004,
+   "enrichment_at_fwi_30": null
+  }
+ ],
+ "summary": {
+  "boxes_scored": 7,
+  "median_auc_fwi": 0.752,
+  "median_auc_tmax_only": 0.804,
+  "median_auc_season_day_base_rate": 0.726,
+  "boxes_fwi_beats_tmax": 0,
+  "boxes_with_positive_brier_skill": 4,
+  "median_brier_skill": 0.007,
+  "median_enrichment_at_fwi_30": 4.7
+ },
+ "years": [
+  2000,
+  2022
+ ],
+ "split_year": 2011,
+ "min_fire_ha": 20.0,
+ "limits": [
+  "Canada only (boreal and montane forest). Mediterranean, tropical and savanna fire regimes are untested.",
+  "A fire is reported on the day found; many ignitions are human-caused and independent of weather.",
+  "ERA5 daily maxima stand in for the noon observation the official index uses, so levels run slightly high.",
+  "Large-fire days cluster (one lightning outbreak starts many fires), so ROC area is optimistic about independent skill."
+ ]
+}
