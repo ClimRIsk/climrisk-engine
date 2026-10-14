@@ -52,6 +52,43 @@ def report_dir():
     return d
 
 
+def profile_rows(p: dict) -> list:
+    """Table rows for a site profile. A null hazard is written as null, never as 0 or low."""
+    order = {"modelled": 0, "constructed": 1, "none_found": 2, "null": 3}
+    rows = []
+    for e in sorted(p["hazards"].values(), key=lambda e: (order.get(e["status"], 4), e["label"])):
+        if e["status"] == "null":
+            val, sev = "null", "not assessed"
+        elif e["status"] == "none_found":
+            val, sev = "0 (absent here)", "NEGLIGIBLE"
+        else:
+            val = "-" if e["value"] is None else (f'{e["value"]:g} {e.get("unit") or ""}').strip()
+            sev = e["severity"] or (f'grade {e["evidence_grade"]}' if e.get("evidence_grade") else "no severity scale")
+        note = e.get("reason") or e.get("caveat") or e.get("method") or ""
+        rows.append([e["label"], e["status"], val, sev, note[:140]])
+    return rows
+
+
+def run_site_profile(pl: dict, progress: Optional[Callable] = None, twin: Optional[dict] = None) -> dict:
+    """Every hazard for one coordinate (siteprofile.profile) as an agent reply: summary, status table, history, null rules."""
+    from .. import siteprofile as SP
+    if twin is None:
+        twin = SP.cached_twin(pl["lat"], pl["lon"])
+    p = SP.profile(pl["lat"], pl["lon"], pl.get("name") or "Site", twin=twin, progress=progress)
+    c = p["counts"]
+    blocks = [_blk("table", head=["Hazard", "Status", "Value", "Severity", "Note"], rows=profile_rows(p),
+                   caption=f'{c["modelled"]} modelled, {c["constructed"]} constructed, {c["none_found"]} established absent, {c["null"]} null (not assessed).')]
+    hs = (p.get("history") or {})
+    fe = hs.get("flood_events") or {}
+    if fe.get("events"):
+        blocks.append(_blk("table", head=["Recorded flood event", "Date", "Source"], rows=[[e.get("name") or e.get("id") or "", str(e.get("date") or "")[:10], e.get("source") or ""] for e in fe["events"][:10]],
+                           caption=fe.get("note") or ""))
+    elif fe.get("outside_dense_coverage"):
+        blocks.append(_blk("note", text="No recorded flood events are listed for this place, but it lies outside the regions where the engine holds event records, so that is not evidence it has never flooded."))
+    blocks.append(_blk("note", text=" ".join(p["rules"])))
+    return {"reply": SP.summarise(p), "blocks": blocks, "actions": [{"type": "say", "label": "Build a 3D twin here", "text": f'build a 3D twin of {pl["lat"]:.4f}, {pl["lon"]:.4f}'}], "profile": {"counts": c, "null_hazards": p["null_hazards"], "top_severity": p["top_severity"]}}
+
+
 def _job(fn: Callable, label: str) -> dict:
     jid = uuid.uuid4().hex[:10]
     JOBS[jid] = {"id": jid, "label": label, "status": "running", "t0": time.time(), "result": None, "error": None}
@@ -70,7 +107,7 @@ def job_status(jid: str) -> dict:
     j = JOBS.get(jid)
     if not j:
         return {"status": "unknown"}
-    return {k: j[k] for k in ("id", "label", "status", "error")} | {"progress": j.get("progress"), "elapsed_s": round(time.time() - j["t0"], 1), "reply": (j.get("result") or {}).get("reply") if j["status"] == "done" else None,
+    return {k: j[k] for k in ("id", "label", "status", "error")} | {"progress": j.get("progress"), "partial": j.get("partial"), "elapsed_s": round(time.time() - j["t0"], 1), "reply": (j.get("result") or {}).get("reply") if j["status"] == "done" else None,
                                                                     "blocks": (j.get("result") or {}).get("blocks") if j["status"] == "done" else None,
                                                                     "actions": (j.get("result") or {}).get("actions") if j["status"] == "done" else None}
 
@@ -139,7 +176,7 @@ class Agent:
         text = (text or "").strip()
         if not text:
             return {"reply": "Ask me something — for example \"build a 3D twin of 22.2645, 91.805\".", "blocks": [], "actions": [], "intent": "empty"}
-        quick = self._autopilot_commands(session, text) or self._knowledge_commands(session, text) or self._scenario_commands(session, text) or self._lab_commands(session, text) or self._case_commands(session, text) or self._extension_commands(session, text)
+        quick = self._autopilot_commands(session, text) or self._knowledge_commands(session, text) or self._scenario_commands(session, text) or self._profile_commands(session, text) or self._lab_commands(session, text) or self._case_commands(session, text) or self._extension_commands(session, text)
         if quick:
             if quick.get("intent") in (None, "knowledge", "learn"):      # autopilot commands log themselves
                 quick.setdefault("intent", "knowledge")
@@ -480,6 +517,37 @@ class Agent:
         return {"reply": f"Starting a {L.DOMAINS[domain]['label'].split(' (')[0].lower()} study for {pl['name']}. I will work through: {steps}, then write the methods and results. This takes a few minutes; I will post it here.",
                 "blocks": [], "actions": [], "job": holder["j"]["id"], "intent": "modellab"}
 
+    _PROFILE_RX = re.compile(r"\b(?:all|every|full|complete)\s+(?:the\s+)?hazards?\b|\b(?:hazard|site|risk|location)\s+profile\b|\bfull (?:profile|screen\w*)\b|\bwhat(?:'s| is| are) the (?:hazards?|risks?) (?:at|for|in|near)\b|\bhow risky (?:is|are)\b|\bprofile\b.*\d+\.\d+", re.I)
+
+    def _profile_commands(self, session, text) -> Optional[dict]:
+        """Any coordinate runs every hazard by default: "9.47, 77.91", "all hazards at 22.26, 91.80", "hazard profile for Chattogram".
+        Hazards with no data are built from a fallback; if that fails they are null (not assessed), never zero."""
+        t = text.strip()
+        ent = N.entities(t)
+        bare = "lat" in ent and len(t.split()) <= 4 and not re.search(r"[a-zA-Z]{4,}", re.sub(r"(?i)\b(profile|hazards?|risk)\b", "", t))
+        if not (bare or self._PROFILE_RX.search(t)):
+            return None
+        pl = resolve_place(t, ent, session)
+        if not pl:
+            return {"reply": "Which place? Give coordinates or a city name and I will run every hazard for it.", "blocks": [], "actions": []}
+        M.set_state("last_place", pl)
+        holder: dict = {}
+
+        def work():
+            def prog(k, e):
+                j = holder.get("j")
+                if j is not None:
+                    part = j.setdefault("partial", {})
+                    part[k] = {"status": e["status"], "value": e["value"], "severity": e["severity"], "label": e["label"]}
+                    j["progress"] = f'{len(part)} hazards done; last: {e["label"]} ({e["status"]})'
+            out = run_site_profile(pl, progress=prog)
+            M.add_run("site_profile", {"place": pl["name"]}, [str(out["profile"]["counts"])], True, out["reply"][:160])
+            M.set_state("last_result", {"summary": "site hazard profile", "explain": out["reply"]})
+            return out
+        holder["j"] = _job(work, f'all hazards at {pl["name"]}')
+        return {"reply": f'Running every hazard for {pl["name"]} ({pl["lat"]:.4f}, {pl["lon"]:.4f}). Where a source has no data I try a fallback; if that fails the hazard is reported as null (not assessed), never as zero. First results appear within seconds; the deep studies take a few minutes.',
+                "blocks": [], "actions": [], "job": holder["j"]["id"], "intent": "site_profile"}
+
     def _knowledge_commands(self, session, text) -> Optional[dict]:
         """learn from <url> / learn about <topic> / what do you know / forget <url> — keyword-routed."""
         from . import knowledge as K
@@ -643,6 +711,11 @@ class Agent:
 
         def work():
             twin = self.twin_builder(lat=pl["lat"], lon=pl["lon"], name=pl["name"], sector=sector)
+            try:                                                       # the site profile reuses this twin's event history and routed flood scenarios
+                from .. import siteprofile as _SP
+                _SP.save_twin(pl["lat"], pl["lon"], twin)
+            except Exception:                                          # noqa: BLE001
+                pass
             an = self.analyser(twin)
             fnd = an["findings"]
             M.add_run(it, {"place": pl}, an.get("transcript", [])[:12], True, f'{len(fnd)} findings at {pl["name"]}')

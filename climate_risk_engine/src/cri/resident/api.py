@@ -51,6 +51,13 @@ class AskReq(BaseModel):
     question: str = Field(..., max_length=1000)
     context: Optional[str] = None
 
+class ProfileReq(BaseModel):
+    lat: float = Field(..., ge=-90, le=90)
+    lon: float = Field(..., ge=-180, le=180)
+    name: str = Field("Site", max_length=80)
+    fresh: bool = False
+
+
 class LabReq(BaseModel):
     domain: str = Field(..., pattern="^[a-z]{3,12}$")
     lat: float = Field(..., ge=-90, le=90)
@@ -375,6 +382,32 @@ def make_router(auth_dep) -> tuple:
             return {"reply": out["story"]["title"] + "\n" + out["story"].get("standfirst", ""),
                     "blocks": [{"type": "files", "items": out["files"]}, {"type": "table", "head": ["", ""], "rows": L.summary(r)}], "actions": []}
         holder["j"] = A._job(work, f"{req.domain} model study")
+        return {"job": holder["j"]["id"]}
+
+    @prot.post("/site/profile")
+    def site_profile(req: ProfileReq) -> dict:
+        """Every hazard for any coordinate, as a background job; poll /resident/job/{id} (its `partial` field fills as hazards finish).
+        Statuses: modelled, constructed (fallback), none_found (established absent, 0), null (no data, not assessed; never zero)."""
+        holder: dict = {}
+
+        def work():
+            def prog(k, e):
+                j = holder.get("j")
+                if j is not None:
+                    part = j.setdefault("partial", {})
+                    part[k] = {"status": e["status"], "value": e["value"], "severity": e["severity"], "label": e["label"]}
+                    j["progress"] = f'{len(part)} hazards done'
+            from . import agent as AG
+            from .. import siteprofile as SP
+            if req.fresh:
+                try:
+                    SP._cache_path(req.lat, req.lon).unlink()
+                except OSError:
+                    pass
+            out = AG.run_site_profile({"lat": req.lat, "lon": req.lon, "name": req.name}, progress=prog)
+            out["profile_full"] = SP.profile(req.lat, req.lon, req.name)      # cached by the run above: instant
+            return out
+        holder["j"] = A._job(work, f"all hazards at {req.name}")
         return {"job": holder["j"]["id"]}
 
     @prot.post("/portfolio/run")

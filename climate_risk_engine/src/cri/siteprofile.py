@@ -363,6 +363,33 @@ def _history(c: Ctx) -> dict:
     return out
 
 
+
+def _twin_dir() -> Path:
+    home = Path(os.environ.get("CRI_HOME") or (Path.home() / ".climrisk"))
+    d = home / "twins"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def save_twin(lat: float, lon: float, twin: dict) -> None:
+    """Keep the parts of a built 3D twin that the profile can reuse (event history and routed flood/wind scenarios)."""
+    keep = {"history": twin.get("history"), "scenarios": twin.get("scenarios"), "built": time.time(), "lat": lat, "lon": lon}
+    (_twin_dir() / f"{lat:.3f}_{lon:.3f}.json").write_text(json.dumps(keep, default=str))
+
+
+def cached_twin(lat: float, lon: float, max_age_s: float = 30 * 86400) -> Optional[dict]:
+    """A twin built within ~1 km of this point in the last 30 days, or None."""
+    best = None
+    for f in _twin_dir().glob("*.json"):
+        try:
+            d = json.loads(f.read_text())
+            if abs(d["lat"] - lat) <= 0.01 and abs(d["lon"] - lon) <= 0.01 and time.time() - d["built"] < max_age_s:
+                best = d
+        except Exception:                                    # noqa: BLE001
+            continue
+    return best
+
+
 def _cache_path(lat: float, lon: float) -> Path:
     home = Path(os.environ.get("CRI_HOME") or (Path.home() / ".climrisk"))
     d = home / "profiles"
