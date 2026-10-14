@@ -1,0 +1,3370 @@
+{
+ "n_windows": 216,
+ "model_fitted_on": "modern CEMS events only (2023\u20132026), never on these historic events",
+ "by_decade": {
+  "1940": {
+   "n_windows": 24,
+   "current_rule": 0.525,
+   "hand_0.1": 0.68,
+   "hand_1.0": 0.687,
+   "elev_pct": 0.783,
+   "rel_p10": 0.783,
+   "event_model": 0.779
+  },
+  "1950": {
+   "n_windows": 24,
+   "current_rule": 0.54,
+   "hand_0.1": 0.74,
+   "hand_1.0": 0.761,
+   "elev_pct": 0.842,
+   "rel_p10": 0.842,
+   "event_model": 0.846
+  },
+  "1960": {
+   "n_windows": 24,
+   "current_rule": 0.549,
+   "hand_0.1": 0.705,
+   "hand_1.0": 0.718,
+   "elev_pct": 0.806,
+   "rel_p10": 0.806,
+   "event_model": 0.804
+  },
+  "1970": {
+   "n_windows": 24,
+   "current_rule": 0.555,
+   "hand_0.1": 0.678,
+   "hand_1.0": 0.669,
+   "elev_pct": 0.806,
+   "rel_p10": 0.806,
+   "event_model": 0.8
+  },
+  "1980": {
+   "n_windows": 24,
+   "current_rule": 0.569,
+   "hand_0.1": 0.688,
+   "hand_1.0": 0.695,
+   "elev_pct": 0.828,
+   "rel_p10": 0.828,
+   "event_model": 0.82
+  },
+  "1990": {
+   "n_windows": 24,
+   "current_rule": 0.534,
+   "hand_0.1": 0.704,
+   "hand_1.0": 0.699,
+   "elev_pct": 0.799,
+   "rel_p10": 0.799,
+   "event_model": 0.793
+  },
+  "2000": {
+   "n_windows": 24,
+   "current_rule": 0.561,
+   "hand_0.1": 0.687,
+   "hand_1.0": 0.678,
+   "elev_pct": 0.825,
+   "rel_p10": 0.825,
+   "event_model": 0.814
+  },
+  "2010": {
+   "n_windows": 24,
+   "current_rule": 0.62,
+   "hand_0.1": 0.693,
+   "hand_1.0": 0.695,
+   "elev_pct": 0.801,
+   "rel_p10": 0.801,
+   "event_model": 0.795
+  },
+  "2020": {
+   "n_windows": 24,
+   "current_rule": 0.645,
+   "hand_0.1": 0.685,
+   "hand_1.0": 0.691,
+   "elev_pct": 0.818,
+   "rel_p10": 0.818,
+   "event_model": 0.81
+  }
+ },
+ "overall": {
+  "current_rule": [
+   0.566,
+   0.552,
+   0.582
+  ],
+  "hand_0.1": [
+   0.695,
+   0.683,
+   0.707
+  ],
+  "hand_1.0": [
+   0.699,
+   0.686,
+   0.713
+  ],
+  "elev_pct": [
+   0.812,
+   0.798,
+   0.826
+  ],
+  "rel_p10": [
+   0.812,
+   0.798,
+   0.826
+  ],
+  "event_model": [
+   0.807,
+   0.793,
+   0.821
+  ]
+ },
+ "event_model_auc_vs_year_spearman": [
+  -0.012,
+  0.866
+ ],
+ "per_window": [
+  {
+   "code": "UK194602_09",
+   "year": 1946,
+   "decade": 1940,
+   "n": 106851,
+   "flooded_share": 0.109,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.7717,
+    "hand_1.0": 0.7305,
+    "elev_pct": 0.853,
+    "rel_p10": 0.853,
+    "event_model": 0.8497
+   }
+  },
+  {
+   "code": "UK194701_05",
+   "year": 1947,
+   "decade": 1940,
+   "n": 109053,
+   "flooded_share": 0.195,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.678,
+    "hand_1.0": 0.6979,
+    "elev_pct": 0.8168,
+    "rel_p10": 0.8169,
+    "event_model": 0.8116
+   }
+  },
+  {
+   "code": "UK194701_07",
+   "year": 1947,
+   "decade": 1940,
+   "n": 101640,
+   "flooded_share": 0.123,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.7205,
+    "hand_1.0": 0.7453,
+    "elev_pct": 0.7755,
+    "rel_p10": 0.7755,
+    "event_model": 0.7838
+   }
+  },
+  {
+   "code": "UK194701_10",
+   "year": 1947,
+   "decade": 1940,
+   "n": 119409,
+   "flooded_share": 0.104,
+   "auc": {
+    "current_rule": 0.5033,
+    "hand_0.1": 0.625,
+    "hand_1.0": 0.6555,
+    "elev_pct": 0.7463,
+    "rel_p10": 0.7463,
+    "event_model": 0.7488
+   }
+  },
+  {
+   "code": "UK194701_11",
+   "year": 1947,
+   "decade": 1940,
+   "n": 107911,
+   "flooded_share": 0.129,
+   "auc": {
+    "current_rule": 0.5395,
+    "hand_0.1": 0.7361,
+    "hand_1.0": 0.7638,
+    "elev_pct": 0.8317,
+    "rel_p10": 0.8318,
+    "event_model": 0.834
+   }
+  },
+  {
+   "code": "UK194701_13",
+   "year": 1947,
+   "decade": 1940,
+   "n": 108758,
+   "flooded_share": 0.135,
+   "auc": {
+    "current_rule": 0.7547,
+    "hand_0.1": 0.7009,
+    "hand_1.0": 0.7105,
+    "elev_pct": 0.8011,
+    "rel_p10": 0.8011,
+    "event_model": 0.8001
+   }
+  },
+  {
+   "code": "UK194701_15",
+   "year": 1947,
+   "decade": 1940,
+   "n": 111361,
+   "flooded_share": 0.071,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.7384,
+    "hand_1.0": 0.7715,
+    "elev_pct": 0.8766,
+    "rel_p10": 0.8766,
+    "event_model": 0.8728
+   }
+  },
+  {
+   "code": "UK194701_16",
+   "year": 1947,
+   "decade": 1940,
+   "n": 93835,
+   "flooded_share": 0.126,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.6385,
+    "hand_1.0": 0.6791,
+    "elev_pct": 0.8117,
+    "rel_p10": 0.8117,
+    "event_model": 0.8096
+   }
+  },
+  {
+   "code": "UK194701_18",
+   "year": 1947,
+   "decade": 1940,
+   "n": 110770,
+   "flooded_share": 0.069,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.5661,
+    "hand_1.0": 0.5724,
+    "elev_pct": 0.7182,
+    "rel_p10": 0.7182,
+    "event_model": 0.7039
+   }
+  },
+  {
+   "code": "UK194701_19",
+   "year": 1947,
+   "decade": 1940,
+   "n": 110798,
+   "flooded_share": 0.089,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.7338,
+    "hand_1.0": 0.7441,
+    "elev_pct": 0.8337,
+    "rel_p10": 0.8337,
+    "event_model": 0.8331
+   }
+  },
+  {
+   "code": "UK194701_20",
+   "year": 1947,
+   "decade": 1940,
+   "n": 102616,
+   "flooded_share": 0.103,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.6742,
+    "hand_1.0": 0.7052,
+    "elev_pct": 0.7743,
+    "rel_p10": 0.7743,
+    "event_model": 0.7738
+   }
+  },
+  {
+   "code": "UK194701_21",
+   "year": 1947,
+   "decade": 1940,
+   "n": 108736,
+   "flooded_share": 0.064,
+   "auc": {
+    "current_rule": 0.5019,
+    "hand_0.1": 0.7454,
+    "hand_1.0": 0.7624,
+    "elev_pct": 0.8746,
+    "rel_p10": 0.8746,
+    "event_model": 0.8724
+   }
+  },
+  {
+   "code": "UK194701_22",
+   "year": 1947,
+   "decade": 1940,
+   "n": 101763,
+   "flooded_share": 0.121,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.6091,
+    "hand_1.0": 0.5038,
+    "elev_pct": 0.6864,
+    "rel_p10": 0.6864,
+    "event_model": 0.6649
+   }
+  },
+  {
+   "code": "UK194701_23",
+   "year": 1947,
+   "decade": 1940,
+   "n": 94661,
+   "flooded_share": 0.107,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.6395,
+    "hand_1.0": 0.6958,
+    "elev_pct": 0.7943,
+    "rel_p10": 0.7943,
+    "event_model": 0.8016
+   }
+  },
+  {
+   "code": "UK194701_24",
+   "year": 1947,
+   "decade": 1940,
+   "n": 112248,
+   "flooded_share": 0.05,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.6851,
+    "hand_1.0": 0.7088,
+    "elev_pct": 0.8278,
+    "rel_p10": 0.8278,
+    "event_model": 0.8227
+   }
+  },
+  {
+   "code": "UK194702_12",
+   "year": 1947,
+   "decade": 1940,
+   "n": 113532,
+   "flooded_share": 0.044,
+   "auc": {
+    "current_rule": 0.4999,
+    "hand_0.1": 0.635,
+    "hand_1.0": 0.6766,
+    "elev_pct": 0.7699,
+    "rel_p10": 0.7699,
+    "event_model": 0.7658
+   }
+  },
+  {
+   "code": "UK194703_01",
+   "year": 1947,
+   "decade": 1940,
+   "n": 116069,
+   "flooded_share": 0.171,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.7758,
+    "hand_1.0": 0.7312,
+    "elev_pct": 0.8716,
+    "rel_p10": 0.8716,
+    "event_model": 0.8658
+   }
+  },
+  {
+   "code": "UK194703_02",
+   "year": 1947,
+   "decade": 1940,
+   "n": 120521,
+   "flooded_share": 0.26,
+   "auc": {
+    "current_rule": 0.8712,
+    "hand_0.1": 0.7394,
+    "hand_1.0": 0.6912,
+    "elev_pct": 0.9029,
+    "rel_p10": 0.9029,
+    "event_model": 0.8909
+   }
+  },
+  {
+   "code": "UK194703_03",
+   "year": 1947,
+   "decade": 1940,
+   "n": 107550,
+   "flooded_share": 0.163,
+   "auc": {
+    "current_rule": 0.5194,
+    "hand_0.1": 0.7123,
+    "hand_1.0": 0.6863,
+    "elev_pct": 0.8086,
+    "rel_p10": 0.8086,
+    "event_model": 0.7946
+   }
+  },
+  {
+   "code": "UK194703_04",
+   "year": 1947,
+   "decade": 1940,
+   "n": 119348,
+   "flooded_share": 0.401,
+   "auc": {
+    "current_rule": 0.5001,
+    "hand_0.1": 0.5591,
+    "hand_1.0": 0.5326,
+    "elev_pct": 0.5973,
+    "rel_p10": 0.5973,
+    "event_model": 0.5818
+   }
+  },
+  {
+   "code": "UK194703_06",
+   "year": 1947,
+   "decade": 1940,
+   "n": 115165,
+   "flooded_share": 0.052,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.6403,
+    "hand_1.0": 0.7001,
+    "elev_pct": 0.8156,
+    "rel_p10": 0.8156,
+    "event_model": 0.7997
+   }
+  },
+  {
+   "code": "UK194703_08",
+   "year": 1947,
+   "decade": 1940,
+   "n": 115067,
+   "flooded_share": 0.187,
+   "auc": {
+    "current_rule": 0.4064,
+    "hand_0.1": 0.513,
+    "hand_1.0": 0.5191,
+    "elev_pct": 0.341,
+    "rel_p10": 0.341,
+    "event_model": 0.3607
+   }
+  },
+  {
+   "code": "UK194703_14",
+   "year": 1947,
+   "decade": 1940,
+   "n": 99015,
+   "flooded_share": 0.172,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.6571,
+    "hand_1.0": 0.6779,
+    "elev_pct": 0.7598,
+    "rel_p10": 0.7597,
+    "event_model": 0.7546
+   }
+  },
+  {
+   "code": "UK194704_17",
+   "year": 1947,
+   "decade": 1940,
+   "n": 115639,
+   "flooded_share": 0.128,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.8192,
+    "hand_1.0": 0.8198,
+    "elev_pct": 0.8974,
+    "rel_p10": 0.8974,
+    "event_model": 0.902
+   }
+  },
+  {
+   "code": "UK195001_03",
+   "year": 1950,
+   "decade": 1950,
+   "n": 108263,
+   "flooded_share": 0.054,
+   "auc": {
+    "current_rule": 0.4981,
+    "hand_0.1": 0.5546,
+    "hand_1.0": 0.6179,
+    "elev_pct": 0.695,
+    "rel_p10": 0.695,
+    "event_model": 0.6997
+   }
+  },
+  {
+   "code": "UK195001_19",
+   "year": 1950,
+   "decade": 1950,
+   "n": 123300,
+   "flooded_share": 0.008,
+   "auc": {
+    "current_rule": 0.4842,
+    "hand_0.1": 0.7301,
+    "hand_1.0": 0.7809,
+    "elev_pct": 0.8788,
+    "rel_p10": 0.8788,
+    "event_model": 0.8856
+   }
+  },
+  {
+   "code": "UK195001_24",
+   "year": 1950,
+   "decade": 1950,
+   "n": 114921,
+   "flooded_share": 0.005,
+   "auc": {
+    "current_rule": 0.4922,
+    "hand_0.1": 0.7445,
+    "hand_1.0": 0.7968,
+    "elev_pct": 0.818,
+    "rel_p10": 0.818,
+    "event_model": 0.8292
+   }
+  },
+  {
+   "code": "UK195011_18",
+   "year": 1950,
+   "decade": 1950,
+   "n": 96429,
+   "flooded_share": 0.01,
+   "auc": {
+    "current_rule": 0.4983,
+    "hand_0.1": 0.8339,
+    "hand_1.0": 0.8886,
+    "elev_pct": 0.9455,
+    "rel_p10": 0.9455,
+    "event_model": 0.9384
+   }
+  },
+  {
+   "code": "UK195206_23",
+   "year": 1952,
+   "decade": 1950,
+   "n": 108707,
+   "flooded_share": 0.005,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.7855,
+    "hand_1.0": 0.8518,
+    "elev_pct": 0.9314,
+    "rel_p10": 0.9314,
+    "event_model": 0.936
+   }
+  },
+  {
+   "code": "UK195406_14",
+   "year": 1954,
+   "decade": 1950,
+   "n": 109942,
+   "flooded_share": 0.014,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.6171,
+    "hand_1.0": 0.6351,
+    "elev_pct": 0.733,
+    "rel_p10": 0.7329,
+    "event_model": 0.7284
+   }
+  },
+  {
+   "code": "UK195406_20",
+   "year": 1954,
+   "decade": 1950,
+   "n": 109254,
+   "flooded_share": 0.008,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.7779,
+    "hand_1.0": 0.7861,
+    "elev_pct": 0.942,
+    "rel_p10": 0.942,
+    "event_model": 0.9482
+   }
+  },
+  {
+   "code": "UK195501_12",
+   "year": 1955,
+   "decade": 1950,
+   "n": 129357,
+   "flooded_share": 0.015,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.9015,
+    "hand_1.0": 0.937,
+    "elev_pct": 0.9655,
+    "rel_p10": 0.9655,
+    "event_model": 0.9672
+   }
+  },
+  {
+   "code": "UK195503_17",
+   "year": 1955,
+   "decade": 1950,
+   "n": 113020,
+   "flooded_share": 0.01,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.6925,
+    "hand_1.0": 0.6895,
+    "elev_pct": 0.8596,
+    "rel_p10": 0.8596,
+    "event_model": 0.8523
+   }
+  },
+  {
+   "code": "UK195506_11",
+   "year": 1955,
+   "decade": 1950,
+   "n": 113504,
+   "flooded_share": 0.017,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.8149,
+    "hand_1.0": 0.8267,
+    "elev_pct": 0.9075,
+    "rel_p10": 0.9075,
+    "event_model": 0.9144
+   }
+  },
+  {
+   "code": "UK195512_02",
+   "year": 1955,
+   "decade": 1950,
+   "n": 91550,
+   "flooded_share": 0.103,
+   "auc": {
+    "current_rule": 0.7506,
+    "hand_0.1": 0.6548,
+    "hand_1.0": 0.5493,
+    "elev_pct": 0.7529,
+    "rel_p10": 0.7529,
+    "event_model": 0.7374
+   }
+  },
+  {
+   "code": "UK195601_04",
+   "year": 1956,
+   "decade": 1950,
+   "n": 87019,
+   "flooded_share": 0.015,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.6539,
+    "hand_1.0": 0.6704,
+    "elev_pct": 0.6852,
+    "rel_p10": 0.6852,
+    "event_model": 0.6931
+   }
+  },
+  {
+   "code": "UK195711_22",
+   "year": 1957,
+   "decade": 1950,
+   "n": 98441,
+   "flooded_share": 0.003,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.862,
+    "hand_1.0": 0.8922,
+    "elev_pct": 0.9061,
+    "rel_p10": 0.9061,
+    "event_model": 0.9417
+   }
+  },
+  {
+   "code": "UK195803_15",
+   "year": 1958,
+   "decade": 1950,
+   "n": 118095,
+   "flooded_share": 0.012,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.7792,
+    "hand_1.0": 0.8043,
+    "elev_pct": 0.8816,
+    "rel_p10": 0.8816,
+    "event_model": 0.8825
+   }
+  },
+  {
+   "code": "UK195803_21",
+   "year": 1958,
+   "decade": 1950,
+   "n": 119051,
+   "flooded_share": 0.008,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.7829,
+    "hand_1.0": 0.8388,
+    "elev_pct": 0.8889,
+    "rel_p10": 0.8889,
+    "event_model": 0.9024
+   }
+  },
+  {
+   "code": "UK195806_01",
+   "year": 1958,
+   "decade": 1950,
+   "n": 66424,
+   "flooded_share": 0.094,
+   "auc": {
+    "current_rule": 0.5615,
+    "hand_0.1": 0.5501,
+    "hand_1.0": 0.5135,
+    "elev_pct": 0.5245,
+    "rel_p10": 0.5245,
+    "event_model": 0.5119
+   }
+  },
+  {
+   "code": "UK195809_06",
+   "year": 1958,
+   "decade": 1950,
+   "n": 104370,
+   "flooded_share": 0.024,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.6133,
+    "hand_1.0": 0.5969,
+    "elev_pct": 0.6596,
+    "rel_p10": 0.6596,
+    "event_model": 0.6609
+   }
+  },
+  {
+   "code": "UK195901_05",
+   "year": 1959,
+   "decade": 1950,
+   "n": 55534,
+   "flooded_share": 0.07,
+   "auc": {
+    "current_rule": 0.8305,
+    "hand_0.1": 0.7086,
+    "hand_1.0": 0.7782,
+    "elev_pct": 0.866,
+    "rel_p10": 0.8661,
+    "event_model": 0.8747
+   }
+  },
+  {
+   "code": "UK195901_07",
+   "year": 1959,
+   "decade": 1950,
+   "n": 104131,
+   "flooded_share": 0.03,
+   "auc": {
+    "current_rule": 0.4969,
+    "hand_0.1": 0.7096,
+    "hand_1.0": 0.7831,
+    "elev_pct": 0.8928,
+    "rel_p10": 0.8928,
+    "event_model": 0.9024
+   }
+  },
+  {
+   "code": "UK195901_08",
+   "year": 1959,
+   "decade": 1950,
+   "n": 106114,
+   "flooded_share": 0.025,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.7819,
+    "hand_1.0": 0.8424,
+    "elev_pct": 0.9092,
+    "rel_p10": 0.9092,
+    "event_model": 0.9098
+   }
+  },
+  {
+   "code": "UK195901_09",
+   "year": 1959,
+   "decade": 1950,
+   "n": 109446,
+   "flooded_share": 0.021,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.9012,
+    "hand_1.0": 0.9184,
+    "elev_pct": 0.9347,
+    "rel_p10": 0.9347,
+    "event_model": 0.9493
+   }
+  },
+  {
+   "code": "UK195901_10",
+   "year": 1959,
+   "decade": 1950,
+   "n": 103399,
+   "flooded_share": 0.02,
+   "auc": {
+    "current_rule": 0.8513,
+    "hand_0.1": 0.7403,
+    "hand_1.0": 0.6567,
+    "elev_pct": 0.8952,
+    "rel_p10": 0.8952,
+    "event_model": 0.88
+   }
+  },
+  {
+   "code": "UK195901_13",
+   "year": 1959,
+   "decade": 1950,
+   "n": 109790,
+   "flooded_share": 0.015,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.7259,
+    "hand_1.0": 0.7406,
+    "elev_pct": 0.7983,
+    "rel_p10": 0.7983,
+    "event_model": 0.8029
+   }
+  },
+  {
+   "code": "UK195901_16",
+   "year": 1959,
+   "decade": 1950,
+   "n": 108855,
+   "flooded_share": 0.013,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.8434,
+    "hand_1.0": 0.8781,
+    "elev_pct": 0.9413,
+    "rel_p10": 0.9413,
+    "event_model": 0.9515
+   }
+  },
+  {
+   "code": "UK196001_07",
+   "year": 1960,
+   "decade": 1960,
+   "n": 104324,
+   "flooded_share": 0.094,
+   "auc": {
+    "current_rule": 0.6483,
+    "hand_0.1": 0.722,
+    "hand_1.0": 0.7031,
+    "elev_pct": 0.784,
+    "rel_p10": 0.784,
+    "event_model": 0.774
+   }
+  },
+  {
+   "code": "UK196010_03",
+   "year": 1960,
+   "decade": 1960,
+   "n": 98244,
+   "flooded_share": 0.245,
+   "auc": {
+    "current_rule": 0.576,
+    "hand_0.1": 0.57,
+    "hand_1.0": 0.5481,
+    "elev_pct": 0.6262,
+    "rel_p10": 0.6262,
+    "event_model": 0.6082
+   }
+  },
+  {
+   "code": "UK196010_23",
+   "year": 1960,
+   "decade": 1960,
+   "n": 88037,
+   "flooded_share": 0.04,
+   "auc": {
+    "current_rule": 0.9301,
+    "hand_0.1": 0.8436,
+    "hand_1.0": 0.832,
+    "elev_pct": 0.9567,
+    "rel_p10": 0.9567,
+    "event_model": 0.9522
+   }
+  },
+  {
+   "code": "UK196011_04",
+   "year": 1960,
+   "decade": 1960,
+   "n": 106126,
+   "flooded_share": 0.207,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.7169,
+    "hand_1.0": 0.7024,
+    "elev_pct": 0.8034,
+    "rel_p10": 0.8034,
+    "event_model": 0.8056
+   }
+  },
+  {
+   "code": "UK196011_15",
+   "year": 1960,
+   "decade": 1960,
+   "n": 111332,
+   "flooded_share": 0.015,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.6162,
+    "hand_1.0": 0.6807,
+    "elev_pct": 0.8777,
+    "rel_p10": 0.8778,
+    "event_model": 0.868
+   }
+  },
+  {
+   "code": "UK196011_24",
+   "year": 1960,
+   "decade": 1960,
+   "n": 106765,
+   "flooded_share": 0.043,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.6911,
+    "hand_1.0": 0.7062,
+    "elev_pct": 0.8158,
+    "rel_p10": 0.8158,
+    "event_model": 0.8125
+   }
+  },
+  {
+   "code": "UK196012_08",
+   "year": 1960,
+   "decade": 1960,
+   "n": 101853,
+   "flooded_share": 0.071,
+   "auc": {
+    "current_rule": 0.6702,
+    "hand_0.1": 0.8447,
+    "hand_1.0": 0.834,
+    "elev_pct": 0.8822,
+    "rel_p10": 0.8822,
+    "event_model": 0.8812
+   }
+  },
+  {
+   "code": "UK196012_09",
+   "year": 1960,
+   "decade": 1960,
+   "n": 114143,
+   "flooded_share": 0.107,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.7211,
+    "hand_1.0": 0.6759,
+    "elev_pct": 0.843,
+    "rel_p10": 0.843,
+    "event_model": 0.8334
+   }
+  },
+  {
+   "code": "UK196012_22",
+   "year": 1960,
+   "decade": 1960,
+   "n": 109020,
+   "flooded_share": 0.009,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.8024,
+    "hand_1.0": 0.7714,
+    "elev_pct": 0.8481,
+    "rel_p10": 0.8481,
+    "event_model": 0.8645
+   }
+  },
+  {
+   "code": "UK196311_13",
+   "year": 1963,
+   "decade": 1960,
+   "n": 88624,
+   "flooded_share": 0.063,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.7759,
+    "hand_1.0": 0.7796,
+    "elev_pct": 0.837,
+    "rel_p10": 0.837,
+    "event_model": 0.8399
+   }
+  },
+  {
+   "code": "UK196512_01",
+   "year": 1965,
+   "decade": 1960,
+   "n": 118500,
+   "flooded_share": 0.073,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.7093,
+    "hand_1.0": 0.7339,
+    "elev_pct": 0.8709,
+    "rel_p10": 0.8709,
+    "event_model": 0.8632
+   }
+  },
+  {
+   "code": "UK196512_17",
+   "year": 1965,
+   "decade": 1960,
+   "n": 76782,
+   "flooded_share": 0.004,
+   "auc": {
+    "current_rule": 0.6109,
+    "hand_0.1": 0.6453,
+    "hand_1.0": 0.757,
+    "elev_pct": 0.785,
+    "rel_p10": 0.785,
+    "event_model": 0.782
+   }
+  },
+  {
+   "code": "UK196801_02",
+   "year": 1968,
+   "decade": 1960,
+   "n": 112585,
+   "flooded_share": 0.062,
+   "auc": {
+    "current_rule": 0.7189,
+    "hand_0.1": 0.6902,
+    "hand_1.0": 0.7635,
+    "elev_pct": 0.8318,
+    "rel_p10": 0.8318,
+    "event_model": 0.8306
+   }
+  },
+  {
+   "code": "UK196801_11",
+   "year": 1968,
+   "decade": 1960,
+   "n": 89686,
+   "flooded_share": 0.093,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.6391,
+    "hand_1.0": 0.673,
+    "elev_pct": 0.7585,
+    "rel_p10": 0.7585,
+    "event_model": 0.7665
+   }
+  },
+  {
+   "code": "UK196801_12",
+   "year": 1968,
+   "decade": 1960,
+   "n": 109615,
+   "flooded_share": 0.081,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.7303,
+    "hand_1.0": 0.7435,
+    "elev_pct": 0.8131,
+    "rel_p10": 0.8131,
+    "event_model": 0.8206
+   }
+  },
+  {
+   "code": "UK196801_21",
+   "year": 1968,
+   "decade": 1960,
+   "n": 105103,
+   "flooded_share": 0.049,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.7753,
+    "hand_1.0": 0.7391,
+    "elev_pct": 0.8361,
+    "rel_p10": 0.8361,
+    "event_model": 0.8343
+   }
+  },
+  {
+   "code": "UK196807_05",
+   "year": 1968,
+   "decade": 1960,
+   "n": 85764,
+   "flooded_share": 0.024,
+   "auc": {
+    "current_rule": 0.5158,
+    "hand_0.1": 0.5647,
+    "hand_1.0": 0.6124,
+    "elev_pct": 0.7459,
+    "rel_p10": 0.7459,
+    "event_model": 0.7305
+   }
+  },
+  {
+   "code": "UK196807_14",
+   "year": 1968,
+   "decade": 1960,
+   "n": 107126,
+   "flooded_share": 0.033,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.7681,
+    "hand_1.0": 0.7496,
+    "elev_pct": 0.8622,
+    "rel_p10": 0.8622,
+    "event_model": 0.8684
+   }
+  },
+  {
+   "code": "UK196807_16",
+   "year": 1968,
+   "decade": 1960,
+   "n": 100089,
+   "flooded_share": 0.034,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.5284,
+    "hand_1.0": 0.5539,
+    "elev_pct": 0.6837,
+    "rel_p10": 0.6837,
+    "event_model": 0.6602
+   }
+  },
+  {
+   "code": "UK196807_19",
+   "year": 1968,
+   "decade": 1960,
+   "n": 108195,
+   "flooded_share": 0.029,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.7321,
+    "hand_1.0": 0.7721,
+    "elev_pct": 0.8263,
+    "rel_p10": 0.8263,
+    "event_model": 0.8297
+   }
+  },
+  {
+   "code": "UK196807_20",
+   "year": 1968,
+   "decade": 1960,
+   "n": 107310,
+   "flooded_share": 0.031,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.6428,
+    "hand_1.0": 0.6255,
+    "elev_pct": 0.6754,
+    "rel_p10": 0.6754,
+    "event_model": 0.6734
+   }
+  },
+  {
+   "code": "UK196809_06",
+   "year": 1968,
+   "decade": 1960,
+   "n": 103854,
+   "flooded_share": 0.135,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.83,
+    "hand_1.0": 0.844,
+    "elev_pct": 0.9133,
+    "rel_p10": 0.9133,
+    "event_model": 0.914
+   }
+  },
+  {
+   "code": "UK196809_10",
+   "year": 1968,
+   "decade": 1960,
+   "n": 98805,
+   "flooded_share": 0.098,
+   "auc": {
+    "current_rule": 0.4994,
+    "hand_0.1": 0.6761,
+    "hand_1.0": 0.7202,
+    "elev_pct": 0.7101,
+    "rel_p10": 0.7101,
+    "event_model": 0.7216
+   }
+  },
+  {
+   "code": "UK196809_18",
+   "year": 1968,
+   "decade": 1960,
+   "n": 109418,
+   "flooded_share": 0.059,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.69,
+    "hand_1.0": 0.7118,
+    "elev_pct": 0.7555,
+    "rel_p10": 0.7555,
+    "event_model": 0.7581
+   }
+  },
+  {
+   "code": "UK197101_24",
+   "year": 1971,
+   "decade": 1970,
+   "n": 110081,
+   "flooded_share": 0.052,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.7545,
+    "hand_1.0": 0.7877,
+    "elev_pct": 0.8316,
+    "rel_p10": 0.8316,
+    "event_model": 0.8414
+   }
+  },
+  {
+   "code": "UK197207_18",
+   "year": 1972,
+   "decade": 1970,
+   "n": 97424,
+   "flooded_share": 0.044,
+   "auc": {
+    "current_rule": 0.5154,
+    "hand_0.1": 0.6009,
+    "hand_1.0": 0.6426,
+    "elev_pct": 0.7319,
+    "rel_p10": 0.7319,
+    "event_model": 0.7243
+   }
+  },
+  {
+   "code": "UK197401_10",
+   "year": 1974,
+   "decade": 1970,
+   "n": 102681,
+   "flooded_share": 0.092,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.6484,
+    "hand_1.0": 0.6119,
+    "elev_pct": 0.7638,
+    "rel_p10": 0.7638,
+    "event_model": 0.7551
+   }
+  },
+  {
+   "code": "UK197701_07",
+   "year": 1977,
+   "decade": 1970,
+   "n": 117269,
+   "flooded_share": 0.085,
+   "auc": {
+    "current_rule": 0.5303,
+    "hand_0.1": 0.6738,
+    "hand_1.0": 0.7055,
+    "elev_pct": 0.8132,
+    "rel_p10": 0.8132,
+    "event_model": 0.8109
+   }
+  },
+  {
+   "code": "UK197701_14",
+   "year": 1977,
+   "decade": 1970,
+   "n": 101584,
+   "flooded_share": 0.068,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.7422,
+    "hand_1.0": 0.7214,
+    "elev_pct": 0.833,
+    "rel_p10": 0.833,
+    "event_model": 0.8306
+   }
+  },
+  {
+   "code": "UK197701_22",
+   "year": 1977,
+   "decade": 1970,
+   "n": 120428,
+   "flooded_share": 0.048,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.51,
+    "hand_1.0": 0.5582,
+    "elev_pct": 0.6077,
+    "rel_p10": 0.6077,
+    "event_model": 0.5977
+   }
+  },
+  {
+   "code": "UK197701_23",
+   "year": 1977,
+   "decade": 1970,
+   "n": 98244,
+   "flooded_share": 0.06,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.6703,
+    "hand_1.0": 0.5163,
+    "elev_pct": 0.7455,
+    "rel_p10": 0.7455,
+    "event_model": 0.7226
+   }
+  },
+  {
+   "code": "UK197702_01",
+   "year": 1977,
+   "decade": 1970,
+   "n": 100124,
+   "flooded_share": 0.064,
+   "auc": {
+    "current_rule": 0.7309,
+    "hand_0.1": 0.7118,
+    "hand_1.0": 0.7082,
+    "elev_pct": 0.8661,
+    "rel_p10": 0.8661,
+    "event_model": 0.8466
+   }
+  },
+  {
+   "code": "UK197702_02",
+   "year": 1977,
+   "decade": 1970,
+   "n": 93920,
+   "flooded_share": 0.091,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.6145,
+    "hand_1.0": 0.6396,
+    "elev_pct": 0.9145,
+    "rel_p10": 0.9145,
+    "event_model": 0.9126
+   }
+  },
+  {
+   "code": "UK197702_03",
+   "year": 1977,
+   "decade": 1970,
+   "n": 110632,
+   "flooded_share": 0.147,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.64,
+    "hand_1.0": 0.6122,
+    "elev_pct": 0.8806,
+    "rel_p10": 0.8806,
+    "event_model": 0.8686
+   }
+  },
+  {
+   "code": "UK197702_09",
+   "year": 1977,
+   "decade": 1970,
+   "n": 105292,
+   "flooded_share": 0.084,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.7945,
+    "hand_1.0": 0.7884,
+    "elev_pct": 0.8898,
+    "rel_p10": 0.8898,
+    "event_model": 0.8926
+   }
+  },
+  {
+   "code": "UK197702_19",
+   "year": 1977,
+   "decade": 1970,
+   "n": 119117,
+   "flooded_share": 0.024,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.728,
+    "hand_1.0": 0.7913,
+    "elev_pct": 0.923,
+    "rel_p10": 0.923,
+    "event_model": 0.9134
+   }
+  },
+  {
+   "code": "UK197812_05",
+   "year": 1978,
+   "decade": 1970,
+   "n": 125540,
+   "flooded_share": 0.085,
+   "auc": {
+    "current_rule": 0.6835,
+    "hand_0.1": 0.5617,
+    "hand_1.0": 0.5805,
+    "elev_pct": 0.6885,
+    "rel_p10": 0.6885,
+    "event_model": 0.6864
+   }
+  },
+  {
+   "code": "UK197812_06",
+   "year": 1978,
+   "decade": 1970,
+   "n": 118906,
+   "flooded_share": 0.057,
+   "auc": {
+    "current_rule": 0.6184,
+    "hand_0.1": 0.5925,
+    "hand_1.0": 0.5952,
+    "elev_pct": 0.8192,
+    "rel_p10": 0.8192,
+    "event_model": 0.7964
+   }
+  },
+  {
+   "code": "UK197812_08",
+   "year": 1978,
+   "decade": 1970,
+   "n": 123301,
+   "flooded_share": 0.083,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.5293,
+    "hand_1.0": 0.4702,
+    "elev_pct": 0.7561,
+    "rel_p10": 0.7561,
+    "event_model": 0.7322
+   }
+  },
+  {
+   "code": "UK197812_13",
+   "year": 1978,
+   "decade": 1970,
+   "n": 112401,
+   "flooded_share": 0.076,
+   "auc": {
+    "current_rule": 0.7115,
+    "hand_0.1": 0.6784,
+    "hand_1.0": 0.706,
+    "elev_pct": 0.7449,
+    "rel_p10": 0.7449,
+    "event_model": 0.7427
+   }
+  },
+  {
+   "code": "UK197901_15",
+   "year": 1979,
+   "decade": 1970,
+   "n": 100712,
+   "flooded_share": 0.083,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.6416,
+    "hand_1.0": 0.5094,
+    "elev_pct": 0.7202,
+    "rel_p10": 0.7202,
+    "event_model": 0.6967
+   }
+  },
+  {
+   "code": "UK197901_20",
+   "year": 1979,
+   "decade": 1970,
+   "n": 108266,
+   "flooded_share": 0.054,
+   "auc": {
+    "current_rule": 0.4981,
+    "hand_0.1": 0.5546,
+    "hand_1.0": 0.6179,
+    "elev_pct": 0.6949,
+    "rel_p10": 0.6949,
+    "event_model": 0.6996
+   }
+  },
+  {
+   "code": "UK197905_04",
+   "year": 1979,
+   "decade": 1970,
+   "n": 90004,
+   "flooded_share": 0.13,
+   "auc": {
+    "current_rule": 0.4998,
+    "hand_0.1": 0.6662,
+    "hand_1.0": 0.6917,
+    "elev_pct": 0.7425,
+    "rel_p10": 0.7425,
+    "event_model": 0.7455
+   }
+  },
+  {
+   "code": "UK197905_11",
+   "year": 1979,
+   "decade": 1970,
+   "n": 89665,
+   "flooded_share": 0.109,
+   "auc": {
+    "current_rule": 0.6247,
+    "hand_0.1": 0.6357,
+    "hand_1.0": 0.6144,
+    "elev_pct": 0.6539,
+    "rel_p10": 0.6539,
+    "event_model": 0.6567
+   }
+  },
+  {
+   "code": "UK197905_17",
+   "year": 1979,
+   "decade": 1970,
+   "n": 96179,
+   "flooded_share": 0.068,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.8009,
+    "hand_1.0": 0.7275,
+    "elev_pct": 0.9213,
+    "rel_p10": 0.9213,
+    "event_model": 0.9189
+   }
+  },
+  {
+   "code": "UK197912_12",
+   "year": 1979,
+   "decade": 1970,
+   "n": 96084,
+   "flooded_share": 0.103,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.7947,
+    "hand_1.0": 0.7435,
+    "elev_pct": 0.9222,
+    "rel_p10": 0.9223,
+    "event_model": 0.9155
+   }
+  },
+  {
+   "code": "UK197912_16",
+   "year": 1979,
+   "decade": 1970,
+   "n": 109417,
+   "flooded_share": 0.056,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.8806,
+    "hand_1.0": 0.858,
+    "elev_pct": 0.9508,
+    "rel_p10": 0.9508,
+    "event_model": 0.9507
+   }
+  },
+  {
+   "code": "UK197912_21",
+   "year": 1979,
+   "decade": 1970,
+   "n": 95624,
+   "flooded_share": 0.064,
+   "auc": {
+    "current_rule": 0.8961,
+    "hand_0.1": 0.8422,
+    "hand_1.0": 0.8598,
+    "elev_pct": 0.9336,
+    "rel_p10": 0.9336,
+    "event_model": 0.9336
+   }
+  },
+  {
+   "code": "UK198001_15",
+   "year": 1980,
+   "decade": 1980,
+   "n": 96543,
+   "flooded_share": 0.05,
+   "auc": {
+    "current_rule": 0.5744,
+    "hand_0.1": 0.601,
+    "hand_1.0": 0.6617,
+    "elev_pct": 0.8316,
+    "rel_p10": 0.8316,
+    "event_model": 0.8188
+   }
+  },
+  {
+   "code": "UK198010_04",
+   "year": 1980,
+   "decade": 1980,
+   "n": 124997,
+   "flooded_share": 0.091,
+   "auc": {
+    "current_rule": 0.493,
+    "hand_0.1": 0.6437,
+    "hand_1.0": 0.6308,
+    "elev_pct": 0.7376,
+    "rel_p10": 0.7376,
+    "event_model": 0.7331
+   }
+  },
+  {
+   "code": "UK198101_12",
+   "year": 1981,
+   "decade": 1980,
+   "n": 99057,
+   "flooded_share": 0.061,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.6758,
+    "hand_1.0": 0.627,
+    "elev_pct": 0.7726,
+    "rel_p10": 0.7725,
+    "event_model": 0.7698
+   }
+  },
+  {
+   "code": "UK198104_05",
+   "year": 1981,
+   "decade": 1980,
+   "n": 123079,
+   "flooded_share": 0.076,
+   "auc": {
+    "current_rule": 0.9072,
+    "hand_0.1": 0.8251,
+    "hand_1.0": 0.8346,
+    "elev_pct": 0.9237,
+    "rel_p10": 0.9237,
+    "event_model": 0.9244
+   }
+  },
+  {
+   "code": "UK198104_10",
+   "year": 1981,
+   "decade": 1980,
+   "n": 117688,
+   "flooded_share": 0.054,
+   "auc": {
+    "current_rule": 0.6,
+    "hand_0.1": 0.562,
+    "hand_1.0": 0.5866,
+    "elev_pct": 0.7903,
+    "rel_p10": 0.7903,
+    "event_model": 0.7796
+   }
+  },
+  {
+   "code": "UK198112_02",
+   "year": 1981,
+   "decade": 1980,
+   "n": 111652,
+   "flooded_share": 0.087,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.6775,
+    "hand_1.0": 0.6729,
+    "elev_pct": 0.8119,
+    "rel_p10": 0.8119,
+    "event_model": 0.8061
+   }
+  },
+  {
+   "code": "UK198112_03",
+   "year": 1981,
+   "decade": 1980,
+   "n": 84657,
+   "flooded_share": 0.054,
+   "auc": {
+    "current_rule": 0.4999,
+    "hand_0.1": 0.7733,
+    "hand_1.0": 0.7512,
+    "elev_pct": 0.8673,
+    "rel_p10": 0.8673,
+    "event_model": 0.8614
+   }
+  },
+  {
+   "code": "UK198201_07",
+   "year": 1982,
+   "decade": 1980,
+   "n": 121408,
+   "flooded_share": 0.077,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.6585,
+    "hand_1.0": 0.6272,
+    "elev_pct": 0.9124,
+    "rel_p10": 0.9124,
+    "event_model": 0.8806
+   }
+  },
+  {
+   "code": "UK198201_08",
+   "year": 1982,
+   "decade": 1980,
+   "n": 108180,
+   "flooded_share": 0.095,
+   "auc": {
+    "current_rule": 0.7612,
+    "hand_0.1": 0.6327,
+    "hand_1.0": 0.646,
+    "elev_pct": 0.8138,
+    "rel_p10": 0.8138,
+    "event_model": 0.7912
+   }
+  },
+  {
+   "code": "UK198201_11",
+   "year": 1982,
+   "decade": 1980,
+   "n": 119594,
+   "flooded_share": 0.061,
+   "auc": {
+    "current_rule": 0.5404,
+    "hand_0.1": 0.6164,
+    "hand_1.0": 0.5968,
+    "elev_pct": 0.6463,
+    "rel_p10": 0.6463,
+    "event_model": 0.6424
+   }
+  },
+  {
+   "code": "UK198201_17",
+   "year": 1982,
+   "decade": 1980,
+   "n": 116067,
+   "flooded_share": 0.039,
+   "auc": {
+    "current_rule": 0.6132,
+    "hand_0.1": 0.5946,
+    "hand_1.0": 0.6361,
+    "elev_pct": 0.8397,
+    "rel_p10": 0.8397,
+    "event_model": 0.8334
+   }
+  },
+  {
+   "code": "UK198201_18",
+   "year": 1982,
+   "decade": 1980,
+   "n": 122633,
+   "flooded_share": 0.035,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.7417,
+    "hand_1.0": 0.7875,
+    "elev_pct": 0.9173,
+    "rel_p10": 0.9173,
+    "event_model": 0.9119
+   }
+  },
+  {
+   "code": "UK198201_19",
+   "year": 1982,
+   "decade": 1980,
+   "n": 108599,
+   "flooded_share": 0.036,
+   "auc": {
+    "current_rule": 0.763,
+    "hand_0.1": 0.6509,
+    "hand_1.0": 0.6864,
+    "elev_pct": 0.8458,
+    "rel_p10": 0.8458,
+    "event_model": 0.8289
+   }
+  },
+  {
+   "code": "UK198201_20",
+   "year": 1982,
+   "decade": 1980,
+   "n": 121970,
+   "flooded_share": 0.031,
+   "auc": {
+    "current_rule": 0.4979,
+    "hand_0.1": 0.5773,
+    "hand_1.0": 0.5914,
+    "elev_pct": 0.8182,
+    "rel_p10": 0.8182,
+    "event_model": 0.7988
+   }
+  },
+  {
+   "code": "UK198201_21",
+   "year": 1982,
+   "decade": 1980,
+   "n": 114301,
+   "flooded_share": 0.029,
+   "auc": {
+    "current_rule": 0.7572,
+    "hand_0.1": 0.6632,
+    "hand_1.0": 0.646,
+    "elev_pct": 0.8682,
+    "rel_p10": 0.8682,
+    "event_model": 0.8231
+   }
+  },
+  {
+   "code": "UK198203_24",
+   "year": 1982,
+   "decade": 1980,
+   "n": 109550,
+   "flooded_share": 0.017,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.8062,
+    "hand_1.0": 0.7557,
+    "elev_pct": 0.9335,
+    "rel_p10": 0.9335,
+    "event_model": 0.922
+   }
+  },
+  {
+   "code": "UK198305_06",
+   "year": 1983,
+   "decade": 1980,
+   "n": 112523,
+   "flooded_share": 0.041,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.8274,
+    "hand_1.0": 0.8559,
+    "elev_pct": 0.9596,
+    "rel_p10": 0.9596,
+    "event_model": 0.9565
+   }
+  },
+  {
+   "code": "UK198501_01",
+   "year": 1985,
+   "decade": 1980,
+   "n": 116529,
+   "flooded_share": 0.022,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.6259,
+    "hand_1.0": 0.6516,
+    "elev_pct": 0.7851,
+    "rel_p10": 0.7851,
+    "event_model": 0.7735
+   }
+  },
+  {
+   "code": "UK198501_09",
+   "year": 1985,
+   "decade": 1980,
+   "n": 113181,
+   "flooded_share": 0.085,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.6707,
+    "hand_1.0": 0.6909,
+    "elev_pct": 0.711,
+    "rel_p10": 0.711,
+    "event_model": 0.7148
+   }
+  },
+  {
+   "code": "UK198501_13",
+   "year": 1985,
+   "decade": 1980,
+   "n": 113620,
+   "flooded_share": 0.039,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.6754,
+    "hand_1.0": 0.6806,
+    "elev_pct": 0.8049,
+    "rel_p10": 0.8049,
+    "event_model": 0.7945
+   }
+  },
+  {
+   "code": "UK198501_14",
+   "year": 1985,
+   "decade": 1980,
+   "n": 108880,
+   "flooded_share": 0.045,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.5854,
+    "hand_1.0": 0.599,
+    "elev_pct": 0.7507,
+    "rel_p10": 0.7507,
+    "event_model": 0.7427
+   }
+  },
+  {
+   "code": "UK198701_16",
+   "year": 1987,
+   "decade": 1980,
+   "n": 111457,
+   "flooded_share": 0.035,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.8214,
+    "hand_1.0": 0.8566,
+    "elev_pct": 0.9125,
+    "rel_p10": 0.9125,
+    "event_model": 0.9127
+   }
+  },
+  {
+   "code": "UK198810_23",
+   "year": 1988,
+   "decade": 1980,
+   "n": 79685,
+   "flooded_share": 0.044,
+   "auc": {
+    "current_rule": 0.6541,
+    "hand_0.1": 0.7214,
+    "hand_1.0": 0.7369,
+    "elev_pct": 0.6795,
+    "rel_p10": 0.6795,
+    "event_model": 0.7061
+   }
+  },
+  {
+   "code": "UK198912_22",
+   "year": 1989,
+   "decade": 1980,
+   "n": 104905,
+   "flooded_share": 0.034,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.8763,
+    "hand_1.0": 0.8772,
+    "elev_pct": 0.9387,
+    "rel_p10": 0.9387,
+    "event_model": 0.9455
+   }
+  },
+  {
+   "code": "UK199001_06",
+   "year": 1990,
+   "decade": 1990,
+   "n": 96864,
+   "flooded_share": 0.129,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.744,
+    "hand_1.0": 0.6251,
+    "elev_pct": 0.8889,
+    "rel_p10": 0.8889,
+    "event_model": 0.8674
+   }
+  },
+  {
+   "code": "UK199001_09",
+   "year": 1990,
+   "decade": 1990,
+   "n": 111441,
+   "flooded_share": 0.072,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.7715,
+    "hand_1.0": 0.7136,
+    "elev_pct": 0.9233,
+    "rel_p10": 0.9233,
+    "event_model": 0.9049
+   }
+  },
+  {
+   "code": "UK199001_20",
+   "year": 1990,
+   "decade": 1990,
+   "n": 93695,
+   "flooded_share": 0.066,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.7162,
+    "hand_1.0": 0.767,
+    "elev_pct": 0.7957,
+    "rel_p10": 0.7957,
+    "event_model": 0.7941
+   }
+  },
+  {
+   "code": "UK199001_24",
+   "year": 1990,
+   "decade": 1990,
+   "n": 93168,
+   "flooded_share": 0.062,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.6265,
+    "hand_1.0": 0.5672,
+    "elev_pct": 0.7529,
+    "rel_p10": 0.7529,
+    "event_model": 0.7316
+   }
+  },
+  {
+   "code": "UK199002_10",
+   "year": 1990,
+   "decade": 1990,
+   "n": 93377,
+   "flooded_share": 0.095,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.6951,
+    "hand_1.0": 0.7177,
+    "elev_pct": 0.7944,
+    "rel_p10": 0.7944,
+    "event_model": 0.7918
+   }
+  },
+  {
+   "code": "UK199002_17",
+   "year": 1990,
+   "decade": 1990,
+   "n": 91165,
+   "flooded_share": 0.075,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.799,
+    "hand_1.0": 0.8087,
+    "elev_pct": 0.8807,
+    "rel_p10": 0.8807,
+    "event_model": 0.8822
+   }
+  },
+  {
+   "code": "UK199002_19",
+   "year": 1990,
+   "decade": 1990,
+   "n": 81529,
+   "flooded_share": 0.081,
+   "auc": {
+    "current_rule": 0.6702,
+    "hand_0.1": 0.71,
+    "hand_1.0": 0.7317,
+    "elev_pct": 0.6748,
+    "rel_p10": 0.6748,
+    "event_model": 0.7009
+   }
+  },
+  {
+   "code": "UK199002_22",
+   "year": 1990,
+   "decade": 1990,
+   "n": 98329,
+   "flooded_share": 0.058,
+   "auc": {
+    "current_rule": 0.4917,
+    "hand_0.1": 0.7318,
+    "hand_1.0": 0.7483,
+    "elev_pct": 0.8289,
+    "rel_p10": 0.8289,
+    "event_model": 0.8258
+   }
+  },
+  {
+   "code": "UK199102_16",
+   "year": 1991,
+   "decade": 1990,
+   "n": 119070,
+   "flooded_share": 0.059,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.6489,
+    "hand_1.0": 0.6078,
+    "elev_pct": 0.9069,
+    "rel_p10": 0.9069,
+    "event_model": 0.8731
+   }
+  },
+  {
+   "code": "UK199501_04",
+   "year": 1995,
+   "decade": 1990,
+   "n": 79407,
+   "flooded_share": 0.15,
+   "auc": {
+    "current_rule": 0.6316,
+    "hand_0.1": 0.6428,
+    "hand_1.0": 0.6514,
+    "elev_pct": 0.7162,
+    "rel_p10": 0.7162,
+    "event_model": 0.7118
+   }
+  },
+  {
+   "code": "UK199501_12",
+   "year": 1995,
+   "decade": 1990,
+   "n": 128495,
+   "flooded_share": 0.032,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.5534,
+    "hand_1.0": 0.5503,
+    "elev_pct": 0.7241,
+    "rel_p10": 0.7241,
+    "event_model": 0.7012
+   }
+  },
+  {
+   "code": "UK199501_15",
+   "year": 1995,
+   "decade": 1990,
+   "n": 105576,
+   "flooded_share": 0.069,
+   "auc": {
+    "current_rule": 0.7309,
+    "hand_0.1": 0.6435,
+    "hand_1.0": 0.672,
+    "elev_pct": 0.7496,
+    "rel_p10": 0.7496,
+    "event_model": 0.7425
+   }
+  },
+  {
+   "code": "UK199501_18",
+   "year": 1995,
+   "decade": 1990,
+   "n": 118364,
+   "flooded_share": 0.057,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.7396,
+    "hand_1.0": 0.7092,
+    "elev_pct": 0.9038,
+    "rel_p10": 0.9038,
+    "event_model": 0.8995
+   }
+  },
+  {
+   "code": "UK199801_07",
+   "year": 1998,
+   "decade": 1990,
+   "n": 96287,
+   "flooded_share": 0.087,
+   "auc": {
+    "current_rule": 0.7429,
+    "hand_0.1": 0.6793,
+    "hand_1.0": 0.7083,
+    "elev_pct": 0.7842,
+    "rel_p10": 0.7842,
+    "event_model": 0.7826
+   }
+  },
+  {
+   "code": "UK199801_23",
+   "year": 1998,
+   "decade": 1990,
+   "n": 100363,
+   "flooded_share": 0.054,
+   "auc": {
+    "current_rule": 0.4985,
+    "hand_0.1": 0.816,
+    "hand_1.0": 0.8481,
+    "elev_pct": 0.9183,
+    "rel_p10": 0.9183,
+    "event_model": 0.9186
+   }
+  },
+  {
+   "code": "UK199804_01",
+   "year": 1998,
+   "decade": 1990,
+   "n": 110811,
+   "flooded_share": 0.077,
+   "auc": {
+    "current_rule": 0.5499,
+    "hand_0.1": 0.632,
+    "hand_1.0": 0.5821,
+    "elev_pct": 0.1902,
+    "rel_p10": 0.1902,
+    "event_model": 0.2387
+   }
+  },
+  {
+   "code": "UK199804_02",
+   "year": 1998,
+   "decade": 1990,
+   "n": 112375,
+   "flooded_share": 0.069,
+   "auc": {
+    "current_rule": 0.498,
+    "hand_0.1": 0.7617,
+    "hand_1.0": 0.7472,
+    "elev_pct": 0.8816,
+    "rel_p10": 0.8816,
+    "event_model": 0.8731
+   }
+  },
+  {
+   "code": "UK199804_03",
+   "year": 1998,
+   "decade": 1990,
+   "n": 110491,
+   "flooded_share": 0.072,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.6341,
+    "hand_1.0": 0.6694,
+    "elev_pct": 0.6917,
+    "rel_p10": 0.6917,
+    "event_model": 0.6968
+   }
+  },
+  {
+   "code": "UK199804_05",
+   "year": 1998,
+   "decade": 1990,
+   "n": 118212,
+   "flooded_share": 0.053,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.7733,
+    "hand_1.0": 0.7897,
+    "elev_pct": 0.8636,
+    "rel_p10": 0.8636,
+    "event_model": 0.8626
+   }
+  },
+  {
+   "code": "UK199804_08",
+   "year": 1998,
+   "decade": 1990,
+   "n": 110132,
+   "flooded_share": 0.04,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.7772,
+    "hand_1.0": 0.7965,
+    "elev_pct": 0.9083,
+    "rel_p10": 0.9083,
+    "event_model": 0.9013
+   }
+  },
+  {
+   "code": "UK199804_13",
+   "year": 1998,
+   "decade": 1990,
+   "n": 93978,
+   "flooded_share": 0.038,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.5925,
+    "hand_1.0": 0.637,
+    "elev_pct": 0.7985,
+    "rel_p10": 0.7985,
+    "event_model": 0.7815
+   }
+  },
+  {
+   "code": "UK199804_14",
+   "year": 1998,
+   "decade": 1990,
+   "n": 90846,
+   "flooded_share": 0.04,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.8831,
+    "hand_1.0": 0.8648,
+    "elev_pct": 0.9258,
+    "rel_p10": 0.9258,
+    "event_model": 0.9269
+   }
+  },
+  {
+   "code": "UK199804_21",
+   "year": 1998,
+   "decade": 1990,
+   "n": 113614,
+   "flooded_share": 0.027,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.5871,
+    "hand_1.0": 0.6161,
+    "elev_pct": 0.7652,
+    "rel_p10": 0.7652,
+    "event_model": 0.7532
+   }
+  },
+  {
+   "code": "UK199810_11",
+   "year": 1998,
+   "decade": 1990,
+   "n": 111059,
+   "flooded_share": 0.078,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.7394,
+    "hand_1.0": 0.6574,
+    "elev_pct": 0.9064,
+    "rel_p10": 0.9064,
+    "event_model": 0.8815
+   }
+  },
+  {
+   "code": "UK200009_15",
+   "year": 2000,
+   "decade": 2000,
+   "n": 117090,
+   "flooded_share": 0.119,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.7412,
+    "hand_1.0": 0.6666,
+    "elev_pct": 0.8992,
+    "rel_p10": 0.8992,
+    "event_model": 0.8875
+   }
+  },
+  {
+   "code": "UK200010_02",
+   "year": 2000,
+   "decade": 2000,
+   "n": 123104,
+   "flooded_share": 0.094,
+   "auc": {
+    "current_rule": 0.5514,
+    "hand_0.1": 0.4882,
+    "hand_1.0": 0.5266,
+    "elev_pct": 0.548,
+    "rel_p10": 0.548,
+    "event_model": 0.5559
+   }
+  },
+  {
+   "code": "UK200010_08",
+   "year": 2000,
+   "decade": 2000,
+   "n": 111683,
+   "flooded_share": 0.076,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.7574,
+    "hand_1.0": 0.7085,
+    "elev_pct": 0.9235,
+    "rel_p10": 0.9235,
+    "event_model": 0.9031
+   }
+  },
+  {
+   "code": "UK200010_11",
+   "year": 2000,
+   "decade": 2000,
+   "n": 99575,
+   "flooded_share": 0.171,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.6778,
+    "hand_1.0": 0.6289,
+    "elev_pct": 0.8219,
+    "rel_p10": 0.8219,
+    "event_model": 0.8098
+   }
+  },
+  {
+   "code": "UK200010_20",
+   "year": 2000,
+   "decade": 2000,
+   "n": 92547,
+   "flooded_share": 0.073,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.6964,
+    "hand_1.0": 0.7373,
+    "elev_pct": 0.774,
+    "rel_p10": 0.774,
+    "event_model": 0.7719
+   }
+  },
+  {
+   "code": "UK200010_23",
+   "year": 2000,
+   "decade": 2000,
+   "n": 123467,
+   "flooded_share": 0.093,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.5601,
+    "hand_1.0": 0.5652,
+    "elev_pct": 0.7815,
+    "rel_p10": 0.7815,
+    "event_model": 0.7639
+   }
+  },
+  {
+   "code": "UK200011_01",
+   "year": 2000,
+   "decade": 2000,
+   "n": 100401,
+   "flooded_share": 0.068,
+   "auc": {
+    "current_rule": 0.7346,
+    "hand_0.1": 0.718,
+    "hand_1.0": 0.7118,
+    "elev_pct": 0.8698,
+    "rel_p10": 0.8698,
+    "event_model": 0.8541
+   }
+  },
+  {
+   "code": "UK200011_03",
+   "year": 2000,
+   "decade": 2000,
+   "n": 112502,
+   "flooded_share": 0.071,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.713,
+    "hand_1.0": 0.7388,
+    "elev_pct": 0.8416,
+    "rel_p10": 0.8416,
+    "event_model": 0.8333
+   }
+  },
+  {
+   "code": "UK200011_04",
+   "year": 2000,
+   "decade": 2000,
+   "n": 109203,
+   "flooded_share": 0.094,
+   "auc": {
+    "current_rule": 0.6765,
+    "hand_0.1": 0.6561,
+    "hand_1.0": 0.6242,
+    "elev_pct": 0.9019,
+    "rel_p10": 0.9019,
+    "event_model": 0.8809
+   }
+  },
+  {
+   "code": "UK200011_05",
+   "year": 2000,
+   "decade": 2000,
+   "n": 102391,
+   "flooded_share": 0.074,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.7072,
+    "hand_1.0": 0.7623,
+    "elev_pct": 0.7953,
+    "rel_p10": 0.7953,
+    "event_model": 0.8071
+   }
+  },
+  {
+   "code": "UK200011_06",
+   "year": 2000,
+   "decade": 2000,
+   "n": 104429,
+   "flooded_share": 0.1,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.6817,
+    "hand_1.0": 0.7133,
+    "elev_pct": 0.8137,
+    "rel_p10": 0.8137,
+    "event_model": 0.8196
+   }
+  },
+  {
+   "code": "UK200011_10",
+   "year": 2000,
+   "decade": 2000,
+   "n": 109537,
+   "flooded_share": 0.073,
+   "auc": {
+    "current_rule": 0.8172,
+    "hand_0.1": 0.7423,
+    "hand_1.0": 0.7453,
+    "elev_pct": 0.8653,
+    "rel_p10": 0.8653,
+    "event_model": 0.8591
+   }
+  },
+  {
+   "code": "UK200012_07",
+   "year": 2000,
+   "decade": 2000,
+   "n": 94523,
+   "flooded_share": 0.12,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.6958,
+    "hand_1.0": 0.6328,
+    "elev_pct": 0.8575,
+    "rel_p10": 0.8574,
+    "event_model": 0.8305
+   }
+  },
+  {
+   "code": "UK200012_18",
+   "year": 2000,
+   "decade": 2000,
+   "n": 91695,
+   "flooded_share": 0.074,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.7078,
+    "hand_1.0": 0.7267,
+    "elev_pct": 0.8852,
+    "rel_p10": 0.8852,
+    "event_model": 0.871
+   }
+  },
+  {
+   "code": "UK200012_19",
+   "year": 2000,
+   "decade": 2000,
+   "n": 97232,
+   "flooded_share": 0.072,
+   "auc": {
+    "current_rule": 0.4918,
+    "hand_0.1": 0.7595,
+    "hand_1.0": 0.7754,
+    "elev_pct": 0.8564,
+    "rel_p10": 0.8564,
+    "event_model": 0.8518
+   }
+  },
+  {
+   "code": "UK200101_13",
+   "year": 2001,
+   "decade": 2000,
+   "n": 95023,
+   "flooded_share": 0.114,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.7318,
+    "hand_1.0": 0.671,
+    "elev_pct": 0.8889,
+    "rel_p10": 0.8889,
+    "event_model": 0.8695
+   }
+  },
+  {
+   "code": "UK200102_09",
+   "year": 2001,
+   "decade": 2000,
+   "n": 109458,
+   "flooded_share": 0.073,
+   "auc": {
+    "current_rule": 0.8196,
+    "hand_0.1": 0.7457,
+    "hand_1.0": 0.7483,
+    "elev_pct": 0.8694,
+    "rel_p10": 0.8694,
+    "event_model": 0.8634
+   }
+  },
+  {
+   "code": "UK200202_16",
+   "year": 2002,
+   "decade": 2000,
+   "n": 116516,
+   "flooded_share": 0.125,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.7098,
+    "hand_1.0": 0.6633,
+    "elev_pct": 0.8255,
+    "rel_p10": 0.8255,
+    "event_model": 0.816
+   }
+  },
+  {
+   "code": "UK200212_24",
+   "year": 2002,
+   "decade": 2000,
+   "n": 100837,
+   "flooded_share": 0.085,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.6973,
+    "hand_1.0": 0.7454,
+    "elev_pct": 0.8319,
+    "rel_p10": 0.8319,
+    "event_model": 0.829
+   }
+  },
+  {
+   "code": "UK200402_21",
+   "year": 2004,
+   "decade": 2000,
+   "n": 115785,
+   "flooded_share": 0.119,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.7119,
+    "hand_1.0": 0.656,
+    "elev_pct": 0.8278,
+    "rel_p10": 0.8278,
+    "event_model": 0.8154
+   }
+  },
+  {
+   "code": "UK200706_12",
+   "year": 2007,
+   "decade": 2000,
+   "n": 113939,
+   "flooded_share": 0.071,
+   "auc": {
+    "current_rule": 0.7149,
+    "hand_0.1": 0.5774,
+    "hand_1.0": 0.608,
+    "elev_pct": 0.774,
+    "rel_p10": 0.774,
+    "event_model": 0.7508
+   }
+  },
+  {
+   "code": "UK200706_22",
+   "year": 2007,
+   "decade": 2000,
+   "n": 95988,
+   "flooded_share": 0.132,
+   "auc": {
+    "current_rule": 0.6533,
+    "hand_0.1": 0.635,
+    "hand_1.0": 0.6425,
+    "elev_pct": 0.7136,
+    "rel_p10": 0.7136,
+    "event_model": 0.7034
+   }
+  },
+  {
+   "code": "UK200707_14",
+   "year": 2007,
+   "decade": 2000,
+   "n": 110054,
+   "flooded_share": 0.044,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.6998,
+    "hand_1.0": 0.6961,
+    "elev_pct": 0.7855,
+    "rel_p10": 0.7855,
+    "event_model": 0.7815
+   }
+  },
+  {
+   "code": "UK200707_17",
+   "year": 2007,
+   "decade": 2000,
+   "n": 100781,
+   "flooded_share": 0.142,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.6699,
+    "hand_1.0": 0.5865,
+    "elev_pct": 0.8456,
+    "rel_p10": 0.8456,
+    "event_model": 0.8158
+   }
+  },
+  {
+   "code": "UK201204_23",
+   "year": 2012,
+   "decade": 2010,
+   "n": 88174,
+   "flooded_share": 0.081,
+   "auc": {
+    "current_rule": 0.6065,
+    "hand_0.1": 0.7201,
+    "hand_1.0": 0.7134,
+    "elev_pct": 0.6605,
+    "rel_p10": 0.6605,
+    "event_model": 0.6809
+   }
+  },
+  {
+   "code": "UK201211_09",
+   "year": 2012,
+   "decade": 2010,
+   "n": 87058,
+   "flooded_share": 0.121,
+   "auc": {
+    "current_rule": 0.6762,
+    "hand_0.1": 0.5027,
+    "hand_1.0": 0.4303,
+    "elev_pct": 0.807,
+    "rel_p10": 0.807,
+    "event_model": 0.7312
+   }
+  },
+  {
+   "code": "UK201211_10",
+   "year": 2012,
+   "decade": 2010,
+   "n": 92831,
+   "flooded_share": 0.084,
+   "auc": {
+    "current_rule": 0.7629,
+    "hand_0.1": 0.6605,
+    "hand_1.0": 0.6332,
+    "elev_pct": 0.7388,
+    "rel_p10": 0.7388,
+    "event_model": 0.7323
+   }
+  },
+  {
+   "code": "UK201211_12",
+   "year": 2012,
+   "decade": 2010,
+   "n": 87671,
+   "flooded_share": 0.126,
+   "auc": {
+    "current_rule": 0.4874,
+    "hand_0.1": 0.6552,
+    "hand_1.0": 0.6826,
+    "elev_pct": 0.7409,
+    "rel_p10": 0.7409,
+    "event_model": 0.735
+   }
+  },
+  {
+   "code": "UK201211_16",
+   "year": 2012,
+   "decade": 2010,
+   "n": 85208,
+   "flooded_share": 0.122,
+   "auc": {
+    "current_rule": 0.7289,
+    "hand_0.1": 0.7672,
+    "hand_1.0": 0.7874,
+    "elev_pct": 0.7703,
+    "rel_p10": 0.7703,
+    "event_model": 0.8049
+   }
+  },
+  {
+   "code": "UK201211_19",
+   "year": 2012,
+   "decade": 2010,
+   "n": 78228,
+   "flooded_share": 0.115,
+   "auc": {
+    "current_rule": 0.7655,
+    "hand_0.1": 0.8128,
+    "hand_1.0": 0.816,
+    "elev_pct": 0.7705,
+    "rel_p10": 0.7705,
+    "event_model": 0.7995
+   }
+  },
+  {
+   "code": "UK201211_21",
+   "year": 2012,
+   "decade": 2010,
+   "n": 81069,
+   "flooded_share": 0.095,
+   "auc": {
+    "current_rule": 0.8202,
+    "hand_0.1": 0.8571,
+    "hand_1.0": 0.8648,
+    "elev_pct": 0.9193,
+    "rel_p10": 0.9193,
+    "event_model": 0.9231
+   }
+  },
+  {
+   "code": "UK201311_01",
+   "year": 2013,
+   "decade": 2010,
+   "n": 100798,
+   "flooded_share": 0.064,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.5467,
+    "hand_1.0": 0.526,
+    "elev_pct": 0.6479,
+    "rel_p10": 0.6479,
+    "event_model": 0.642
+   }
+  },
+  {
+   "code": "UK201312_02",
+   "year": 2013,
+   "decade": 2010,
+   "n": 105379,
+   "flooded_share": 0.123,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.8297,
+    "hand_1.0": 0.808,
+    "elev_pct": 0.937,
+    "rel_p10": 0.937,
+    "event_model": 0.9296
+   }
+  },
+  {
+   "code": "UK201312_11",
+   "year": 2013,
+   "decade": 2010,
+   "n": 109039,
+   "flooded_share": 0.086,
+   "auc": {
+    "current_rule": 0.7327,
+    "hand_0.1": 0.6958,
+    "hand_1.0": 0.6635,
+    "elev_pct": 0.8012,
+    "rel_p10": 0.8012,
+    "event_model": 0.7869
+   }
+  },
+  {
+   "code": "UK201401_05",
+   "year": 2014,
+   "decade": 2010,
+   "n": 94440,
+   "flooded_share": 0.154,
+   "auc": {
+    "current_rule": 0.4976,
+    "hand_0.1": 0.7292,
+    "hand_1.0": 0.738,
+    "elev_pct": 0.8024,
+    "rel_p10": 0.8024,
+    "event_model": 0.7987
+   }
+  },
+  {
+   "code": "UK201401_07",
+   "year": 2014,
+   "decade": 2010,
+   "n": 92267,
+   "flooded_share": 0.181,
+   "auc": {
+    "current_rule": 0.7708,
+    "hand_0.1": 0.7976,
+    "hand_1.0": 0.7938,
+    "elev_pct": 0.8577,
+    "rel_p10": 0.8577,
+    "event_model": 0.8599
+   }
+  },
+  {
+   "code": "UK201401_08",
+   "year": 2014,
+   "decade": 2010,
+   "n": 93795,
+   "flooded_share": 0.174,
+   "auc": {
+    "current_rule": 0.6877,
+    "hand_0.1": 0.6896,
+    "hand_1.0": 0.6919,
+    "elev_pct": 0.7658,
+    "rel_p10": 0.7658,
+    "event_model": 0.7659
+   }
+  },
+  {
+   "code": "UK201401_15",
+   "year": 2014,
+   "decade": 2010,
+   "n": 95033,
+   "flooded_share": 0.111,
+   "auc": {
+    "current_rule": 0.7726,
+    "hand_0.1": 0.6757,
+    "hand_1.0": 0.6712,
+    "elev_pct": 0.7402,
+    "rel_p10": 0.7402,
+    "event_model": 0.7502
+   }
+  },
+  {
+   "code": "UK201401_18",
+   "year": 2014,
+   "decade": 2010,
+   "n": 104949,
+   "flooded_share": 0.033,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.727,
+    "hand_1.0": 0.7502,
+    "elev_pct": 0.8812,
+    "rel_p10": 0.8812,
+    "event_model": 0.88
+   }
+  },
+  {
+   "code": "UK201401_20",
+   "year": 2014,
+   "decade": 2010,
+   "n": 80265,
+   "flooded_share": 0.108,
+   "auc": {
+    "current_rule": 0.6106,
+    "hand_0.1": 0.6355,
+    "hand_1.0": 0.6201,
+    "elev_pct": 0.6815,
+    "rel_p10": 0.6815,
+    "event_model": 0.6551
+   }
+  },
+  {
+   "code": "UK201512_03",
+   "year": 2015,
+   "decade": 2010,
+   "n": 118724,
+   "flooded_share": 0.055,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.751,
+    "hand_1.0": 0.7654,
+    "elev_pct": 0.889,
+    "rel_p10": 0.889,
+    "event_model": 0.8832
+   }
+  },
+  {
+   "code": "UK201512_04",
+   "year": 2015,
+   "decade": 2010,
+   "n": 107849,
+   "flooded_share": 0.068,
+   "auc": {
+    "current_rule": 0.8585,
+    "hand_0.1": 0.733,
+    "hand_1.0": 0.7779,
+    "elev_pct": 0.9116,
+    "rel_p10": 0.9116,
+    "event_model": 0.8928
+   }
+  },
+  {
+   "code": "UK201512_06",
+   "year": 2015,
+   "decade": 2010,
+   "n": 122097,
+   "flooded_share": 0.004,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.9136,
+    "hand_1.0": 0.9501,
+    "elev_pct": 0.9585,
+    "rel_p10": 0.9586,
+    "event_model": 0.9691
+   }
+  },
+  {
+   "code": "UK201512_14",
+   "year": 2015,
+   "decade": 2010,
+   "n": 111825,
+   "flooded_share": 0.016,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.4512,
+    "hand_1.0": 0.4543,
+    "elev_pct": 0.8995,
+    "rel_p10": 0.8995,
+    "event_model": 0.8578
+   }
+  },
+  {
+   "code": "UK201512_17",
+   "year": 2015,
+   "decade": 2010,
+   "n": 129029,
+   "flooded_share": 0.072,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.7113,
+    "hand_1.0": 0.7118,
+    "elev_pct": 0.9154,
+    "rel_p10": 0.9154,
+    "event_model": 0.9122
+   }
+  },
+  {
+   "code": "UK201512_24",
+   "year": 2015,
+   "decade": 2010,
+   "n": 125154,
+   "flooded_share": 0.017,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.5377,
+    "hand_1.0": 0.5483,
+    "elev_pct": 0.7004,
+    "rel_p10": 0.7004,
+    "event_model": 0.6848
+   }
+  },
+  {
+   "code": "UK201911_13",
+   "year": 2019,
+   "decade": 2010,
+   "n": 116242,
+   "flooded_share": 0.017,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.6189,
+    "hand_1.0": 0.6308,
+    "elev_pct": 0.751,
+    "rel_p10": 0.751,
+    "event_model": 0.7396
+   }
+  },
+  {
+   "code": "UK201911_22",
+   "year": 2019,
+   "decade": 2010,
+   "n": 79606,
+   "flooded_share": 0.077,
+   "auc": {
+    "current_rule": 0.6088,
+    "hand_0.1": 0.6072,
+    "hand_1.0": 0.6409,
+    "elev_pct": 0.6648,
+    "rel_p10": 0.6648,
+    "event_model": 0.6744
+   }
+  },
+  {
+   "code": "UK202002_01",
+   "year": 2020,
+   "decade": 2020,
+   "n": 115780,
+   "flooded_share": 0.067,
+   "auc": {
+    "current_rule": 0.7807,
+    "hand_0.1": 0.6286,
+    "hand_1.0": 0.633,
+    "elev_pct": 0.8587,
+    "rel_p10": 0.8587,
+    "event_model": 0.8385
+   }
+  },
+  {
+   "code": "UK202002_02",
+   "year": 2020,
+   "decade": 2020,
+   "n": 108909,
+   "flooded_share": 0.07,
+   "auc": {
+    "current_rule": 0.6167,
+    "hand_0.1": 0.6127,
+    "hand_1.0": 0.6422,
+    "elev_pct": 0.619,
+    "rel_p10": 0.619,
+    "event_model": 0.6418
+   }
+  },
+  {
+   "code": "UK202002_03",
+   "year": 2020,
+   "decade": 2020,
+   "n": 118577,
+   "flooded_share": 0.054,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.6112,
+    "hand_1.0": 0.5933,
+    "elev_pct": 0.8506,
+    "rel_p10": 0.8506,
+    "event_model": 0.8206
+   }
+  },
+  {
+   "code": "UK202002_04",
+   "year": 2020,
+   "decade": 2020,
+   "n": 116357,
+   "flooded_share": 0.065,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.5929,
+    "hand_1.0": 0.6257,
+    "elev_pct": 0.7204,
+    "rel_p10": 0.7204,
+    "event_model": 0.7233
+   }
+  },
+  {
+   "code": "UK202002_15",
+   "year": 2020,
+   "decade": 2020,
+   "n": 116523,
+   "flooded_share": 0.007,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.642,
+    "hand_1.0": 0.5912,
+    "elev_pct": 0.9304,
+    "rel_p10": 0.9304,
+    "event_model": 0.8943
+   }
+  },
+  {
+   "code": "UK202002_17",
+   "year": 2020,
+   "decade": 2020,
+   "n": 121178,
+   "flooded_share": 0.005,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.7546,
+    "hand_1.0": 0.7989,
+    "elev_pct": 0.8821,
+    "rel_p10": 0.8821,
+    "event_model": 0.8789
+   }
+  },
+  {
+   "code": "UK202002_19",
+   "year": 2020,
+   "decade": 2020,
+   "n": 111555,
+   "flooded_share": 0.002,
+   "auc": {
+    "current_rule": 0.6049,
+    "hand_0.1": 0.612,
+    "hand_1.0": 0.6327,
+    "elev_pct": 0.4613,
+    "rel_p10": 0.4613,
+    "event_model": 0.4839
+   }
+  },
+  {
+   "code": "UK202002_24",
+   "year": 2020,
+   "decade": 2020,
+   "n": 115915,
+   "flooded_share": 0.008,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.5561,
+    "hand_1.0": 0.5522,
+    "elev_pct": 0.7263,
+    "rel_p10": 0.7263,
+    "event_model": 0.7114
+   }
+  },
+  {
+   "code": "UK202310_10",
+   "year": 2023,
+   "decade": 2020,
+   "n": 117698,
+   "flooded_share": 0.059,
+   "auc": {
+    "current_rule": 0.6569,
+    "hand_0.1": 0.632,
+    "hand_1.0": 0.6149,
+    "elev_pct": 0.6586,
+    "rel_p10": 0.6586,
+    "event_model": 0.6534
+   }
+  },
+  {
+   "code": "UK202310_12",
+   "year": 2023,
+   "decade": 2020,
+   "n": 119598,
+   "flooded_share": 0.054,
+   "auc": {
+    "current_rule": 0.64,
+    "hand_0.1": 0.7738,
+    "hand_1.0": 0.8103,
+    "elev_pct": 0.9556,
+    "rel_p10": 0.9556,
+    "event_model": 0.9465
+   }
+  },
+  {
+   "code": "UK202310_21",
+   "year": 2023,
+   "decade": 2020,
+   "n": 118033,
+   "flooded_share": 0.021,
+   "auc": {
+    "current_rule": 0.7541,
+    "hand_0.1": 0.6698,
+    "hand_1.0": 0.6693,
+    "elev_pct": 0.7658,
+    "rel_p10": 0.7658,
+    "event_model": 0.7517
+   }
+  },
+  {
+   "code": "UK202310_22",
+   "year": 2023,
+   "decade": 2020,
+   "n": 121306,
+   "flooded_share": 0.02,
+   "auc": {
+    "current_rule": 0.7279,
+    "hand_0.1": 0.7834,
+    "hand_1.0": 0.7945,
+    "elev_pct": 0.8327,
+    "rel_p10": 0.8327,
+    "event_model": 0.8332
+   }
+  },
+  {
+   "code": "UK202310_23",
+   "year": 2023,
+   "decade": 2020,
+   "n": 112830,
+   "flooded_share": 0.021,
+   "auc": {
+    "current_rule": 0.9062,
+    "hand_0.1": 0.8436,
+    "hand_1.0": 0.8502,
+    "elev_pct": 0.934,
+    "rel_p10": 0.934,
+    "event_model": 0.9264
+   }
+  },
+  {
+   "code": "UK202401_05",
+   "year": 2024,
+   "decade": 2020,
+   "n": 107180,
+   "flooded_share": 0.076,
+   "auc": {
+    "current_rule": 0.566,
+    "hand_0.1": 0.6735,
+    "hand_1.0": 0.7213,
+    "elev_pct": 0.9208,
+    "rel_p10": 0.9208,
+    "event_model": 0.9212
+   }
+  },
+  {
+   "code": "UK202401_06",
+   "year": 2024,
+   "decade": 2020,
+   "n": 103630,
+   "flooded_share": 0.09,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.6887,
+    "hand_1.0": 0.7172,
+    "elev_pct": 0.8498,
+    "rel_p10": 0.8498,
+    "event_model": 0.8564
+   }
+  },
+  {
+   "code": "UK202401_07",
+   "year": 2024,
+   "decade": 2020,
+   "n": 118904,
+   "flooded_share": 0.079,
+   "auc": {
+    "current_rule": 0.6508,
+    "hand_0.1": 0.6329,
+    "hand_1.0": 0.6257,
+    "elev_pct": 0.6492,
+    "rel_p10": 0.6492,
+    "event_model": 0.6299
+   }
+  },
+  {
+   "code": "UK202401_08",
+   "year": 2024,
+   "decade": 2020,
+   "n": 93862,
+   "flooded_share": 0.059,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.6351,
+    "hand_1.0": 0.6619,
+    "elev_pct": 0.8544,
+    "rel_p10": 0.8544,
+    "event_model": 0.8531
+   }
+  },
+  {
+   "code": "UK202401_09",
+   "year": 2024,
+   "decade": 2020,
+   "n": 96008,
+   "flooded_share": 0.073,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.5585,
+    "hand_1.0": 0.6319,
+    "elev_pct": 0.7916,
+    "rel_p10": 0.7916,
+    "event_model": 0.787
+   }
+  },
+  {
+   "code": "UK202401_11",
+   "year": 2024,
+   "decade": 2020,
+   "n": 111189,
+   "flooded_share": 0.057,
+   "auc": {
+    "current_rule": 0.798,
+    "hand_0.1": 0.5994,
+    "hand_1.0": 0.5113,
+    "elev_pct": 0.8506,
+    "rel_p10": 0.8506,
+    "event_model": 0.7932
+   }
+  },
+  {
+   "code": "UK202401_13",
+   "year": 2024,
+   "decade": 2020,
+   "n": 93444,
+   "flooded_share": 0.066,
+   "auc": {
+    "current_rule": 0.9229,
+    "hand_0.1": 0.9258,
+    "hand_1.0": 0.9387,
+    "elev_pct": 0.931,
+    "rel_p10": 0.931,
+    "event_model": 0.9529
+   }
+  },
+  {
+   "code": "UK202401_14",
+   "year": 2024,
+   "decade": 2020,
+   "n": 119340,
+   "flooded_share": 0.05,
+   "auc": {
+    "current_rule": 0.7167,
+    "hand_0.1": 0.816,
+    "hand_1.0": 0.8361,
+    "elev_pct": 0.9443,
+    "rel_p10": 0.9443,
+    "event_model": 0.9343
+   }
+  },
+  {
+   "code": "UK202401_16",
+   "year": 2024,
+   "decade": 2020,
+   "n": 94962,
+   "flooded_share": 0.045,
+   "auc": {
+    "current_rule": 0.8874,
+    "hand_0.1": 0.702,
+    "hand_1.0": 0.632,
+    "elev_pct": 0.9487,
+    "rel_p10": 0.9487,
+    "event_model": 0.9047
+   }
+  },
+  {
+   "code": "UK202401_18",
+   "year": 2024,
+   "decade": 2020,
+   "n": 114709,
+   "flooded_share": 0.041,
+   "auc": {
+    "current_rule": 0.7552,
+    "hand_0.1": 0.7094,
+    "hand_1.0": 0.6998,
+    "elev_pct": 0.7432,
+    "rel_p10": 0.7432,
+    "event_model": 0.7416
+   }
+  },
+  {
+   "code": "UK202401_20",
+   "year": 2024,
+   "decade": 2020,
+   "n": 96867,
+   "flooded_share": 0.031,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.7917,
+    "hand_1.0": 0.8099,
+    "elev_pct": 0.9506,
+    "rel_p10": 0.9506,
+    "event_model": 0.9536
+   }
+  }
+ ],
+ "limits": [
+  "Modern DEM and land cover are used for old floods: levees, channel works and urbanisation since the event are not in the terrain, which is why skill is reported by decade.",
+  "England only, fluvial outlines; outline quality varies by source (see data_src in the EA record).",
+  "Windows are chosen where outlines are large, so this is skill within flood-affected landscapes."
+ ]
+}

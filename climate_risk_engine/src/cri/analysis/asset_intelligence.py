@@ -126,7 +126,7 @@ _ASSET_ADDONS = {
 # ── Hazard evaluators ────────────────────────────────────────────────────────
 
 def _flood(t: dict, s: dict, lc: dict, sar: Optional[dict] = None,
-           belev: Optional[dict] = None) -> dict:
+           belev: Optional[dict] = None, hm: Optional[dict] = None) -> dict:
     sar = sar or {}
     pts, ev, mech = 0.0, [], []
     TER, S2, WC = "Terrain (AWS 10 m DEM, pysheds D8)", "Sentinel-2 L2A", "ESA WorldCover 2021"
@@ -215,6 +215,31 @@ def _flood(t: dict, s: dict, lc: dict, sar: Optional[dict] = None,
         elif me < 6.0:
             pts += 2; mech.append("low_lying_water")
 
+    # ── Event-trained terrain position (Copernicus EMS observed floods, 72 events; England 1940s–2020s as a check) ──
+    # Ranks how flood-like the site's terrain position is: height above nearest drainage and elevation relative to the
+    # surrounding 8 km. Relative, not a probability; capped at +2 points so it cannot reach HIGH on its own.
+    try:
+        from .flood_event_model import site_score
+        ts = site_score(hm)
+    except Exception:                                               # noqa: BLE001
+        ts = None
+    if ts and ts.get("rank") is not None:
+        EV = "Copernicus EMS observed flood extents (72 events), terrain model"
+        ev.append(_ev("Terrain position vs flooded cells in real events (0 = never flooded-like, 1 = most flood-like)",
+                      ts["rank"], EV))
+        ev.append(_ev("Height above nearest drainage (≥ 1 km² catchment)", ts["hand_m_1.0"], TER, "m"))
+        ev.append(_ev("Share of the 8 km surroundings lying below the site", _pct(ts["elev_percentile"]), TER, "%"))
+        # bands from the benchmark's rank calibration: rank ≥ 0.8 cells were flooded 2–3× as often as average, < 0.2 almost never
+        if ts["rank"] >= 0.8:
+            pts += 2; mech.append("fluvial")
+        elif ts["rank"] >= 0.6:
+            pts += 1
+        ts_caveat = (f"Terrain position was fitted on observed flood extents; on held-out events it ranked flooded above "
+                     f"non-flooded cells with AUC {ts['heldout_auc']} (0.5 = chance) and about 0.8 on England 1940s–2020s outlines. "
+                     "It ranks places inside a flood-prone landscape; it is not a return period or a depth.")
+    else:
+        ts_caveat = None
+
     elev = t.get("elevation_m")
     if elev is not None and (s.get("permanent_water_fraction") or 0) > 0.02 and elev < 10:
         ev.append(_ev("Site elevation next to permanent water", elev, TER, "m"))
@@ -228,12 +253,12 @@ def _flood(t: dict, s: dict, lc: dict, sar: Optional[dict] = None,
     if wl and wl > 0.1:
         ev.append(_ev("Wetland / mangrove within 1 km", _pct(wl), WC, "%"))
 
-    caveats = [
+    caveats = ([ts_caveat] if ts_caveat else []) + [
         "Validation status (FEMA flood-insurance claims, 3 US coastal-plain counties, 180 census tracts): "
         "severity comes from the elevation of built-up land (held-out AUC 0.64–0.94) plus radar-observed "
-        "flooding; terrain routing, drainage height, optical water and distance to water did not separate "
-        "high- from low-claim areas and are shown as supporting evidence only (no points). Not yet validated "
-        "inland or outside the US."
+        "flooding; against insurance claims, terrain routing, drainage height, optical water and distance to water "
+        "did not separate high- from low-claim areas. The claims-based components are not validated inland or "
+        "outside the US; the terrain-position component above was tested on observed floods worldwide and in England since the 1940s."
     ]
     if not sar.get("available"):
         missing = sorted(set(f"{m:02d}" for m in range(1, 13)) - set(s.get("temporal_months_covered") or []))
@@ -577,7 +602,13 @@ def assess_asset(
     except Exception as exc:                      # noqa: BLE001
         errors["built_elevation"] = str(exc)
 
-    findings = [_flood(terrain, sat, lc, sar, belev), *_debris_landslide(terrain, sat),
+    hm = None
+    try:
+        from ..terrain.hand import hand_metrics
+        hm = hand_metrics(lat, lon, radius_km=4.0)
+    except Exception as exc:                      # noqa: BLE001
+        errors["hand_metrics"] = str(exc)
+    findings = [_flood(terrain, sat, lc, sar, belev, hm), *_debris_landslide(terrain, sat),
                 _wildfire(terrain, sat, lc), _urban_heat(lat, lc)]
     try:
         findings.append(_tropical_cyclone(lat, lon))

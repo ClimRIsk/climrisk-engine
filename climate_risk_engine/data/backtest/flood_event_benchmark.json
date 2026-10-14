@@ -1,0 +1,782 @@
+{
+ "design": "Flood EVENT benchmark: does the model's terrain flood layer rank the cells that actually flooded above the cells that did not?",
+ "n_events": 72,
+ "n_windows": 125,
+ "by_continent": {
+  "Africa": 5,
+  "Asia": 9,
+  "Europe": 94,
+  "North America": 4,
+  "South America": 13
+ },
+ "heldout_events": [
+  "EMSR657",
+  "EMSR664",
+  "EMSR680",
+  "EMSR692",
+  "EMSR705",
+  "EMSR711",
+  "EMSR718",
+  "EMSR725",
+  "EMSR755",
+  "EMSR758",
+  "EMSR762",
+  "EMSR768",
+  "EMSR772",
+  "EMSR776",
+  "EMSR788",
+  "EMSR795",
+  "EMSR799",
+  "EMSR841",
+  "EMSR845",
+  "EMSR851",
+  "EMSR855",
+  "EMSR858",
+  "EMSR865",
+  "EMSR870"
+ ],
+ "heldout": {
+  "n_windows": 38,
+  "n_events": 24,
+  "mean_auc_[mean, lo95, hi95]": {
+   "current_rule": [
+    0.548,
+    0.515,
+    0.587
+   ],
+   "hand_0.1": [
+    0.67,
+    0.64,
+    0.701
+   ],
+   "hand_1.0": [
+    0.683,
+    0.647,
+    0.719
+   ],
+   "elev_pct": [
+    0.764,
+    0.721,
+    0.807
+   ],
+   "rel_p10": [
+    0.764,
+    0.721,
+    0.807
+   ],
+   "event_model": [
+    0.76,
+    0.721,
+    0.8
+   ],
+   "gain_vs_current_rule": [
+    0.212,
+    0.169,
+    0.253
+   ],
+   "share_windows_auc_gt_0.6": {
+    "current_rule": 0.18,
+    "hand_0.1": 0.74,
+    "hand_1.0": 0.71,
+    "elev_pct": 0.87,
+    "rel_p10": 0.87,
+    "event_model": 0.89
+   }
+  }
+ },
+ "train_in_sample": {
+  "n_windows": 87,
+  "n_events": 48,
+  "mean_auc_[mean, lo95, hi95]": {
+   "current_rule": [
+    0.53,
+    0.514,
+    0.548
+   ],
+   "hand_0.1": [
+    0.703,
+    0.675,
+    0.733
+   ],
+   "hand_1.0": [
+    0.711,
+    0.68,
+    0.742
+   ],
+   "elev_pct": [
+    0.766,
+    0.735,
+    0.797
+   ],
+   "rel_p10": [
+    0.766,
+    0.735,
+    0.797
+   ],
+   "event_model": [
+    0.769,
+    0.739,
+    0.799
+   ],
+   "gain_vs_current_rule": [
+    0.238,
+    0.207,
+    0.274
+   ],
+   "share_windows_auc_gt_0.6": {
+    "current_rule": 0.13,
+    "hand_0.1": 0.75,
+    "hand_1.0": 0.71,
+    "elev_pct": 0.85,
+    "rel_p10": 0.85,
+    "event_model": 0.87
+   }
+  }
+ },
+ "transfer_europe_to_rest": {
+  "n_windows": 31,
+  "n_events": 19,
+  "mean_auc_[mean, lo95, hi95]": {
+   "current_rule": [
+    0.545,
+    0.513,
+    0.583
+   ],
+   "hand_0.1": [
+    0.659,
+    0.621,
+    0.706
+   ],
+   "hand_1.0": [
+    0.685,
+    0.642,
+    0.734
+   ],
+   "elev_pct": [
+    0.709,
+    0.662,
+    0.765
+   ],
+   "rel_p10": [
+    0.709,
+    0.662,
+    0.765
+   ],
+   "event_model": [
+    0.713,
+    0.668,
+    0.766
+   ],
+   "gain_vs_current_rule": [
+    0.168,
+    0.128,
+    0.221
+   ],
+   "share_windows_auc_gt_0.6": {
+    "current_rule": 0.19,
+    "hand_0.1": 0.68,
+    "hand_1.0": 0.68,
+    "elev_pct": 0.81,
+    "rel_p10": 0.81,
+    "event_model": 0.81
+   }
+  },
+  "fit_on": "Europe (94 windows)",
+  "scored_on": "outside Europe (31 windows)"
+ },
+ "fitted_on_train_split": {
+  "features": [
+   "log_hand_0.1",
+   "log_hand_1.0",
+   "elev_pct",
+   "log_rel_p10"
+  ],
+  "coef": [
+   -0.11248222869814717,
+   -0.12110886918953034,
+   -1.2813080056810866,
+   -0.40679243342705557
+  ],
+  "intercept": 1.1697630427506178,
+  "l2": 1.0
+ },
+ "per_window_heldout": [
+  {
+   "code": "EMSR657",
+   "event": "Flood in Daugava River valley, Latvia",
+   "continent": "Europe",
+   "n": 134861,
+   "flooded_share": 0.093,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.551,
+    "hand_1.0": 0.4912,
+    "elev_pct": 0.8136,
+    "rel_p10": 0.8136,
+    "event_model": 0.7834
+   }
+  },
+  {
+   "code": "EMSR664",
+   "event": "Flood in Italy",
+   "continent": "Europe",
+   "n": 74364,
+   "flooded_share": 0.102,
+   "auc": {
+    "current_rule": 0.5702,
+    "hand_0.1": 0.5706,
+    "hand_1.0": 0.6037,
+    "elev_pct": 0.7044,
+    "rel_p10": 0.7044,
+    "event_model": 0.6937
+   }
+  },
+  {
+   "code": "EMSR680",
+   "event": "Flood in Slovenia",
+   "continent": "Europe",
+   "n": 90464,
+   "flooded_share": 0.007,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.8068,
+    "hand_1.0": 0.8446,
+    "elev_pct": 0.8491,
+    "rel_p10": 0.8491,
+    "event_model": 0.851
+   }
+  },
+  {
+   "code": "EMSR680",
+   "event": "Flood in Slovenia",
+   "continent": "Europe",
+   "n": 88052,
+   "flooded_share": 0.0,
+   "auc": {
+    "current_rule": 0.4603,
+    "hand_0.1": 0.572,
+    "hand_1.0": 0.635,
+    "elev_pct": 0.7229,
+    "rel_p10": 0.7229,
+    "event_model": 0.6667
+   }
+  },
+  {
+   "code": "EMSR692",
+   "event": "Flood in Greece",
+   "continent": "Europe",
+   "n": 73441,
+   "flooded_share": 0.148,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.7411,
+    "hand_1.0": 0.7716,
+    "elev_pct": 0.7756,
+    "rel_p10": 0.7756,
+    "event_model": 0.7876
+   }
+  },
+  {
+   "code": "EMSR692",
+   "event": "Flood in Greece",
+   "continent": "Europe",
+   "n": 73435,
+   "flooded_share": 0.727,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.6518,
+    "hand_1.0": 0.6592,
+    "elev_pct": 0.8425,
+    "rel_p10": 0.8425,
+    "event_model": 0.8407
+   }
+  },
+  {
+   "code": "EMSR705",
+   "event": "Flood in Tuscany region, Italy",
+   "continent": "Europe",
+   "n": 84214,
+   "flooded_share": 0.024,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.7117,
+    "hand_1.0": 0.7305,
+    "elev_pct": 0.8214,
+    "rel_p10": 0.8213,
+    "event_model": 0.8171
+   }
+  },
+  {
+   "code": "EMSR705",
+   "event": "Flood in Tuscany region, Italy",
+   "continent": "Europe",
+   "n": 83868,
+   "flooded_share": 0.016,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.8708,
+    "hand_1.0": 0.8818,
+    "elev_pct": 0.9346,
+    "rel_p10": 0.9346,
+    "event_model": 0.9442
+   }
+  },
+  {
+   "code": "EMSR711",
+   "event": "Flood in southwestern France",
+   "continent": "Europe",
+   "n": 89780,
+   "flooded_share": 0.074,
+   "auc": {
+    "current_rule": 0.7263,
+    "hand_0.1": 0.6308,
+    "hand_1.0": 0.6229,
+    "elev_pct": 0.7002,
+    "rel_p10": 0.7002,
+    "event_model": 0.6893
+   }
+  },
+  {
+   "code": "EMSR711",
+   "event": "Flood in southwestern France",
+   "continent": "Europe",
+   "n": 88969,
+   "flooded_share": 0.067,
+   "auc": {
+    "current_rule": 0.8221,
+    "hand_0.1": 0.7295,
+    "hand_1.0": 0.7298,
+    "elev_pct": 0.8894,
+    "rel_p10": 0.8894,
+    "event_model": 0.8707
+   }
+  },
+  {
+   "code": "EMSR718",
+   "event": "Flood in Ireland",
+   "continent": "Europe",
+   "n": 115042,
+   "flooded_share": 0.002,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.71,
+    "hand_1.0": 0.7192,
+    "elev_pct": 0.5959,
+    "rel_p10": 0.5959,
+    "event_model": 0.6263
+   }
+  },
+  {
+   "code": "EMSR725",
+   "event": "Flood in Sweden",
+   "continent": "Europe",
+   "n": 241486,
+   "flooded_share": 0.003,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.5453,
+    "hand_1.0": 0.5718,
+    "elev_pct": 0.6746,
+    "rel_p10": 0.6746,
+    "event_model": 0.6604
+   }
+  },
+  {
+   "code": "EMSR725",
+   "event": "Flood in Sweden",
+   "continent": "Europe",
+   "n": 223341,
+   "flooded_share": 0.001,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.639,
+    "hand_1.0": 0.6918,
+    "elev_pct": 0.8898,
+    "rel_p10": 0.8898,
+    "event_model": 0.8723
+   }
+  },
+  {
+   "code": "EMSR755",
+   "event": "Flood in Brandenbourg, Germany",
+   "continent": "Europe",
+   "n": 113746,
+   "flooded_share": 0.002,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.6904,
+    "hand_1.0": 0.765,
+    "elev_pct": 0.9074,
+    "rel_p10": 0.9074,
+    "event_model": 0.9194
+   }
+  },
+  {
+   "code": "EMSR758",
+   "event": "Flood in Galati and Vaslui counties, Romania",
+   "continent": "Europe",
+   "n": 88175,
+   "flooded_share": 0.053,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.5802,
+    "hand_1.0": 0.5588,
+    "elev_pct": 0.572,
+    "rel_p10": 0.572,
+    "event_model": 0.5718
+   }
+  },
+  {
+   "code": "EMSR762",
+   "event": "Flood in Emilia-Romagna, Italy",
+   "continent": "Europe",
+   "n": 85841,
+   "flooded_share": 0.001,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.5323,
+    "hand_1.0": 0.5306,
+    "elev_pct": 0.4101,
+    "rel_p10": 0.4101,
+    "event_model": 0.4167
+   }
+  },
+  {
+   "code": "EMSR762",
+   "event": "Flood in Emilia-Romagna, Italy",
+   "continent": "Europe",
+   "n": 85193,
+   "flooded_share": 0.065,
+   "auc": {
+    "current_rule": 0.5229,
+    "hand_0.1": 0.6137,
+    "hand_1.0": 0.6789,
+    "elev_pct": 0.7809,
+    "rel_p10": 0.7809,
+    "event_model": 0.7886
+   }
+  },
+  {
+   "code": "EMSR768",
+   "event": "Flood in Croatia and Slovenia",
+   "continent": "Europe",
+   "n": 87599,
+   "flooded_share": 0.024,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.655,
+    "hand_1.0": 0.6971,
+    "elev_pct": 0.7744,
+    "rel_p10": 0.7744,
+    "event_model": 0.7775
+   }
+  },
+  {
+   "code": "EMSR768",
+   "event": "Flood in Croatia and Slovenia",
+   "continent": "Europe",
+   "n": 88801,
+   "flooded_share": 0.036,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.6438,
+    "hand_1.0": 0.7098,
+    "elev_pct": 0.809,
+    "rel_p10": 0.809,
+    "event_model": 0.8027
+   }
+  },
+  {
+   "code": "EMSR772",
+   "event": "Flood in Cameroon",
+   "continent": "Africa",
+   "n": 42862,
+   "flooded_share": 0.226,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.6167,
+    "hand_1.0": 0.7047,
+    "elev_pct": 0.7498,
+    "rel_p10": 0.7498,
+    "event_model": 0.7521
+   }
+  },
+  {
+   "code": "EMSR776",
+   "event": "Flood in Panama",
+   "continent": "North America",
+   "n": 42833,
+   "flooded_share": 0.03,
+   "auc": {
+    "current_rule": 0.7835,
+    "hand_0.1": 0.8298,
+    "hand_1.0": 0.8664,
+    "elev_pct": 0.9006,
+    "rel_p10": 0.9007,
+    "event_model": 0.9032
+   }
+  },
+  {
+   "code": "EMSR788",
+   "event": "Flood in Ille-et-Vilaine, France",
+   "continent": "Europe",
+   "n": 95727,
+   "flooded_share": 0.142,
+   "auc": {
+    "current_rule": 0.7098,
+    "hand_0.1": 0.6284,
+    "hand_1.0": 0.5707,
+    "elev_pct": 0.7645,
+    "rel_p10": 0.7645,
+    "event_model": 0.7382
+   }
+  },
+  {
+   "code": "EMSR788",
+   "event": "Flood in Ille-et-Vilaine, France",
+   "continent": "Europe",
+   "n": 95187,
+   "flooded_share": 0.003,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.7879,
+    "hand_1.0": 0.846,
+    "elev_pct": 0.9222,
+    "rel_p10": 0.9222,
+    "event_model": 0.929
+   }
+  },
+  {
+   "code": "EMSR795",
+   "event": "Flood in Italy",
+   "continent": "Europe",
+   "n": 81760,
+   "flooded_share": 0.016,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.6924,
+    "hand_1.0": 0.6404,
+    "elev_pct": 0.8217,
+    "rel_p10": 0.8217,
+    "event_model": 0.7908
+   }
+  },
+  {
+   "code": "EMSR795",
+   "event": "Flood in Italy",
+   "continent": "Europe",
+   "n": 83760,
+   "flooded_share": 0.058,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.6876,
+    "hand_1.0": 0.5773,
+    "elev_pct": 0.848,
+    "rel_p10": 0.848,
+    "event_model": 0.8174
+   }
+  },
+  {
+   "code": "EMSR799",
+   "event": "Flood in Bolivia",
+   "continent": "South America",
+   "n": 45955,
+   "flooded_share": 0.169,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.5515,
+    "hand_1.0": 0.4893,
+    "elev_pct": 0.6985,
+    "rel_p10": 0.6985,
+    "event_model": 0.6822
+   }
+  },
+  {
+   "code": "EMSR799",
+   "event": "Flood in Bolivia",
+   "continent": "South America",
+   "n": 46875,
+   "flooded_share": 0.312,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.5906,
+    "hand_1.0": 0.5766,
+    "elev_pct": 0.7053,
+    "rel_p10": 0.7053,
+    "event_model": 0.6799
+   }
+  },
+  {
+   "code": "EMSR841",
+   "event": "Flood in Vasternorrland County, Sweden",
+   "continent": "Europe",
+   "n": 215839,
+   "flooded_share": 0.001,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.6002,
+    "hand_1.0": 0.6155,
+    "elev_pct": 0.7062,
+    "rel_p10": 0.7062,
+    "event_model": 0.7005
+   }
+  },
+  {
+   "code": "EMSR845",
+   "event": "Flood in Mexico",
+   "continent": "North America",
+   "n": 48367,
+   "flooded_share": 0.252,
+   "auc": {
+    "current_rule": 0.5716,
+    "hand_0.1": 0.6201,
+    "hand_1.0": 0.6723,
+    "elev_pct": 0.7988,
+    "rel_p10": 0.7988,
+    "event_model": 0.789
+   }
+  },
+  {
+   "code": "EMSR851",
+   "event": "Flood in  Sri Lanka",
+   "continent": "Asia",
+   "n": 43756,
+   "flooded_share": 0.175,
+   "auc": {
+    "current_rule": 0.6059,
+    "hand_0.1": 0.8183,
+    "hand_1.0": 0.8439,
+    "elev_pct": 0.8728,
+    "rel_p10": 0.8728,
+    "event_model": 0.8758
+   }
+  },
+  {
+   "code": "EMSR851",
+   "event": "Flood in  Sri Lanka",
+   "continent": "Asia",
+   "n": 33669,
+   "flooded_share": 0.042,
+   "auc": {
+    "current_rule": 0.7829,
+    "hand_0.1": 0.7515,
+    "hand_1.0": 0.795,
+    "elev_pct": 0.8674,
+    "rel_p10": 0.8674,
+    "event_model": 0.8669
+   }
+  },
+  {
+   "code": "EMSR855",
+   "event": "Flood in  Italy",
+   "continent": "Europe",
+   "n": 79333,
+   "flooded_share": 0.009,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.7462,
+    "hand_1.0": 0.7979,
+    "elev_pct": 0.8883,
+    "rel_p10": 0.8883,
+    "event_model": 0.8816
+   }
+  },
+  {
+   "code": "EMSR858",
+   "event": "Flood in  Southern Italy",
+   "continent": "Europe",
+   "n": 75601,
+   "flooded_share": 0.011,
+   "auc": {
+    "current_rule": 0.5577,
+    "hand_0.1": 0.8936,
+    "hand_1.0": 0.8963,
+    "elev_pct": 0.9516,
+    "rel_p10": 0.9516,
+    "event_model": 0.9507
+   }
+  },
+  {
+   "code": "EMSR858",
+   "event": "Flood in  Southern Italy",
+   "continent": "Europe",
+   "n": 46063,
+   "flooded_share": 0.025,
+   "auc": {
+    "current_rule": 0.7037,
+    "hand_0.1": 0.627,
+    "hand_1.0": 0.5551,
+    "elev_pct": 0.6893,
+    "rel_p10": 0.6893,
+    "event_model": 0.679
+   }
+  },
+  {
+   "code": "EMSR865",
+   "event": "Flood in Cordoba, Colombia",
+   "continent": "South America",
+   "n": 44941,
+   "flooded_share": 0.31,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.5894,
+    "hand_1.0": 0.5934,
+    "elev_pct": 0.5883,
+    "rel_p10": 0.5884,
+    "event_model": 0.5936
+   }
+  },
+  {
+   "code": "EMSR870",
+   "event": "Flood in Ecuador",
+   "continent": "South America",
+   "n": 43366,
+   "flooded_share": 0.036,
+   "auc": {
+    "current_rule": 0.5742,
+    "hand_0.1": 0.7869,
+    "hand_1.0": 0.7965,
+    "elev_pct": 0.7992,
+    "rel_p10": 0.7992,
+    "event_model": 0.8133
+   }
+  },
+  {
+   "code": "EMSR870",
+   "event": "Flood in Ecuador",
+   "continent": "South America",
+   "n": 40488,
+   "flooded_share": 0.058,
+   "auc": {
+    "current_rule": 0.4303,
+    "hand_0.1": 0.5496,
+    "hand_1.0": 0.5414,
+    "elev_pct": 0.3378,
+    "rel_p10": 0.3378,
+    "event_model": 0.382
+   }
+  },
+  {
+   "code": "EMSR870",
+   "event": "Flood in Ecuador",
+   "continent": "South America",
+   "n": 44099,
+   "flooded_share": 0.017,
+   "auc": {
+    "current_rule": 0.5,
+    "hand_0.1": 0.6355,
+    "hand_1.0": 0.6993,
+    "elev_pct": 0.6588,
+    "rel_p10": 0.6588,
+    "event_model": 0.6812
+   }
+  }
+ ],
+ "limits": [
+  "SAR under-maps flooding in dense urban areas and under vegetation.",
+  "Polygons are a snapshot at image time, not the peak.",
+  "CEMS maps areas where flooding was suspected: this measures skill WITHIN flood-affected landscapes.",
+  "Events are 2023\u20132026 and Europe-heavy; older CEMS events are not in the public dashboard API.",
+  "Depth/magnitude is not tested here: no machine-readable depth truth for these events."
+ ]
+}
