@@ -584,14 +584,51 @@ def stage_history_eval() -> Path:
     return OUT / "flood_history_benchmark.json"
 
 
+
+def stage_index() -> Path:
+    """Compact, shippable index of recorded flood events (bounding boxes + dates) for per-site 'what flooded here before' lookups."""
+    from shapely.geometry import shape
+    ev = []
+    cat = {e["code"]: e for e in json.loads((RAW / "catalog.json").read_text())}
+    for f in sorted((RAW / "extents").glob("*.json")):
+        x = json.loads(f.read_text())
+        if x.get("skipped"):
+            continue
+        c = cat.get(x["code"], {})
+        b = x["bounds"]
+        ev.append({"s": "CEMS", "id": x["code"], "n": c.get("name"), "d": (c.get("event_time") or "")[:10],
+                   "b": [round(b[0], 4), round(b[1], 4), round(b[2], 4), round(b[3], 4)]})
+    n_cems = len(ev)
+    seen = set()
+    for f in sorted((RAW / "uk").glob("fluvial_*.json")):
+        for x in json.loads(f.read_text())["features"]:
+            try:
+                pr = x["properties"]
+                key = pr.get("rec_out_id")
+                if key in seen:
+                    continue
+                seen.add(key)
+                b = shape(x["geometry"]).bounds
+                ev.append({"s": "EA-RFO", "id": str(key), "n": pr.get("name"), "d": (pr.get("start_date") or "")[:10],
+                           "b": [round(b[0], 4), round(b[1], 4), round(b[2], 4), round(b[3], 4)]})
+            except Exception:                                       # noqa: BLE001
+                continue
+    out = ROOT / "src" / "cri" / "data" / "flood_event_index.json"
+    out.write_text(json.dumps({"sources": {"CEMS": "Copernicus EMS Rapid Mapping observed flood extents (2023–2026, catalogued activations only)",
+                                           "EA-RFO": "England Environment Agency Recorded Flood Outlines, fluvial (Open Government Licence)"},
+                               "note": "Bounding boxes only. Not a complete flood history of any place.", "events": ev}, separators=(",", ":")))
+    print(n_cems, "CEMS areas;", len(ev) - n_cems, "England outlines;", round(out.stat().st_size / 1e6, 2), "MB")
+    return out
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--stage", required=True, choices=["catalog", "extents", "features", "evaluate", "uk_fetch", "uk_events", "uk_features", "history_eval"])
+    ap.add_argument("--stage", required=True, choices=["catalog", "extents", "features", "evaluate", "uk_fetch", "uk_events", "uk_features", "history_eval", "index"])
     ap.add_argument("--max-mb", type=float, default=60.0)
     a = ap.parse_args()
     {"catalog": stage_catalog, "extents": lambda: stage_extents(a.max_mb), "features": stage_features,
      "evaluate": stage_evaluate, "uk_fetch": stage_uk_fetch, "uk_events": stage_uk_events,
-     "uk_features": lambda: stage_features("uk_extents", "uk_features"), "history_eval": stage_history_eval}[a.stage]()
+     "uk_features": lambda: stage_features("uk_extents", "uk_features"), "history_eval": stage_history_eval, "index": stage_index}[a.stage]()
 
 
 if __name__ == "__main__":
