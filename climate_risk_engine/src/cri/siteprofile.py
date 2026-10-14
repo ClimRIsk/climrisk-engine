@@ -182,6 +182,16 @@ def _h_coastal(c: Ctx) -> dict:
     return _null(KEY, LAB, FAM, att, "No coastal flood map for this place. The storm-surge and sea-level studies below may still give a result.")
 
 
+def _water_users(c: Ctx) -> str:
+    try:
+        from .analysis import local_air as LA
+        k = [x["kind"] for x in LA.declared(c.lat, c.lon) if x["kind"] in ("thermal", "cement")]
+    except Exception:                                        # noqa: BLE001
+        return ""
+    return (" Declared nearby industrial water users (" + ", ".join(sorted(set(k))) + ") draw on the same basin: thermal power and cement are large cooling and process water users, "
+            "so local stress can be worse than the basin score. Their withdrawals were not found in any open database and are not in this number.") if k else ""
+
+
 def _h_water(c: Ctx) -> dict:
     from .analysis import asset_intelligence as ai
     KEY, LAB = "water_stress", "Water stress and drought (basin scale)"
@@ -195,7 +205,30 @@ def _h_water(c: Ctx) -> dict:
     return _entry(KEY, LAB, "modelled", value=f["detail"]["indicator_score"], unit="Aqueduct score 0–5", severity=f["severity"],
                   metrics={"path_bau": f["detail"]["path_bau"], "evidence": {e["metric"]: e["value"] for e in f["evidence"]}},
                   method="WRI Aqueduct 4.0, basin scale; not site supply.", sources=["WRI Aqueduct 4.0 (CC BY 4.0)"], attempts=[{"rung": "WRI Aqueduct 4.0", "ok": True}],
-                  family="water", caveat=f["caveat"])
+                  family="water", caveat=f["caveat"] + _water_users(c))
+
+
+
+def _h_air_local(c: Ctx) -> dict:
+    """Air quality from the measured CAMS record plus a source screen of the emitters known or declared near the site."""
+    from .analysis import local_air as LA
+    KEY, LAB = "air_local", "Air quality (measured regional record + nearby sources)"
+    a = LA.assess(c.lat, c.lon)
+    if a["status"] == "null":
+        return _null(KEY, LAB, "air", [{"rung": "CAMS record + ERA5 wind", "ok": False, "why": a["reason"]}], a["reason"])
+    rec = a["record"]
+    cav = [rec["resolution"]]
+    if a.get("assumption_note"):
+        cav.append(a["assumption_note"])
+    if a.get("unverified_sources"):
+        cav.append("Sources declared by the user and not verifiable in any open database: " + ", ".join(a["unverified_sources"]) + ".")
+    cav.append("Not modelled: " + "; ".join(a["not_modelled"]) + ".")
+    return _entry(KEY, LAB, a["status"], value=a["annual_pm25_total_central"], unit="µg/m3 annual PM2.5 (regional record + central source screen)", severity=a["severity"],
+                  metrics={k: a[k] for k in ("record", "sources", "increment", "thresholds", "osm", "research")},
+                  method="CAMS hourly record at the site plus a Gaussian-plume screen (Briggs urban, hourly ERA5 wind) of each known or declared source; emissions from capacity and documented factors, in three scenarios.",
+                  grade="C", sources=["CAMS via Open-Meteo air-quality API", "ERA5 via Open-Meteo archive", "WHO 2021 air quality guidelines", "India NAAQS 2009"],
+                  attempts=[{"rung": "CAMS record + ERA5 wind", "ok": True}, {"rung": "source screen", "ok": bool(a["sources"]), "why": None if a["sources"] else "no source known or declared"}],
+                  family="air", caveat=" ".join(cav))
 
 
 # ── site analysis (terrain, imagery, land cover) — one call feeds several hazards ─────
@@ -336,7 +369,7 @@ def _h_lab(c: Ctx, key: str) -> dict:
 # ── registry and runner ─────────────────────────────────────────────────────────────
 
 def registry() -> list:
-    reg = [("cyclone", "fast", _h_cyclone), ("river_flood", "fast", _h_river), ("coastal_flood", "fast", _h_coastal), ("water_stress", "fast", _h_water)]
+    reg = [("cyclone", "fast", _h_cyclone), ("river_flood", "fast", _h_river), ("coastal_flood", "fast", _h_coastal), ("water_stress", "fast", _h_water), ("air_local", "fast", _h_air_local)]
     reg += [(_SITE_MAP[h][0], "site", (lambda c, h=h: _site_entry(c, h))) for h in _SITE_MAP]
     reg += [(f"lab:{k}", "deep", (lambda c, k=k: _h_lab(c, k))) for k in _LAB]
     return reg

@@ -69,3 +69,30 @@ def test_agent_routes_bare_coordinates_to_profile(monkeypatch):
     # an ordinary single-hazard request is still routed to the lab, not the profile
     out3 = ag.handle("s1", "build a flood model for 22.2645, 91.805")
     assert out3.get("intent") == "modellab"
+
+
+def test_agent_stores_declared_sources_and_reruns_air(monkeypatch):
+    from cri.analysis import local_air as LA
+    os.environ["CRI_HOME"] = tempfile.mkdtemp()
+    seen = {}
+    def fake_profile(lat, lon, name, only=None, use_cache=True, **kw):
+        seen["only"] = only
+        ent = SP._entry("air_local", "Air", "constructed", value=20.4, severity="MODERATE",
+                        metrics={"record": {"years_used": [2023, 2025], "annual_pm25": 19.0, "days_above_who_24h": 219.0, "days_above_naaqs_24h": 0.3, "diwali": [{"year": 2023, "ratio": 3.4}]},
+                                 "increment": {"central": {"min": 0.1, "max": 1.4}, "high": {"max": 7.3}},
+                                 "sources": [{"kind": "cement", "provenance": "declared", "modelled": True, "scenarios": {"central": {"pm25_annual_ug_m3": {"min": 0.0, "max": 1.0}}, "high": {"pm25_annual_ug_m3": {"max": 5.2}}}}]})
+        return {"hazards": {"air_local": ent}}
+    monkeypatch.setattr(SP, "profile", fake_profile)
+    ag = AG.Agent(twin_builder=lambda **k: {}, analyser=lambda t: {}, scanner=lambda **k: {}, lab=lambda *a: {})
+    out = ag.handle("s2", "we are really close to a cement manufacturing unit and a thermal power plant of 13 MW near 9.4713, 77.9107, and fireworks industries")
+    assert out["intent"] == "local_sources" and out["job"]
+    for _ in range(50):
+        st = AG.job_status(out["job"])
+        if st["status"] != "running":
+            break
+        time.sleep(0.1)
+    assert st["status"] == "done", st
+    assert seen["only"] == ["air_local", "water_stress"]
+    d = LA.declared(9.4713, 77.9107)
+    assert {x["kind"] for x in d} == {"cement", "thermal", "fireworks"}
+    assert "not verified" in st["reply"] and "lower bound" in st["reply"]

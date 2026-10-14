@@ -176,7 +176,7 @@ class Agent:
         text = (text or "").strip()
         if not text:
             return {"reply": "Ask me something — for example \"build a 3D twin of 22.2645, 91.805\".", "blocks": [], "actions": [], "intent": "empty"}
-        quick = self._autopilot_commands(session, text) or self._knowledge_commands(session, text) or self._scenario_commands(session, text) or self._profile_commands(session, text) or self._lab_commands(session, text) or self._case_commands(session, text) or self._extension_commands(session, text)
+        quick = self._autopilot_commands(session, text) or self._knowledge_commands(session, text) or self._scenario_commands(session, text) or self._source_commands(session, text) or self._profile_commands(session, text) or self._lab_commands(session, text) or self._case_commands(session, text) or self._extension_commands(session, text)
         if quick:
             if quick.get("intent") in (None, "knowledge", "learn"):      # autopilot commands log themselves
                 quick.setdefault("intent", "knowledge")
@@ -516,6 +516,59 @@ class Agent:
             domain, "physics choice, public data, model fit, verification tests, and a hindcast on data the model never saw" if domain in L.DOMAINS and "dossier" not in L.DOMAINS[domain]["label"] else "reading up on the physics and the public datasets, and checking what a verified model would need")
         return {"reply": f"Starting a {L.DOMAINS[domain]['label'].split(' (')[0].lower()} study for {pl['name']}. I will work through: {steps}, then write the methods and results. This takes a few minutes; I will post it here.",
                 "blocks": [], "actions": [], "job": holder["j"]["id"], "intent": "modellab"}
+
+    _SRC_RX = re.compile(r"\b(?:cement|thermal|coal|power (?:plant|station)|captive power|fire\s?works?|crackers?|pyrotech\w*|sivakasi|match (?:factory|units?)|kiln)\b", re.I)
+    _SRC_CTX = re.compile(r"\b(?:there (?:is|are)|we (?:have|are)|i (?:live|am)|near(?:by)?|next to|close to|beside|around|locality|neighbou?rhood|surrounded)\b", re.I)
+
+    def _source_commands(self, session, text) -> Optional[dict]:
+        """"We are close to a cement unit and a 13 MW thermal plant, and fireworks industries": the user tells me what is near the site.
+        I store it as a DECLARED source (never as verified), re-run air quality and water stress with it, and say what is assumed."""
+        t = text.strip()
+        if not (self._SRC_RX.search(t) and self._SRC_CTX.search(t)) or re.match(r"\s*(what|why|how|explain|define|is|are|does|do you)\b", t.lower()):
+            return None
+        from ..analysis import local_air as LA
+        srcs = LA.parse_declaration(t)
+        if not srcs:
+            return None
+        ent = N.entities(t)
+        pl = resolve_place(t, ent, session)
+        if not pl:
+            return {"reply": "Which place is that near? Give coordinates or a city name and I will add the sources to it and re-run air quality and water stress.", "blocks": [], "actions": []}
+        M.set_state("last_place", pl)
+        LA.declare(pl["lat"], pl["lon"], srcs)
+        holder: dict = {}
+
+        def work():
+            from .. import siteprofile as SP
+            p = SP.profile(pl["lat"], pl["lon"], pl.get("name") or "Site", only=["air_local", "water_stress"], use_cache=False)
+            out = {"reply": "", "blocks": [], "actions": []}
+            e = p["hazards"].get("air_local")
+            lines = ["Stored as declared sources (not verified in any database): " + ", ".join(s["kind"] for s in srcs) + "."]
+            if e and e["status"] != "null":
+                a = e["metrics"]
+                rec = a["record"]
+                inc = a["increment"]["central"]
+                lines.append(f'Measured regional background (CAMS, {rec["years_used"][0]}-{rec["years_used"][-1]}): PM2.5 {rec["annual_pm25"]} µg/m3 a year, {rec["days_above_who_24h"]:.0f} days a year above the WHO 24-hour guideline of 15, and {rec["days_above_naaqs_24h"]:.1f} above the Indian 60.')
+                if any(x.get("modelled") for x in a["sources"]):
+                    lines.append(f'Stack screen of the declared sources: +{inc["min"]} to +{inc["max"]} µg/m3 (central emissions), up to +{a["increment"]["high"]["max"]} in the high scenario, because the direction and distance were not given. Giving them narrows this.')
+                dw = rec.get("diwali") or []
+                if dw:
+                    lines.append("Diwali-day test: " + ", ".join(f'{d["year"]} x{d["ratio"]}' for d in dw) + " against the surrounding days; a regional 10 km record only partly sees local burning.")
+                lines.append("Not modelled: fugitive dust, secondary particles, and fireworks burning. Those are likely larger than the stacks, so this is a lower bound; a ground monitor at the site is the way to settle it.")
+                out["blocks"].append(_blk("table", head=["Source", "Provenance", "PM2.5 central, annual (µg/m3)", "High scenario"],
+                                          rows=[[x["kind"], str(x.get("provenance")), (f'{x["scenarios"]["central"]["pm25_annual_ug_m3"]["min"]} to {x["scenarios"]["central"]["pm25_annual_ug_m3"]["max"]}' if x.get("modelled") else "not modelled"),
+                                                 (str(x["scenarios"]["high"]["pm25_annual_ug_m3"]["max"]) if x.get("modelled") else "")] for x in a["sources"]]))
+            else:
+                lines.append("The air-quality record could not be read just now, so air quality is null (not assessed). " + (e.get("reason") or ""))
+            w = p["hazards"].get("water_stress")
+            if w and w["status"] != "null" and w.get("caveat") and "Declared nearby industrial water users" in w["caveat"]:
+                lines.append(f'Water stress is {w["severity"]} at basin scale ({w["value"]}); the declared thermal and cement users draw on the same basin, so the local picture can be worse.')
+            out["reply"] = " ".join(lines)
+            out["actions"] = [{"type": "say", "label": "Give direction and distance", "text": "the cement plant is 2 km north-east"}]
+            M.add_run("local_sources", {"place": pl["name"], "sources": [s["kind"] for s in srcs]}, [], True, out["reply"][:160])
+            return out
+        holder["j"] = _job(work, f'air quality with local sources at {pl["name"]}')
+        return {"reply": f'Noted: {", ".join(s["kind"] for s in srcs)} near {pl["name"]}. I am reading the measured air-quality record, then screening these sources against the local wind. I will say what is assumed.', "blocks": [], "actions": [], "job": holder["j"]["id"], "intent": "local_sources"}
 
     _PROFILE_RX = re.compile(r"\b(?:all|every|full|complete)\s+(?:the\s+)?hazards?\b|\b(?:hazard|site|risk|location)\s+profile\b|\bfull (?:profile|screen\w*)\b|\bwhat(?:'s| is| are) the (?:hazards?|risks?) (?:at|for|in|near)\b|\bhow risky (?:is|are)\b|\bprofile\b.*\d+\.\d+", re.I)
 
