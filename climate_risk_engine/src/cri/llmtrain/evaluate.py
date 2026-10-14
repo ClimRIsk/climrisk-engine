@@ -77,6 +77,16 @@ def score(row, out):
         else:
             s["says_missing"] = float(bool(MISSING.search(out)))
             s["cites_valid"] = float(not cites or max(cites) <= n)
+    elif k == "siteprofile":
+        nul = row["meta"].get("nulls", [])
+        low = out.lower()
+        s["numbers_ok"] = float(nums(out) <= nums(row["meta"]["facts"]) | nums(u) | {"0"})
+        if nul:
+            s["names_nulls"] = sum(n.lower() in low for n in nul) / len(nul)
+            s["says_not_assessed"] = float("not assessed" in low or "was not assessed" in low or "were not assessed" in low)
+            tail = low.split("null")[0] if "null" in low else low
+            s["null_not_called_low"] = float(not any(re.search(re.escape(n.lower()) + r"[^.;]{0,40}\b(low|zero|negligible|safe)\b", low) for n in nul))
+        s["length_ok"] = float(20 <= len(out.split()) <= 140)
     elif k == "insurer":
         allowed = nums(row["meta"]["facts"]) | nums(u)
         used = nums(out)

@@ -298,6 +298,59 @@ def build_insurer(rng, n, split):
     return rows
 
 
+PROFILE_SYS = ("You are ClimRisk's climate-risk analyst. You are given the hazard profile the engine returned for one place. Each hazard has a status: "
+               "modelled, constructed (built from a fallback, lower confidence), none_found (established absent here, value 0) or null (no data and nothing could be built: NOT ASSESSED, never low, never zero). "
+               "Report only what the profile says. Say which hazards are null and that they were not assessed. Do not invent numbers. 50 to 120 words, plain prose, no lists.")
+
+_PROFILE_HAZ = [("cyclone wind", "m/s", (15, 70)), ("river flood depth", "m", (0.1, 4.0)), ("coastal flood depth", "m", (0.1, 3.5)), ("water stress", "of 5", (0.5, 4.9)),
+                ("extreme heat (WBGT)", "C", (28, 40)), ("extreme rain", "mm per day", (60, 320)), ("wildfire weather (FWI)", "", (20, 120)),
+                ("earthquake shaking", "g", (0.02, 0.5)), ("landslide", "% unstable", (0, 12)), ("drought", "", (0, 1))]
+_PROFILE_PLACES = ["a plant near Chattogram", "a warehouse in Rotterdam", "a mine in Pilbara", "a refinery near Houston", "a data centre in Chennai", "a cement works in Kanpur",
+                   "a port terminal in Durban", "a farm co-op in Punjab", "a substation near Christchurch", "a factory in Virudhunagar"]
+
+
+def build_profile(rng, n: int, split: str):
+    """Answers are correct by construction: every number comes from the supplied profile, every null is called not assessed."""
+    rows = []
+    for _ in range(n):
+        place = rng.choice(_PROFILE_PLACES)
+        haz = rng.sample(_PROFILE_HAZ, rng.randint(5, 8))
+        ent = []
+        for name, unit, (lo, hi) in haz:
+            st = rng.choices(["modelled", "constructed", "none_found", "null"], [5, 2, 1.5, 2.5])[0]
+            v = None if st == "null" else 0.0 if st == "none_found" else round(rng.uniform(lo, hi), 1)
+            ent.append((name, unit, st, v))
+        facts = "; ".join(f"{n} {st}" + (f" {v:g} {u}".rstrip() if st in ("modelled", "constructed") else " 0 (absent here)" if st == "none_found" else " (null)") for n, u, st, v in ent)
+        nul = [n for n, _, st, _ in ent if st == "null"]
+        con = [n for n, _, st, _ in ent if st == "constructed"]
+        ab = [n for n, _, st, _ in ent if st == "none_found"]
+        mod = [(n, u, v) for n, u, st, v in ent if st == "modelled"]
+        qt = rng.choice(["summary", "safe", "nulls"])
+        if qt == "summary":
+            q = f"Summarise the hazard profile for {place}."
+        elif qt == "safe":
+            q = f"Can I say {place} has low climate risk?"
+        else:
+            q = f"Which hazards are missing for {place}, and what should I do about them?"
+        parts = []
+        if mod:
+            parts.append("Modelled: " + ", ".join(f"{n} {v:g} {u}".rstrip() for n, u, v in mod[:3]) + ".")
+        if con:
+            parts.append("Built from a fallback, so lower confidence: " + ", ".join(con) + ".")
+        if ab:
+            parts.append("Established absent here: " + ", ".join(ab) + ".")
+        if nul:
+            parts.append("Null, meaning not assessed: " + ", ".join(nul) + ". These say nothing about risk and must not be read as low or zero; they need a survey, another data source or an expert view.")
+        else:
+            parts.append("No hazard in this profile is null.")
+        if qt == "safe":
+            parts.insert(0, "Not on this profile alone." if nul else "Only for the hazards listed, which is a screening result.")
+        a = " ".join(parts)
+        rows.append({"kind": "siteprofile", "split": split, "meta": {"qtype": qt, "facts": facts, "nulls": nul},
+                     "messages": [{"role": "system", "content": PROFILE_SYS}, {"role": "user", "content": f"Profile for {place}: {facts}\n\nQuestion: {q}"}, {"role": "assistant", "content": a}]})
+    return rows
+
+
 def build_gold():
     rows = []
     for i, (topic, q, a) in enumerate(G.GOLD):
@@ -340,6 +393,7 @@ def main(corpus_dir: Path, out: Path, seed: int = 7):
     if "--no-reports" not in sys.argv and _rp.exists() and _rp.stat().st_size > 0:
         from . import edgar_cases as EC2
         rows += EC2.build_rows(_rp, seed=seed + 60, per_case=3)
+    rows += build_profile(random.Random(seed + 70), 150, "train") + build_profile(random.Random(seed + 71), 20, "valid") + build_profile(random.Random(seed + 72), 20, "test")
     gold = build_gold()
     rows += gold + [dict(r) for r in gold if r["split"] == "train"] * 2        # gold is scarce and high quality: upweight x3
     for r in rows:

@@ -148,3 +148,32 @@ def test_edgar_extractor_keeps_complete_event_sentences_only():
             "The company has no other comment about the weather this year across its business areas.\n")
     q = EC.extract(text, ev)
     assert len(q) == 1 and q[0]["amounts"] and "transfer" in q[0]["response"]
+
+
+def test_siteprofile_rows_never_read_null_as_zero():
+    rows = D.build_profile(random.Random(3), 120, "train")
+    assert len(rows) == 120
+    for r in rows:
+        a = r["messages"][2]["content"]
+        assert 20 <= len(a.split()) <= 140, a
+        nul = r["meta"]["nulls"]
+        if nul:
+            assert "not assessed" in a and all(n in a for n in nul)
+            assert not re.search(r"(?:" + "|".join(re.escape(n) for n in nul) + r")[^.;]*\b(low|zero|0)\b", a.split("Null, meaning not assessed:")[0])
+        nums = set(re.findall(r"\d+(?:\.\d+)?", a))
+        facts = set(re.findall(r"\d+(?:\.\d+)?", r["meta"]["facts"]))
+        assert nums <= facts | {"0"}, (nums - facts, a)
+        assert not re.search(r"^\s*[-*]|\n", a)
+
+
+def test_siteprofile_gold_present():
+    assert sum(1 for t, _, _ in G.GOLD if t == "siteprofile") >= 10
+
+
+def test_siteprofile_scorer_catches_null_called_low():
+    m = [{"content": ""}, {"content": "Profile: earthquake shaking null (null)"}, {"content": "x"}]
+    row = {"kind": "siteprofile", "meta": {"facts": "earthquake shaking null (null)", "nulls": ["earthquake shaking"]}, "messages": m}
+    bad = E.score(row, "Earthquake shaking is low here, 3 g.")
+    assert bad["null_not_called_low"] == 0.0 and bad["numbers_ok"] == 0.0 and bad["says_not_assessed"] == 0.0
+    good = E.score(row, "Null, meaning not assessed: earthquake shaking. It needs a survey.")
+    assert good["null_not_called_low"] == 1.0 and good["says_not_assessed"] == 1.0

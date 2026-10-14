@@ -223,7 +223,7 @@ def _llm_once(question: str, passages: list, model: str, context: Optional[str],
     src = "\n\n".join(f"[{i + 1}] {p['title']}: {p['text']}" for i, p in enumerate(passages))
     sysmsg = ("You are ClimRisk's climate-risk analyst. Answer the question using ONLY the numbered sources. "
               "Cite every factual sentence with its source number in square brackets, like [2]. "
-              "If the sources do not contain the answer, say exactly what is missing instead of guessing. "
+              "If the sources do not contain the answer, say exactly what is missing instead of guessing. A hazard reported as null was not assessed: never call it low or zero. "
               "Write 120 to 220 words in plain prose: lead with the answer, then the mechanism, then what it means for an asset owner or lender. No bullet lists.")
     if strict:
         sysmsg += (" STRICT FORMAT: end EVERY sentence with its source marker, for example: "
