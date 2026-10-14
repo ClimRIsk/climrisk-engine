@@ -12,6 +12,7 @@ What it is not: a vendor catastrophe model. Damage functions are published, unca
 from __future__ import annotations
 
 import math
+import re
 import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Callable, Optional
@@ -97,7 +98,12 @@ def normalise_site(s: dict, k: int) -> dict:
     f_lim = _num(s.get("flood_limit_usd"), "flood_limit_usd", k, 0)
     if lim <= ded:
         raise InsuranceError(f"site {k + 1}: limit must exceed the deductible")
-    covers = s.get("covers") or ["wind", "flood"]
+    off = s.get("offshore")
+    if off is None and re.search(r"offshore.{0,12}wind|wind.{0,12}offshore", str(s.get("sector") or ""), re.I):
+        off = {}
+    if off is not None and not isinstance(off, dict):
+        raise InsuranceError(f"site {k + 1}: offshore must be an object (hub_height_m, vref_ms, hs_design_m, turbines, claims, claims_exposure_turbine_years)")
+    covers = s.get("covers") or (["wind"] if off is not None else ["wind", "flood"])
     covers = [str(c).lower() for c in (covers.split(",") if isinstance(covers, str) else covers)]
     bad = [c for c in covers if c not in ("wind", "flood")]
     if bad:
@@ -107,7 +113,7 @@ def normalise_site(s: dict, k: int) -> dict:
             "terms": {"wind": {"ded": w_ded if w_ded is not None else ded, "lim": w_lim if w_lim is not None else lim},
                       "flood": {"ded": f_ded if f_ded is not None else ded, "lim": f_lim if f_lim is not None else lim},
                       "total_limit": lim},
-            "hazard": s.get("hazard"), "vulnerability": s.get("vulnerability")}
+            "hazard": s.get("hazard"), "vulnerability": s.get("vulnerability"), "offshore": off}
 
 
 # ── hazards ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -127,6 +133,12 @@ def fetch_hazards(sites: list, workers: int = 8, flood_fn: Optional[Callable] = 
             h = dict(site["hazard"])
             h.setdefault("notes", [])
             return h
+        if site.get("offshore") is not None:                       # a turbine site at sea: tropical-cyclone and land flood maps do not apply; build the North-Sea-type storm and wave hazard
+            from .analysis import offshore_wind as OW
+            o = site["offshore"]
+            st = OW.hazard(site["lat"], site["lon"], hub_m=float(o.get("hub_height_m") or 120.0), vref_ms=float(o.get("vref_ms") or 50.0), hs_design_m=o.get("hs_design_m"))
+            return {"iso3": site.get("country"), "cont": "europe", "tc_region": "ROW", "wind": {"lam": 0.0, "sigma": None, "rp100_ms": None}, "river": None, "coast": None, "storm": st,
+                    "notes": ([] if st.get("status") != "null" else ["storm and wave hazard unavailable: " + str(st.get("reason"))])}
         notes = []
         try:
             adm = geo.admin_at(site["lat"], site["lon"])
@@ -288,6 +300,25 @@ def _wind_damage(seed, u, lam, sigma, vh_c, vh_h, uv, wind_scale):
     return out
 
 
+def _add_storm(wind, u, hazards, uv):
+    """Extratropical storm and wave damage for offshore turbine sites: one annual-maximum storm per site-year from the correlated uniform, wind and waves of the same storm
+    (comonotone), load ratio against the design wind and design wave, placeholder damage curve whose centre is drawn once per year between a severe and a benign reading."""
+    from .analysis import offshore_wind as OW
+    out = wind.copy()
+    for j, h in enumerate(hazards):
+        st = h.get("storm")
+        if not st or st.get("status") != "constructed":
+            continue
+        mu_v, b_v = st["gumbel"]["wind_hub"]; mu_h, b_h = st["gumbel"]["hs"]
+        lu = -np.log(u[:, j])
+        v = mu_v - b_v * np.log(lu); hs = mu_h - b_h * np.log(lu)
+        r = OW.load_ratio(v, hs, st["design"]["vref_ms"], st["design"]["hs50_m"])
+        rh = OW.CURVE["r_half_severe"] + uv * (OW.CURVE["r_half_benign"] - OW.CURVE["r_half_severe"])
+        d = np.array([float(OW.storm_damage(r[i], rh[i])) for i in range(len(r))])
+        out[:, j] = 1.0 - (1.0 - out[:, j]) * (1.0 - d)
+    return out
+
+
 def _flood_damage(u, curves, mult):
     """Annual flood damage ratio per site from correlated uniform u: return period T = 1/(1-u), curve interpolated in log T, zero inside the defence standard."""
     from .finance.distribution import _interp_rp
@@ -325,6 +356,7 @@ def ground_up(sites: list, hazards: list, n_years: int, seed: int, corr_scale: f
     u_r = _uniforms(rng_r, ny, lat, lon, CORR_KM["river"], corr_scale, groups)
     u_c = _uniforms(rng_c, ny, lat, lon, CORR_KM["coast"], corr_scale, groups)
     wind = _wind_damage(seed, u_w, lam, sig, vhc, vhh, uv, wscale)
+    wind = _add_storm(wind, u_w, hazards, uv)
     rcur = [(h.get("river_cc") if climate and h.get("river_cc") is not None else _flood_damage_curve(h, "river", h.get("cont", "oceania"))) for h in hazards]
     ccur = [(h.get("coast_cc") if climate and h.get("coast_cc") is not None else _flood_damage_curve(h, "coast", h.get("cont", "oceania"))) for h in hazards]
     river = _flood_damage(u_r, rcur, mult)
@@ -426,11 +458,33 @@ def _not_assessed(s: dict, h: dict) -> list:
     """Perils a policy line asks to cover that this engine could not assess at the place. A peril with no hazard data is NOT ASSESSED; it must never read as zero loss."""
     out = []
     w = h.get("wind") or {}
-    if "wind" in s["covers"] and not (w.get("lam") or 0.0) > 0.0:
+    st = h.get("storm")
+    if "wind" in s["covers"] and st is not None:
+        if st.get("status") != "constructed":
+            out.append({"peril": "wind", "reason": "storm and wave hazard could not be built here: " + str(st.get("reason")) + "; storm loss is not assessed (not zero)"})
+    elif "wind" in s["covers"] and not (w.get("lam") or 0.0) > 0.0:
         out.append({"peril": "wind", "reason": "the wind module models tropical cyclones only and this place has no tropical-cyclone record; extratropical windstorm, the main wind peril in Europe, Canada and the North Sea, is not modelled here, so wind loss is not assessed (not zero)"})
     if "flood" in s["covers"] and not h.get("river") and not h.get("coast"):
         out.append({"peril": "flood", "reason": "no river or coastal flood map exists at this location (for example open sea), so flood loss is not assessed (not zero)"})
     return out
+
+
+def _offshore_scope(s: dict, h: dict, exp_ok: bool) -> list:
+    """What an offshore wind price does and does not contain, peril by peril (researched scope, not just wind)."""
+    st = h.get("storm") or {}
+    cold = st.get("cold") or {}
+    x = lambda n, status, basis: {"peril": n, "status": status, "basis": basis}  # noqa: E731
+    return [
+        x("storm: extreme wind and waves", "modelled (placeholder damage curve)" if st.get("status") == "constructed" else "not assessed", "ERA5 return levels; damage curve is a bracket from design practice, not claims"),
+        x("weather windows and access (BI duration)", "modelled" if (st.get("access") or {}).get("share_of_hours_hs_below") else "not assessed", "ERA5 hourly waves; sets how long a repair waits"),
+        x("cables, installation, blades, drivetrain, electrical, vessel impact, lightning, other", "priced from the insurer's claims" if exp_ok else "not assessed: no claims supplied",
+          "Gamma-Poisson credibility on the claims history; about half or more of offshore wind claims by value (Allianz, GCube, DNV)"),
+        x("sea ice, icing and freeze-thaw", "screened, not priced" if cold.get("status") == "constructed" else "not assessed", "freezing degree-days, icing-prone days, air freeze-thaw days; loss effect only through claims"),
+        x("scour, seabed mobility, cable burial", "not assessed", "needs geotechnical and bathymetric survey; present in cable claims only through experience"),
+        x("corrosion, marine growth, fatigue", "not assessed", "gradual deterioration, normally outside sudden-and-accidental cover; matters for design life and warranty"),
+        x("ship collision", "not assessed", "needs shipping-traffic (AIS) density; present in claims only through experience"),
+        x("earthquake", "not assessed here", "low in the North Sea; the site profile's earthquake screen applies"),
+    ]
 
 
 def _site_rows(sites, hazards, L, g, cap_q, coc, exp_ratio, unc_load):
@@ -444,17 +498,28 @@ def _site_rows(sites, hazards, L, g, cap_q, coc, exp_ratio, unc_load):
         aal = float(loss.mean())
         tail_c = float(loss[tail].mean()) if tail.any() else 0.0
         capital = max(tail_c - aal, 0.0)
-        prem = (aal * (1.0 + unc_load) + coc * capital) / (1.0 - exp_ratio)
         w = (h.get("wind") or {})
         na = _not_assessed(s, h)
         none_assessed = len(na) >= len(s["covers"])
-        rows.append({"not_assessed": na, "coverage_complete": not na, "name": s["name"], "lat": s["lat"], "lon": s["lon"], "country": h.get("iso3") or s.get("country"), "sector": s["sector"], "tiv": s["tiv"],
+        exp = s.get("_experience")
+        exp_ok = bool(exp) and exp.get("status") == "modelled"
+        exp_missing = bool(exp) and not exp_ok
+        premium_withheld = none_assessed
+        aal_exp = float(exp["aal_asset"]) if exp_ok else 0.0
+        prem_weather = (aal * (1.0 + unc_load) + coc * capital) / (1.0 - exp_ratio)
+        prem = ((aal + aal_exp) * (1.0 + unc_load) + coc * capital) / (1.0 - exp_ratio)
+        if exp_missing:
+            na = na + [{"peril": "experience losses (subsea cable, installation, blade, drivetrain, electrical, vessel impact)", "reason": exp.get("reason")}]
+            premium_withheld = True                          # a premium for offshore wind without its experience losses is not a price: withheld, the weather part is shown separately
+        scope = _offshore_scope(s, h, exp_ok) if s.get("offshore") is not None else None
+        rows.append({"not_assessed": na, "peril_scope": scope, "aal_experience": aal_exp if exp_ok else None, "experience": exp, "weather_premium_component": None if none_assessed else prem_weather,
+                     "storm": ({k: (h["storm"].get(k)) for k in ("status", "years", "return_levels", "design", "wind_wave_rank_correlation", "storm_damage_ratio_aal", "access", "cold", "assumptions", "limits", "wind_source", "wave_source", "reason")} if h.get("storm") else None), "coverage_complete": not na, "name": s["name"], "lat": s["lat"], "lon": s["lon"], "country": h.get("iso3") or s.get("country"), "sector": s["sector"], "tiv": s["tiv"],
                      "deductible": s["terms"]["wind"]["ded"], "limit": s["terms"]["total_limit"], "covers": s["covers"],
                      "ground_up_aal": None if none_assessed else float(L["ground_up_total"][:, j].mean()), "aal": None if none_assessed else aal, "aal_wind": float(L["wind"][:, j].mean()),
                      "aal_river": float(L["river"][:, j].mean()), "aal_coast": float(L["coast"][:, j].mean()),
-                     "rate_permille": None if none_assessed else _rate_str(aal, s["tiv"]), "stand_alone_1in100": float(np.quantile(loss, 0.99)),
+                     "rate_permille": None if none_assessed else _rate_str(aal + aal_exp, s["tiv"]), "stand_alone_1in100": float(np.quantile(loss, 0.99)),
                      "stand_alone_1in250": float(np.quantile(loss, 1 - 1 / 250)), "tail_contribution": tail_c,
-                     "capital_proxy": capital, "technical_premium": None if none_assessed else prem, "premium_rate_permille": None if none_assessed else _rate_str(prem, s["tiv"]),
+                     "capital_proxy": capital, "technical_premium": None if premium_withheld else prem, "premium_rate_permille": None if premium_withheld else _rate_str(prem, s["tiv"]),
                      "hazard": {"cyclone_rate": w.get("lam"), "cyclone_rp100_ms": w.get("rp100_ms"), "river_map": bool(h.get("river")),
                                 "coast_map": bool(h.get("coast")), "river_protection_rp": (h.get("river") or {}).get("protection"),
                                 "coast_protection_rp": (h.get("coast") or {}).get("protection")},
@@ -506,6 +571,11 @@ def run(sites_in: list, hazards: Optional[list] = None, n_years: int = 5000, see
         raise InsuranceError("corr_scale must be between 0.25 and 4")
     sites = [normalise_site(s, k) for k, s in enumerate(sites_in)]
     hz = hazards if hazards is not None else fetch_hazards(sites, flood_fn=flood_fn, tc_fn=tc_fn)
+    for s_ in sites:                                                 # experience rating for offshore wind from the insurer's own claims (NOT ASSESSED without them)
+        o_ = s_.get("offshore")
+        if o_ is not None:
+            from .analysis import claims_credibility as _cc
+            s_["_experience"] = _cc.assess(o_.get("claims"), float(o_.get("claims_exposure_turbine_years") or 0.0), "turbine-years", float(o_.get("turbines") or 1.0))
     for s_, h_ in zip(sites, hz):                                  # optional empirical US residential flood curve per policy line
         if s_.get("vulnerability") == "nfip_residential_us":
             h_["cont"] = "nfip_residential_us"
