@@ -1,0 +1,162 @@
+{
+ "uae_dubai": {
+  "event": "UAE floods April 2024",
+  "place": [
+   25.2,
+   55.27
+  ],
+  "source": "NASA POWER (MERRA-2)",
+  "variable": "2-day rain (mm)",
+  "event_value": 63.0,
+  "fit_years": 44,
+  "median_annual_max": 22.0,
+  "largest_other_year": 78.0,
+  "return_period_years": 14.0,
+  "expectation": "return period of 100 years or more",
+  "passed": false
+ },
+ "mcmurray_fire": {
+  "event": "Fort McMurray wildfire",
+  "place": [
+   56.73,
+   -111.38
+  ],
+  "source": "NASA POWER (MERRA-2)",
+  "variable": "Canadian FWI on the event day",
+  "event_value": 22.8,
+  "local_p99": 32.9,
+  "percentile_of_event_day": 93.9,
+  "expectation": "above the local 99th percentile of the season's days",
+  "passed": false
+ },
+ "palisades_fire": {
+  "event": "Palisades fire",
+  "place": [
+   34.05,
+   -118.55
+  ],
+  "source": "NASA POWER (MERRA-2)",
+  "variable": "Canadian FWI on the event day",
+  "event_value": 102.9,
+  "local_p99": 81.7,
+  "percentile_of_event_day": 99.9,
+  "expectation": "above the local 99th percentile of the season's days",
+  "passed": true
+ },
+ "uri_houston": {
+  "event": "Winter Storm Uri",
+  "place": [
+   29.76,
+   -95.37
+  ],
+  "source": "NASA POWER (MERRA-2)",
+  "variable": "annual minimum of the daily low (C)",
+  "event_value": -10.7,
+  "median_annual_min": -4.6,
+  "coldest_other_year": -12.1,
+  "return_period_years": 29.0,
+  "expectation": "return period of 20 years or more",
+  "passed": true
+ },
+ "uri_dallas": {
+  "event": "Winter Storm Uri",
+  "place": [
+   32.78,
+   -96.8
+  ],
+  "source": "NASA POWER (MERRA-2)",
+  "variable": "annual minimum of the daily low (C)",
+  "event_value": -15.7,
+  "median_annual_min": -7.9,
+  "coldest_other_year": -17.6,
+  "return_period_years": 35.0,
+  "expectation": "return period of 20 years or more",
+  "passed": true
+ },
+ "map_ayutthaya_2011": {
+  "event": "Thailand floods 2011 (Ayutthaya)",
+  "place": [
+   14.35,
+   100.57
+  ],
+  "source": "JRC CEMS-GloFAS global river flood hazard maps v2.1.2 (3 arc-sec), undefended",
+  "variable": "river map, 1-in-100-year mean depth over a 250 m footprint (m)",
+  "map_available": true,
+  "event_value": 1.61,
+  "expectation": "map shows more than 0.3 m",
+  "note": "large river basin (Chao Phraya)",
+  "passed": true
+ },
+ "map_ahrweiler_2021": {
+  "event": "Ahr valley flood July 2021 (Bad Neuenahr-Ahrweiler)",
+  "place": [
+   50.5385,
+   7.1127
+  ],
+  "source": "JRC CEMS-GloFAS global river flood hazard maps v2.1.2 (3 arc-sec), undefended",
+  "variable": "river map, 1-in-100-year mean depth over a 250 m footprint (m)",
+  "map_available": true,
+  "event_value": 0.0,
+  "expectation": "map shows more than 0.3 m",
+  "note": "small catchment; 134 deaths in the Ahr valley, about 8.2 billion EUR insured in Germany; discharge far above statistical 100-year values",
+  "passed": false
+ },
+ "map_buffalo_bayou_2017": {
+  "event": "Hurricane Harvey (Buffalo Bayou, Houston)",
+  "place": [
+   29.76,
+   -95.37
+  ],
+  "source": "JRC CEMS-GloFAS global river flood hazard maps v2.1.2 (3 arc-sec), undefended",
+  "variable": "river map, 1-in-100-year mean depth over a 250 m footprint (m)",
+  "map_available": true,
+  "event_value": 2.26,
+  "expectation": "map shows more than 0.3 m",
+  "note": "Buffalo Bayou crested 2 ft above its 1992 record",
+  "passed": true
+ },
+ "map_houston_ship_channel": {
+  "event": "Houston Ship Channel refinery area (no documented expectation)",
+  "place": [
+   29.72,
+   -95.0
+  ],
+  "source": "JRC CEMS-GloFAS global river flood hazard maps v2.1.2 (3 arc-sec), undefended",
+  "variable": "river map, 1-in-100-year mean depth over a 250 m footprint (m)",
+  "map_available": true,
+  "event_value": 0.0,
+  "expectation": "no documented expectation; shows how the map behaves",
+  "note": "industrial area near Galveston Bay",
+  "passed": null
+ },
+ "map_dubai_marina": {
+  "event": "Dubai Marina (no documented expectation)",
+  "place": [
+   25.08,
+   55.14
+  ],
+  "source": "JRC CEMS-GloFAS global river flood hazard maps v2.1.2 (3 arc-sec), undefended",
+  "variable": "river map, 1-in-100-year mean depth over a 250 m footprint (m)",
+  "map_available": true,
+  "event_value": 1.35,
+  "expectation": "no documented expectation; shows how the map behaves",
+  "note": "desert city: a river-flood depth here would be a map artefact or wadi flow",
+  "passed": null
+ },
+ "harvey_houston": {
+  "event": "Hurricane Harvey",
+  "place": [
+   29.76,
+   -95.37
+  ],
+  "source": "NASA POWER (MERRA-2)",
+  "variable": "5-day rain (mm)",
+  "event_value": 598.0,
+  "fit_years": 44,
+  "median_annual_max": 118.0,
+  "largest_other_year": 346.0,
+  "return_period_years": ">1000 (beyond what a 40-year record can say)",
+  "expectation": "return period of 50 years or more",
+  "passed": true
+ }
+}

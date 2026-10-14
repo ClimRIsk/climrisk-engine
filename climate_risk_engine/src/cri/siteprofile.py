@@ -131,7 +131,9 @@ def _h_river(c: Ctx) -> dict:
             att.append({"rung": "JRC CEMS-GloFAS river flood maps", "ok": True})
             return _entry(KEY, LAB, "modelled", value=round(mean, 2), unit="m (1-in-100-yr mean depth over the footprint)", severity=_depth_sev(mean),
                           metrics={"wet_share_rp100": round(wet, 2), "return_periods": riv.get("rps")}, method="JRC river flood hazard maps (undefended, 90 m).",
-                          sources=[riv.get("source") or "JRC CEMS-GloFAS v2.1"], attempts=att, family=FAM)
+                          sources=[riv.get("source") or "JRC CEMS-GloFAS v2.1"], attempts=att, family=FAM,
+                          caveat=("River-network inundation only: rainfall-driven surface-water flooding and floods on small rivers are not in this map. A zero depth means no mapped river flooding, not no flooding. "
+                                  "Event check: it shows 1.6 m at the Ayutthaya cluster flooded in 2011 and 2.3 m on Buffalo Bayou, Houston (Harvey 2017), but 0 m in the Ahr valley at Ahrweiler, where the July 2021 flood killed 134 people."))
         why = "site footprint lies on the mapped water body" if riv.get("footprint_on_water") else (riv.get("reason") or riv.get("note") or "no river flood map here")
         att.append({"rung": "JRC CEMS-GloFAS river flood maps", "ok": False, "why": str(why)[:160]})
     else:
@@ -227,6 +229,22 @@ def _h_thermal(c: Ctx) -> dict:
                   method=a["method"], grade="B", sources=["ERA5 via Open-Meteo archive", "UTCI polynomial (Broede et al. 2012)", "Thorsson et al. 2007 radiation budget", "CMIP6 via World Bank CCKP (future sensitivity)"],
                   attempts=[{"rung": "ERA5 hourly + UTCI", "ok": True}, {"rung": "CMIP6 warming sensitivity", "ok": a["future"].get("status") == "ok", "why": a["future"].get("reason")}],
                   family="heat", caveat=" ".join(cav))
+
+
+def _h_cold(c: Ctx) -> dict:
+    """Cold extremes: return levels of the coldest day of the year, hard-freeze days, ice-day runs; the freeze that plants in warm climates are not built for (Texas, February 2021)."""
+    from .analysis import cold_extremes as CE
+    KEY, LAB = "cold_extreme", "Cold extremes (coldest day of the year, return levels)"
+    a = CE.assess(c.lat, c.lon, design_min_c=(c.twin or {}).get("design_min_c") if isinstance(c.twin, dict) else None)
+    if a["status"] == "null":
+        return _null(KEY, LAB, "cold", [{"rung": "ERA5 daily minimum + Gumbel", "ok": False, "why": a["reason"]}], a["reason"])
+    rl = a["return_levels_c"]
+    return _entry(KEY, LAB, a["status"], value=rl[50], unit="C, 1-in-50-year coldest daily low", severity=a["severity"],
+                  metrics={k: a[k] for k in ("annual_minimum_c", "return_levels_c", "hard_freeze_days_per_year", "ice_day_run_days", "surprise_c", "extrapolated_return_periods", "years", "weather_source")} | ({"design_check": a["design_check"]} if "design_check" in a else {}),
+                  method="Gumbel (L-moments) on annual minima of ERA5 daily minimum temperature; severity from how far the 1-in-50 day lies below a typical year's coldest day.",
+                  grade="C", sources=["ERA5 via Open-Meteo archive" if a["status"] == "modelled" else a["weather_source"]],
+                  attempts=[{"rung": "ERA5 daily minimum + Gumbel", "ok": True}], family="cold",
+                  caveat="Tested on one documented event only: Winter Storm Uri (Houston about 1-in-29 years, Dallas 1-in-35 on the smoother fallback data). " + " ".join(a["limits"]))
 
 
 def _h_air_local(c: Ctx) -> dict:
@@ -397,7 +415,7 @@ def _h_lab(c: Ctx, key: str) -> dict:
 # ── registry and runner ─────────────────────────────────────────────────────────────
 
 def registry() -> list:
-    reg = [("cyclone", "fast", _h_cyclone), ("river_flood", "fast", _h_river), ("coastal_flood", "fast", _h_coastal), ("water_stress", "fast", _h_water), ("air_local", "fast", _h_air_local), ("thermal_stress", "site", _h_thermal)]
+    reg = [("cyclone", "fast", _h_cyclone), ("river_flood", "fast", _h_river), ("coastal_flood", "fast", _h_coastal), ("water_stress", "fast", _h_water), ("air_local", "fast", _h_air_local), ("thermal_stress", "site", _h_thermal), ("cold_extreme", "site", _h_cold)]
     reg += [(_SITE_MAP[h][0], "site", (lambda c, h=h: _site_entry(c, h))) for h in _SITE_MAP]
     reg += [(f"lab:{k}", "deep", (lambda c, k=k: _h_lab(c, k))) for k in _LAB]
     return reg

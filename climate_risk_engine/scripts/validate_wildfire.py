@@ -56,7 +56,7 @@ def stage_select() -> None:
     print(len(chosen), "boxes:", [(c["lat"], c["lon"], c["n_large_fires"]) for c in chosen])
 
 
-def _series(lat, lon):
+def _series(lat, lon, y1=2023):
     """Daily T max, RH min, wind max (km/h), rain: ERA5 through Open-Meteo when its allowance lets us, else NASA POWER (the engine's own fallback)."""
     from cri.modellab import data as D, heat
     v = "temperature_2m_max,relative_humidity_2m_min,wind_speed_10m_max,precipitation_sum"
@@ -69,12 +69,12 @@ def _series(lat, lon):
                 raise D.QuotaExceeded("rate limited") from e
             raise
     try:
-        dd = D.archive(lat, lon, 1981, 2023, daily=v, fetch=once)["daily"]
+        dd = D.archive(lat, lon, 1981, y1, daily=v, fetch=once)["daily"]
         ok = [i for i in range(len(dd["time"])) if None not in (dd[k][i] for k in v.split(","))]
         return ([dd["time"][i] for i in ok], np.array([dd["temperature_2m_max"][i] for i in ok], float), np.array([dd["relative_humidity_2m_min"][i] for i in ok], float),
                 np.array([dd["wind_speed_10m_max"][i] for i in ok], float), np.array([dd["precipitation_sum"][i] for i in ok], float), "ERA5 (Open-Meteo)")
     except D.QuotaExceeded:
-        d = D.power_daily(lat, lon, 1981, 2023, "T2M_MAX,T2MDEW,WS10M_MAX,PRECTOTCORR")
+        d = D.power_daily(lat, lon, 1981, y1, "T2M_MAX,T2MDEW,WS10M_MAX,PRECTOTCORR")
         ok = [i for i in range(len(d["time"])) if None not in (d["T2M_MAX"][i], d["T2MDEW"][i], d["WS10M_MAX"][i], d["PRECTOTCORR"][i])]
         t = np.array([d["T2M_MAX"][i] for i in ok]); td = np.array([d["T2MDEW"][i] for i in ok])
         rh = np.clip(100.0 * heat.sat_vapour_pressure_hpa(td) / heat.sat_vapour_pressure_hpa(t), 1, 100)

@@ -183,9 +183,9 @@ def test_offshore_premium_withheld_without_claims_and_priced_with_them():
     assert r1["sites"][0]["technical_premium"] is None
 
 
-def test_offshore_cold_screen_with_fake_fetch():
-    import datetime as dt, math, tempfile, os
-    os.environ["CRI_CACHE_DIR"] = tempfile.mkdtemp()
+def test_offshore_cold_screen_with_fake_fetch(monkeypatch, tmp_path):
+    import datetime as dt, math
+    monkeypatch.setenv("CRI_CACHE_DIR", str(tmp_path))
     from cri.analysis import offshore_wind as O
     days = []; d = dt.date(1989, 1, 1)
     while d <= dt.date(2024, 12, 31):

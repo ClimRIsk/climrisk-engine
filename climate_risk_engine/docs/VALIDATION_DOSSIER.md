@@ -165,3 +165,27 @@ Scope (background research, not only wind). Public sources agree that most offsh
 Built: ERA5 gust and wave return levels (Gumbel, L-moments), wind-wave dependence, vessel access windows, a PLACEHOLDER storm damage curve shown as a benign, central and severe bracket, a cold-season screen (freezing degree-days, icing-prone days, air freeze-thaw days, no loss effect), and an experience-rating layer (Gamma-Poisson credibility) on the insurer's claims. With no claims the premium is withheld and only the weather component is shown.
 
 Not validated: the gust and wave return levels have not yet been scored against buoy or platform observations; the damage curve is uncalibrated; the cold screen is air-temperature only; the claims layer has been exercised on invented claims in tests, not on real ones. NASA POWER fallback winds read low. The resident AI has gold answers for the framework but has not been retrained on them.
+
+
+## Scenario suite and event checks across sectors and regions (added)
+
+Why. A single client scenario (North Sea offshore wind) exposed that the engine returned a false zero. This section records the systematic follow-up: research into the perils that drive loss by sector and region (`docs/SCENARIO_RESEARCH.md`), 30 scenarios with 38 sites run through the engine (`cri.scenario_suite`, `tests/test_scenarios.py`, `docs/SCENARIO_REPORT.md`), real-event checks of the hazard layers (`scripts/validate_scenario_events.py`), and a ranked list of what is missing (`docs/GAP_REGISTER.md`).
+
+Coverage. Of 96 primary-peril occurrences across the scenarios the engine has a loss model for 32 %, a hazard value only for 39 %, a proxy for 4 % and nothing for 25 %. Most frequently missing: severe convective storm and hail (7 scenarios), supply chain and contingent business interruption (7), drought and water stress to loss (6), onshore windstorm, surface-water flood and wildfire to loss (5 each). Every site now carries a peril scope and a premium states which primary perils are outside it.
+
+Event checks (one event per peril; they show blindness, they do not validate tails):
+
+| Event | Layer | Result |
+|---|---|---|
+| Winter Storm Uri, Feb 2021 | new cold-extremes hazard | Houston about 1-in-29 years, Dallas 1-in-35 (fallback data, event year left out of the fit): pass |
+| Hurricane Harvey, Aug 2017 | rain extremes | 5-day rain 598 mm against a largest other year of 346 mm: beyond the record, pass |
+| UAE floods, Apr 2024 | rain extremes | 2-day rain 63 mm, about 1-in-14 years on the smooth fallback data against a 100-year expectation: **fail** (ERA5 and gauge data unchecked) |
+| Palisades fire, Jan 2025 | fire weather | 99.9th percentile of local days: pass |
+| Fort McMurray fire, May 2016 | fire weather | 94th percentile against a 99th expectation: **fail** on fallback data |
+| Thailand 2011 (Ayutthaya) | river flood map | 1.6 m at 1-in-100 years: pass |
+| Harvey (Buffalo Bayou) | river flood map | 2.3 m: pass |
+| Ahr valley flood, Jul 2021 | river flood map | 0 m at Ahrweiler: **fail**; the map is river-network only and the flood was on a small river |
+
+Fixes made. Flood-covered sites now state that surface-water and small-river flood are not assessed and the premium is flagged a lower bound; an offshore site in a typhoon basin is withheld; a cold-extremes hazard (Gumbel on annual minima, design-minimum exceedance) is in the site profile; limit texts in the rain, fire-weather and river-flood outputs carry these results. A scenario with an unrecognised sector falls back to a generic list and says so.
+
+Not fixed (see the gap register): hail, supply chain and BI, sector vulnerability (the insurer module uses one industrial flood curve for every asset), surface-water flood, ERA5 versus fallback data, Dubai Marina river-flood artefact, Houston Ship Channel unverified, offshore return levels not checked against buoys.

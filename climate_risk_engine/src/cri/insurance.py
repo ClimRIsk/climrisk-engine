@@ -137,8 +137,15 @@ def fetch_hazards(sites: list, workers: int = 8, flood_fn: Optional[Callable] = 
             from .analysis import offshore_wind as OW
             o = site["offshore"]
             st = OW.hazard(site["lat"], site["lon"], hub_m=float(o.get("hub_height_m") or 120.0), vref_ms=float(o.get("vref_ms") or 50.0), hs_design_m=o.get("hs_design_m"))
-            return {"iso3": site.get("country"), "cont": "europe", "tc_region": "ROW", "wind": {"lam": 0.0, "sigma": None, "rp100_ms": None}, "river": None, "coast": None, "storm": st,
-                    "notes": ([] if st.get("status") != "null" else ["storm and wave hazard unavailable: " + str(st.get("reason"))])}
+            notes_o = [] if st.get("status") != "null" else ["storm and wave hazard unavailable: " + str(st.get("reason"))]
+            tco = {"lam": 0.0, "sigma": None, "rp100_ms": None}
+            if abs(site["lat"]) < 35 and not (site["lat"] < -5 and -75 < site["lon"] < 20):           # a basin with tropical cyclones: the North Sea storm path does not describe a typhoon
+                try:
+                    t_ = tc_fn(site["lat"], site["lon"])
+                    tco = {"lam": float(t_.get("lam") or 0.0), "sigma": t_.get("sigma"), "rp100_ms": t_.get("rp100_ms")}
+                except Exception as e:                                                                  # noqa: BLE001
+                    tco = {"lam": None, "sigma": None, "rp100_ms": None, "error": str(e)[:100]}
+            return {"iso3": site.get("country"), "cont": "europe", "tc_region": "ROW", "wind": {"lam": 0.0, "sigma": None, "rp100_ms": None}, "tc_offshore": tco, "river": None, "coast": None, "storm": st, "notes": notes_o}
         notes = []
         try:
             adm = geo.admin_at(site["lat"], site["lon"])
@@ -460,12 +467,19 @@ def _not_assessed(s: dict, h: dict) -> list:
     w = h.get("wind") or {}
     st = h.get("storm")
     if "wind" in s["covers"] and st is not None:
+        tco = h.get("tc_offshore") or {}
+        if tco.get("lam") is None or (tco.get("lam") or 0.0) > 0.0:
+            out.append({"peril": "tropical cyclone (typhoon) loss to offshore turbines", "effect": "withhold", "reason": ("tropical-cyclone record unreadable here" if tco.get("lam") is None else
+                        f"this site lies in a tropical-cyclone basin (about {tco['lam']:.2f} events a year within range); the storm and wave model is built for extratropical storms and the offshore turbine typhoon vulnerability is not modelled, so typhoon loss is not assessed (not zero)")})
         if st.get("status") != "constructed":
             out.append({"peril": "wind", "reason": "storm and wave hazard could not be built here: " + str(st.get("reason")) + "; storm loss is not assessed (not zero)"})
     elif "wind" in s["covers"] and not (w.get("lam") or 0.0) > 0.0:
         out.append({"peril": "wind", "reason": "the wind module models tropical cyclones only and this place has no tropical-cyclone record; extratropical windstorm, the main wind peril in Europe, Canada and the North Sea, is not modelled here, so wind loss is not assessed (not zero)"})
     if "flood" in s["covers"] and not h.get("river") and not h.get("coast"):
         out.append({"peril": "flood", "reason": "no river or coastal flood map exists at this location (for example open sea), so flood loss is not assessed (not zero)"})
+    elif "flood" in s["covers"] and s.get("offshore") is None:
+        out.append({"peril": "flood: surface-water and small-river", "effect": "lower_bound",
+                    "reason": "the flood maps are river-network inundation (JRC) and surge plus tide (Deltares). Rainfall-driven surface-water flooding and floods on small rivers are not in them: at Ahrweiler in July 2021 (134 deaths in the Ahr valley, about 8.2 billion EUR insured in Germany) the engine's 1-in-100-year river depth was 0 m. A zero depth here means no mapped river or surge flooding, not no flooding, so the flood loss is a lower bound."})
     return out
 
 
@@ -487,6 +501,26 @@ def _offshore_scope(s: dict, h: dict, exp_ok: bool) -> list:
     ]
 
 
+def _peril_scope(s: dict, h: dict, exp_ok: bool) -> dict:
+    """Relevant perils for the asset class and place, and which of them the quoted number contains (cri.perilscope)."""
+    from . import perilscope as P
+    inc = []
+    st = h.get("storm") or {}
+    if "wind" in s["covers"]:
+        if st.get("status") == "constructed":
+            inc.append("offshore_storm_waves")
+        elif (h.get("wind") or {}).get("lam"):
+            inc.append("tropical_cyclone")
+    if "flood" in s["covers"]:
+        if h.get("river"):
+            inc.append("river_flood")
+        if h.get("coast"):
+            inc.append("coastal_flood_surge")
+    if exp_ok:
+        inc.append("cable_and_component_failure")
+    return P.scope(s.get("sector") or s.get("name"), s["lat"], s["lon"], inc)
+
+
 def _site_rows(sites, hazards, L, g, cap_q, coc, exp_ratio, unc_load):
     agg = L["total"].sum(axis=1)
     thr = np.quantile(agg, cap_q)
@@ -500,19 +534,20 @@ def _site_rows(sites, hazards, L, g, cap_q, coc, exp_ratio, unc_load):
         capital = max(tail_c - aal, 0.0)
         w = (h.get("wind") or {})
         na = _not_assessed(s, h)
-        none_assessed = len(na) >= len(s["covers"])
+        core = [x for x in na if x["peril"] in ("wind", "flood")]
+        none_assessed = len(core) >= len(s["covers"])
         exp = s.get("_experience")
         exp_ok = bool(exp) and exp.get("status") == "modelled"
         exp_missing = bool(exp) and not exp_ok
-        premium_withheld = none_assessed
+        premium_withheld = none_assessed or any(x.get("effect") == "withhold" for x in na)       # a missing typhoon or claims layer means the figure is not a price
         aal_exp = float(exp["aal_asset"]) if exp_ok else 0.0
         prem_weather = (aal * (1.0 + unc_load) + coc * capital) / (1.0 - exp_ratio)
         prem = ((aal + aal_exp) * (1.0 + unc_load) + coc * capital) / (1.0 - exp_ratio)
         if exp_missing:
-            na = na + [{"peril": "experience losses (subsea cable, installation, blade, drivetrain, electrical, vessel impact)", "reason": exp.get("reason")}]
+            na = na + [{"peril": "experience losses (subsea cable, installation, blade, drivetrain, electrical, vessel impact)", "effect": "withhold", "reason": exp.get("reason")}]
             premium_withheld = True                          # a premium for offshore wind without its experience losses is not a price: withheld, the weather part is shown separately
         scope = _offshore_scope(s, h, exp_ok) if s.get("offshore") is not None else None
-        rows.append({"not_assessed": na, "peril_scope": scope, "aal_experience": aal_exp if exp_ok else None, "experience": exp, "weather_premium_component": None if none_assessed else prem_weather,
+        rows.append({"not_assessed": na, "offshore_scope": scope, "peril_scope": _peril_scope(s, h, exp_ok), "aal_experience": aal_exp if exp_ok else None, "experience": exp, "weather_premium_component": None if none_assessed else prem_weather,
                      "storm": ({k: (h["storm"].get(k)) for k in ("status", "years", "return_levels", "design", "wind_wave_rank_correlation", "storm_damage_ratio_aal", "access", "cold", "assumptions", "limits", "wind_source", "wave_source", "reason")} if h.get("storm") else None), "coverage_complete": not na, "name": s["name"], "lat": s["lat"], "lon": s["lon"], "country": h.get("iso3") or s.get("country"), "sector": s["sector"], "tiv": s["tiv"],
                      "deductible": s["terms"]["wind"]["ded"], "limit": s["terms"]["total_limit"], "covers": s["covers"],
                      "ground_up_aal": None if none_assessed else float(L["ground_up_total"][:, j].mean()), "aal": None if none_assessed else aal, "aal_wind": float(L["wind"][:, j].mean()),
@@ -597,9 +632,16 @@ def run(sites_in: list, hazards: Optional[list] = None, n_years: int = 5000, see
     prem_total = float(sum(r["technical_premium"] for r in rows if r["technical_premium"] is not None))
     gaps = [r for r in rows if r["not_assessed"]]
     all_gap = bool(rows) and all(r["technical_premium"] is None for r in rows)
+    out_of_price = [{"site": r["name"], "primary_not_in_price": r["peril_scope"]["summary"]["primary_not_in_price"], "no_engine_module": r["peril_scope"]["summary"]["primary_not_modelled"]}
+                    for r in rows if r.get("peril_scope") and r["peril_scope"]["summary"]["primary_not_in_price"]]
+    scope_note = None
+    if out_of_price:
+        scope_note = (f"SCOPE: at {len(out_of_price)} of {len(rows)} sites, perils that research and loss history identify as primary for the asset class and place are not in this number "
+                      f"(see each site's peril_scope). The figure is the cost of the perils listed in 'covers', not of the asset's full risk.")
     res = {"n_sites": len(sites), "tiv": tiv_total, "n_years": ny, "seed": seed, "stats": stats, "sites": rows, "accumulation": acc, "deductible_ladder": ladder,
            "premium": {"technical_total": None if all_gap else prem_total, "rate_permille": None if all_gap else _rate_str(prem_total, tiv_total),
-                       "complete": not gaps, "sites_with_perils_not_assessed": [r["name"] for r in gaps],
+                       "complete": not gaps, "sites_with_perils_not_assessed": [r["name"] for r in gaps], "scope_note": scope_note,
+                       "vulnerability_basis": "Flood damage uses the JRC industrial depth-damage curve for the continent and wind the Emanuel sigmoid by cyclone basin, for every asset. Homes, offices, mines, solar farms and data centres are not given curves of their own, so loss for them is indicative only.", "sites_with_primary_perils_outside_price": out_of_price,
                        "coverage_warning": (None if not gaps else ("NO PREMIUM: no covered peril could be assessed at any site; this is not a zero-risk finding." if all_gap else
                                             f"LOWER BOUND: {len(gaps)} of {len(rows)} sites have covered perils the engine could not assess; their missing perils are not zero.")),
                        "formula": f"(AAL x (1 + {uncertainty_load:.0%} model-uncertainty load) + {cost_of_capital:.0%} cost of capital x capital proxy) / (1 - {expense_ratio:.0%} expenses); "
