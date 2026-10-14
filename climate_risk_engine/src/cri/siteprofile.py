@@ -209,6 +209,26 @@ def _h_water(c: Ctx) -> dict:
 
 
 
+def _h_thermal(c: Ctx) -> dict:
+    """Thermal stress (UTCI, heat and cold) from hourly reanalysis 1981 to now, with a CMIP6 warming sensitivity."""
+    from .analysis import thermal_stress as TS
+    KEY, LAB = "thermal_stress", "Thermal stress (UTCI heat and cold, hourly 1981 to now)"
+    a = TS.assess(c.lat, c.lon)
+    if a["status"] == "null":
+        return _null(KEY, LAB, "heat", [{"rung": "ERA5 hourly + UTCI", "ok": False, "why": a["reason"]}], a["reason"])
+    sm, b, v = a["summary"], a["bias"], a["validation"]
+    adj = b["heat_hours_per_year_last10_bias_adjusted"]["moderate_heat_ge_32"]
+    cav = [f'Hours a year a person standing in the open would be in thermal stress. UTCI is built here from ERA5 weather (not an archived product). Against 51 weather stations the reanalysis-driven values ran '
+           f'{abs(b["hot_tail_bias_c"])} °C too cool on the hottest hours in this region group ({b["sites_in_group"]} sites, held-out test); the value shown adds that back, and the unadjusted count '
+           f'({sm["heat_hours_per_year_last10"]["moderate_heat_ge_32"]:g} h) is the lower bound. {v["note"]}']
+    cav.extend(a["limits"])
+    return _entry(KEY, LAB, "modelled", value=adj, unit="hours a year with UTCI at or above 32 (moderate heat stress or worse), last 10 years, bias-adjusted",
+                  metrics={"summary": sm, "bias": b, "future": a["future"], "annual": a["annual"], "region_group": a["region_group"], "validation": v},
+                  method=a["method"], grade="B", sources=["ERA5 via Open-Meteo archive", "UTCI polynomial (Broede et al. 2012)", "Thorsson et al. 2007 radiation budget", "CMIP6 via World Bank CCKP (future sensitivity)"],
+                  attempts=[{"rung": "ERA5 hourly + UTCI", "ok": True}, {"rung": "CMIP6 warming sensitivity", "ok": a["future"].get("status") == "ok", "why": a["future"].get("reason")}],
+                  family="heat", caveat=" ".join(cav))
+
+
 def _h_air_local(c: Ctx) -> dict:
     """Air quality from the measured CAMS record plus a source screen of the emitters known or declared near the site."""
     from .analysis import local_air as LA
@@ -377,7 +397,7 @@ def _h_lab(c: Ctx, key: str) -> dict:
 # ── registry and runner ─────────────────────────────────────────────────────────────
 
 def registry() -> list:
-    reg = [("cyclone", "fast", _h_cyclone), ("river_flood", "fast", _h_river), ("coastal_flood", "fast", _h_coastal), ("water_stress", "fast", _h_water), ("air_local", "fast", _h_air_local)]
+    reg = [("cyclone", "fast", _h_cyclone), ("river_flood", "fast", _h_river), ("coastal_flood", "fast", _h_coastal), ("water_stress", "fast", _h_water), ("air_local", "fast", _h_air_local), ("thermal_stress", "site", _h_thermal)]
     reg += [(_SITE_MAP[h][0], "site", (lambda c, h=h: _site_entry(c, h))) for h in _SITE_MAP]
     reg += [(f"lab:{k}", "deep", (lambda c, k=k: _h_lab(c, k))) for k in _LAB]
     return reg

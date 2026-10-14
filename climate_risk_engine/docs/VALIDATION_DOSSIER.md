@@ -137,3 +137,22 @@ Test (scripts/validate_wildfire.py): 7 one-degree boxes in the most fire-prone p
 | Large-fire rate on days with FWI 30 or more, relative to an average day (median, boxes where reached) | 4.7 times |
 
 Failures and limits: the index is no better than temperature alone in any box, and its probabilities add essentially nothing over the season calendar; its value is the high-end signal (days at FWI 30 or more carry about five times the average large-fire risk). Daily maxima stand in for the noon weather the official index uses, which probably costs skill; a noon-hour version is the first improvement to test. Canada's boreal forest only: Mediterranean, tropical and savanna regimes, where fuel and ignition behave differently, are untested. Large-fire days cluster, so the ROC areas are optimistic.
+
+## Thermal stress (UTCI, heat and cold): built for any place, validated at 51 stations (added)
+
+Published UTCI archives cover a limited period and are not available for an arbitrary coordinate, so the engine builds the index itself: ERA5 hourly temperature, humidity, wind and sunshine (1981 to within days of today) give the mean radiant temperature of a standing person (solar geometry and direct/diffuse split after Liljegren 2008; six-direction radiation budget after Thorsson 2007), then the UTCI polynomial of Broede et al. (2012). The polynomial implementation matches the reference package to 0.05 °C over its valid range (tests/test_utci.py). It reports hours a year in each heat and cold stress category, annual extremes and a Theil-Sen trend.
+
+Held-out test (scripts/validate_utci.py): at 51 airport stations (16 Europe, 11 US, 8 Canada, 16 industrial regions in South and Southeast Asia, the Gulf, Africa and South America; 2018 to 2022), UTCI built from reanalysis temperature and humidity was compared with UTCI built from the station's measured temperature and dew point, with wind, pressure and sunshine from ERA5 in both. Sites alternate calibration / held-out within each region.
+
+| Region | Sites | Mean bias °C | RMSE °C | Hottest 5 % of hours, bias °C | Coldest 5 % of hours, bias °C |
+|---|---|---|---|---|---|
+| Canada | 8 | -0.05 | 2.02 | -0.37 | +0.30 |
+| Europe | 16 | -0.13 | 1.47 | -0.26 | +0.42 |
+| Industrial regions elsewhere | 16 | -1.02 | 2.19 | -1.73 | -0.53 |
+| US | 11 | -0.79 | 1.87 | -0.84 | -0.77 |
+
+Region-specific correction of the hot tail, fitted on calibration sites and scored on held-out sites (mean absolute bias on the hottest hours, before to after): industrial regions elsewhere 1.66 to 0.52 °C, US 0.98 to 0.33, Canada 0.32 to 0.12, Europe 0.50 to 0.44. The engine reports the adjusted count as the central value and the unadjusted count as the lower bound. A cold-tail correction did not help held-out sites (0.89 to 0.88 °C) and is not applied.
+
+Future: a sensitivity, not a forecast. The recent hourly weather is warmed by the CMIP6 ensemble change in TXx (heat categories) or annual mean temperature (cold categories), radiant excess is kept, and humidity is held two ways (relative humidity constant; vapour pressure constant) to bracket the result. It has not been backtested.
+
+Failures and limits: Europe and Canada are close to unbiased; the US and especially the industrial regions run cool (hot tail about -0.8 and -1.7 °C), so unadjusted counts understate them. Wind and sunshine errors are not tested because both chains share them. No archive of measured UTCI or radiant temperature exists, so the absolute level rests on the published method; the ERA5-HEAT product could not be compared because it needs a Copernicus account. Airports are open and flat; city centres and industrial yards run hotter. The hourly source is the free Open-Meteo tier, which is non-commercial and rate-limited; commercial release needs the Copernicus data store or a paid plan.
