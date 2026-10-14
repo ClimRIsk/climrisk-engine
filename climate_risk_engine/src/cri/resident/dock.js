@@ -39,7 +39,17 @@
   var $ = function (id) { return document.getElementById(id); };
   var panel = $('cri-panel'), log = $('cri-log'), fab = $('cri-fab');
 
-  function key() { var h = (location.hash.match(/key=([^&]+)/) || [])[1]; if (h) lsSet('cri_api_key', decodeURIComponent(h)); return lsGet('cri_api_key', ''); }
+  // The key can arrive four ways: #key= in the address, the host page's own API-key box (the engine pages and the desktop app fill it before
+  // the dock is used), the desktop app's per-session token, or an earlier visit. Reading only the address left the agent asking for a key
+  // on a page that was already authenticated.
+  function key() {
+    var h = (location.hash.match(/key=([^&]+)/) || [])[1]; if (h) lsSet('cri_api_key', decodeURIComponent(h));
+    var el = document.getElementById('apiKey'), v = el && el.value ? String(el.value).trim() : '';
+    if (v) { lsSet('cri_api_key', v); return v; }
+    var s = ''; try { s = window.sessionStorage.getItem('cri_auth') || ''; } catch (e) {}
+    if (s && s !== 'OWNER') { lsSet('cri_api_key', s); return s; }
+    return lsGet('cri_api_key', '');
+  }
   function api(path, method, body) {
     var k = key(); var h = { 'Content-Type': 'application/json' }; if (k) h['X-API-Key'] = k;
     return fetch(path, { method: method || 'GET', headers: h, body: body ? JSON.stringify(body) : undefined }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, status: r.status, j: j }; }); });
@@ -119,7 +129,7 @@
     push('u', text);
     var m = push('a', 'Thinking…', { pending: true });
     api('/resident/chat', 'POST', { text: text, session: session, intent: intent || null }).then(function (r) {
-      if (!r.ok) { m.pending = false; m.text = r.status === 403 ? 'The engine needs an API key. Add #key=YOUR_KEY to the page address once.' : 'Error ' + r.status; save(); render(); return; }
+      if (!r.ok) { m.pending = false; m.text = r.status === 403 ? 'The engine did not accept the key this page is using. Reopen this page from the app, or paste the key into the page\'s "API key" box, then ask again. (Do not type the key into this chat.)' : 'Error ' + r.status; save(); render(); return; }
       var j = r.j; m.text = j.reply; m.blocks = j.blocks; m.actions = j.actions; m.pending = !!j.job; save(); render();
       if (j.job) poll(m, j.job);
     }).catch(function (e) { m.pending = false; m.text = 'Could not reach the engine: ' + e; save(); render(); });
