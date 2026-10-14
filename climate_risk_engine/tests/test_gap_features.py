@@ -127,3 +127,23 @@ def test_agent_assess_has_no_placeholders():
     assert d["extended_risk"]["paris_alignment"] is None
     assert "eal_p50_usd_m" not in d["extended_risk"]["physical_risk"]
     assert d["risk_assessment"]["scenarios"]["cp"]["npv_impact_pct"] == 0.0
+
+
+def test_insurance_offshore_north_sea_is_not_assessed_not_zero():
+    """A North Sea wind farm has no tropical-cyclone record and no land flood map: the engine must say 'not assessed', never a zero premium."""
+    from cri import insurance as I
+    hz = {"wind": {"lam": 0.0, "sigma": None, "rp100_ms": None}, "river": None, "coast": None, "cont": "europe", "tc_region": "ROW", "iso3": None, "notes": []}
+    r = I.run([{"name": "Offshore farm", "lat": 55.6, "lon": 7.8, "tiv_usd": 6e8, "sector": "offshore wind", "hazard": hz}], n_years=500)
+    row = r["sites"][0]
+    assert row["technical_premium"] is None and row["aal"] is None and row["coverage_complete"] is False
+    assert {x["peril"] for x in row["not_assessed"]} == {"wind", "flood"}
+    assert r["premium"]["technical_total"] is None and "NO PREMIUM" in r["premium"]["coverage_warning"] and r["warnings"]
+
+
+def test_insurance_mixed_portfolio_is_flagged_lower_bound():
+    from cri import insurance as I
+    ok = {"wind": {"lam": 1.0, "sigma": 0.3, "rp100_ms": 60.0}, "river": None, "coast": None, "cont": "asia", "tc_region": "WP", "iso3": "PHL", "notes": []}
+    sea = {"wind": {"lam": 0.0, "sigma": None, "rp100_ms": None}, "river": None, "coast": None, "cont": "europe", "tc_region": "ROW", "iso3": None, "notes": []}
+    r = I.run([{"name": "Port", "lat": 14.6, "lon": 121.0, "tiv_usd": 1e8, "hazard": ok, "covers": ["wind"]}, {"name": "Sea", "lat": 55.6, "lon": 7.8, "tiv_usd": 1e8, "hazard": sea, "covers": ["wind"]}], n_years=500)
+    assert r["premium"]["technical_total"] is not None and r["premium"]["complete"] is False and "LOWER BOUND" in r["premium"]["coverage_warning"]
+    assert r["premium"]["sites_with_perils_not_assessed"] == ["Sea"]

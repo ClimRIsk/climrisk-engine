@@ -172,7 +172,7 @@ function render(r) {
     <div class="kpi"><div class="v">${usd(at(g, 100).oep)}</div><div class="l">1-in-100 occurrence (PML)</div><div class="s">aggregate ${usd(at(g, 100).aep)}</div></div>
     <div class="kpi"><div class="v">${usd(at(g, 250).oep)}</div><div class="l">1-in-250 occurrence</div><div class="s">${at(g, 250).reliable ? 'aggregate ' + usd(at(g, 250).aep) : '<span class="warn">few years: noisy</span>'}</div></div>
     <div class="kpi"><div class="v">${usd(g.tvar99)}</div><div class="l">TVaR 99% (aggregate)</div><div class="s">loss in ${fmt(100 * g.prob_loss, 0)}% of years</div></div>
-    <div class="kpi"><div class="v">${usd(r.premium.technical_total)}</div><div class="l">indicative technical premium</div><div class="s">${fmt(r.premium.rate_permille, 1)}‰ of TIV · not a quote</div></div>
+    <div class="kpi"><div class="v">${usd(r.premium.technical_total)}</div><div class="l">indicative technical premium</div><div class="s">${r.premium.coverage_warning ? '<span class="warn">' + r.premium.coverage_warning + '</span>' : fmt(r.premium.rate_permille, 1) + '‰ of TIV · not a quote'}</div></div>
     ${n ? `<div class="kpi"><div class="v">${usd(n.aal)}</div><div class="l">net AAL after reinsurance</div><div class="s">ceded ${usd(r.stats.ceded_aal)} · net 1-in-100 ${usd(at(n, 100).aep)}</div></div>` : ''}
   </div>`;
   if (cc) {

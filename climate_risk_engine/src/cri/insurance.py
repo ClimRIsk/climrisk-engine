@@ -422,6 +422,17 @@ def _rate_str(aal, tiv):
     return round(1000.0 * aal / tiv, 3) if tiv else None            # per mille of TIV
 
 
+def _not_assessed(s: dict, h: dict) -> list:
+    """Perils a policy line asks to cover that this engine could not assess at the place. A peril with no hazard data is NOT ASSESSED; it must never read as zero loss."""
+    out = []
+    w = h.get("wind") or {}
+    if "wind" in s["covers"] and not (w.get("lam") or 0.0) > 0.0:
+        out.append({"peril": "wind", "reason": "the wind module models tropical cyclones only and this place has no tropical-cyclone record; extratropical windstorm, the main wind peril in Europe, Canada and the North Sea, is not modelled here, so wind loss is not assessed (not zero)"})
+    if "flood" in s["covers"] and not h.get("river") and not h.get("coast"):
+        out.append({"peril": "flood", "reason": "no river or coastal flood map exists at this location (for example open sea), so flood loss is not assessed (not zero)"})
+    return out
+
+
 def _site_rows(sites, hazards, L, g, cap_q, coc, exp_ratio, unc_load):
     agg = L["total"].sum(axis=1)
     thr = np.quantile(agg, cap_q)
@@ -435,13 +446,15 @@ def _site_rows(sites, hazards, L, g, cap_q, coc, exp_ratio, unc_load):
         capital = max(tail_c - aal, 0.0)
         prem = (aal * (1.0 + unc_load) + coc * capital) / (1.0 - exp_ratio)
         w = (h.get("wind") or {})
-        rows.append({"name": s["name"], "lat": s["lat"], "lon": s["lon"], "country": h.get("iso3") or s.get("country"), "sector": s["sector"], "tiv": s["tiv"],
+        na = _not_assessed(s, h)
+        none_assessed = len(na) >= len(s["covers"])
+        rows.append({"not_assessed": na, "coverage_complete": not na, "name": s["name"], "lat": s["lat"], "lon": s["lon"], "country": h.get("iso3") or s.get("country"), "sector": s["sector"], "tiv": s["tiv"],
                      "deductible": s["terms"]["wind"]["ded"], "limit": s["terms"]["total_limit"], "covers": s["covers"],
-                     "ground_up_aal": float(L["ground_up_total"][:, j].mean()), "aal": aal, "aal_wind": float(L["wind"][:, j].mean()),
+                     "ground_up_aal": None if none_assessed else float(L["ground_up_total"][:, j].mean()), "aal": None if none_assessed else aal, "aal_wind": float(L["wind"][:, j].mean()),
                      "aal_river": float(L["river"][:, j].mean()), "aal_coast": float(L["coast"][:, j].mean()),
-                     "rate_permille": _rate_str(aal, s["tiv"]), "stand_alone_1in100": float(np.quantile(loss, 0.99)),
+                     "rate_permille": None if none_assessed else _rate_str(aal, s["tiv"]), "stand_alone_1in100": float(np.quantile(loss, 0.99)),
                      "stand_alone_1in250": float(np.quantile(loss, 1 - 1 / 250)), "tail_contribution": tail_c,
-                     "capital_proxy": capital, "technical_premium": prem, "premium_rate_permille": _rate_str(prem, s["tiv"]),
+                     "capital_proxy": capital, "technical_premium": None if none_assessed else prem, "premium_rate_permille": None if none_assessed else _rate_str(prem, s["tiv"]),
                      "hazard": {"cyclone_rate": w.get("lam"), "cyclone_rp100_ms": w.get("rp100_ms"), "river_map": bool(h.get("river")),
                                 "coast_map": bool(h.get("coast")), "river_protection_rp": (h.get("river") or {}).get("protection"),
                                 "coast_protection_rp": (h.get("coast") or {}).get("protection")},
@@ -471,7 +484,7 @@ def _accumulation(sites, hazards, rows, L):
             e = d.setdefault(k, {"key": k, "sites": 0, "tiv": 0.0, "aal": 0.0})
             e["sites"] += 1
             e["tiv"] += r["tiv"]
-            e["aal"] += r["aal"]
+            e["aal"] += (r["aal"] or 0.0)
         return sorted(d.values(), key=lambda e: -e["aal"])
     return {"zones": zl[:15], "countries": by("country"), "sectors": by("sector")}
 
@@ -511,9 +524,14 @@ def run(sites_in: list, hazards: Optional[list] = None, n_years: int = 5000, see
         at100 = next(r for r in s["gross"]["rows"] if r["rp"] == 100)
         ladder.append({"deductible_pct": p, "aal": s["gross"]["aal"], "aep100": at100["aep"], "oep100": at100["oep"], "tvar99": s["gross"]["tvar99"]})
     tiv_total = float(sum(s["tiv"] for s in sites))
-    prem_total = float(sum(r["technical_premium"] for r in rows))
+    prem_total = float(sum(r["technical_premium"] for r in rows if r["technical_premium"] is not None))
+    gaps = [r for r in rows if r["not_assessed"]]
+    all_gap = bool(rows) and all(r["technical_premium"] is None for r in rows)
     res = {"n_sites": len(sites), "tiv": tiv_total, "n_years": ny, "seed": seed, "stats": stats, "sites": rows, "accumulation": acc, "deductible_ladder": ladder,
-           "premium": {"technical_total": prem_total, "rate_permille": _rate_str(prem_total, tiv_total),
+           "premium": {"technical_total": None if all_gap else prem_total, "rate_permille": None if all_gap else _rate_str(prem_total, tiv_total),
+                       "complete": not gaps, "sites_with_perils_not_assessed": [r["name"] for r in gaps],
+                       "coverage_warning": (None if not gaps else ("NO PREMIUM: no covered peril could be assessed at any site; this is not a zero-risk finding." if all_gap else
+                                            f"LOWER BOUND: {len(gaps)} of {len(rows)} sites have covered perils the engine could not assess; their missing perils are not zero.")),
                        "formula": f"(AAL x (1 + {uncertainty_load:.0%} model-uncertainty load) + {cost_of_capital:.0%} cost of capital x capital proxy) / (1 - {expense_ratio:.0%} expenses); "
                                   f"capital proxy = the site's mean loss in the worst {100 * (1 - capital_quantile):.0f}% of portfolio years minus its AAL",
                        "parameters": {"cost_of_capital": cost_of_capital, "expense_ratio": expense_ratio, "uncertainty_load": uncertainty_load, "capital_quantile": capital_quantile},
@@ -539,8 +557,8 @@ def run(sites_in: list, hazards: Optional[list] = None, n_years: int = 5000, see
         rows2 = _site_rows(sites, hz2, L2, gu2, capital_quantile, cost_of_capital, expense_ratio, uncertainty_load)
         res["climate"] = {"ssp": ssp, "year": year, "band": climate.get("band", "median"), "stats": st2,
                           "aal": {"today": a, "scenario": b, "change": b - a, "change_pct": (100 * (b - a) / a) if a else None},
-                          "tail": d, "premium_total_scenario": float(sum(r["technical_premium"] for r in rows2)),
-                          "per_site": [{"name": r["name"], "aal_today": r0["aal"], "aal_scenario": r["aal"], "change_pct": (100 * (r["aal"] - r0["aal"]) / r0["aal"]) if r0["aal"] else None,
+                          "tail": d, "premium_total_scenario": float(sum(r["technical_premium"] for r in rows2 if r["technical_premium"] is not None)),
+                          "per_site": [{"name": r["name"], "aal_today": r0["aal"], "aal_scenario": r["aal"], "change_pct": (100 * (r["aal"] - r0["aal"]) / r0["aal"]) if (r0["aal"] and r["aal"] is not None) else None,
                                         "premium_today": r0["technical_premium"], "premium_scenario": r["technical_premium"], "climate": c}
                                        for r0, r, c in zip(rows, rows2, per_site)],
                           "confidence": (comp or {}).get("confidence"), "limits": (comp or {}).get("limits"), "attribution": (comp or {}).get("attribution"),
@@ -558,6 +576,8 @@ def run(sites_in: list, hazards: Optional[list] = None, n_years: int = 5000, see
                                      "status": "historical context, not an input to the numbers above"}
     except Exception:                                                # noqa: BLE001 — the case library must never break an insurer run
         pass
+    if gaps:
+        res.setdefault("warnings", []).extend(f'{r["name"]}: {x["peril"]} not assessed: {x["reason"]}' for r in gaps for x in r["not_assessed"])
     res["method"] = METHOD
     res["limits"] = LIMITS
     res["sources"] = SOURCES

@@ -177,8 +177,8 @@ def ord_tables(result: dict, meta: Optional[list] = None) -> dict:
         k = (m.get("PortNumber"), m.get("AccNumber"))
         if m.get("AccNumber") is not None:
             e = accs.setdefault(k, {"aal": 0.0, "gu": 0.0, "tiv": 0.0})
-            e["aal"] += row["aal"]
-            e["gu"] += row["ground_up_aal"]
+            e["aal"] += (row["aal"] or 0.0)          # a location with perils not assessed contributes nothing known; its MeanLoss stays blank in the location table
+            e["gu"] += (row["ground_up_aal"] or 0.0)
             e["tiv"] += row["tiv"]
     for n, (k, e) in enumerate(sorted(accs.items(), key=lambda kv: str(kv[0])), 1):
         sid = 200 + n
