@@ -1,0 +1,66 @@
+{
+ "name": "NFIP residential (US), empirical mean damage ratio by exterior flood depth",
+ "depth_m": [
+  0.0,
+  0.08,
+  0.21,
+  0.38,
+  0.61,
+  0.87,
+  1.21,
+  1.71,
+  2.37
+ ],
+ "ratio": [
+  0.0,
+  0.096,
+  0.166,
+  0.22,
+  0.241,
+  0.269,
+  0.306,
+  0.314,
+  0.33
+ ],
+ "ci95": [
+  [
+   0.0,
+   0.0
+  ],
+  [
+   0.077,
+   0.116
+  ],
+  [
+   0.137,
+   0.189
+  ],
+  [
+   0.172,
+   0.25
+  ],
+  [
+   0.185,
+   0.278
+  ],
+  [
+   0.204,
+   0.306
+  ],
+  [
+   0.236,
+   0.349
+  ],
+  [
+   0.242,
+   0.376
+  ],
+  [
+   0.283,
+   0.374
+  ]
+ ],
+ "n_claims": 274256,
+ "n_events": 917,
+ "limits": "Single-family residential, damaged claims only (shallow depths biased up), US only, held flat beyond 3 m. Not for industrial assets."
+}

@@ -107,7 +107,7 @@ def normalise_site(s: dict, k: int) -> dict:
             "terms": {"wind": {"ded": w_ded if w_ded is not None else ded, "lim": w_lim if w_lim is not None else lim},
                       "flood": {"ded": f_ded if f_ded is not None else ded, "lim": f_lim if f_lim is not None else lim},
                       "total_limit": lim},
-            "hazard": s.get("hazard")}
+            "hazard": s.get("hazard"), "vulnerability": s.get("vulnerability")}
 
 
 # ── hazards ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -493,6 +493,10 @@ def run(sites_in: list, hazards: Optional[list] = None, n_years: int = 5000, see
         raise InsuranceError("corr_scale must be between 0.25 and 4")
     sites = [normalise_site(s, k) for k, s in enumerate(sites_in)]
     hz = hazards if hazards is not None else fetch_hazards(sites, flood_fn=flood_fn, tc_fn=tc_fn)
+    for s_, h_ in zip(sites, hz):                                  # optional empirical US residential flood curve per policy line
+        if s_.get("vulnerability") == "nfip_residential_us":
+            h_["cont"] = "nfip_residential_us"
+            h_.setdefault("notes", []).append("flood damage: empirical NFIP residential curve (US, damaged claims only)")
     gu = ground_up(sites, hz, n_years, seed, corr_scale)
     ny = gu["n_years"]
     L = apply_terms(gu, sites)

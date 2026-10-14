@@ -373,8 +373,12 @@ def analyse_asset(lat: float, lon: float, name: Optional[str] = None, sector: Op
         return float(d) if 100 > (h.get("protection") or 0) else 0.0
     vh = vulnerability.V_HALF[tcr][0]
     tc["severity"] = _severity(by.get("cyclone", 0.0), float(vulnerability.tc_damage(tc["rp100_ms"], vh)))
-    river["severity"] = _severity(by.get("river", 0.0), rp100_ratio("river")) if river.get("damage") else "NEGLIGIBLE"
-    coast["severity"] = _severity(by.get("coast", 0.0), rp100_ratio("coast")) if coast.get("damage") else "NEGLIGIBLE"
+    # "assessed" is False when no flood map was read for this site (not fetched, unavailable, footprint on water, or above the
+    # coastal cut-off). Severity stays NEGLIGIBLE for compatibility, but it means "no loss modelled", not "low risk".
+    river["assessed"] = bool(river.get("damage"))
+    coast["assessed"] = bool(coast.get("damage"))
+    river["severity"] = _severity(by.get("river", 0.0), rp100_ratio("river")) if river["assessed"] else "NEGLIGIBLE"
+    coast["severity"] = _severity(by.get("coast", 0.0), rp100_ratio("coast")) if coast["assessed"] else "NEGLIGIBLE"
 
     res = {
         "asset": {"name": name, "lat": lat, "lon": lon, "iso3": iso3, "admin1": adm.get("name"), "sector": sector,
@@ -650,8 +654,11 @@ def _portfolio(assets: list, companies: list, top_n: int, n: int, discount: floa
                     "emissions_t": r["asset"].get("emissions_t"), "value_mode": r["asset"]["value"].get("mode"),
                     "value_quality": r["asset"]["value"].get("quality"),
                     "flood_assessed": k in live, "physical_aal_pct": r["financial"]["physical"]["aal_pct"],
-                    "cyclone": r["physical"]["cyclone"]["severity"], "river": r["physical"]["river_flood"].get("severity"),
-                    "coast": r["physical"]["coastal_flood"].get("severity"),
+                    "cyclone": r["physical"]["cyclone"]["severity"],
+                    "river": r["physical"]["river_flood"].get("severity") if r["physical"]["river_flood"].get("assessed") else "NOT ASSESSED",
+                    "coast": r["physical"]["coastal_flood"].get("severity") if r["physical"]["coastal_flood"].get("assessed") else "NOT ASSESSED",
+                    "river_assessed": bool(r["physical"]["river_flood"].get("assessed")),
+                    "coast_assessed": bool(r["physical"]["coastal_flood"].get("assessed")),
                     "carbon_price_now": r["policy"]["effective_price_usd_t"],
                     "instrument": r["policy"]["price_setting_instrument"],
                     "npv_delayed_mean": (r["financial"]["scenarios"].get("Delayed transition") or {}).get("total_npv", {}).get("mean"),
@@ -670,7 +677,14 @@ def _portfolio(assets: list, companies: list, top_n: int, n: int, discount: floa
                    "histogram": {"edges": np.round(edges, 0).tolist(), "counts": counts.tolist()}}
     per.sort(key=lambda p: -(p["npv_delayed_mean"] or 0))
     return {"found": True, "companies": companies, "n_assets": len(per), "portfolio_value_mode": V,
-            "flood_assessed_assets": len(live), "scenarios": port, "assets": per,
+            "flood_assessed_assets": len(live),
+            "physical_coverage": {"assets": len(per), "river_flood_assessed": sum(1 for p in per if p["river_assessed"]),
+                                  "coastal_flood_assessed": sum(1 for p in per if p["coast_assessed"]),
+                                  "physical_loss_is_lower_bound": any(not p["river_assessed"] for p in per),
+                                  "note": "Physical loss in the scenarios counts flood only for assets whose flood maps were read; "
+                                          "every other asset contributes cyclone loss only, so the portfolio physical loss is a lower bound "
+                                          "unless every asset was assessed."},
+            "scenarios": port, "assets": per,
             "method": "Each asset run through the four-stage analyst; " + flood_note + " (others: cyclone + policy + "
                       "transition only). Transition model draws are shared across assets (common scenario "
                       "uncertainty); physical events independent. % of value is taken per draw against that draw's "

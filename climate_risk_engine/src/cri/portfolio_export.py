@@ -117,8 +117,9 @@ def to_csv(items: list[dict]) -> str:
             row.update({
                 "iso3": a.get("iso3"), "admin1": a.get("admin1"), "sector": a.get("sector") or r.get("sector"),
                 "type": a.get("type") or r.get("type"), "value_usd": val.get("mode"), "value_basis": val.get("basis"),
-                "cyclone": ph["cyclone"].get("severity"), "river_flood": ph["river_flood"].get("severity"),
-                "coastal_flood": ph["coastal_flood"].get("severity"),
+                "cyclone": ph["cyclone"].get("severity"),
+                "river_flood": ph["river_flood"].get("severity") if ph["river_flood"].get("assessed", True) else "NOT ASSESSED",
+                "coastal_flood": ph["coastal_flood"].get("severity") if ph["coastal_flood"].get("assessed", True) else "NOT ASSESSED",
                 "physical_aal_pct": fin["physical"].get("aal_pct"), "physical_aal_usd": fin["physical"].get("aal_usd"),
                 "physical_loss_1in100_usd": rp.get("100") if isinstance(rp, dict) else None,
                 "carbon_price_in_force_usd_t": pol.get("effective_price_usd_t"),
