@@ -326,6 +326,8 @@ def _lab_map(key: str, r: dict, attempt_note: str) -> tuple:
     status = "modelled"
     if key == "heat":
         caveat = "Outdoor WBGT in the sun (Liljegren) from ERA5. ERA5 inputs ran about 0.7 °C below airport station inputs (about 1.1 °C on the hottest hours, 20 sites), so peaks are slightly understated; screening values, not safe-work thresholds."
+    if key == "drought":
+        caveat = "Against the US Drought Monitor (26 counties, unseen years) the model ranks drought weeks above normal weeks with ROC area about 0.70 (0.5 = no skill) and catches only about a fifth of drought weeks at its default threshold; weaker where irrigated; untested outside the US."
     if val is None and status == "modelled":
         caveat = ((caveat + " ") if caveat else "") + "Modelled and validated, but this study reports series and skill, not a single hazard level: see metrics."
     if r.get("skilful") is False:

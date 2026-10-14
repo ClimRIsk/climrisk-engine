@@ -1,0 +1,656 @@
+{
+ "sites": [
+  {
+   "site": "Story IA",
+   "fips": "19169",
+   "kind": "rainfed",
+   "structure": "M2",
+   "n_weeks_test": 678,
+   "train_rmse": 0.0188,
+   "D1+_50pct": {
+    "drought_weeks": 173,
+    "auc_engine_model": 0.739,
+    "auc_era5land_soil_moisture": 0.751,
+    "auc_30day_rain_deficit": 0.715,
+    "pod": 0.34,
+    "far": 0.36
+   },
+   "D2+_25pct": {
+    "drought_weeks": 96,
+    "auc_engine_model": 0.688,
+    "auc_era5land_soil_moisture": 0.705,
+    "auc_30day_rain_deficit": 0.666,
+    "pod": 0.32,
+    "far": 0.66
+   }
+  },
+  {
+   "site": "Lancaster NE",
+   "fips": "31109",
+   "kind": "rainfed",
+   "structure": "M2",
+   "n_weeks_test": 678,
+   "train_rmse": 0.0191,
+   "D1+_50pct": {
+    "drought_weeks": 162,
+    "auc_engine_model": 0.737,
+    "auc_era5land_soil_moisture": 0.697,
+    "auc_30day_rain_deficit": 0.663,
+    "pod": 0.33,
+    "far": 0.35
+   },
+   "D2+_25pct": {
+    "drought_weeks": 112,
+    "auc_engine_model": 0.72,
+    "auc_era5land_soil_moisture": 0.665,
+    "auc_30day_rain_deficit": 0.675,
+    "pod": 0.32,
+    "far": 0.56
+   }
+  },
+  {
+   "site": "Ford KS",
+   "fips": "20057",
+   "kind": "irrigated plains",
+   "structure": "M2",
+   "n_weeks_test": 678,
+   "train_rmse": 0.0163,
+   "D1+_50pct": {
+    "drought_weeks": 380,
+    "auc_engine_model": 0.701,
+    "auc_era5land_soil_moisture": 0.715,
+    "auc_30day_rain_deficit": 0.613,
+    "pod": 0.29,
+    "far": 0.16
+   },
+   "D2+_25pct": {
+    "drought_weeks": 269,
+    "auc_engine_model": 0.642,
+    "auc_era5land_soil_moisture": 0.628,
+    "auc_30day_rain_deficit": 0.598,
+    "pod": 0.3,
+    "far": 0.39
+   }
+  },
+  {
+   "site": "Lubbock TX",
+   "fips": "48303",
+   "kind": "irrigated plains",
+   "structure": "M2",
+   "n_weeks_test": 678,
+   "train_rmse": 0.0151,
+   "D1+_50pct": {
+    "drought_weeks": 376,
+    "auc_engine_model": 0.687,
+    "auc_era5land_soil_moisture": 0.696,
+    "auc_30day_rain_deficit": 0.632,
+    "pod": 0.22,
+    "far": 0.17
+   },
+   "D2+_25pct": {
+    "drought_weeks": 342,
+    "auc_engine_model": 0.682,
+    "auc_era5land_soil_moisture": 0.698,
+    "auc_30day_rain_deficit": 0.628,
+    "pod": 0.22,
+    "far": 0.26
+   }
+  },
+  {
+   "site": "Travis TX",
+   "fips": "48453",
+   "kind": "semi-humid",
+   "structure": "M2",
+   "n_weeks_test": 678,
+   "train_rmse": 0.0154,
+   "D1+_50pct": {
+    "drought_weeks": 307,
+    "auc_engine_model": 0.738,
+    "auc_era5land_soil_moisture": 0.73,
+    "auc_30day_rain_deficit": 0.714,
+    "pod": 0.1,
+    "far": 0.12
+   },
+   "D2+_25pct": {
+    "drought_weeks": 198,
+    "auc_engine_model": 0.716,
+    "auc_era5land_soil_moisture": 0.689,
+    "auc_30day_rain_deficit": 0.698,
+    "pod": 0.13,
+    "far": 0.24
+   }
+  },
+  {
+   "site": "Fresno CA",
+   "fips": "06019",
+   "kind": "irrigated",
+   "structure": "M2",
+   "n_weeks_test": 678,
+   "train_rmse": 0.012,
+   "D1+_50pct": {
+    "drought_weeks": 436,
+    "auc_engine_model": 0.607,
+    "auc_era5land_soil_moisture": 0.659,
+    "auc_30day_rain_deficit": 0.557,
+    "pod": 0.21,
+    "far": 0.21
+   },
+   "D2+_25pct": {
+    "drought_weeks": 331,
+    "auc_engine_model": 0.587,
+    "auc_era5land_soil_moisture": 0.621,
+    "auc_30day_rain_deficit": 0.545,
+    "pod": 0.22,
+    "far": 0.36
+   }
+  },
+  {
+   "site": "Yakima WA",
+   "fips": "53077",
+   "kind": "irrigated",
+   "structure": "M2",
+   "n_weeks_test": 678,
+   "train_rmse": 0.0199,
+   "D1+_50pct": {
+    "drought_weeks": 207,
+    "auc_engine_model": 0.561,
+    "auc_era5land_soil_moisture": 0.562,
+    "auc_30day_rain_deficit": 0.511,
+    "pod": 0.08,
+    "far": 0.69
+   },
+   "D2+_25pct": {
+    "drought_weeks": 166,
+    "auc_engine_model": 0.531,
+    "auc_era5land_soil_moisture": 0.528,
+    "auc_30day_rain_deficit": 0.498,
+    "pod": 0.05,
+    "far": 0.83
+   }
+  },
+  {
+   "site": "Cook IL",
+   "fips": "17031",
+   "kind": "urban humid",
+   "structure": "M2",
+   "n_weeks_test": 678,
+   "train_rmse": 0.0103,
+   "D1+_50pct": {
+    "drought_weeks": 43,
+    "auc_engine_model": 0.77,
+    "auc_era5land_soil_moisture": 0.811,
+    "auc_30day_rain_deficit": 0.805,
+    "pod": 0.4,
+    "far": 0.68
+   },
+   "D2+_25pct": {
+    "drought_weeks": 12,
+    "auc_engine_model": 0.723,
+    "auc_era5land_soil_moisture": 0.81,
+    "auc_30day_rain_deficit": 0.753,
+    "pod": 0.42,
+    "far": 0.91
+   }
+  },
+  {
+   "site": "Hennepin MN",
+   "fips": "27053",
+   "kind": "humid",
+   "structure": "M2",
+   "n_weeks_test": 678,
+   "train_rmse": 0.0208,
+   "D1+_50pct": {
+    "drought_weeks": 177,
+    "auc_engine_model": 0.675,
+    "auc_era5land_soil_moisture": 0.68,
+    "auc_30day_rain_deficit": 0.625,
+    "pod": 0.25,
+    "far": 0.42
+   },
+   "D2+_25pct": {
+    "drought_weeks": 69,
+    "auc_engine_model": 0.614,
+    "auc_era5land_soil_moisture": 0.672,
+    "auc_30day_rain_deficit": 0.541,
+    "pod": 0.23,
+    "far": 0.79
+   }
+  },
+  {
+   "site": "Fulton GA",
+   "fips": "13121",
+   "kind": "humid",
+   "structure": "M2",
+   "n_weeks_test": 678,
+   "train_rmse": 0.0162,
+   "D1+_50pct": {
+    "drought_weeks": 179,
+    "auc_engine_model": 0.745,
+    "auc_era5land_soil_moisture": 0.714,
+    "auc_30day_rain_deficit": 0.733,
+    "pod": 0.18,
+    "far": 0.36
+   },
+   "D2+_25pct": {
+    "drought_weeks": 126,
+    "auc_engine_model": 0.734,
+    "auc_era5land_soil_moisture": 0.706,
+    "auc_30day_rain_deficit": 0.72,
+    "pod": 0.21,
+    "far": 0.46
+   }
+  },
+  {
+   "site": "Orange FL",
+   "fips": "12095",
+   "kind": "humid subtropical",
+   "structure": "M2",
+   "n_weeks_test": 678,
+   "train_rmse": 0.0174,
+   "D1+_50pct": {
+    "drought_weeks": 90,
+    "auc_engine_model": 0.716,
+    "auc_era5land_soil_moisture": 0.644,
+    "auc_30day_rain_deficit": 0.648,
+    "pod": 0.18,
+    "far": 0.57
+   },
+   "D2+_25pct": {
+    "drought_weeks": 47,
+    "auc_engine_model": 0.707,
+    "auc_era5land_soil_moisture": 0.626,
+    "auc_30day_rain_deficit": 0.652,
+    "pod": 0.11,
+    "far": 0.86
+   }
+  },
+  {
+   "site": "Maricopa AZ",
+   "fips": "04013",
+   "kind": "desert",
+   "structure": "M2",
+   "n_weeks_test": 678,
+   "train_rmse": 0.0162,
+   "D1+_50pct": {
+    "drought_weeks": 462,
+    "auc_engine_model": 0.709,
+    "auc_era5land_soil_moisture": 0.499,
+    "auc_30day_rain_deficit": 0.599,
+    "pod": 0.1,
+    "far": 0.18
+   },
+   "D2+_25pct": {
+    "drought_weeks": 279,
+    "auc_engine_model": 0.715,
+    "auc_era5land_soil_moisture": 0.556,
+    "auc_30day_rain_deficit": 0.596,
+    "pod": 0.11,
+    "far": 0.43
+   }
+  },
+  {
+   "site": "Bernalillo NM",
+   "fips": "35001",
+   "kind": "arid",
+   "structure": "M2",
+   "n_weeks_test": 678,
+   "train_rmse": 0.0133,
+   "D1+_50pct": {
+    "drought_weeks": 403,
+    "auc_engine_model": 0.658,
+    "auc_era5land_soil_moisture": 0.584,
+    "auc_30day_rain_deficit": 0.58,
+    "pod": 0.11,
+    "far": 0.19
+   },
+   "D2+_25pct": {
+    "drought_weeks": 296,
+    "auc_engine_model": 0.68,
+    "auc_era5land_soil_moisture": 0.568,
+    "auc_30day_rain_deficit": 0.574,
+    "pod": 0.12,
+    "far": 0.33
+   }
+  },
+  {
+   "site": "Larimer CO",
+   "fips": "08069",
+   "kind": "semi-arid",
+   "structure": "M2",
+   "n_weeks_test": 678,
+   "train_rmse": 0.0242,
+   "D1+_50pct": {
+    "drought_weeks": 165,
+    "auc_engine_model": 0.704,
+    "auc_era5land_soil_moisture": 0.676,
+    "auc_30day_rain_deficit": 0.537,
+    "pod": 0.44,
+    "far": 0.55
+   },
+   "D2+_25pct": {
+    "drought_weeks": 105,
+    "auc_engine_model": 0.726,
+    "auc_era5land_soil_moisture": 0.682,
+    "auc_30day_rain_deficit": 0.559,
+    "pod": 0.5,
+    "far": 0.68
+   }
+  },
+  {
+   "site": "Cascade MT",
+   "fips": "30013",
+   "kind": "semi-arid",
+   "structure": "M2",
+   "n_weeks_test": 678,
+   "train_rmse": 0.0204,
+   "D1+_50pct": {
+    "drought_weeks": 153,
+    "auc_engine_model": 0.653,
+    "auc_era5land_soil_moisture": 0.654,
+    "auc_30day_rain_deficit": 0.56,
+    "pod": 0.19,
+    "far": 0.52
+   },
+   "D2+_25pct": {
+    "drought_weeks": 91,
+    "auc_engine_model": 0.657,
+    "auc_era5land_soil_moisture": 0.586,
+    "auc_30day_rain_deficit": 0.55,
+    "pod": 0.23,
+    "far": 0.66
+   }
+  },
+  {
+   "site": "Ada ID",
+   "fips": "16001",
+   "kind": "semi-arid irrigated",
+   "structure": "M2",
+   "n_weeks_test": 678,
+   "train_rmse": 0.0172,
+   "D1+_50pct": {
+    "drought_weeks": 201,
+    "auc_engine_model": 0.614,
+    "auc_era5land_soil_moisture": 0.506,
+    "auc_30day_rain_deficit": 0.586,
+    "pod": 0.15,
+    "far": 0.48
+   },
+   "D2+_25pct": {
+    "drought_weeks": 57,
+    "auc_engine_model": 0.503,
+    "auc_era5land_soil_moisture": 0.437,
+    "auc_30day_rain_deficit": 0.55,
+    "pod": 0.14,
+    "far": 0.87
+   }
+  },
+  {
+   "site": "Franklin OH",
+   "fips": "39049",
+   "kind": "humid",
+   "structure": "M2",
+   "n_weeks_test": 678,
+   "train_rmse": 0.015,
+   "D1+_50pct": {
+    "drought_weeks": 23,
+    "auc_engine_model": 0.822,
+    "auc_era5land_soil_moisture": 0.744,
+    "auc_30day_rain_deficit": 0.774,
+    "pod": 0.48,
+    "far": 0.67
+   },
+   "D2+_25pct": {
+    "drought_weeks": 3,
+    "auc_engine_model": NaN,
+    "auc_era5land_soil_moisture": NaN,
+    "auc_30day_rain_deficit": NaN,
+    "pod": 0.0,
+    "far": 1.0
+   }
+  },
+  {
+   "site": "Dauphin PA",
+   "fips": "42043",
+   "kind": "humid",
+   "structure": "M2",
+   "n_weeks_test": 678,
+   "train_rmse": 0.0145,
+   "D1+_50pct": {
+    "drought_weeks": 42,
+    "auc_engine_model": 0.537,
+    "auc_era5land_soil_moisture": 0.598,
+    "auc_30day_rain_deficit": 0.593,
+    "pod": 0.07,
+    "far": 0.92
+   },
+   "D2+_25pct": {
+    "drought_weeks": 0,
+    "auc_engine_model": NaN,
+    "auc_era5land_soil_moisture": NaN,
+    "auc_30day_rain_deficit": NaN,
+    "pod": 0.0,
+    "far": 1.0
+   }
+  },
+  {
+   "site": "Wake NC",
+   "fips": "37183",
+   "kind": "humid",
+   "structure": "M2",
+   "n_weeks_test": 678,
+   "train_rmse": 0.0161,
+   "D1+_50pct": {
+    "drought_weeks": 68,
+    "auc_engine_model": 0.679,
+    "auc_era5land_soil_moisture": 0.642,
+    "auc_30day_rain_deficit": 0.734,
+    "pod": 0.15,
+    "far": 0.63
+   },
+   "D2+_25pct": {
+    "drought_weeks": 9,
+    "auc_engine_model": 0.654,
+    "auc_era5land_soil_moisture": 0.525,
+    "auc_30day_rain_deficit": 0.671,
+    "pod": 0.0,
+    "far": 1.0
+   }
+  },
+  {
+   "site": "East Baton Rouge LA",
+   "fips": "22033",
+   "kind": "humid subtropical",
+   "structure": "M2",
+   "n_weeks_test": 678,
+   "train_rmse": 0.0194,
+   "D1+_50pct": {
+    "drought_weeks": 97,
+    "auc_engine_model": 0.771,
+    "auc_era5land_soil_moisture": 0.782,
+    "auc_30day_rain_deficit": 0.747,
+    "pod": 0.39,
+    "far": 0.42
+   },
+   "D2+_25pct": {
+    "drought_weeks": 59,
+    "auc_engine_model": 0.74,
+    "auc_era5land_soil_moisture": 0.782,
+    "auc_30day_rain_deficit": 0.693,
+    "pod": 0.39,
+    "far": 0.65
+   }
+  },
+  {
+   "site": "Greene MO",
+   "fips": "29077",
+   "kind": "humid",
+   "structure": "M2",
+   "n_weeks_test": 678,
+   "train_rmse": 0.0143,
+   "D1+_50pct": {
+    "drought_weeks": 124,
+    "auc_engine_model": 0.624,
+    "auc_era5land_soil_moisture": 0.682,
+    "auc_30day_rain_deficit": 0.661,
+    "pod": 0.23,
+    "far": 0.55
+   },
+   "D2+_25pct": {
+    "drought_weeks": 46,
+    "auc_engine_model": 0.639,
+    "auc_era5land_soil_moisture": 0.672,
+    "auc_30day_rain_deficit": 0.661,
+    "pod": 0.37,
+    "far": 0.73
+   }
+  },
+  {
+   "site": "Cleveland OK",
+   "fips": "40027",
+   "kind": "semi-humid",
+   "structure": "M2",
+   "n_weeks_test": 678,
+   "train_rmse": 0.0156,
+   "D1+_50pct": {
+    "drought_weeks": 271,
+    "auc_engine_model": 0.697,
+    "auc_era5land_soil_moisture": 0.709,
+    "auc_30day_rain_deficit": 0.647,
+    "pod": 0.1,
+    "far": 0.26
+   },
+   "D2+_25pct": {
+    "drought_weeks": 166,
+    "auc_engine_model": 0.719,
+    "auc_era5land_soil_moisture": 0.73,
+    "auc_30day_rain_deficit": 0.638,
+    "pod": 0.14,
+    "far": 0.39
+   }
+  },
+  {
+   "site": "Weld CO",
+   "fips": "08123",
+   "kind": "semi-arid",
+   "structure": "M2",
+   "n_weeks_test": 678,
+   "train_rmse": 0.017,
+   "D1+_50pct": {
+    "drought_weeks": 180,
+    "auc_engine_model": 0.705,
+    "auc_era5land_soil_moisture": 0.634,
+    "auc_30day_rain_deficit": 0.576,
+    "pod": 0.08,
+    "far": 0.63
+   },
+   "D2+_25pct": {
+    "drought_weeks": 147,
+    "auc_engine_model": 0.695,
+    "auc_era5land_soil_moisture": 0.607,
+    "auc_30day_rain_deficit": 0.562,
+    "pod": 0.07,
+    "far": 0.74
+   }
+  },
+  {
+   "site": "Marion IN",
+   "fips": "18097",
+   "kind": "humid",
+   "structure": "M2",
+   "n_weeks_test": 678,
+   "train_rmse": 0.0148,
+   "D1+_50pct": {
+    "drought_weeks": 68,
+    "auc_engine_model": 0.739,
+    "auc_era5land_soil_moisture": 0.716,
+    "auc_30day_rain_deficit": 0.688,
+    "pod": 0.34,
+    "far": 0.57
+   },
+   "D2+_25pct": {
+    "drought_weeks": 14,
+    "auc_engine_model": 0.756,
+    "auc_era5land_soil_moisture": 0.711,
+    "auc_30day_rain_deficit": 0.711,
+    "pod": 0.57,
+    "far": 0.85
+   }
+  },
+  {
+   "site": "Hinds MS",
+   "fips": "28049",
+   "kind": "humid",
+   "structure": "M2",
+   "n_weeks_test": 678,
+   "train_rmse": 0.0172,
+   "D1+_50pct": {
+    "drought_weeks": 93,
+    "auc_engine_model": 0.792,
+    "auc_era5land_soil_moisture": 0.786,
+    "auc_30day_rain_deficit": 0.788,
+    "pod": 0.37,
+    "far": 0.44
+   },
+   "D2+_25pct": {
+    "drought_weeks": 44,
+    "auc_engine_model": 0.801,
+    "auc_era5land_soil_moisture": 0.831,
+    "auc_30day_rain_deficit": 0.802,
+    "pod": 0.48,
+    "far": 0.66
+   }
+  },
+  {
+   "site": "Salt Lake UT",
+   "fips": "49035",
+   "kind": "arid irrigated",
+   "structure": "M2",
+   "n_weeks_test": 678,
+   "train_rmse": 0.0287,
+   "D1+_50pct": {
+    "drought_weeks": 387,
+    "auc_engine_model": 0.557,
+    "auc_era5land_soil_moisture": 0.602,
+    "auc_30day_rain_deficit": 0.582,
+    "pod": 0.18,
+    "far": 0.35
+   },
+   "D2+_25pct": {
+    "drought_weeks": 227,
+    "auc_engine_model": 0.516,
+    "auc_era5land_soil_moisture": 0.405,
+    "auc_30day_rain_deficit": 0.517,
+    "pod": 0.2,
+    "far": 0.58
+   }
+  }
+ ],
+ "summary": {
+  "D1+_50pct": {
+   "sites_scored": 26,
+   "median_auc_engine": 0.702,
+   "median_auc_era5land": 0.681,
+   "median_auc_rain_deficit": 0.639,
+   "median_pod": 0.2,
+   "median_far": 0.43,
+   "sites_engine_auc_above_0.7": 14,
+   "sites_engine_beats_rain_deficit": 21
+  },
+  "D2+_25pct": {
+   "sites_scored": 23,
+   "median_auc_engine": 0.695,
+   "median_auc_era5land": 0.672,
+   "median_auc_rain_deficit": 0.628,
+   "median_pod": 0.22,
+   "median_far": 0.66,
+   "sites_engine_auc_above_0.7": 11,
+   "sites_engine_beats_rain_deficit": 18
+  }
+ },
+ "split": "2011-01-01",
+ "limits": [
+  "USDM is an expert-blended product, not a gauge: it is the operational definition of drought in the US but not independent of rainfall and soil data.",
+  "Irrigated sites (Fresno, Yakima, Ford, Lubbock, Ada, Salt Lake) are decided by water management that the model cannot see.",
+  "US only: no open drought-declaration archive of this quality exists elsewhere. Tropical, monsoon and snow-fed systems are untested."
+ ]
+}

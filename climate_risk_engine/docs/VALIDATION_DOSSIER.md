@@ -103,3 +103,20 @@ Test (scripts/validate_air.py, year 2023): the CAMS PM2.5 record the engine read
 - Where monitors read under 20 µg/m3 (58 sites) CAMS reads high at about half of them (median ratio 1.17). Where monitors read 20 or more (7 sites) CAMS reads low in most (ratios 0.26, 0.41, 0.48, 0.66, 0.98, 1.15, 1.44; Dhaka 0.48, Karachi 0.66).
 
 Limits and failures: monitors are in towns, CAMS is a 10 to 40 km analysis, only one year was tested, and the open archive holds almost no South Asian monitors (two found: Dhaka, Colombo; Kathmandu lacked a full year). The region the engine is built for is its least-tested one. The source plume screen (Gaussian, Briggs urban) is NOT validated against measurements: it is checked only for physical behaviour. The engine states this in every air-quality result.
+
+## Drought: engine soil-water model validated against observed drought (added)
+
+Until now the drought study was scored against ERA5-Land soil moisture, which is itself a model. It is now also scored against the US Drought Monitor (USDM), the operational record of when a county was in drought, which blends rain gauges, streamflow, soil probes, satellite and local expert reports.
+
+Test (scripts/validate_drought.py): 26 US counties across humid, semi-arid, desert and irrigated climates. The engine's own water balance (structure chosen by AIC, always the seasonal one) is fitted on 2000 to 2010 only and scored on the weekly USDM maps of 2011 to 2023. A drought week is one with 50 % or more of the county in D1 or worse (or 25 % or more in D2 or worse).
+
+| Measure | D1+ (50 % of county) | D2+ (25 % of county) |
+|---|---|---|
+| Sites scored (at least 10 drought weeks) | 26 | 23 |
+| Median ROC area, engine model (0.5 = no skill) | 0.702 | 0.695 |
+| Median ROC area, ERA5-Land soil moisture | 0.681 | 0.672 |
+| Median ROC area, 30-day rain deficit (no physics) | 0.639 | 0.628 |
+| Sites where the engine beats the rain deficit | 21 of 26 | 18 of 23 |
+| Drought weeks caught at the engine's default threshold (median), false-alarm share | 20 %, 43 % | 22 %, 66 % |
+
+Failures and limits: skill is modest. The default flag (driest 10 % of days) is far narrower than the share of weeks the Monitor calls drought, so it misses most of them; it is a ranking tool, not a drought declaration. Irrigated places are poor (ROC area 0.56 to 0.61 at Fresno, Yakima, Salt Lake City), as are Dauphin PA and Greene MO. USDM is an expert-blended product, not a gauge. The test is US-only; monsoon, tropical and snow-fed systems, including the engine's home region, are untested. The basin water-stress layer (WRI Aqueduct) is a published indicator looked up by location; the engine does not validate it and says so.
