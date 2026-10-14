@@ -389,7 +389,7 @@ def build_chat(rng, n: int, split: str):
             if qt in ("next", "missing", "why") and nul:
                 parts.append("I would close those gaps first, with a survey, another data source or an expert view.")
             if qt == "next":
-                parts.append("I can also build the 3D twin here or find what emits nearby, if you want a next step.")
+                parts.append("I can also build a digital twin of the site or find what emits nearby, if you want a next step.")
             a = " ".join(parts) or "The engine has nothing material for this place yet."
         rows.append({"kind": "chat", "split": split, "meta": {"qtype": qt, "facts": ctx, "nulls": [] if qt == "hi" else nul},
                      "messages": [{"role": "system", "content": CV.SYSTEM}, {"role": "user", "content": f"CONTEXT (from the engine, the only source of numbers):\n{ctx}\n\nUser: {q}"}, {"role": "assistant", "content": a}]})
