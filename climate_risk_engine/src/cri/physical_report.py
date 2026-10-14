@@ -532,9 +532,10 @@ def build_asset_report(lat: float, lon: float, name: Optional[str] = None, secto
         w = None
     if w:
         ov = w.get("overall") or {}
-        sc = ov.get("score")
-        if sc is None:                                      # no sector weighting available: use baseline stress
-            sc = (w.get("water_stress") or {}).get("score")
+        # Same quantity and thresholds as the Asset Intelligence panel: the larger of baseline water stress and
+        # drought risk, so the two outputs give the same rating for the same place.
+        _q = [s for s in ((w.get("water_stress") or {}).get("score"), (w.get("drought") or {}).get("score")) if s is not None]
+        sc = max(_q) if _q else ov.get("score")
         rating = None if sc is None else LEVELS[0 if sc < 1 else 1 if sc < 2 else 2 if sc < 3 else 3 if sc < 4 else 4]
         path = w.get("water_stress_path_bau") or {}
         zones.append({"key": "water", "title": "Water stress (context)", "rating": rating,

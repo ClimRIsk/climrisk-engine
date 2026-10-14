@@ -19,8 +19,9 @@ _MECH = {
     "wildfire": "Wildfire exposure follows the fuel around the site (trees, shrub and grass) and the dryness of that fuel. Embers can start fires well ahead of the front.",
     "debris_flow": "Debris flow needs a steep catchment above the site and enough water to mobilise loose material; the site is exposed when it sits at the foot of such a channel.",
     "landslide": "Landslide exposure rises with slope at and above the site and with saturated, weathered ground.",
+    "water_stress": "Water stress means the catchment's users already withdraw a large share of the renewable supply, so a dry year leaves little buffer. For a site this shows up as supply cuts, higher water cost or abstraction limits. The rating describes the whole basin, not this site's own wells or utility connection.",
 }
-_LABEL = {"tropical_cyclone": "Tropical cyclone", "flood": "Flood", "urban_heat": "Urban heat", "wildfire": "Wildfire", "debris_flow": "Debris flow", "landslide": "Landslide"}
+_LABEL = {"tropical_cyclone": "Tropical cyclone", "flood": "Flood", "urban_heat": "Urban heat (land-cover screening)", "wildfire": "Wildfire", "debris_flow": "Debris flow", "landslide": "Landslide", "water_stress": "Water stress (basin scale)"}
 _FUTURE = {
     "tropical_cyclone": "Under Current Policies the strongest storms are expected to get stronger and wetter; under Net Zero 2050 that rise is smaller but is still locked in for the next two decades. The engine's wind figures here use 1980–2025 history with no uplift, so treat them as a floor.",
     "flood": "Sea level and heavy-rain intensity keep rising on both pathways to 2050; the gap between Current Policies and Net Zero 2050 opens mostly after 2050. For planning, assume today's flood level is the minimum.",
@@ -28,6 +29,7 @@ _FUTURE = {
     "wildfire": "Fire weather lengthens under Current Policies; Net Zero 2050 slows that change.",
     "debris_flow": "More intense rainfall raises the chance of triggering events.",
     "landslide": "More intense rainfall raises the chance of triggering events.",
+    "water_stress": "The Aqueduct business-as-usual path in the evidence above shows how the basin score is projected to change; treat it as a screening trend, not a forecast for this site.",
 }
 
 
@@ -62,6 +64,10 @@ def site_brief(a: dict) -> dict:
 
     if not material:
         sections.append({"title": "Why nothing rates higher", "text": "No hazard reached MODERATE on the evidence that loaded. That is a statement about this data, not a guarantee: the 3D twin and the flood solver can still find equipment-level exposure that the screening layers miss."})
+
+    cov = [c for c in (a.get("coverage") or []) if c.get("status") in ("missing", "not_assessed")]
+    if cov:
+        sections.append({"title": "Not rated in this result", "text": "These were not rated, which is different from low risk: " + "; ".join(f"{c['label']} ({'missing' if c['status'] == 'missing' else 'not assessed'})" for c in cov) + "."})
 
     fut = [f"{_LABEL.get(f['hazard'], f['hazard'])}: {_FUTURE[f['hazard']]}" for f in (material or findings[:1]) if f.get("hazard") in _FUTURE]
     if fut:

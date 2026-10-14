@@ -264,7 +264,9 @@
 // State
 // ═══════════════════════════════════════════════════════════════════════════
 const SEV_COLOR = { CRITICAL:'#ef4444', HIGH:'#f97316', MODERATE:'#eab308', LOW:'#22c55e', NEGLIGIBLE:'#64748b' };
-const HAZARD_LABEL = { flood:'Flood', debris_flow:'Debris flow', landslide:'Landslide', wildfire:'Wildfire', urban_heat:'Urban heat', tropical_cyclone:'Tropical cyclone' };
+const HAZARD_LABEL = { flood:'Flood', debris_flow:'Debris flow', landslide:'Landslide', wildfire:'Wildfire', urban_heat:'Urban heat (land-cover screening)', tropical_cyclone:'Tropical cyclone', water_stress:'Water stress (basin scale)' };
+const BASIS_LABEL = { modelled:'Modelled', proxy:'Proxy indicator', basin_screening:'Basin screening', missing:'MISSING', not_assessed:'Not assessed' };
+const BASIS_COLOR = { modelled:'#22c55e', proxy:'#eab308', basin_screening:'#38bdf8', missing:'#ef4444', not_assessed:'#94a3b8' };
 const WC = { 10:['Tree cover','#006400'], 20:['Shrubland','#ffbb22'], 30:['Grassland','#ffff4c'], 40:['Cropland','#f096ff'],
              50:['Built-up','#fa0000'], 60:['Bare / sparse','#b4b4b4'], 70:['Snow / ice','#f0f0f0'], 80:['Permanent water','#0064c8'],
              90:['Herbaceous wetland','#0096a0'], 95:['Mangroves','#00cf75'], 100:['Moss / lichen','#fae6a0'] };
@@ -358,11 +360,20 @@ function renderPanel(d) {
     h += `<details class="finding" ${open}>
       <summary><span class="name">${esc(HAZARD_LABEL[f.hazard] || f.hazard)}</span><span class="pill sev-${f.severity}">${f.severity}</span></summary>
       <div class="body">
+        ${f.basis ? `<div style="font-size:11px;margin:2px 0 6px;color:${BASIS_COLOR[f.basis] || '#94a3b8'}"><b>${esc(BASIS_LABEL[f.basis] || f.basis)}</b> <span style="color:var(--muted)">· ${esc(f.basis_note || '')}</span></div>` : ''}
         <table class="ev">${rows}</table>
         ${acts ? `<div class="section-title">What to do</div><ul class="actions">${acts}</ul>` : ''}
         ${f.caveat ? `<div class="caveat">${esc(f.caveat)}</div>` : ''}
       </div></details>`;
   });
+
+  const cov = d.coverage || [];
+  if (cov.length) {
+    h += `<div class="section-title" style="margin-top:4px">What this result covers</div>
+      <table class="ev" style="font-size:11.5px">${cov.map(c => `<tr><td class="m">${esc(c.label)}<span class="src">${esc(c.note || '')}</span></td>
+        <td class="v" style="color:${BASIS_COLOR[c.status] || '#94a3b8'};white-space:nowrap"><b>${esc(BASIS_LABEL[c.status] || c.status)}</b>${c.severity ? `<br><span style="color:var(--muted)">${esc(c.severity)}</span>` : ''}</td></tr>`).join('')}</table>
+      <div class="caveat">Missing and not-assessed rows were not rated. They are not the same as low risk.</div>`;
+  }
 
   h += `<div class="section-title" style="margin-top:4px">AI narrative</div>
     <div class="ai" id="aiBox">Press <b>AI deep dive</b> for a written brief grounded in the evidence above (written inside the engine, no API key).</div>

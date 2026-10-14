@@ -106,6 +106,12 @@ _ACTIONS = {
         "Increase shade and tree canopy on site; low canopy cover amplifies local heat.",
         "Re-rate HVAC and cooling for higher design temperatures; add heat-stress protocols for outdoor staff.",
     ],
+    "water_stress": [
+        "Map the site's actual water sources (utility, borewell, tanker, surface) and consumption; basin stress says nothing about your own supply.",
+        "Secure a second source or on-site storage sized for a dry-season shortfall; test it before it is needed.",
+        "Review water-use efficiency and recycling; check local abstraction limits and tariff exposure.",
+        "Add the site's dry-year supply record to the risk file and re-run this screening when better local data exist.",
+    ],
 }
 
 _ASSET_ADDONS = {
@@ -394,10 +400,108 @@ def _urban_heat(lat: float, lc: dict) -> dict:
     sev = _sev_from_points(pts)
     if sev in ("HIGH", "CRITICAL"):                  # land-cover proxy only — no temperatures yet
         sev, pts = "MODERATE", min(pts, 3.0)
+    ev.append(_ev("Heat stress on people (WBGT / UTCI, hot-day counts)", "not modelled in this panel",
+                  "Not computed here; see Model Lab heat study for a hindcast-tested screening estimate"))
     return {"hazard": "urban_heat", "score": round(pts, 1), "severity": sev,
             "mechanisms": ["urban_heat"] if sev in ("MODERATE", "HIGH", "CRITICAL") else [],
             "evidence": ev,
-            "caveat": "Land-cover amplification only (capped at MODERATE); the temperature-based heat model is the next build."}
+            "caveat": "Land-cover screening only: this rates how much the built surroundings could amplify heat, capped at "
+                      "MODERATE. It does not measure air temperature, humidity, surface temperature or heat stress on people, "
+                      "so NEGLIGIBLE or LOW here does NOT mean the place is not hot. Hot, humid regions can have serious heat "
+                      "stress with little built-up cover."}
+
+
+def _water_stress(lat: float, lon: float) -> Optional[dict]:
+    """Basin-scale water stress / drought finding from WRI Aqueduct 4.0 (offline data).
+
+    Returns None when the point is outside Aqueduct coverage. Raises on a data failure so the caller
+    can record it as MISSING rather than as a low rating. The rating is a basin-scale screening value,
+    not a statement about the site's own water supply.
+    """
+    from ..connectors.wri_aqueduct import point, stress_path
+    r = point(lat, lon)
+    if not r.get("found"):
+        return None
+    b = r["baseline"]
+    SRC = "WRI Aqueduct 4.0 (basin scale, baseline 1979–2019)"
+    bws, drr = (b["bws"].get("score"), b["drr"].get("score"))
+    scores = [s for s in (bws, drr) if s is not None]
+    ind = max(scores) if scores else None
+    ev = [_ev("Baseline water stress (withdrawals ÷ supply)", b["bws"].get("label"), SRC,
+              f"score {bws}/5" if bws is not None else ""),
+          _ev("Drought risk", b["drr"].get("label"), SRC, f"score {drr}/5" if drr is not None else ""),
+          _ev("Water depletion", b["bwd"].get("label"), SRC),
+          _ev("Groundwater table decline", (b.get("gtd") or {}).get("label"), SRC)]
+    if b["bws"].get("raw") is not None:
+        ev.append(_ev("Share of renewable supply withdrawn", round(100 * b["bws"]["raw"], 1), SRC, "%"))
+    path = stress_path(r, "bau")
+    if len(path) > 1:
+        ev.append(_ev("Water stress score, business-as-usual scenario",
+                      ", ".join(f"{k}: {v}" for k, v in path.items() if v is not None), SRC, "0–5"))
+    ev.append(_ev("Catchment unit", f"{r.get('admin1')}, {r.get('country')} (basin {r.get('basin_pfaf_id')})", SRC))
+    if ind is None:
+        sev, pts = "NEGLIGIBLE", 0.0
+    else:
+        sev = SEVERITY_ORDER[0 if ind < 1 else 1 if ind < 2 else 2 if ind < 3 else 3 if ind < 4 else 4]
+        pts = {"NEGLIGIBLE": 0, "LOW": 1, "MODERATE": 2.5, "HIGH": 4.5, "CRITICAL": 6}[sev]
+    return {"hazard": "water_stress", "score": pts, "severity": sev,
+            "mechanisms": ["water_stress"] if sev in ("MODERATE", "HIGH", "CRITICAL") else [],
+            "evidence": ev,
+            "caveat": "Basin-scale screening from WRI Aqueduct 4.0, which WRI states is modelled and not directly validated. "
+                      "It describes the whole catchment, not this site's own wells, tanks or utility supply, and it is "
+                      "not monetised in the loss figures. Check the site's actual water source and supply record.",
+            "detail": {"baseline": {k: v for k, v in b.items() if k in ("bws", "bwd", "drr", "gtd")},
+                       "path_bau": path, "indicator_score": ind, "admin1": r.get("admin1")}}
+
+
+# Basis of each finding: how it was produced. "modelled" = physical model on site data; "proxy" = indicator
+# from land cover/terrain, not a hazard model; "basin_screening" = coarse catchment-scale published dataset.
+_BASIS = {"flood": "modelled", "debris_flow": "proxy", "landslide": "proxy", "wildfire": "proxy",
+          "urban_heat": "proxy", "tropical_cyclone": "modelled", "water_stress": "basin_screening"}
+
+# Hazards a reader might expect in a physical-risk result and what this panel does about each.
+_COVERAGE_PLAN = [
+    ("flood", "Flood (river and surface water)", ["terrain"]),
+    ("debris_flow", "Debris flow", ["terrain"]),
+    ("landslide", "Landslide / slope instability", ["terrain"]),
+    ("wildfire", "Wildfire", ["terrain", "satellite", "land_cover"]),
+    ("tropical_cyclone", "Tropical cyclone wind", ["tropical_cyclone"]),
+    ("urban_heat", "Urban heat (land-cover screening)", ["land_cover"]),
+    ("water_stress", "Water stress and drought (basin scale)", ["water_stress"]),
+]
+_NOT_COVERED = [
+    ("heat_stress", "Heat stress on people (WBGT/UTCI, hot-day counts)",
+     "Not computed in this panel. Absence of a heat rating here is not evidence of low heat stress."),
+    ("surface_urban_heat", "Surface urban heat island (satellite land-surface temperature)",
+     "Not computed. The urban-heat row above uses land cover only."),
+    ("groundwater_site", "Site groundwater and local water supply",
+     "Not computed. Only basin-scale Aqueduct groundwater decline is shown."),
+    ("coastal_sea_level", "Coastal flood and sea-level rise",
+     "Not rated in this panel; the full physical-risk report covers the coast where data exist."),
+]
+
+
+def _coverage(findings: list, errors: dict, water_found: bool) -> list:
+    """What was modelled, what is a proxy, and what is MISSING — so absence is never read as low risk."""
+    by = {f["hazard"]: f for f in findings}
+    out = []
+    for key, label, needs in _COVERAGE_PLAN:
+        failed = [n for n in needs if errors.get(n) and not (n == "radar" and "timed out" in str(errors[n]))]
+        f = by.get(key)
+        if failed:
+            out.append({"hazard": key, "label": label, "status": "missing",
+                        "note": f"Input failed to load ({', '.join(failed)}): no rating was produced, which is not the same as low risk."})
+        elif key == "water_stress" and not water_found:
+            out.append({"hazard": key, "label": label, "status": "not_assessed",
+                        "note": "Point is outside WRI Aqueduct basin coverage (open water or no unit within ~15 km)."})
+        elif f is None:
+            out.append({"hazard": key, "label": label, "status": "missing", "note": "No result was produced."})
+        else:
+            out.append({"hazard": key, "label": label, "status": f.get("basis", _BASIS.get(key, "proxy")),
+                        "severity": f["severity"], "note": f.get("basis_note", "")})
+    for key, label, note in _NOT_COVERED:
+        out.append({"hazard": key, "label": label, "status": "not_assessed", "note": note})
+    return out
 
 
 # ── Orchestrator ─────────────────────────────────────────────────────────────
@@ -479,6 +583,22 @@ def assess_asset(
         findings.append(_tropical_cyclone(lat, lon))
     except Exception as exc:                      # noqa: BLE001
         errors["tropical_cyclone"] = str(exc)
+    water_found = False
+    try:
+        wf = _water_stress(lat, lon)
+        if wf:
+            findings.append(wf)
+            water_found = True
+    except Exception as exc:                      # noqa: BLE001
+        errors["water_stress"] = str(exc)
+    _basis_note = {
+        "modelled": "Physical model run on data for this site.",
+        "proxy": "Indicator from terrain or land cover, not a hazard model.",
+        "basin_screening": "Coarse catchment-scale published dataset, not site-specific.",
+    }
+    for f in findings:
+        f["basis"] = _BASIS.get(f["hazard"], "proxy")
+        f["basis_note"] = _basis_note[f["basis"]]
     for f in findings:
         acts = []
         if f["hazard"] == "flood" and f["severity"] == "CRITICAL":
@@ -523,6 +643,7 @@ def assess_asset(
         "risk_signal": risk_signal,
         "headline": headline,
         "findings": findings,
+        "coverage": _coverage(findings, errors, water_found),
         "terrain": {k: v for k, v in terrain.items() if k != "viz"},
         "satellite": sat,
         "land_cover": {k: v for k, v in lc.items() if k != "layer"},
@@ -532,7 +653,7 @@ def assess_asset(
             "Sentinel-2 L2A COGs — AWS Open Data via Earth Search STAC",
             "ESA WorldCover 2021 v200 — s3://esa-worldcover",
             "NOAA IBTrACS v04r01 tropical-cyclone tracks 1980–2025 (validated vs NOAA ISD station winds)",
-        ] + (["Sentinel-1 RTC radar — Microsoft Planetary Computer"] if sar.get("available") else []) + (["Prithvi-EO-2.0-300M-TL-Sen1Floods11 (Hugging Face endpoint)"]
+        ] + (["WRI Aqueduct 4.0 water risk (CC BY 4.0; basin scale)"] if water_found else []) + (["Sentinel-1 RTC radar — Microsoft Planetary Computer"] if sar.get("available") else []) + (["Prithvi-EO-2.0-300M-TL-Sen1Floods11 (Hugging Face endpoint)"]
              if sat.get("prithvi_water_fraction") is not None else []),
         "caveats": [
             "Screening-grade: prioritises assets for survey; not a substitute for hydraulic flood modelling or geotechnical investigation.",
@@ -625,14 +746,16 @@ def _headline(name: str, t: dict, s: dict, lc: dict, material: list[dict]) -> st
         parts.append(f"in {lc['class_at_asset'].replace('_', ' ')} land cover")
     s1 = " ".join(parts) + "." if parts else f"{name}."
     if not material:
-        return s1 + " No hazard reached MODERATE on the combined terrain, satellite and land-cover evidence."
+        return (s1 + " No rated hazard reached MODERATE on the evidence this panel uses. Heat stress on people and "
+                "the site's own water supply are not rated here, so this is not an all-clear.")
     top = material[0]
     lead = {
         "flood": "Flood is the leading exposure",
         "debris_flow": "Debris flow from upslope terrain is the leading exposure",
         "landslide": "Slope instability is the leading exposure",
         "wildfire": "Wildfire fuel load is the leading exposure",
-        "urban_heat": "Urban heat amplification is the leading exposure",
+        "urban_heat": "Urban heat amplification (land-cover screening) is the leading exposure",
+        "water_stress": "Basin-scale water stress is the leading exposure",
         "tropical_cyclone": "Tropical cyclone wind is the leading exposure",
     }.get(top["hazard"], f"{top['hazard']} is the leading exposure")
     others = [f["hazard"].replace("_", " ") for f in material[1:]]
