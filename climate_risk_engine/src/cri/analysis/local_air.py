@@ -342,6 +342,18 @@ def screen(lat: float, lon: float, sources: list, raw: dict) -> list:
 
 # ── the entry used by the site profile ───────────────────────────────────────────
 
+VALIDATION = {
+    "test": "CAMS PM2.5 (the record this layer reads) against 65 ground monitors, 2023: 45 US EPA AQS sites spaced 250 km apart and 20 OpenAQ sites on other continents; scripts/validate_air.py",
+    "daily_correlation_median": 0.58,
+    "annual_mean_within_30pct_of_monitor_share": 0.66,        # held-out half of the sites, uncorrected
+    "days_over_15_error_days_per_year": 39,                   # held-out half, mean absolute
+    "clean_sites_median_cams_over_monitor": 1.17,             # monitors reading under 20 ug/m3 (58 sites): CAMS reads high at about half of them
+    "polluted_sites_median_cams_over_monitor": 0.66,          # monitors reading 20 ug/m3 or more (7 sites: ratios 0.26 to 1.44; Dhaka 0.48, Karachi 0.66)
+    "one_global_correction_helps": False,                     # fitted on one half, it made the other half worse (mean abs bias 3.6 to 4.4 ug/m3)
+    "south_asia_monitors": 2, "caveat": "Where air is polluted the regional model tends to read low (up to a factor of 4 at one Peruvian site); South Asia has the fewest open monitors, so the place this engine is built for is its least-tested region.",
+}
+
+
 def assess(lat: float, lon: float, osm: bool = True, raw: Optional[dict] = None, sources_override: Optional[list] = None, fetch: Callable = _get) -> dict:
     """Everything above in one dict. `status` is modelled (record only), constructed (record + source screen) or null (record unreadable)."""
     research: list = []
@@ -380,6 +392,6 @@ def assess(lat: float, lon: float, osm: bool = True, raw: Optional[dict] = None,
         research.append(f"Plume screen (central scenario, worst bearing): +{inc['central']['max']} µg/m3 on top of the regional {base}; range {inc['low']['max']} to {inc['high']['max']} across low to high emission scenarios.")
     return {"status": "constructed" if modelled_src else "modelled", "record": rec, "sources": scr, "increment": inc, "annual_pm25_total_central": round(tot, 1),
             "severity": severity_pm25(tot), "thresholds": {"who_annual": WHO_ANNUAL, "naaqs_annual": NAAQS_ANNUAL, "naaqs_24h": NAAQS_24H},
-            "assumption_note": ASSUMPTION_NOTE if modelled_src else None, "not_modelled": NOT_MODELLED, "osm": None, "research": research,
+            "validation": VALIDATION, "assumption_note": ASSUMPTION_NOTE if modelled_src else None, "not_modelled": NOT_MODELLED, "osm": None, "research": research,
             "unverified_sources": [s["kind"] for s in srcs if "declared" in str(s.get("provenance")) or s.get("confidence") in ("low", "inferred")],
             "discovery_log": disc["log"] if disc else []}

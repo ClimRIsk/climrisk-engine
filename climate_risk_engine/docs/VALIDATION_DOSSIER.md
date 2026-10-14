@@ -92,3 +92,14 @@ Held-out test (scripts/validate_wbgt.py, 20 airport stations, 2018 to 2022, cali
 
 A single additive correction fitted on the calibration sites (+1.1 °C) cuts the held-out hot-hour mean absolute bias from 0.89 to 0.55 °C. The engine reports uncorrected values and states that peaks are understated by about 1 °C.
 Failures and limits: ERA5 runs cool at every hot site tested except Oslo, Brisbane and Manaus (near zero); Jacobabad is worst (about -1.5 °C mean, -2.3 °C on hot hours). Station wind is missing for up to 75 % of hours and is measured at sheltered masts, so it is excluded from the primary test; using it would shift WBGT by up to about 2 °C where winds are near calm. The hot-hour column is selected on the station chain and so is biased low for the reanalysis; selecting on the reanalysis chain gives the opposite bias (see the JSON). Radiation error is not tested.
+
+## Air quality: regional PM2.5 record validated against 65 ground monitors (added)
+
+Test (scripts/validate_air.py, year 2023): the CAMS PM2.5 record the engine reads (Open-Meteo air-quality API) at the coordinates of 45 US EPA AQS monitors (spaced 250 km apart) and 20 OpenAQ monitors on other continents, compared with each monitor's daily means. Sites alternate calibration / held-out by longitude.
+
+- Daily correlation, median over sites: 0.58.
+- Held-out sites, uncorrected: annual mean within 30 % of the monitor at 66 % of sites; median absolute relative error 0.19; mean error in days above 15 µg/m3 38.8 days a year.
+- A single global correction factor (1.09) fitted on the calibration sites made the held-out sites worse (mean absolute bias 3.63 to 4.35 µg/m3), so the engine applies none.
+- Where monitors read under 20 µg/m3 (58 sites) CAMS reads high at about half of them (median ratio 1.17). Where monitors read 20 or more (7 sites) CAMS reads low in most (ratios 0.26, 0.41, 0.48, 0.66, 0.98, 1.15, 1.44; Dhaka 0.48, Karachi 0.66).
+
+Limits and failures: monitors are in towns, CAMS is a 10 to 40 km analysis, only one year was tested, and the open archive holds almost no South Asian monitors (two found: Dhaka, Colombo; Kathmandu lacked a full year). The region the engine is built for is its least-tested one. The source plume screen (Gaussian, Briggs urban) is NOT validated against measurements: it is checked only for physical behaviour. The engine states this in every air-quality result.

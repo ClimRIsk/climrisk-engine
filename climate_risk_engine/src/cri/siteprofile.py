@@ -218,6 +218,10 @@ def _h_air_local(c: Ctx) -> dict:
         return _null(KEY, LAB, "air", [{"rung": "CAMS record + ERA5 wind", "ok": False, "why": a["reason"]}], a["reason"])
     rec = a["record"]
     cav = [rec["resolution"]]
+    v = a.get("validation") or {}
+    if v:
+        cav.append(f'Checked against 65 ground monitors (2023): daily correlation about {v["daily_correlation_median"]}, annual mean within 30% at {round(v["annual_mean_within_30pct_of_monitor_share"] * 100)}% of held-out sites, '
+                   f'median model/monitor ratio {v["polluted_sites_median_cams_over_monitor"]} where monitors read 20 or more µg/m3 (the model tends to read low in polluted air; treat this as a lower bound there). {v["caveat"]}')
     if a.get("assumption_note"):
         cav.append(a["assumption_note"])
     if a.get("unverified_sources"):
