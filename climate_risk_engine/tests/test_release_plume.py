@@ -84,3 +84,12 @@ def test_endpoint_returns_field_and_refuses_bad_input():
     j = r.json()
     assert j["status"] == "modelled" and j["peak_ground"]["ug_m3"] > 0 and j["limits"]
     assert c.post("/asset-twin/plume", json={"q_g_s": -5}).status_code == 422
+
+
+def test_portfolio_map_page_is_served_and_keeps_null_visible():
+    from fastapi.testclient import TestClient
+    from cri.api import main
+    r = TestClient(main.app).get("/portfolio/map")
+    assert r.status_code == 200
+    t = r.text
+    assert "Not assessed" in t and "no single portfolio score" in t and "/resident/site/profile" in t

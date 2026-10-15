@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ClimRisk · Portfolio map</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root { --bg:#070b14; --surface:#0d1524; --card:#111b2e; --border:#1c2a44; --primary:#38bdf8; --muted:#8a9bbd; --text:#e2eaf8;
+          --s0:#4b5d7a; --s1:#22c55e; --s2:#eab308; --s3:#f97316; --s4:#ef4444; --sans:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',sans-serif; }
+  body { font-family: var(--sans); background: var(--bg); color: var(--text); font-size: 12.5px; overflow: hidden; }
+  .header { display:flex; align-items:center; gap:14px; padding:0 16px; background:var(--surface); border-bottom:1px solid var(--border); height:46px; }
+  .logo { font-weight:800; letter-spacing:3px; color:var(--primary); font-size:15px; } .sub { font-size:11px; color:var(--muted); }
+  .header a { color:var(--muted); text-decoration:none; font-size:11.5px; } .header a:hover { color:var(--text); }
+  .layout { display:grid; grid-template-columns:392px 1fr; height:calc(100vh - 46px); }
+  .rail { background:var(--surface); border-right:1px solid var(--border); overflow-y:auto; padding:12px; }
+  .box { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:10px 12px; }
+  .kpis { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px; }
+  .kpi small { display:block; color:var(--muted); font-size:10.5px; } .kpi b { font-size:19px; font-weight:700; }
+  .kpi b span { font-size:11px; color:var(--muted); font-weight:500; }
+  h3 { font-size:10px; letter-spacing:1.4px; text-transform:uppercase; color:var(--muted); margin:0 0 6px; font-weight:600; }
+  input, select, textarea { width:100%; background:var(--bg); border:1px solid var(--border); border-radius:6px; color:var(--text); font:inherit; padding:6px 8px; outline:none; }
+  textarea { height:84px; font-family:ui-monospace,Menlo,monospace; font-size:11px; resize:vertical; }
+  .btn { padding:7px 12px; border:none; border-radius:7px; background:var(--primary); color:#04121e; font:inherit; font-weight:700; cursor:pointer; }
+  .btn.alt { background:transparent; border:1px solid var(--border); color:var(--text); font-weight:600; } .btn.sm { padding:3px 8px; font-size:11px; }
+  .row { display:flex; gap:6px; margin-top:6px; align-items:center; }
+  .sev { display:flex; gap:6px; flex-wrap:wrap; font-size:10.5px; color:var(--muted); } .sev i { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:4px; vertical-align:middle; }
+  .asset { margin-top:8px; background:var(--card); border:1px solid var(--border); border-radius:10px; padding:9px 11px; cursor:pointer; }
+  .asset:hover { border-color:#2c4268; } .asset.sel { border-color:var(--primary); box-shadow:0 0 0 1px var(--primary) inset; }
+  .asset .t { display:flex; align-items:center; gap:7px; } .asset .t b { font-size:13px; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .pill { font-size:10.5px; border-radius:999px; padding:2px 8px; border:1px solid var(--border); white-space:nowrap; }
+  .meta { color:var(--muted); font-size:10.5px; margin-top:2px; }
+  .chips { display:flex; gap:5px; flex-wrap:wrap; margin-top:7px; }
+  .chip { font-size:10.5px; border-radius:999px; padding:2px 8px; border:1px solid var(--border); display:inline-flex; gap:5px; align-items:center; }
+  .chip i { width:7px; height:7px; border-radius:50%; display:inline-block; }
+  .chip.null { color:var(--muted); border-style:dashed; }
+  .mapwrap { position:relative; background:#050a14; overflow:hidden; }
+  #map { width:100%; height:100%; display:block; cursor:grab; } #map:active { cursor:grabbing; }
+  .layers { position:absolute; left:12px; top:12px; display:flex; flex-direction:column; gap:4px; background:rgba(13,21,36,.92); border:1px solid var(--border); border-radius:10px; padding:5px; max-height:calc(100% - 90px); overflow:auto; }
+  .layers button { background:transparent; border:1px solid transparent; color:var(--text); font:inherit; font-size:11px; padding:5px 9px; border-radius:7px; cursor:pointer; text-align:left; }
+  .layers button:hover { background:rgba(255,255,255,.07); } .layers button.on { background:var(--primary); color:#04121e; font-weight:700; }
+  .legend { position:absolute; right:12px; top:12px; width:250px; background:rgba(13,21,36,.92); border:1px solid var(--border); border-radius:10px; padding:9px 11px; font-size:11px; }
+  .legend .bar { display:flex; height:7px; border-radius:4px; overflow:hidden; margin:6px 0 3px; } .legend .bar span { flex:1; }
+  .legend .nt { color:var(--muted); font-size:10.5px; margin-top:6px; line-height:1.5; }
+  .pop { position:absolute; pointer-events:none; background:rgba(13,21,36,.96); border:1px solid var(--border); border-radius:9px; padding:7px 10px; font-size:11px; display:none; max-width:260px; }
+  .bottom { position:absolute; left:50%; bottom:14px; transform:translateX(-50%); width:min(560px,70%); display:flex; gap:8px; }
+  .bottom input { background:rgba(13,21,36,.94); border-radius:999px; padding:9px 14px; }
+  .empty { color:var(--muted); text-align:center; padding:26px 8px; line-height:1.6; }
+  .note { color:var(--muted); font-size:10.5px; line-height:1.5; margin-top:6px; }
+  .msg { font-size:11px; color:var(--muted); margin-top:5px; min-height:14px; } .msg.err { color:#f87171; }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; grid-template-rows: 48vh 1fr; } .rail { border-right: 0; border-bottom: 1px solid var(--border); }
+    .legend { width: 190px; font-size: 10px; } .legend .nt { display: none; } .header .sub { display: none; } .layers { max-height: 55%; } }
+</style></head><body>
+<div class="header"><div class="logo">CLIMRISK</div><div class="sub">Portfolio map · every asset, every hazard, honest about what is not assessed</div>
+  <span style="flex:1"></span><a href="/asset-twin/dashboard">3D site twin</a><a href="/asset/dashboard">Asset intelligence</a><a href="/insurance/dashboard">Insurance</a></div>
+<div class="layout">
+  <aside class="rail">
+    <div class="box">
+      <h3>Portfolio</h3>
+      <div class="sev" id="sevKey"></div>
+      <div class="kpis">
+        <div class="box kpi"><small>Assets</small><b id="kN">0</b></div>
+        <div class="box kpi"><small>Worst screened level</small><b id="kW">–</b></div>
+        <div class="box kpi"><small>In HIGH or CRITICAL places</small><b id="kH">0 <span>assets</span></b></div>
+        <div class="box kpi"><small>Value in those places</small><b id="kV">–</b></div>
+      </div>
+      <div class="note">There is no single portfolio score: hazards do not add up. “Value in those places” is the replacement value you supplied for assets in HIGH or CRITICAL locations; it is exposure, not expected loss. Open Insurance for a loss estimate.</div>
+    </div>
+    <div class="box" style="margin-top:8px">
+      <h3>Add assets</h3>
+      <textarea id="csv" placeholder="name, lat, lon, value_usd (optional), sector (optional)&#10;Plant A, 29.7255, -95.0, 120000000, oil and gas&#10;Warehouse B, 51.9, 4.4, 8000000, logistics"></textarea>
+      <div class="row"><button class="btn" id="addCsv">Add to map</button><button class="btn alt" id="clr">Clear</button><button class="btn alt" id="demo">Example</button></div>
+      <div class="row" style="margin-top:10px"><input id="q" placeholder="or find a company in the asset register…"><button class="btn alt" id="qGo">Find</button></div>
+      <div id="qRes" class="note"></div><div class="msg" id="msg"></div>
+    </div>
+    <div id="list"></div>
+  </aside>
+  <section class="mapwrap" id="mw">
+    <canvas id="map"></canvas>
+    <div class="layers" id="layers"></div>
+    <div class="legend" id="legend"></div>
+    <div class="pop" id="pop"></div>
+    <div class="bottom"><input id="go" placeholder="Search a place or type latitude, longitude and press Enter…"></div>
+  </section>
+</div>
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const SEV = ['NEGLIGIBLE', 'LOW', 'MODERATE', 'HIGH', 'CRITICAL'], SCOL = ['#22c55e', '#84cc16', '#eab308', '#f97316', '#ef4444'], NULLC = '#4b5d7a';
+const LAYERS = [['worst', 'Worst of all'], ['cyclone', 'Cyclone wind'], ['river_flood', 'River flood'], ['coastal_flood', 'Coastal flood'], ['water_stress', 'Water stress'], ['thermal_stress', 'Heat stress'],
+                ['cold_extreme', 'Freeze / cold'], ['wildfire_fuel', 'Wildfire fuel'], ['earthquake', 'Earthquake'], ['air_local', 'Local air quality'], ['landslide_slope', 'Landslide']];
+const CHIPS = ['cyclone', 'river_flood', 'coastal_flood', 'water_stress', 'thermal_stress', 'cold_extreme', 'wildfire_fuel', 'earthquake'];
+const SHORT = { cyclone: 'Cyclone', river_flood: 'River', coastal_flood: 'Coast', water_stress: 'Water', thermal_stress: 'Heat', cold_extreme: 'Freeze', wildfire_fuel: 'Fire', earthquake: 'Quake', air_local: 'Air', landslide_slope: 'Slide' };
+const S = { assets: [], sel: null, layer: 'worst', land: null, view: { lon: 10, lat: 25, k: 1 }, busy: 0 };
+const fmtV = v => v >= 1e9 ? '$' + (v / 1e9).toFixed(1) + 'bn' : v >= 1e6 ? '$' + (v / 1e6).toFixed(1) + 'M' : v >= 1e3 ? '$' + (v / 1e3).toFixed(0) + 'k' : '$' + v.toFixed(0);
+function msg(t, err) { $('msg').textContent = t || ''; $('msg').className = 'msg' + (err ? ' err' : ''); }
+async function api(path, body, method) {
+  const key = new URLSearchParams(location.hash.slice(1)).get('key');                      // the desktop app passes its session token in the hash
+  const r = await fetch(path, { method: method || (body ? 'POST' : 'GET'), headers: Object.assign({ 'Content-Type': 'application/json' }, key ? { 'X-API-Key': key } : {}), body: body ? JSON.stringify(body) : undefined });
+  if (!r.ok) { let m = 'Request failed (' + r.status + ')'; try { const d = (await r.json()).detail; m = typeof d === 'string' ? d : (d && (d.error || d.message)) || m; } catch (e) {} throw new Error(m); }
+  return r.json();
+}
+
+// ── severity per asset and hazard: null stays null (grey, dashed), never green ──
+function hz(a, key) {
+  const p = a.profile && a.profile[key]; if (p) return { sev: p.severity, st: p.status, v: p.value, u: p.unit };
+  if (key === 'cyclone' && a.screen) return { sev: a.screen.cyclone, st: 'screen' };
+  if (key === 'coastal_flood' && a.screen && a.screen.flood) return { sev: a.screen.flood, st: 'screen' };
+  return null;
+}
+function levelOf(h) { if (!h || h.sev == null) return -1; const i = SEV.indexOf(String(h.sev).toUpperCase()); return i; }
+function worst(a) { let w = -1; CHIPS.concat(['air_local', 'landslide_slope']).forEach(k => { w = Math.max(w, levelOf(hz(a, k))); }); return w; }
+function layerLevel(a) { return S.layer === 'worst' ? worst(a) : levelOf(hz(a, S.layer)); }
+function colorOf(l) { return l < 0 ? NULLC : SCOL[l]; }
+
+// ── rail ──
+function renderKpis() {
+  const n = S.assets.length, ws = S.assets.map(worst), w = Math.max(-1, ...ws), hi = S.assets.filter((a, i) => ws[i] >= 3), vals = hi.filter(a => a.value > 0);
+  $('kN').textContent = n; $('kW').innerHTML = w < 0 ? '<span>not assessed</span>' : `<span style="color:${SCOL[w]};font-size:15px">${SEV[w]}</span>`;
+  $('kH').innerHTML = hi.length + ' <span>of ' + n + '</span>'; $('kV').textContent = vals.length ? fmtV(vals.reduce((s, a) => s + a.value, 0)) : (hi.length ? 'no values given' : '–');
+}
+function renderList() {
+  if (!S.assets.length) { $('list').innerHTML = '<div class="empty">No assets yet.<br>Paste a list above, find a company in the register, or click <b>Example</b>.</div>'; return; }
+  $('list').innerHTML = S.assets.map((a, i) => {
+    const w = worst(a), chips = CHIPS.map(k => { const h = hz(a, k), l = levelOf(h);
+      return `<span class="chip ${l < 0 ? 'null' : ''}" title="${esc(h ? (h.st + (h.v != null ? ' · ' + h.v + ' ' + (h.u || '') : '')) : 'not assessed yet')}"><i style="background:${colorOf(l)}"></i>${SHORT[k]}${l < 0 ? ' –' : ''}</span>`; }).join('');
+    return `<div class="asset ${S.sel === i ? 'sel' : ''}" data-i="${i}"><div class="t"><b>${esc(a.name)}</b><span class="pill" style="border-color:${colorOf(w)};color:${colorOf(w)}">${w < 0 ? 'not assessed' : SEV[w]}</span></div>
+      <div class="meta">${a.lat.toFixed(3)}, ${a.lon.toFixed(3)}${a.sector ? ' · ' + esc(a.sector) : ''}${a.value ? ' · ' + fmtV(a.value) : ''}${a.country ? ' · ' + esc(a.country) : ''}</div>
+      <div class="chips">${chips}</div>
+      <div class="row"><button class="btn sm" data-act="prof" data-i="${i}" ${a.running ? 'disabled' : ''}>${a.running ? esc(a.progress || 'running…') : a.profile ? 'Re-run all hazards' : 'Run all hazards'}</button>
+        <a class="btn alt sm" style="text-decoration:none" href="/asset-twin/dashboard?lat=${a.lat}&lon=${a.lon}&name=${encodeURIComponent(a.name)}${a.sector ? '&sector=' + encodeURIComponent(a.sector) : ''}${location.hash}">Open 3D</a></div></div>`;
+  }).join('');
+  document.querySelectorAll('.asset').forEach(el => el.onclick = e => { const b = e.target.closest('[data-act]'); if (b) { runProfile(+b.dataset.i); return; } if (e.target.closest('a')) return; select(+el.dataset.i, true); });
+}
+function renderAll() { renderKpis(); renderList(); draw(); }
+function select(i, fly) { S.sel = i; if (fly && i != null) { S.view.lon = S.assets[i].lon; S.view.lat = S.assets[i].lat; S.view.k = Math.max(S.view.k, 4); } renderList(); draw(); const el = document.querySelector('.asset.sel'); if (el) el.scrollIntoView({ block: 'nearest' }); }
+
+// ── adding assets ──
+function parseCsv(t) {
+  const out = []; (t || '').split(/\r?\n/).forEach((ln, n) => { ln = ln.trim(); if (!ln || /^name\s*,/i.test(ln)) return; const c = ln.split(',').map(x => x.trim());
+    const lat = parseFloat(c[1]), lon = parseFloat(c[2]); if (!c[0] || !isFinite(lat) || !isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) { out.push({ bad: n + 1 }); return; }
+    out.push({ name: c[0], lat, lon, value: parseFloat(c[3]) > 0 ? parseFloat(c[3]) : null, sector: c[4] || '' }); }); return out;
+}
+function addAssets(list) { const bad = list.filter(x => x.bad); list = list.filter(x => !x.bad); list.forEach(a => S.assets.push(a)); renderAll(); fit();
+  msg(list.length ? `Added ${list.length} asset(s).` + (bad.length ? ` Skipped ${bad.length} line(s) without a valid name, latitude and longitude (line ${bad.map(b => b.bad).join(', ')}).` : '') : 'Nothing added: each line needs name, latitude, longitude.', !list.length); }
+$('addCsv').onclick = () => addAssets(parseCsv($('csv').value));
+$('clr').onclick = () => { S.assets = []; S.sel = null; renderAll(); msg(''); };
+$('demo').onclick = () => addAssets(parseCsv(['Houston refinery, 29.7255, -95.0, 450000000, oil and gas', 'Rotterdam terminal, 51.95, 4.14, 120000000, chemicals', 'Chennai plant, 13.1, 80.3, 60000000, manufacturing',
+  'Jubail petrochemical, 27.0, 49.6, 300000000, petrochemical', 'Santos port, -23.98, -46.3, 90000000, logistics', 'Calgary warehouse, 51.05, -114.07, 15000000, logistics'].join('\n')));
+$('qGo').onclick = async () => { const q = $('q').value.trim(); if (!q) return; $('qRes').textContent = 'Searching…';
+  try { const r = await api('/company/search?q=' + encodeURIComponent(q)); const rows = (r.results || r || []).slice(0, 6);
+    $('qRes').innerHTML = rows.length ? rows.map(x => `<div><a href="#" data-key="${esc(x.key)}" style="color:var(--primary)">${esc(x.name)}</a> · ${x.n_assets} assets</div>`).join('') : 'No match in the register.';
+    document.querySelectorAll('#qRes a').forEach(a => a.onclick = async e => { e.preventDefault(); $('qRes').textContent = 'Loading assets…';
+      try { const ex = await api('/company/exposure', { keys: [a.dataset.key] }); if (!ex.found) { $('qRes').textContent = 'No assets found.'; return; }
+        addAssets(ex.assets.slice(0, 200).map(x => ({ name: x.name, lat: x.lat, lon: x.lon, value: null, sector: x.sector, country: x.country, screen: { cyclone: String(x.cyclone.level).toUpperCase(), flood: String(x.flood_screen).toUpperCase() } })));
+        $('qRes').textContent = `${ex.n_assets} assets for ${ex.companies.join(', ')}` + (ex.n_assets > 200 ? ' (first 200 shown)' : '') + '. Values are not in the register: add your own for value-in-place totals.'; } catch (er) { $('qRes').textContent = er.message; } });
+  } catch (e) { $('qRes').textContent = e.message; } };
+$('q').onkeydown = e => { if (e.key === 'Enter') $('qGo').click(); };
+
+// ── full hazard profile for one asset (background job; chips fill as hazards finish) ──
+async function runProfile(i) {
+  const a = S.assets[i]; if (!a || a.running) return; a.running = true; a.progress = 'starting…'; a.profile = a.profile || {}; renderList();
+  try {
+    const { job } = await api('/resident/site/profile', { lat: a.lat, lon: a.lon, name: a.name });
+    for (let n = 0; n < 900; n++) {
+      await new Promise(r => setTimeout(r, 2000));
+      const j = await api('/resident/job/' + job);
+      if (j.partial) { Object.keys(j.partial).forEach(k => { a.profile[k] = j.partial[k]; }); a.progress = Object.keys(j.partial).length + ' hazards done'; renderAll(); }
+      if (j.status === 'done' || j.status === 'failed' || j.status === 'unknown') {
+        if (j.status !== 'done') msg(a.name + ': ' + (j.error || 'the profile job was lost; run it again'), true); break; }
+    }
+  } catch (e) { msg(a.name + ': ' + e.message, true); }
+  a.running = false; renderAll();
+}
+
+// ── map: offline land outline + pins; no wall-to-wall hazard raster is claimed ──
+const cv = $('map'), g = cv.getContext('2d'); let W = 0, H = 0, dpr = 1;
+function resize() { dpr = Math.min(2, window.devicePixelRatio || 1); const r = $('mw').getBoundingClientRect(); W = r.width; H = r.height; cv.width = W * dpr; cv.height = H * dpr; draw(); }
+const mercY = lat => Math.log(Math.tan(Math.PI / 4 + Math.max(-84, Math.min(84, lat)) * Math.PI / 360));
+function proj(lon, lat) { const v = S.view, s = (W / 360) * v.k; return [W / 2 + (lon - v.lon) * s, H / 2 - (mercY(lat) - mercY(v.lat)) * s * 180 / Math.PI]; }
+function unproj(x, y) { const v = S.view, s = (W / 360) * v.k; const lon = v.lon + (x - W / 2) / s, my = mercY(v.lat) - (y - H / 2) / (s * 180 / Math.PI); return [lon, (2 * Math.atan(Math.exp(my)) - Math.PI / 2) * 180 / Math.PI]; }
+function draw() {
+  if (!W) return; g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H); g.fillStyle = '#050a14'; g.fillRect(0, 0, W, H);
+  g.strokeStyle = 'rgba(56,189,248,.07)'; g.lineWidth = 1; for (let lo = -180; lo <= 180; lo += 30) { const [x] = proj(lo, 0); g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke(); } for (let la = -60; la <= 60; la += 30) { const [, y] = proj(0, la); g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke(); }
+  if (S.land) { g.fillStyle = '#16233b'; g.strokeStyle = '#2b3f63'; g.lineWidth = 0.7;
+    [-360, 0, 360].forEach(off => S.land.forEach(ring => { g.beginPath(); ring.forEach((p, i) => { const [x, y] = proj(p[0] + off, p[1]); i ? g.lineTo(x, y) : g.moveTo(x, y); }); g.closePath(); g.fill(); g.stroke(); })); }
+  S.assets.forEach((a, i) => { const [x, y] = proj(a.lon, a.lat); if (x < -20 || x > W + 20 || y < -20 || y > H + 20) return; a._xy = [x, y]; const l = layerLevel(a), c = colorOf(l), sel = i === S.sel, r = sel ? 9 : 6.5;
+    if (l >= 3) { g.beginPath(); g.arc(x, y, r + 7, 0, 7); g.fillStyle = c + '33'; g.fill(); }
+    g.beginPath(); g.arc(x, y, r, 0, 7); if (l < 0) { g.fillStyle = '#0d1524'; g.fill(); g.setLineDash([2, 2]); g.strokeStyle = NULLC; g.lineWidth = 1.5; g.stroke(); g.setLineDash([]); }
+    else { g.fillStyle = c; g.fill(); g.strokeStyle = sel ? '#fff' : '#0d1524'; g.lineWidth = sel ? 2 : 1.5; g.stroke(); }
+    if (sel || S.view.k > 5) { g.fillStyle = '#e2eaf8'; g.font = '600 11px system-ui'; g.fillText(a.name, x + r + 5, y + 4); } });
+  renderLegend();
+}
+function renderLegend() {
+  const lab = (LAYERS.find(l => l[0] === S.layer) || [0, ''])[1], n = S.assets.filter(a => layerLevel(a) < 0).length;
+  $('legend').innerHTML = `<b>${esc(lab)}</b><div class="bar">${SCOL.map(c => `<span style="background:${c}"></span>`).join('')}</div><div style="display:flex;justify-content:space-between;color:var(--muted);font-size:10px"><span>Negligible</span><span>Critical</span></div>
+    <div class="nt">${n ? `<b>${n}</b> of ${S.assets.length} asset(s) <b>not assessed</b> for this layer (dashed grey): that is not zero risk. Run all hazards on the asset card.<br>` : ''}Pins are coloured by the engine's severity at each asset. The map shows asset points, not a hazard raster; per-site depth and wind come from the 3D twin.</div>`;
+}
+function fit() { if (!S.assets.length) return; const la = S.assets.map(a => a.lat), lo = S.assets.map(a => a.lon), sp = Math.max(Math.max(...lo) - Math.min(...lo), (Math.max(...la) - Math.min(...la)) * 1.6, 8);
+  S.view.lon = (Math.max(...lo) + Math.min(...lo)) / 2; S.view.lat = (Math.max(...la) + Math.min(...la)) / 2; S.view.k = Math.max(1, Math.min(14, 300 / sp)); draw(); }
+let drag = null, moved = 0;
+cv.onmousedown = e => { drag = { x: e.clientX, y: e.clientY }; moved = 0; };
+window.onmouseup = e => { if (drag && moved < 4) clickMap(e); drag = null; };
+window.onmousemove = e => { const r = cv.getBoundingClientRect();
+  if (drag) { const dx = e.clientX - drag.x, dy = e.clientY - drag.y; moved += Math.abs(dx) + Math.abs(dy); drag.x = e.clientX; drag.y = e.clientY; const s = (W / 360) * S.view.k; S.view.lon -= dx / s; const [, la] = unproj(W / 2, H / 2 - dy); S.view.lat = Math.max(-80, Math.min(80, la)); draw(); return; }
+  const a = hit(e.clientX - r.left, e.clientY - r.top), p = $('pop'); if (!a) { p.style.display = 'none'; return; }
+  const l = layerLevel(a); p.style.display = 'block'; p.style.left = Math.min(W - 270, e.clientX - r.left + 14) + 'px'; p.style.top = (e.clientY - r.top + 12) + 'px';
+  p.innerHTML = `<b>${esc(a.name)}</b><br><span style="color:${colorOf(l)}">${l < 0 ? 'not assessed for this layer' : SEV[l]}</span>` + (a.value ? ' · ' + fmtV(a.value) : ''); };
+cv.onwheel = e => { e.preventDefault(); const r = cv.getBoundingClientRect(), [lo, la] = unproj(e.clientX - r.left, e.clientY - r.top); S.view.k = Math.max(1, Math.min(60, S.view.k * (e.deltaY < 0 ? 1.18 : 1 / 1.18)));
+  const [x2, y2] = proj(lo, la); const s = (W / 360) * S.view.k; S.view.lon += (x2 - (e.clientX - r.left)) / s; const [, la2] = unproj(W / 2 + 0, H / 2 + (y2 - (e.clientY - r.top))); S.view.lat = Math.max(-80, Math.min(80, la2)); draw(); };
+function hit(x, y) { let best = null, bd = 144; S.assets.forEach(a => { if (!a._xy) return; const d = (a._xy[0] - x) ** 2 + (a._xy[1] - y) ** 2; if (d < bd) { bd = d; best = a; } }); return best; }
+function clickMap(e) { const r = cv.getBoundingClientRect(), a = hit(e.clientX - r.left, e.clientY - r.top); if (a) select(S.assets.indexOf(a), false); }
+$('go').onkeydown = async e => { if (e.key !== 'Enter') return; const t = $('go').value.trim(), m = t.match(/^(-?\d+(\.\d+)?)\s*[, ]\s*(-?\d+(\.\d+)?)$/);
+  if (m) { S.view.lat = +m[1]; S.view.lon = +m[3]; S.view.k = 8; draw(); return; }
+  try { const r = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(t)), j = await r.json(); if (j[0]) { S.view.lat = +j[0].lat; S.view.lon = +j[0].lon; S.view.k = 8; draw(); } else msg('Place not found.', true); } catch (er) { msg('Place search needs an internet connection; type "latitude, longitude" instead.', true); } };
+
+$('layers').innerHTML = LAYERS.map(l => `<button data-l="${l[0]}" class="${l[0] === 'worst' ? 'on' : ''}">${l[1]}</button>`).join('');
+document.querySelectorAll('#layers button').forEach(b => b.onclick = () => { S.layer = b.dataset.l; document.querySelectorAll('#layers button').forEach(x => x.classList.toggle('on', x === b)); draw(); });
+$('sevKey').innerHTML = SEV.map((s, i) => `<span><i style="background:${SCOL[i]}"></i>${s[0] + s.slice(1).toLowerCase()}</span>`).join('') + `<span><i style="background:#0d1524;border:1.5px dashed ${NULLC}"></i>Not assessed</span>`;
+window.addEventListener('resize', resize);
+fetch('/asset/world-land').then(r => r.json()).then(j => { S.land = j.rings; draw(); }).catch(() => { msg('Land outline unavailable; pins still work.', true); });
+renderAll(); resize();
+</script></body></html>

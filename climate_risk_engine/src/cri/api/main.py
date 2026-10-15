@@ -1585,6 +1585,13 @@ class AssetTwinAnalyseRequest(BaseModel):
     twin: dict
 
 
+@app.get("/portfolio/map", tags=["Portfolio"])
+def portfolio_map_dashboard():
+    """Portfolio-first map: every asset as a pin coloured by the engine's severity per hazard, with the asset list and per-hazard chips. Not assessed (null) is shown as such, never as low."""
+    from fastapi.responses import HTMLResponse
+    return HTMLResponse((Path(__file__).parent / "portfolio_map_dashboard.html").read_text(encoding="utf-8"))
+
+
 @app.get("/asset-twin/dashboard", tags=["Asset Twin"])
 def asset_twin_dashboard():
     from fastapi.responses import HTMLResponse
