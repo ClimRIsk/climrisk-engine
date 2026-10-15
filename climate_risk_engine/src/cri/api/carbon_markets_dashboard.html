@@ -68,7 +68,7 @@ function addC(l = {}) { const tr = document.createElement('tr'); tr.innerHTML = 
 async function post(url, body, st) {
   $(st).className = 'status'; $(st).textContent = 'Working…';
   const r = await fetch(url, {method: 'POST', headers: hdr(), body: JSON.stringify(body)}); const j = await r.json();
-  if (!r.ok) { $(st).className = 'status error'; $(st).textContent = typeof j.detail === 'string' ? j.detail : JSON.stringify(j.detail); return null; }
+  if (!r.ok) { $(st).className = 'status error'; $(st).textContent = typeof j.detail === 'string' ? j.detail : Array.isArray(j.detail) ? j.detail.map(d => (d.loc ? d.loc.filter(x => x !== 'body').join(' / ') + ': ' : '') + (d.msg || '')).join('; ') : JSON.stringify(j.detail); return null; }
   $(st).textContent = 'Done.'; return j;
 }
 
@@ -85,7 +85,7 @@ function etsChart(j) {                       // free allocation (covered) vs sho
   return `<div style="margin-top:12px"><b style="font-size:12px">Compliance obligation, covered and uncovered (t CO₂)</b>${s}</svg><div class="foot"><span style="color:#38bdf8">■</span> covered by free allocation &nbsp; <span style="color:#f97316">■</span> shortfall to buy (before banked allowances or purchases already made). Straight from the projection above; the allocation decline and emissions change are the inputs you set.</div></div>`;
 }
 $('runi').onclick = async () => {
-  const inst = Array.from($('it').querySelectorAll('tbody tr')).map(tr => { const f = tr.querySelectorAll('input,select'); return {name: f[0].value, sector: f[1].value, verified_emissions_t: Number(f[2].value || 0), free_allocation_t: Number(f[3].value || 0), allowances_held_t: Number(f[4].value || 0)}; }).filter(i => i.name);
+  const inst = Array.from($('it').querySelectorAll('tbody tr')).map((tr, n) => { const f = tr.querySelectorAll('input,select'); return {name: f[0].value.trim() || ('Installation ' + (n + 1)), sector: f[1].value, verified_emissions_t: Number(f[2].value || 0), free_allocation_t: Number(f[3].value || 0), allowances_held_t: Number(f[4].value || 0)}; }).filter(i => i.verified_emissions_t || i.free_allocation_t || i.allowances_held_t || i.name.indexOf('Installation ') !== 0);
   const j = await post('/carbon-markets/ets-position', {installations: inst, compliance_year: Number($('cy').value), eua_price: $('px').value ? Number($('px').value) : null, emissions_change_pct_per_year: Number($('ec').value || 0)}, 'si');
   if (!j) return;
   const T = j.totals, ys = j.installations[0].projection.map(p => p.year);
