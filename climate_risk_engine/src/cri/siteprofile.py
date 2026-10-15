@@ -90,7 +90,7 @@ def _h_cyclone(c: Ctx) -> dict:
                       method="No cyclone has passed within 200 km since 1980 and the 1-in-100-year wind is below tropical-storm force.",
                       sources=src, attempts=att, family="wind", reason="No cyclone exposure found.")
     return _entry(KEY, LAB, "modelled", value=float(rp100), unit="m/s (1-in-100-yr 1-min wind, open terrain)", severity=f["severity"],
-                  metrics={"evidence": {e["metric"]: e["value"] for e in f["evidence"]}, "top_events": f.get("detail", {}).get("top_events")},
+                  metrics={"evidence": {e["metric"]: e["value"] for e in f["evidence"]}, "top_events": f.get("detail", {}).get("top_events"), "rp_wind_ms": f.get("detail", {}).get("rp_wind_ms")},
                   method="Cyclone track set with a Holland wind profile, validated against station winds.", sources=src, attempts=att,
                   family="wind", caveat=f.get("caveat"))
 

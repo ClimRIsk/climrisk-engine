@@ -183,7 +183,7 @@ class Agent:
         text = (text or "").strip()
         if not text:
             return {"reply": "Ask me something — for example \"build a 3D twin of 22.2645, 91.805\".", "blocks": [], "actions": [], "intent": "empty"}
-        quick = self._autopilot_commands(session, text) or self._knowledge_commands(session, text) or self._scenario_commands(session, text) or self._source_commands(session, text) or self._profile_commands(session, text) or self._lab_commands(session, text) or self._case_commands(session, text) or self._extension_commands(session, text)
+        quick = self._autopilot_commands(session, text) or self._knowledge_commands(session, text) or self._stress_commands(session, text) or self._scenario_commands(session, text) or self._source_commands(session, text) or self._profile_commands(session, text) or self._lab_commands(session, text) or self._case_commands(session, text) or self._extension_commands(session, text)
         if quick:
             if quick.get("intent") in (None, "knowledge", "learn"):      # autopilot commands log themselves
                 quick.setdefault("intent", "knowledge")
@@ -231,6 +231,26 @@ class Agent:
 
     _SSP_WORDS = (("ssp126", r"ssp\s*-?\s*1[\s.\-]*2\.?6|strong(?:ly)? mitigat\w*|paris|net[\s\-]*zero pathway|low emissions?"), ("ssp245", r"ssp\s*-?\s*2[\s.\-]*4\.?5|middle[\s\-]*of[\s\-]*the[\s\-]*road|moderate emissions?|current policies"),
                   ("ssp370", r"ssp\s*-?\s*3[\s.\-]*7\.?0|high emissions?|regional rivalry"), ("ssp585", r"ssp\s*-?\s*5[\s.\-]*8\.?5|very high emissions?|worst[\s\-]*case|business[\s\-]*as[\s\-]*usual|fossil[\s\-]*fuel(?:ed)? (?:future|pathway)"))
+
+    def _stress_commands(self, session, text) -> Optional[dict]:
+        """A staged scenario that chains a physical shock, a supplier, freight and a tariff (\"typhoon hits the hub, the Tier-2 supplier is down, air freight triggers a border tariff\").
+        Pulls out the numbers the text states, runs the linked stress test on them (hazard, operations, supply, freight, tariff, cash) and says what it still needs.
+        Missing inputs stay null; nothing is guessed."""
+        from .. import stresstest as ST
+        if not ST.looks_like_stress_scenario(text):
+            return None
+        spec = ST.extract_spec(text)
+        ST.save_draft(spec)
+        r = ST.run(spec, hazard_fn=lambda lat, lon, name: (_ for _ in ()).throw(RuntimeError("no hazard run in chat")))
+        got = [k for k in ("hazard", "event", "supplier", "batch", "tariff") if spec.get(k)]
+        rows = [[a["question"].split(":")[0], a["status"], a["answer"][:260] + ("…" if len(a["answer"]) > 260 else "")] for a in r["answers"]]
+        need = r["inputs_missing"]
+        reply = ("Read as a linked stress test. I took these from your text: " + (", ".join(got) if got else "nothing numeric") + ". "
+                 "Hazard, operations, supplier delay, freight emissions, tariff and cash run together in the Stress Test screen, where each piece also runs on its own. "
+                 + (("Still needed to finish it, and left null until you give them: " + "; ".join(need[:8]) + ". ") if need else "") +
+                 "Coordinates for the hub and supplier let the engine place the storm on each site's own return-period curve.")
+        return {"reply": reply, "intent": "stress_test", "blocks": [_blk("table", head=["Question", "Status", "Answer so far"], rows=rows)],
+                "actions": [{"type": "open", "label": "Open the Stress Test", "url": "/stress-test/dashboard?draft=1"}]}
 
     def _scenario_commands(self, session, text) -> Optional[dict]:
         """Free-form climate scenarios: "what does the SSP5-8.5 world look like at Chattogram in 2070 for a 1-in-100 flood", "worst case sea level and storm by mid-century at 22.26, 91.80".

@@ -87,6 +87,12 @@ def score(row, out):
             tail = low.split("null")[0] if "null" in low else low
             s["null_not_called_low"] = float(not any(re.search(re.escape(n.lower()) + r"[^.;]{0,40}\b(low|zero|negligible|safe)\b", low) for n in nul))
         s["length_ok"] = float(20 <= len(out.split()) <= 140)
+    elif k == "stress":
+        s["numbers_ok"] = float(nums(out) <= nums(row["meta"]["facts"]) | nums(u) | {"0", "1", "2", "3", "4", "5"})
+        if row["meta"].get("nulls") or row["meta"].get("status") in ("null", "partial"):
+            s["says_not_modelled"] = float(bool(re.search(r"not modelled|not known|not given|not assessed|no decision owner|is null|left null", out, re.I)))
+        s["says_screening"] = float(bool(re.search(r"screening|not a forecast|does not forecast", out, re.I)))
+        s["length_ok"] = float(25 <= len(out.split()) <= 170)
     elif k == "insurer":
         allowed = nums(row["meta"]["facts"]) | nums(u)
         used = nums(out)

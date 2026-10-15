@@ -351,6 +351,79 @@ def build_profile(rng, n: int, split: str):
     return rows
 
 
+
+STRESS_SYS = ("You are ClimRisk's climate-risk analyst. You are given the inputs a user supplied and the results of the engine's linked stress test (storm, plant, supplier, freight, tariff, cash). "
+              "Report only numbers that appear in the results. Costs of freight, tariff and late penalty are counted together. An input that is missing is null: say it is not modelled and name it, "
+              "never treat it as zero. Say the result is screening-grade and not a forecast. 50 to 130 words, plain prose, no lists.")
+
+
+def build_stress(rng, n: int, split: str):
+    """Rows come from running the real stresstest module on random scenarios, so every number is the engine's and every null is named."""
+    from .. import stresstest as ST
+    rows = []
+    qs = {"visibility": ["How quickly would we know the Tier-2 supplier is offline, and do we have approved alternates?", "What does the stress test say about visibility of the supplier problem?"],
+          "financial_buffers": ["Does the model count the freight spike and the tariff together?", "What does the air-freight decision cost once the tariff and the penalty are included?"],
+          "inventory_buffer": ["How many days of buffer are we short for the critical component?", "Would our component buffer survive the supplier delay?"],
+          "governance": ["Who decides between the delivery date and the tariff, and what should they do?", "What decision rule comes out of the numbers?"]}
+    for _ in range(n):
+        sp = {"name": "scenario", "hazard": {"category": rng.choice([3, 4, 5])}}
+        keep = lambda p: rng.random() < p                                       # noqa: E731
+        if keep(0.8):
+            sp["event"] = {"grid_outage_days": rng.randint(3, 14), "generator_fuel_hours": rng.choice([24, 48, 72]), "access_cut_days": rng.randint(2, 8), "workers_absent_pct": rng.choice([40, 60, 80, 100])}
+        if keep(0.85):
+            lo = rng.randint(2, 6)
+            sp["supplier"] = {"delay_weeks_min": lo, "delay_weeks_max": lo + rng.randint(1, 4), "detection_lag_days": rng.choice([None, 1, 2, 4, 7]),
+                              "alternates": [{"name": "Alt A", "preapproved": rng.choice([True, False, None]), "backlog_weeks": rng.randint(2, 12), "qualification_days": rng.choice([None, 0, 14, 30])}]}
+        sp["inventory"] = {"component_buffer_days": rng.choice([None, 7, 14, 21, 30])} if keep(0.9) else {}
+        if keep(0.8):
+            units = rng.choice([5000, 20000, 50000]); val = rng.choice([1.5e6, 4e6, 9e6])
+            sp["batch"] = {"units": units, "mass_t": rng.choice([10, 40, 120]), "value_usd": val, "cogs_usd": val * rng.choice([0.7, 0.8, 0.9]), "embodied_kgco2e_per_unit": rng.choice([10, 20, 40]),
+                           "production_days": rng.choice([None, 5, 10]), "sea_km": 18000, "air_km": 9500, "sea_days": rng.choice([30, 35, 40]), "air_days": rng.choice([3, 5]),
+                           "delivery_window_days": rng.choice([40, 45, 60]), "sea_usd_per_t": rng.choice([100, 150]), "air_usd_per_t": rng.choice([3500, 4500, None])}
+            sp["tariff"] = {"rate_pct": rng.choice([None, 10, 15, 20]), "trigger": {"type": rng.choice(["any_air", "always", "intensity_threshold"]), "kgco2e_per_unit": rng.choice([None, 25, 30])}}
+            sp["penalty"] = {"late_penalty_pct_per_week": rng.choice([None, 1.0, 2.0]), "penalty_cap_pct": rng.choice([5, 10]), "grace_days": 3}
+        if keep(0.4):
+            sp["governance"] = {"decision_owner": rng.choice(["COO", "CFO", None]), "authority_limit_usd": rng.choice([None, 100000, 500000])}
+        if keep(0.5):
+            sp["finance"] = {"cash_buffer_usd": rng.choice([1e6, 1.5e6, 3e6])}
+        if keep(0.5):
+            sp["sites"] = [{"name": "Hub", "role": "manufacturing", "lat": 20.8, "lon": 106.8}, {"name": "Tier-2", "role": "supplier", "lat": 20.9, "lon": 106.7}]
+        w = rng.choice([48.8, 54.6]); rp = {"10": round(w * 0.65, 1), "50": round(w * 0.9, 1), "100": w, "250": round(w * 1.14, 1)}
+        hf = lambda lat, lon, name: {"hazards": {"cyclone": {"status": "modelled", "label": "Tropical cyclone wind", "value": w, "unit": "m/s", "severity": "HIGH", "metrics": {"rp_wind_ms": rp}}}}   # noqa: E731
+        try:
+            r = ST.run(sp, hazard_fn=hf)
+        except ST.StressError:
+            continue
+        qid = rng.choice(list(qs))
+        ans = next(a for a in r["answers"] if a["id"] == qid)
+        slim = {"status": {a["id"]: a["status"] for a in r["answers"]}, "operations": {k: r["operations"].get(k) for k in ("production_days_lost", "full_capacity_from_day", "generator_cover_days", "fuel_gap_days")} if r["operations"].get("status") == "modelled" else None,
+                "supply": {k: r["supply"].get(k) for k in ("delay_days", "component_buffer_days", "shortfall_days", "buffer_needed_days", "buffer_gap_days", "preapproved_alternates", "earliest_alternate_day")} if r["supply"].get("status") != "null" else None,
+                "freight": {"best": r["freight"].get("best"), "interaction": r["freight"].get("interaction"), "breakeven": ({"tariff_rate_pct_where_air_equals_sea": round(r["freight"]["breakeven"]["tariff_rate_pct_where_air_equals_sea"], 1)} if r["freight"].get("breakeven") and r["freight"]["breakeven"].get("tariff_rate_pct_where_air_equals_sea") is not None else None)} if r["freight"].get("status") != "null" else None,
+                "sites": [{"name": x["name"], "storm_placement": x.get("storm_placement"), "cyclone": (x.get("hazards") or {}).get("cyclone")} for x in r["sites"]] if r["sites"] else None,
+                "detection_lag_days": (sp.get("supplier") or {}).get("detection_lag_days"), "wind_return_period_label": "1-in-100", "authority_limit_usd": (sp.get("governance") or {}).get("authority_limit_usd"), "cash_buffer_usd": (sp.get("finance") or {}).get("cash_buffer_usd"),
+                "cash_share_pct": None if not (r["freight"].get("best") and (sp.get("finance") or {}).get("cash_buffer_usd")) else round(100.0 * r["freight"]["best"]["total_extra_cost_usd"] / sp["finance"]["cash_buffer_usd"], 1),
+                "inputs_missing": ans["inputs_missing"]}
+        def _clean(x):                                                          # 30.0 -> 30, so the facts print numbers the way the answer does
+            if isinstance(x, float) and abs(x) >= 1000:
+                return int(round(x))
+            if isinstance(x, float) and x == int(x):
+                return int(x)
+            if isinstance(x, dict):
+                return {k: _clean(v) for k, v in x.items()}
+            if isinstance(x, list):
+                return [_clean(v) for v in x]
+            return x
+        facts = json.dumps(_clean(slim), default=str, separators=(",", ":"))
+        a = ans["answer"]
+        if ans["inputs_missing"]:
+            a += " Not modelled until given: " + ", ".join(ans["inputs_missing"]) + "."
+        a += " Screening-grade, not a forecast."
+        q = rng.choice(qs[qid])
+        rows.append({"kind": "stress", "split": split, "meta": {"qtype": qid, "facts": facts, "nulls": ans["inputs_missing"], "status": ans["status"]},
+                     "messages": [{"role": "system", "content": STRESS_SYS}, {"role": "user", "content": f"Engine results: {facts}\n\nQuestion: {q}"}, {"role": "assistant", "content": a}]})
+    return rows
+
+
 def build_chat(rng, n: int, split: str):
     """Conversation turns in exactly the deployed format (converse.SYSTEM + CONTEXT block + user turn). Answers are correct by construction:
     they use only context numbers, call null 'not assessed', and suggest one engine step."""
@@ -439,6 +512,7 @@ def main(corpus_dir: Path, out: Path, seed: int = 7):
         from . import edgar_cases as EC2
         rows += EC2.build_rows(_rp, seed=seed + 60, per_case=3)
     rows += build_profile(random.Random(seed + 70), 150, "train") + build_profile(random.Random(seed + 71), 20, "valid") + build_profile(random.Random(seed + 72), 20, "test")
+    rows += build_stress(random.Random(seed + 90), 200, "train") + build_stress(random.Random(seed + 91), 24, "valid") + build_stress(random.Random(seed + 92), 24, "test")
     rows += build_chat(random.Random(seed + 80), 160, "train") + build_chat(random.Random(seed + 81), 20, "valid") + build_chat(random.Random(seed + 82), 20, "test")
     gold = build_gold()
     rows += gold + [dict(r) for r in gold if r["split"] == "train"] * 2        # gold is scarce and high quality: upweight x3

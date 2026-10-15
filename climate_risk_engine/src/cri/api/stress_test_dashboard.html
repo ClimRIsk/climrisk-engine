@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClimRisk — Stress Test</title>
+<style>
+  *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+  :root { --bg:#070b14; --surface:#0d1524; --border:#1c2a44; --primary:#38bdf8; --muted:#8a9bbd; --text:#e2eaf8;
+          --critical:#ef4444; --moderate:#eab308; --low:#22c55e; --mono:ui-monospace,'SF Mono',Menlo,monospace;
+          --sans:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',sans-serif; }
+  body { font-family:var(--sans); background:var(--bg); color:var(--text); font-size:13px; color-scheme:dark; }
+  .header { display:flex; align-items:center; gap:14px; padding:10px 18px; background:var(--surface); border-bottom:1px solid var(--border); }
+  .logo { font-weight:800; letter-spacing:3px; color:var(--primary); font-size:16px; }
+  .sub { font-size:11px; color:var(--muted); }
+  .pill { margin-left:auto; font-size:10px; color:var(--muted); border:1px solid var(--border); border-radius:20px; padding:3px 10px; font-family:var(--mono); }
+  .layout { display:grid; grid-template-columns:400px 1fr; gap:14px; padding:14px 18px; align-items:start; }
+  @media (max-width:980px) { .layout { grid-template-columns:1fr; } }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:12px; margin-bottom:12px; overflow-x:auto; }
+  .card h3 { font-size:11px; letter-spacing:1px; text-transform:uppercase; color:var(--muted); margin-bottom:8px; display:flex; align-items:center; gap:8px; }
+  .card h3 .go { margin-left:auto; text-transform:none; letter-spacing:0; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:6px 8px; }
+  label { display:block; font-size:10.5px; color:var(--muted); margin-bottom:2px; }
+  input, select { width:100%; background:var(--bg); border:1px solid var(--border); border-radius:5px; color:var(--text); font:inherit; padding:5px 6px; outline:none; font-size:12px; }
+  input:focus, select:focus { border-color:var(--primary); }
+  table { width:100%; border-collapse:collapse; font-size:11.5px; }
+  th, td { text-align:left; padding:4px 5px; border-bottom:1px solid var(--border); vertical-align:top; }
+  th { color:var(--muted); font-weight:600; font-size:10.5px; }
+  td.n { text-align:right; font-family:var(--mono); white-space:nowrap; }
+  .btn { padding:8px 14px; border:none; border-radius:6px; font:inherit; font-weight:700; cursor:pointer; background:var(--primary); color:#04121d; }
+  .btn.ghost { background:transparent; border:1px solid var(--primary); color:var(--primary); padding:4px 9px; font-size:11px; font-weight:600; }
+  .x { background:none; border:1px solid var(--border); color:var(--muted); border-radius:5px; cursor:pointer; padding:1px 6px; }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .status { font-size:11px; color:var(--muted); } .status.error { color:var(--critical); }
+  .foot { font-size:10.5px; color:var(--muted); line-height:1.6; }
+  .ans { border-left:3px solid var(--primary); padding:6px 10px; margin-bottom:10px; background:rgba(56,189,248,.04); }
+  .ans.null { border-color:var(--moderate); } .ans.partial { border-color:#a78bfa; }
+  .ans h4 { font-size:12px; margin-bottom:4px; } .ans p { line-height:1.55; }
+  .tag { display:inline-block; font-size:9.5px; font-family:var(--mono); border:1px solid var(--border); border-radius:10px; padding:1px 7px; color:var(--muted); margin-right:4px; }
+  .miss { color:#fcd9a0; font-size:11px; margin-top:4px; }
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:8px; margin-bottom:10px; }
+  .kpi { background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:8px; } .kpi .v { font-family:var(--mono); font-size:16px; font-weight:700; } .kpi .l { font-size:10.5px; color:var(--muted); }
+  .neg { color:var(--critical); } .pos { color:var(--low); } .warn { color:var(--moderate); }
+  svg text { fill:var(--muted); font-size:10px; font-family:var(--sans); }
+  .empty { color:var(--muted); padding:30px; text-align:center; line-height:1.7; }
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="logo">CLIMRISK</div>
+  <div class="sub">Stress test · storm, plant, supplier, freight, tariff and cash in one run</div>
+  <div class="pill">Each piece also runs on its own</div>
+</div>
+<div class="layout">
+<div id="form">
+  <div class="card"><div class="row"><button class="btn" id="run">Run linked stress test</button><button class="btn ghost" id="ex">Load worked example</button><span class="status" id="st"></span></div>
+    <div class="foot" style="margin-top:6px">Leave anything blank that you do not know. The engine marks it not modelled and never counts it as zero.</div></div>
+  <div class="card"><h3>1 · Storm and sites <button class="btn ghost go" data-run="hazards">Run alone</button></h3>
+    <div class="grid2"><div><label>Typhoon / hurricane category (1–5)</label><input id="hazard.category" type="number" min="1" max="5"></div><div><label>or peak wind m/s</label><input id="hazard.wind_ms" type="number" step="any"></div></div>
+    <table id="sites" style="margin-top:8px"><thead><tr><th>Name</th><th>Role</th><th>Lat</th><th>Lon</th><th></th></tr></thead><tbody></tbody></table>
+    <button class="btn ghost" id="addsite" style="margin-top:6px">+ site</button>
+    <div class="foot" style="margin-top:6px">Coordinates let the engine run its hazards and place this storm on each site's own return-period curve.</div></div>
+  <div class="card"><h3>2 · Plant after the storm <button class="btn ghost go" data-run="operations">Run alone</button></h3>
+    <div class="grid2"><div><label>Grid outage (days)</label><input id="event.grid_outage_days" type="number" step="any"></div><div><label>Generator fuel (hours)</label><input id="event.generator_fuel_hours" type="number" step="any"></div>
+    <div><label>Roads / transit cut (days)</label><input id="event.access_cut_days" type="number" step="any"></div><div><label>Workers who cannot get in (%)</label><input id="event.workers_absent_pct" type="number" step="any"></div>
+    <div><label>Refuel arrives on day (optional)</label><input id="event.refuel_after_days" type="number" step="any"></div></div></div>
+  <div class="card"><h3>3 · Supplier and buffer <button class="btn ghost go" data-run="supply">Run alone</button></h3>
+    <div class="grid2"><div><label>Supplier delay, shortest (weeks)</label><input id="supplier.delay_weeks_min" type="number" step="any"></div><div><label>Supplier delay, longest (weeks)</label><input id="supplier.delay_weeks_max" type="number" step="any"></div>
+    <div><label>Days until you notice</label><input id="supplier.detection_lag_days" type="number" step="any"></div><div><label>Component buffer held (days)</label><input id="inventory.component_buffer_days" type="number" step="any"></div></div>
+    <table id="alts" style="margin-top:8px"><thead><tr><th>Alternate supplier</th><th>Pre-approved</th><th>Backlog wk</th><th>Qualify days</th><th></th></tr></thead><tbody></tbody></table>
+    <button class="btn ghost" id="addalt" style="margin-top:6px">+ alternate</button></div>
+  <div class="card"><h3>4 · Shipment and freight <button class="btn ghost go" data-run="freight">Run alone</button></h3>
+    <div class="grid2"><div><label>Units</label><input id="batch.units" type="number" step="any"></div><div><label>Mass (tonnes)</label><input id="batch.mass_t" type="number" step="any"></div>
+    <div><label>Sales value (US$)</label><input id="batch.value_usd" type="number" step="any"></div><div><label>Cost of goods (US$)</label><input id="batch.cogs_usd" type="number" step="any"></div>
+    <div><label>Product footprint (kg CO₂e / unit)</label><input id="batch.embodied_kgco2e_per_unit" type="number" step="any"></div><div><label>Production days for the batch</label><input id="batch.production_days" type="number" step="any"></div>
+    <div><label>Sea distance (km)</label><input id="batch.sea_km" type="number" step="any"></div><div><label>Air distance (km)</label><input id="batch.air_km" type="number" step="any"></div>
+    <div><label>Sea transit (days)</label><input id="batch.sea_days" type="number" step="any"></div><div><label>Air transit (days)</label><input id="batch.air_days" type="number" step="any"></div>
+    <div><label>Sea freight (US$/t)</label><input id="batch.sea_usd_per_t" type="number" step="any"></div><div><label>Air freight (US$/t)</label><input id="batch.air_usd_per_t" type="number" step="any"></div>
+    <div><label>Delivery window (days from event)</label><input id="batch.delivery_window_days" type="number" step="any"></div><div><label>Ship-ready day (alone mode only)</label><input id="ship_ready_day" type="number" step="any"></div></div></div>
+  <div class="card"><h3>5 · Border tariff and late penalty</h3>
+    <div class="grid2"><div><label>Tariff rate (%)</label><input id="tariff.rate_pct" type="number" step="any"></div><div><label>Triggered when</label><select id="tariff.trigger.type"><option value="intensity_threshold">footprint above threshold</option><option value="any_air">any air freight</option><option value="always">always</option></select></div>
+    <div><label>Threshold (kg CO₂e / unit)</label><input id="tariff.trigger.kgco2e_per_unit" type="number" step="any"></div><div><label>Tested on</label><select id="tariff.scope"><option value="batch">whole batch average</option><option value="consignment">each consignment</option></select></div>
+    <div><label>Late penalty (% of value / week)</label><input id="penalty.late_penalty_pct_per_week" type="number" step="any"></div><div><label>Penalty cap (%)</label><input id="penalty.penalty_cap_pct" type="number" step="any"></div>
+    <div><label>Grace (days)</label><input id="penalty.grace_days" type="number" step="any"></div></div></div>
+  <div class="card"><h3>6 · Governance and cash</h3>
+    <div class="grid2"><div><label>Who decides</label><input id="governance.decision_owner"></div><div><label>Authority limit (US$)</label><input id="governance.authority_limit_usd" type="number" step="any"></div>
+    <div><label>Escalation time (hours)</label><input id="governance.escalation_hours" type="number" step="any"></div><div><label>Cash buffer (US$)</label><input id="finance.cash_buffer_usd" type="number" step="any"></div></div></div>
+</div>
+<div id="out"><div class="card empty">Enter what you know, or load the worked example, then run the linked test.<br>It answers: how long until you know the supplier is down, whether freight and tariff are counted together, how many buffer days you are short, and who decides.</div></div>
+</div>
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt = (v, d = 0) => v == null ? '—' : Number(v).toLocaleString('en-US', {maximumFractionDigits: d, minimumFractionDigits: d});
+const usd = v => v == null ? '—' : (v < 0 ? '−' : '') + '$' + fmt(Math.abs(v));
+const hdr = () => { const k = new URLSearchParams(location.hash.slice(1)).get('key'); return Object.assign({'Content-Type': 'application/json'}, k ? {'X-API-Key': k} : {}); };
+const FIELDS = [...document.querySelectorAll('#form input[id], #form select[id]')].filter(e => e.id.includes('.') || e.id === 'ship_ready_day');
+function setPath(o, path, v) { const p = path.split('.'); let c = o; p.slice(0, -1).forEach(k => c = c[k] = c[k] || {}); c[p.at(-1)] = v; }
+function getPath(o, path) { return path.split('.').reduce((c, k) => c == null ? c : c[k], o); }
+function siteRow(s = {}) { const tr = document.createElement('tr'); tr.innerHTML = `<td><input value="${esc(s.name || '')}"></td><td><select>${['manufacturing', 'logistics', 'supplier', 'other'].map(r => `<option${r === (s.role || 'manufacturing') ? ' selected' : ''}>${r}</option>`).join('')}</select></td><td><input type="number" step="any" value="${s.lat ?? ''}" style="width:78px"></td><td><input type="number" step="any" value="${s.lon ?? ''}" style="width:78px"></td><td><button class="x">×</button></td>`; tr.querySelector('.x').onclick = () => tr.remove(); $('sites').querySelector('tbody').append(tr); }
+function altRow(a = {}) { const tr = document.createElement('tr'); tr.innerHTML = `<td><input value="${esc(a.name || '')}"></td><td><select><option value="">unknown</option><option value="true"${a.preapproved === true ? ' selected' : ''}>yes</option><option value="false"${a.preapproved === false ? ' selected' : ''}>no</option></select></td><td><input type="number" step="any" value="${a.backlog_weeks ?? ''}" style="width:64px"></td><td><input type="number" step="any" value="${a.qualification_days ?? ''}" style="width:64px"></td><td><button class="x">×</button></td>`; tr.querySelector('.x').onclick = () => tr.remove(); $('alts').querySelector('tbody').append(tr); }
+function fill(spec) {
+  FIELDS.forEach(e => { const v = getPath(spec, e.id); e.value = v == null ? '' : v; });
+  $('sites').querySelector('tbody').innerHTML = ''; (spec.sites || []).forEach(siteRow);
+  $('alts').querySelector('tbody').innerHTML = ''; ((spec.supplier || {}).alternates || []).forEach(altRow);
+}
+function collect() {
+  const spec = {};
+  FIELDS.forEach(e => { if (e.value === '') return; setPath(spec, e.id, e.type === 'number' ? Number(e.value) : e.value); });
+  if (spec.tariff && spec.tariff.trigger && spec.tariff.trigger.type === 'intensity_threshold' && spec.tariff.trigger.kgco2e_per_unit == null) delete spec.tariff.trigger.kgco2e_per_unit;
+  spec.sites = [...$('sites').querySelectorAll('tbody tr')].map((tr, i) => { const f = tr.querySelectorAll('input,select'); return {id: 's' + i, name: f[0].value, role: f[1].value, lat: f[2].value === '' ? null : Number(f[2].value), lon: f[3].value === '' ? null : Number(f[3].value)}; }).filter(s => s.name || s.lat != null);
+  const alts = [...$('alts').querySelectorAll('tbody tr')].map(tr => { const f = tr.querySelectorAll('input,select'); return {name: f[0].value, preapproved: f[1].value === '' ? null : f[1].value === 'true', backlog_weeks: f[2].value === '' ? null : Number(f[2].value), qualification_days: f[3].value === '' ? null : Number(f[3].value)}; }).filter(a => a.name);
+  if (alts.length) { spec.supplier = spec.supplier || {}; spec.supplier.alternates = alts; }
+  return spec;
+}
+async function post(url, spec) {
+  $('st').className = 'status'; $('st').textContent = 'Working… (site hazards can take a minute)';
+  try {
+    const r = await fetch(url, {method: 'POST', headers: hdr(), body: JSON.stringify({spec})}); const j = await r.json();
+    if (!r.ok) { $('st').className = 'status error'; $('st').textContent = typeof j.detail === 'string' ? j.detail : JSON.stringify(j.detail); return null; }
+    $('st').textContent = 'Done.'; return j;
+  } catch (e) { $('st').className = 'status error'; $('st').textContent = 'Could not reach the engine: ' + e.message; return null; }
+}
+const card = (t, h) => `<div class="card"><h3>${t}</h3>${h}</div>`;
+function answers(j) {
+  return j.answers.map(a => `<div class="ans ${a.status}"><h4>${esc(a.question)} <span class="tag">${esc(a.status)}</span></h4><p>${esc(a.answer)}</p>${a.inputs_missing.length ? `<div class="miss">Not modelled until you give: ${a.inputs_missing.map(esc).join(' · ')}</div>` : ''}</div>`).join('');
+}
+function capChart(ops) {
+  if (!ops || ops.status !== 'modelled') return `<div class="foot">${esc((ops || {}).reason || 'No plant inputs given.')}</div>`;
+  const c = ops.capacity_by_day.slice(0, 45), w = 520, h = 90, bw = w / c.length;
+  return `<svg viewBox="0 0 ${w} ${h + 18}" width="100%"><rect x="0" y="0" width="${w}" height="${h}" fill="none" stroke="#1c2a44"/>${c.map((v, i) => `<rect x="${i * bw + .5}" y="${h - v * h}" width="${bw - 1}" height="${v * h}" fill="${v >= 1 ? '#22c55e' : v > 0 ? '#eab308' : '#ef4444'}"/>`).join('')}<text x="2" y="${h + 12}">day 0</text><text x="${w - 36}" y="${h + 12}">day ${c.length}</text></svg>
+  <div class="foot">Plant capacity per day. ${fmt(ops.production_days_lost, 1)} production-day equivalents lost; generator covers ${fmt(ops.generator_cover_days, 1)} days; full capacity from day ${ops.full_capacity_from_day ?? '—'}.${ops.assumption ? ' ' + esc(ops.assumption) : ''}</div>`;
+}
+function freightTbl(f) {
+  if (!f || !f.options) return `<div class="foot">${esc((f || {}).reason || 'No shipment inputs.')}</div>`;
+  const row = o => { const c = o.costs_usd; return `<tr><td><b>${esc(o.label)}</b>${o.tariff_note ? `<div class="foot">${esc(o.tariff_note)}</div>` : ''}</td><td class="n">${usd(c.sea_freight_usd)}</td><td class="n">${usd(c.air_freight_usd)}</td><td class="n ${o.tariff_triggered ? 'neg' : ''}">${usd(c.tariff_usd)}${o.tariff_triggered ? ' ⚑' : ''}</td><td class="n">${usd(c.late_penalty_usd)}</td><td class="n"><b>${usd(o.total_extra_cost_usd)}</b></td><td class="n ${o.margin_pct != null && o.margin_pct < 0 ? 'neg' : ''}">${o.margin_pct == null ? '—' : o.margin_pct + '%'}</td><td class="n">${fmt(o.emissions_t, 1)} t</td><td class="n">${fmt(o.footprint_kgco2e_per_unit, 1)}</td></tr>`; };
+  const best = f.best;
+  return `<table><thead><tr><th>Option</th><th>Sea</th><th>Air</th><th>Tariff</th><th>Late penalty</th><th>Total extra</th><th>Margin</th><th>Freight CO₂e</th><th>kg/unit</th></tr></thead><tbody>${f.options.map(row).join('')}${best ? row(f.split_grid.find(o => o.label === best.label) || {label: best.label, costs_usd: {}}).replace('<b>', '<b>★ ') : ''}</tbody></table>
+  ${f.interaction ? `<div class="foot" style="margin-top:6px"><b>Counted together:</b> air costs ${usd(f.interaction.freight_premium_of_air_usd)} more in freight, triggers ${usd(f.interaction.tariff_triggered_by_air_usd)} of tariff, avoids ${usd(f.interaction.late_penalty_avoided_by_air_usd)} of penalties; net ${usd(f.interaction.air_minus_sea_total_usd)} vs sea.${f.breakeven ? ` Full air matches sea at a ${f.breakeven.tariff_rate_pct_where_air_equals_sea}% tariff.` : ''}</div>` : ''}
+  <div class="foot">Air transport of the same shipment emits ${f.air_transport_multiple ? fmt(f.air_transport_multiple, 0) + '×' : '—'} the sea figure; whole-product footprint ${f.air_footprint_multiple ? f.air_footprint_multiple + '×' : '—'} higher by air. Factors: sea ${f.emission_factors.sea_kgco2e_per_tkm}, air ${f.emission_factors.air_kgco2e_per_tkm} kg CO₂e/t·km. ${esc(f.emission_factors.sea_basis)}</div>
+  ${splitChart(f)}`;
+}
+function splitChart(f) {
+  const pts = [f.options[0], ...f.split_grid, f.options[1]].filter(o => o.total_extra_cost_usd != null); if (pts.length < 3) return '';
+  const w = 520, h = 100, mx = Math.max(...pts.map(o => o.total_extra_cost_usd)), mn = Math.min(...pts.map(o => o.total_extra_cost_usd));
+  const X = o => 10 + o.air_share * (w - 20), Y = o => h - 8 - (o.total_extra_cost_usd - mn) / Math.max(1, mx - mn) * (h - 20);
+  return `<div style="margin-top:8px"><div class="foot">Total extra cost against the share sent by air (0% = all sea, 100% = all air). A step up marks where the tariff trigger is crossed.</div><svg viewBox="0 0 ${w} ${h + 16}" width="100%"><polyline fill="none" stroke="#38bdf8" stroke-width="2" points="${pts.map(o => X(o) + ',' + Y(o)).join(' ')}"/>${pts.map(o => `<circle cx="${X(o)}" cy="${Y(o)}" r="2.5" fill="${o.tariff_triggered ? '#ef4444' : '#38bdf8'}"/>`).join('')}<text x="2" y="${h + 12}">0% air</text><text x="${w - 40}" y="${h + 12}">100% air</text></svg></div>`;
+}
+function supplyHtml(s) {
+  if (!s || s.status === 'null') return `<div class="foot">${esc((s || {}).reason || 'No supplier inputs.')}</div>`;
+  const sd = s.shortfall_days;
+  return `<div class="kpis"><div class="kpi"><div class="v">${fmt(s.delay_days.min)}–${fmt(s.delay_days.max)} d</div><div class="l">supplier delay</div></div><div class="kpi"><div class="v">${s.component_buffer_days == null ? '—' : fmt(s.component_buffer_days) + ' d'}</div><div class="l">buffer held</div></div><div class="kpi"><div class="v ${sd.if_delay_max > 0 ? 'neg' : ''}">${sd.if_delay_min == null ? '—' : fmt(sd.if_delay_min) + '–' + fmt(sd.if_delay_max) + ' d'}</div><div class="l">production stopped for lack of component</div></div><div class="kpi"><div class="v">${s.preapproved_alternates}</div><div class="l">pre-approved alternates</div></div></div>
+  ${(s.alternates || []).length ? `<table><thead><tr><th>Alternate</th><th>Pre-approved</th><th>Can ship from day</th></tr></thead><tbody>${s.alternates.map(a => `<tr><td>${esc(a.name)}</td><td>${a.preapproved == null ? 'unknown' : a.preapproved ? 'yes' : 'no'}</td><td class="n">${a.available_from_day == null ? '— <span class="foot">' + esc(a.note || '') + '</span>' : fmt(a.available_from_day)}</td></tr>`).join('')}</tbody></table>` : ''}`;
+}
+function hazHtml(sites, wind) {
+  if (!sites || !sites.length) return '<div class="foot">No sites given: the engine did not run any hazard.</div>';
+  return sites.map(s => {
+    const hz = Object.values(s.hazards || {});
+    return `<div style="margin-bottom:10px"><b>${esc(s.name || 'Site')}</b> <span class="tag">${esc(s.role || '')}</span>${s.storm_placement ? `<div class="foot">${s.storm_placement.status === 'null' ? 'Storm not placed: ' + esc(s.storm_placement.reason) : 'Scenario storm (' + fmt(s.scenario_wind_ms, 0) + ' m/s): ' + esc(s.storm_placement.note)}</div>` : ''}
+    ${s.status === 'null' ? `<div class="miss">${esc(s.reason)}</div>` : `<table><thead><tr><th>Hazard</th><th>Status</th><th>Value</th><th>Severity</th></tr></thead><tbody>${hz.map(h => `<tr><td>${esc(h.label)}</td><td>${esc(h.status)}</td><td class="n">${h.value == null ? 'not assessed' : fmt(h.value, 1) + ' ' + esc(h.unit || '')}</td><td>${esc(h.severity || '—')}</td></tr>${h.status === 'null' ? `<tr><td colspan="4" class="miss">${esc(h.reason || '')}</td></tr>` : ''}`).join('')}</tbody></table>`}</div>`;
+  }).join('');
+}
+function render(j) {
+  let h = '';
+  if (j.answers) h += card('The four questions', answers(j));
+  if (j.sites || j.scenario_wind_ms !== undefined) h += card('Storm and sites (engine hazards)', (j.wind_note ? `<div class="foot">${esc(j.wind_note)}</div>` : '') + hazHtml(j.sites, j.scenario_wind_ms));
+  if (j.operations) h += card('Plant after the storm', capChart(j.operations));
+  if (j.supply) h += card('Supplier, buffer and alternates', supplyHtml(j.supply));
+  if (j.freight) h += card('Freight, tariff and late penalty — counted together', freightTbl(j.freight) + (j.freight_if_supplier_delay_is_shortest ? `<div class="foot" style="margin-top:6px">With the shortest supplier delay the best option is ${esc((j.freight_if_supplier_delay_is_shortest.best || {}).label || '—')} at ${usd((j.freight_if_supplier_delay_is_shortest.best || {}).total_extra_cost_usd)}.</div>` : ''));
+  if (j.assumptions && j.assumptions.length) h += card('Assumptions', j.assumptions.map(a => `<div class="foot">${esc(a)}</div>`).join(''));
+  if (j.rules) h += `<div class="foot" style="padding:0 4px 14px">${j.rules.map(esc).join('<br>')}</div>`;
+  $('out').innerHTML = h || '<div class="card empty">Nothing to show for those inputs.</div>';
+}
+$('run').onclick = async () => { const j = await post('/stress-test/run', collect()); if (j) render(j); };
+document.querySelectorAll('[data-run]').forEach(b => b.onclick = async () => {
+  const k = b.dataset.run, spec = collect();
+  const j = await post('/stress-test/' + k, k === 'supply' || k === 'freight' ? spec : spec);
+  if (!j) return;
+  render(k === 'hazards' ? j : k === 'operations' ? {operations: j} : k === 'supply' ? {supply: j} : {freight: j});
+});
+$('addsite').onclick = () => siteRow({}); $('addalt').onclick = () => altRow({});
+$('ex').onclick = async () => { const r = await fetch('/stress-test/example'); fill(await r.json()); $('st').textContent = 'Worked example loaded (illustrative inputs: replace them with yours).'; };
+(async () => {
+  siteRow({role: 'manufacturing'}); siteRow({role: 'supplier'});
+  if (new URLSearchParams(location.search).get('draft')) {
+    try { const d = (await (await fetch('/stress-test/draft')).json()).draft; if (d) { fill(d); $('st').textContent = 'Filled with what your chat message stated; the rest is blank on purpose.'; } } catch (e) {}
+  }
+})();
+</script>
+</body>
+</html>

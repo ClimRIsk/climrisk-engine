@@ -1592,6 +1592,78 @@ def portfolio_map_dashboard():
     return HTMLResponse((Path(__file__).parent / "portfolio_map_dashboard.html").read_text(encoding="utf-8"))
 
 
+
+# ──────────────────────────────────────────────────────────────────────────────
+# STRESS TEST — hazard, operations, supply chain, freight, tariff and cash in one linked run; each piece also stands alone
+# ──────────────────────────────────────────────────────────────────────────────
+
+class StressSpec(BaseModel):
+    spec: dict = Field(..., description="See GET /stress-test/example for every field. Anything omitted stays null and the answer says it is not modelled.")
+
+
+def _stress(fn, *a):
+    from .. import stresstest as ST
+    try:
+        return fn(*a)
+    except ST.StressError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+
+
+@app.get("/stress-test/example", tags=["Stress Test"])
+def stress_example() -> dict:
+    """A complete worked scenario (illustrative inputs) showing every field."""
+    from .. import stresstest as ST
+    return ST.WORKED_EXAMPLE
+
+
+@app.post("/stress-test/run", dependencies=[_AUTH], tags=["Stress Test"])
+def stress_run(req: StressSpec) -> dict:
+    """The linked run: storm placed on each site's return-period curve, plant capacity, supplier delay vs buffer, sea/air freight emissions, border tariff and late penalty added together, and the four resilience questions answered."""
+    from .. import stresstest as ST
+    return _stress(ST.run, req.spec)
+
+
+@app.post("/stress-test/hazards", dependencies=[_AUTH], tags=["Stress Test"])
+def stress_hazards(req: StressSpec) -> dict:
+    """Standalone: engine hazards for each site (cyclone, river, coastal flood, thermal stress) and where the scenario storm sits on each site's own curve."""
+    from .. import stresstest as ST
+    return _stress(ST.hazards_only, req.spec)
+
+
+@app.post("/stress-test/operations", dependencies=[_AUTH], tags=["Stress Test"])
+def stress_operations(req: StressSpec) -> dict:
+    """Standalone: daily plant capacity from grid outage, generator fuel, road access and absent workers (spec.event)."""
+    from .. import stresstest as ST
+    return _stress(ST.operations, req.spec.get("event") or req.spec)
+
+
+@app.post("/stress-test/supply", dependencies=[_AUTH], tags=["Stress Test"])
+def stress_supply(req: StressSpec) -> dict:
+    """Standalone: supplier delay vs component buffer vs alternates (spec.supplier, spec.inventory, optional spec.restart_day)."""
+    from .. import stresstest as ST
+    return _stress(lambda: ST.supply(req.spec.get("supplier") or {}, req.spec.get("inventory") or {}, None, float(req.spec.get("restart_day") or 0.0)))
+
+
+@app.post("/stress-test/freight", dependencies=[_AUTH], tags=["Stress Test"])
+def stress_freight(req: StressSpec) -> dict:
+    """Standalone: sea vs air vs split shipment with DESNZ freight emissions, border tariff trigger and late penalty added together (spec.batch, spec.tariff, spec.penalty)."""
+    from .. import stresstest as ST
+    return _stress(lambda: ST.freight_decision(req.spec.get("batch") or {}, req.spec.get("tariff") or {}, req.spec.get("penalty") or {}, float(req.spec.get("ship_ready_day") or 0.0)))
+
+
+@app.get("/stress-test/draft", tags=["Stress Test"])
+def stress_draft() -> dict:
+    """The inputs the resident agent pulled from the last scenario you described in chat, if any."""
+    from .. import stresstest as ST
+    return {"draft": ST.load_draft()}
+
+
+@app.get("/stress-test/dashboard", tags=["Stress Test"])
+def stress_dashboard():
+    from fastapi.responses import HTMLResponse
+    return HTMLResponse((Path(__file__).parent / "stress_test_dashboard.html").read_text(encoding="utf-8"))
+
+
 @app.get("/asset-twin/dashboard", tags=["Asset Twin"])
 def asset_twin_dashboard():
     from fastapi.responses import HTMLResponse
