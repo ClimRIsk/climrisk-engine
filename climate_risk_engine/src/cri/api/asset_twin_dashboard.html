@@ -91,6 +91,19 @@
     <label>Scenario</label><select id="scen"></select>
     <div id="windDir" style="display:none"><label>Wind blowing toward <span id="dirv">0</span>° (0 = north)</label><input id="dir" type="range" min="0" max="359" value="0"></div>
     <div class="row" style="margin-top:6px"><button class="btn alt sm" id="replay" style="width:100%">Replay</button><button class="btn alt sm" id="pause" style="width:100%">Pause</button></div>
+    <h3>Release plume <span class="tag">your release, screening-grade</span></h3>
+    <label class="chk"><input type="checkbox" id="pOn"> Show a gas / fine-particle release from</label>
+    <select id="pSrc"></select>
+    <div id="pBox" style="display:none">
+      <label>Release rate <span id="pQv">100</span> g/s <span class="k">(you declare it; the tool does not know your plant)</span></label><input id="pQ" type="range" min="-1" max="4" step="0.05" value="2">
+      <label>Release height <span id="pHv">20</span> m</label><input id="pH" type="range" min="0" max="150" step="1" value="20">
+      <label>Wind speed (10 m) <span id="pUv">3.0</span> m/s</label><input id="pU" type="range" min="0.5" max="20" step="0.5" value="3">
+      <label>Wind blowing from <span id="pDv">270</span>° (0 = north, 90 = east)</label><input id="pD" type="range" min="0" max="359" value="270">
+      <div class="row"><div><label>Stability</label><select id="pCls"><option value="">Read from wind + day/night</option><option>A</option><option>B</option><option>C</option><option>D</option><option>E</option><option>F</option></select></div>
+      <div><label>Show levels from</label><select id="pLv"><option value="1">1 µg/m³</option><option value="10">10</option><option value="100" selected>100</option><option value="1000">1,000</option><option value="10000">10,000</option></select></div></div>
+      <label>Your threshold, µg/m³ (e.g. an AEGL / ERPG value; optional)</label><input id="pTh" type="number" min="0" step="any" placeholder="leave empty if none">
+      <div id="pOut" class="note"></div>
+    </div>
     <h3>Climate scenario <span class="tag">engine-composed, not a forecast</span></h3>
     <div class="row"><div><label>Pathway</label><select id="cSsp"><option value="ssp126">SSP1-2.6 strong mitigation</option><option value="ssp245" selected>SSP2-4.5 middle road</option><option value="ssp370">SSP3-7.0 high emissions</option><option value="ssp585">SSP5-8.5 very high</option></select></div>
     <div><label>Year</label><select id="cYear"><option>2030</option><option>2050</option><option selected>2070</option><option>2090</option></select></div></div>
@@ -555,6 +568,8 @@ function renderHud() {
   if (S.mode === 'flood') h += `<div class="chip" id="hudDepth"></div>`;
   const acc = (S.evalNow.access || []).filter(a => a.state !== 'passable'); if (acc.length && S.mode === 'flood') h += `<div class="chip" style="color:#fcd9a0">${acc.length} access road/rail segment(s) restricted or cut</div>`;
   if (S.twin.site.layout_source === 'parametric') h += `<div class="chip" style="color:#fcd9a0;border-color:#78350f">ILLUSTRATIVE layout — not the real plant. Use Edit to place real structures.</div>`;
+  if (S.plume) { const lv = $('pLv').value; h += `<div class="chip">Release plume · ${esc(String(S.plume.inputs.Q_g_s >= 100 ? Math.round(S.plume.inputs.Q_g_s) : S.plume.inputs.Q_g_s.toPrecision(2)))} g/s from ${S.plume.inputs.wind_from_deg.toFixed(0)}° · ` +
+      PL_COL.map((c, t) => `<i style="display:inline-block;width:9px;height:9px;border-radius:2px;margin:0 3px 0 6px;background:#${c.toString(16).padStart(6, '0')}"></i>${[1, 10, 100, 1000, 10000][t].toLocaleString()}`).join('') + ' µg/m³ <span class="k">(screening, not health thresholds)</span></div>'; }
   $('hud').innerHTML = h;
 }
 function allStorms() { return S.twin ? S.twin.history.storms.concat(S.twin.history.windstorms || []) : []; }
@@ -582,6 +597,73 @@ function setMode(m) {
   if (!S.twin) return; fillScen(); if (windLines) windLines.visible = m === 'wind'; replay(); schedule();
 }
 function replay() { S.t = S.mode === 'flood' ? 0 : 1; S.playing = S.mode === 'flood'; S.windPaused = false; updateWater(); }
+
+// ── release plume overlay: numbers come from /asset-twin/plume (engine plume code); the viewer only draws them ──
+const PL_COL = [0x7dd3fc, 0xfde047, 0xfb923c, 0xef4444, 0x7f1d1d];
+function clearPlume() {
+  ['plumeVox', 'plumeGround'].forEach(k => { const o = S[k]; if (o) { scene.remove(o); o.geometry.dispose(); const ms = Array.isArray(o.material) ? o.material : [o.material]; ms.forEach(m => { if (m.map) m.map.dispose(); m.dispose(); }); S[k] = null; } });
+}
+function plumeSrcXY() { const v = $('pSrc').value; if (v === 'pin') return [0, 0]; const c = S.twin.components.find(x => x.id === v); return c ? [c.x, c.y] : [0, 0]; }
+function plumeSrcOpts() {
+  const cs = onsite(), keep = $('pSrc').value; $('pSrc').innerHTML = '<option value="pin">Site pin</option>' + cs.slice(0, 80).map(c => `<option value="${esc(c.id)}">${esc(c.name || c.kind)} (${esc(c.kind)})</option>`).join('');
+  if ([...$('pSrc').options].some(o => o.value === keep)) $('pSrc').value = keep;
+}
+let plumeTimer = null, plumeSeq = 0;
+function schedulePlume() { clearTimeout(plumeTimer); plumeTimer = setTimeout(runPlume, 250); }
+async function runPlume() {
+  if (!S.twin) return;
+  if (!$('pOn').checked) { clearPlume(); $('pBox').style.display = 'none'; S.plume = null; renderHud(); return; }
+  $('pBox').style.display = 'block';
+  const Q = Math.pow(10, +$('pQ').value), H = +$('pH').value, U = +$('pU').value, D = +$('pD').value, th = parseFloat($('pTh').value), [x, y] = plumeSrcXY(), seq = ++plumeSeq;
+  $('pQv').textContent = Q >= 100 ? Q.toFixed(0) : Q.toFixed(Q < 1 ? 2 : 1); $('pHv').textContent = H; $('pUv').textContent = U.toFixed(1); $('pDv').textContent = D;
+  try {
+    const r = await api('/asset-twin/plume', { q_g_s: Q, height_m: H, wind_ms: U, wind_from_deg: D, stability: $('pCls').value || null, x_m: x, y_m: y, half_m: Math.min(500, S.twin.site.radius_m * 1.3),
+      threshold_ug_m3: isFinite(th) && th > 0 ? th : null, components: onsite().map(c => ({ id: c.id, name: c.name, x: c.x, y: c.y })) });
+    if (seq !== plumeSeq) return; S.plume = r; drawPlume(); renderHud();
+    const pk = r.peak_ground, reach = r.centreline_reach_m, lv = $('pLv').value, hit = (r.structures_at_or_above || {})[(isFinite(th) && th > 0) ? String(th) : lv] || [];
+    const lvl = (isFinite(th) && th > 0) ? th : +lv, ins = r.inputs;
+    $('pOut').innerHTML = `<b>${esc(ins.stability)}</b> stability (${esc(ins.stability_source)}), wind at release ${ins.u_at_release_ms} m/s.<br>` +
+      (pk ? `Peak ground value <b>${pk.ug_m3 >= 100 ? pk.ug_m3.toFixed(0) : pk.ug_m3.toFixed(1)} µg/m³</b> about ${pk.downwind_m.toFixed(0)} m downwind.` : 'No ground value beyond the 30 m near field.') +
+      `<br>≥ ${lvl} µg/m³ reaches ${reach[String(lvl)] == null ? 'nowhere beyond 30 m' : '<b>' + reach[String(lvl)].toFixed(0) + ' m</b> along the centreline'}.` +
+      `<br>Structures at or above ${lvl} µg/m³: ${hit.length ? hit.map(a => esc(a.name || a.id)).join(', ') : 'none'}.` +
+      `<details><summary>Limits</summary>${r.limits.map(esc).join('<br>')}</details>`;
+  } catch (e) { $('pOut').textContent = 'Plume could not run: ' + e.message; }
+}
+function drawPlume() {
+  clearPlume(); const r = S.plume; if (!r) return;
+  const f = r.frame, lv = $('pLv').value, th = parseFloat($('pTh').value), show = (isFinite(th) && th > 0) ? th : +lv, lvls = r.levels_ug_m3, [sx0, sy0] = r.inputs.src_xy_m;
+  const c3 = r.conc_ug_m3_xyz, dxv = f.L_m / (f.nx - 1), dyv = 2 * f.W_m / (f.ny - 1), dzv = f.Z_m / (f.nz - 1), cells = [];
+  const hi = (i, j, k) => (i < 0 || k < 0) ? true : (i >= f.nx || j < 0 || j >= f.ny || k >= f.nz) ? false : c3[i][j][k] >= show;      // ground and the source end count as inside
+  for (let i = 0; i < f.nx; i++) for (let j = 0; j < f.ny; j++) for (let k = 0; k < f.nz; k++) { const v = c3[i][j][k];
+    if (v >= show && !(hi(i - 1, j, k) && hi(i + 1, j, k) && hi(i, j - 1, k) && hi(i, j + 1, k) && hi(i, j, k - 1) && hi(i, j, k + 1))) cells.push([i, j, k, v]); }   // outer shell only, so the site stays visible inside
+  const base = yv(S.twin.site.ground_ref_m);
+  if (cells.length) {
+    const g = new THREE.BoxGeometry(dxv * 1.02, dzv * 1.02, dyv * 1.02), mat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.32, depthWrite: false });
+    const im = new THREE.InstancedMesh(g, mat, cells.length), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), col = new THREE.Color();
+    q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.atan2(f.ey, f.ex));              // local +x -> downwind (E, -N) in scene axes
+    cells.forEach(([i, j, k, v], n) => {
+      const lx = i * dxv, ly = (j * dyv - f.W_m), lz = k * dzv;
+      const ex_ = f.ex, ey_ = f.ey;                                                       // crosswind y (left of downwind) = (-ey, ex) in (E,N)
+      const E = sx0 + lx * ex_ + ly * (-ey_), N = sy0 + lx * ey_ + ly * ex_;
+      m4.compose(new THREE.Vector3(sx(E), base + lz * S.VE + dzv / 2, sz(N)), q, new THREE.Vector3(1, 1, 1)); im.setMatrixAt(n, m4);
+      let ci = 0; lvls.forEach((L, t) => { if (v >= L && t < PL_COL.length) ci = t; }); im.setColorAt(n, col.setHex(PL_COL[ci]));
+    });
+    im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true; im.renderOrder = 3; S.plumeVox = im; scene.add(im);
+  }
+  // ground map draped on the terrain
+  const n = r.ground.n, cv = document.createElement('canvas'); cv.width = cv.height = n + 2; const gx = cv.getContext('2d'), img = gx.createImageData(n + 2, n + 2);
+  for (let a = 0; a < n; a++) for (let b = 0; b < n; b++) { const v = r.ground.ug_m3[a][b]; if (v == null || v < Math.min(show, 1)) continue; let ci = -1; lvls.forEach((L, t) => { if (v >= L && t < PL_COL.length) ci = t; }); if (ci < 0) continue;
+    const c = new THREE.Color(PL_COL[ci]), o = ((n - a) * (n + 2) + (b + 1)) * 4; img.data[o] = c.r * 255; img.data[o + 1] = c.g * 255; img.data[o + 2] = c.b * 255; img.data[o + 3] = 150; }
+  gx.putImageData(img, 0, 0);
+  const tg = terrainMesh.geometry.clone(), pos = tg.attributes.position, uv = tg.attributes.uv, half = r.ground.half_m, span = 2 * half * (n + 2) / n;
+  for (let i = 0; i < pos.count; i++) { const x = pos.getX(i), y = -pos.getZ(i); uv.setXY(i, 0.5 + x / span, 0.5 + y / span); }
+  const tex = new THREE.CanvasTexture(cv); tex.magFilter = THREE.NearestFilter; tex.minFilter = THREE.LinearFilter; tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
+  const gm = new THREE.Mesh(tg, new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 })); gm.position.y = 0.15; gm.renderOrder = 2; S.plumeGround = gm; scene.add(gm);
+}
+['pQ', 'pH', 'pU', 'pD'].forEach(i => $(i).oninput = () => { if ($('pOn').checked) schedulePlume(); });
+['pCls', 'pSrc', 'pTh'].forEach(i => $(i).onchange = () => { if ($('pOn').checked) schedulePlume(); });
+$('pLv').onchange = () => { if (S.plume) { drawPlume(); runPlume(); } };
+$('pOn').onchange = () => { runPlume(); };
 
 // ── protection ───────────────────────────────────────────────────────────────
 function manual() {
@@ -699,7 +781,7 @@ async function build() {
 function loadTwin(tw) {
   S.simCache = {}; S.sim = S.simBase = null; S.twin = tw; S.sel = null; S.proposal = []; S.measures = []; ['mEq', 'mPl', 'mBa', 'mWi'].forEach(i => $(i).checked = false);
   buildTerrain(); buildComps(); buildLinear(); buildWind(); fillScen(); renderAgent(); renderHistory(); renderEdit(); renderBasis();
-  windLines.visible = S.mode === 'wind'; viewpoint('over'); replay(); runEval();
+  windLines.visible = S.mode === 'wind'; viewpoint('over'); plumeSrcOpts(); S.plume = null; clearPlume(); if ($('pOn').checked) runPlume(); replay(); runEval();
   if (S.pendingClimate) { const [a, b, c2] = S.pendingClimate.split(':'); S.pendingClimate = null; if (a) $('cSsp').value = a; if (b) $('cYear').value = b; if (c2) $('cRp').value = c2; setTimeout(applyClimate, 600); }
 }
 

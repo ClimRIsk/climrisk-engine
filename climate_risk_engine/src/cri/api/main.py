@@ -1679,6 +1679,32 @@ def asset_twin_climate(request: AssetTwinClimateRequest) -> dict:
     return _jsonable(res)
 
 
+class AssetTwinPlumeRequest(BaseModel):
+    q_g_s: float
+    height_m: float = 0.0
+    wind_ms: float = 3.0
+    wind_from_deg: float = 270.0
+    stability: Optional[str] = None       # A..F; if omitted it is read from wind speed and day/night
+    daytime: bool = True
+    cloud_frac: float = 0.5
+    x_m: float = 0.0
+    y_m: float = 0.0
+    half_m: float = 400.0
+    threshold_ug_m3: Optional[float] = None
+    components: Optional[list] = None
+
+
+@app.post("/asset-twin/plume", dependencies=[_AUTH], tags=["Asset Twin"])
+def asset_twin_plume(request: AssetTwinPlumeRequest) -> dict:
+    """Steady Gaussian plume from a release the user declares (rate, height, wind, stability). Screening-grade; see `limits` in the response."""
+    from .. import release_plume as RP
+    try:
+        return _jsonable(RP.field(request.q_g_s, request.height_m, request.wind_ms, request.wind_from_deg, request.stability, request.daytime, request.cloud_frac,
+                                  (request.x_m, request.y_m), request.half_m, request.components, request.threshold_ug_m3))
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+
+
 @app.post("/asset-twin/analyse", dependencies=[_AUTH], tags=["Asset Twin"])
 def asset_twin_analyse(request: AssetTwinAnalyseRequest) -> dict:
     """Re-run the agent on an edited twin (after the user corrected heights, equipment levels or design winds)."""
