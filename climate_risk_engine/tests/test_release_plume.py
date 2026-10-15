@@ -86,6 +86,23 @@ def test_endpoint_returns_field_and_refuses_bad_input():
     assert c.post("/asset-twin/plume", json={"q_g_s": -5}).status_code == 422
 
 
+def test_tile_proxy_passes_through_open_sources_only(monkeypatch):
+    from fastapi.testclient import TestClient
+    from cri.api import main
+    seen = []
+
+    class R:
+        status_code = 200; content = b"\xff\xd8jpg"; headers = {"content-type": "image/jpeg"}
+
+    monkeypatch.setattr(main.requests, "get", lambda url, **kw: (seen.append(url), R())[1])
+    c = TestClient(main.app)
+    ok = c.get("/asset-twin/tile/usgs/17/30000/53000")
+    assert ok.status_code == 200 and ok.content == R.content and "basemap.nationalmap.gov" in seen[0] and "/17/53000/30000" in seen[0]
+    assert c.get("/asset-twin/tile/evil/17/1/1").status_code == 404                 # not a general proxy
+    assert c.get("/asset-twin/tile/eox/15/1/1").status_code == 404                  # beyond that source's max zoom
+    assert c.get("/asset-twin/tile/usgs/3/9/1").status_code == 404                  # x outside the grid
+
+
 def test_portfolio_map_page_is_served_and_keeps_null_visible():
     from fastapi.testclient import TestClient
     from cri.api import main

@@ -28,7 +28,7 @@
   .status { font-size:11px; color:var(--muted); margin-top:8px; min-height:14px; } .status.error { color:#f87171; }
   .main { position:relative; background:#0a1220; }
   #view { width:100%; height:100%; display:block; }
-  .hud { position:absolute; left:10px; top:10px; right:10px; display:flex; gap:8px; flex-wrap:wrap; pointer-events:none; }
+  .hud { position:absolute; left:10px; top:10px; right:236px; display:flex; gap:8px; flex-wrap:wrap; pointer-events:none; }
   .chip { background:rgba(13,21,36,.88); border:1px solid var(--border); border-radius:8px; padding:5px 9px; font-size:11px; pointer-events:auto; }
   .chip b { color:var(--primary); }
   .legend { position:absolute; left:10px; bottom:10px; background:rgba(13,21,36,.88); border:1px solid var(--border); border-radius:8px; padding:7px 10px; font-size:10.5px; line-height:1.7; }
@@ -44,7 +44,7 @@
   .compass .n { position:absolute; left:0; right:0; top:-14px; text-align:center; font-size:10px; font-weight:700; color:#fca5a5; }
   .scalebar { position:absolute; left:50%; bottom:12px; transform:translateX(-50%); color:#e2e8f0; font-size:10.5px; text-align:center; pointer-events:none; text-shadow:0 1px 2px #000; }
   .scalebar div { height:5px; border:1.5px solid #e2e8f0; border-top:none; margin:0 auto 2px; }
-  .attrib { position:absolute; left:10px; top:44px; font-size:9.5px; color:#94a3b8; text-shadow:0 1px 2px #000; max-width:60%; pointer-events:none; }
+  .attrib { position:absolute; right:96px; bottom:8px; text-align:right; font-size:9.5px; color:#cbd5e1; text-shadow:0 1px 2px #000; max-width:42%; pointer-events:none; }
   .tip { position:absolute; right:10px; bottom:10px; max-width:330px; background:rgba(13,21,36,.94); border:1px solid var(--border); border-radius:8px; padding:9px 11px; font-size:11px; line-height:1.55; display:none; }
   .tip h4 { font-size:12px; margin-bottom:3px; } .tip .k { color:var(--muted); }
   .seg { display:flex; border:1px solid var(--border); border-radius:7px; overflow:hidden; }
@@ -273,7 +273,7 @@ function buildTerrain() {
   S.zrange = [zmin, zmax];
 }
 
-// ── ground imagery: open sources by default; every tile is fetched by the browser, nothing is cached or re-served ──
+// ── ground imagery: open sources by default; tiles pass straight through the local engine (/asset-twin/tile), nothing is stored ──
 const IMG_SRC = {
   usgs: { label: 'USGS aerial imagery (US, public domain)', url: 'https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}', zmax: 18, us: true,
           attr: 'Imagery: USGS The National Map (public domain)' },
@@ -295,6 +295,11 @@ function terrainLatLon() {
   const x1 = T.x0_m + (T.cols - 1) * T.dx_m, y1 = T.y0_m - (T.rows - 1) * T.dy_m;
   return { nw: [a.lat + T.y0_m / k, a.lon + T.x0_m / (k * cl)], se: [a.lat + y1 / k, a.lon + x1 / (k * cl)] };
 }
+async function tileBlob(key, z, x, y) {   // tiles come through the local engine (same origin), so the app's security policy and canvas rules are satisfied
+  const k = $('apiKey').value.trim();
+  const r = await fetch('/asset-twin/tile/' + key + '/' + z + '/' + x + '/' + y, { headers: k ? { 'X-API-Key': k } : {} });
+  return r.ok ? r.blob() : null;
+}
 async function loadImagery() {
   if (!S.twin || !terrainMesh) return; fillImgSel();
   const a = S.twin.asset, key = S.imgPick || (inUS(a.lat, a.lon) ? 'usgs' : 'eox'), src = IMG_SRC[key]; $('imgSrc').value = key;
@@ -306,7 +311,7 @@ async function loadImagery() {
   const [W, H, p0] = wpx(), cv = document.createElement('canvas'); cv.width = Math.round(W); cv.height = Math.round(H); const g = cv.getContext('2d'); g.fillStyle = '#556b4a'; g.fillRect(0, 0, cv.width, cv.height);
   const tx0 = Math.floor(p0[0] / 256), ty0 = Math.floor(p0[1] / 256), tx1 = Math.floor((p0[0] + W) / 256), ty1 = Math.floor((p0[1] + H) / 256); let ok = 0, tot = 0;
   const jobs = []; for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) { tot++;
-    jobs.push(new Promise(res => { const im = new Image(); im.crossOrigin = 'anonymous'; im.onload = () => { g.drawImage(im, tx * 256 - p0[0], ty * 256 - p0[1]); ok++; res(); }; im.onerror = () => res(); im.src = src.url.replace('{z}', z).replace('{x}', tx).replace('{y}', ty); })); }
+    jobs.push(tileBlob(key, z, tx, ty).then(async b => { if (!b) return; const im = await createImageBitmap(b); g.drawImage(im, tx * 256 - p0[0], ty * 256 - p0[1]); ok++; }).catch(() => {})); }
   $('attrib').textContent = 'Loading imagery…'; await Promise.all(jobs);
   if (token !== S.imgToken) return;
   if (ok < tot * 0.6) { $('attrib').textContent = ok ? 'Imagery partly unavailable here; showing elevation tint.' : 'Imagery could not be loaded (offline, blocked, or no coverage); showing elevation tint.'; return; }

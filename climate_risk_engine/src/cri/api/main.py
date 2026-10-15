@@ -1712,6 +1712,32 @@ def asset_twin_plume(request: AssetTwinPlumeRequest) -> dict:
         raise HTTPException(status_code=422, detail=str(exc))
 
 
+_TILE_SOURCES = {   # open imagery only; fixed host list so this can never be used as a general proxy
+    "usgs": ("https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}", 18),
+    "eox": ("https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2020_3857/default/g/{z}/{y}/{x}.jpg", 14),
+    "esri": ("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", 18),
+}
+
+
+@app.get("/asset-twin/tile/{src}/{z}/{x}/{y}", dependencies=[_AUTH], tags=["Asset Twin"])
+def asset_twin_tile(src: str, z: int, x: int, y: int):
+    """One imagery tile for the 3D twin, passed straight through from the open provider (nothing stored). The desktop app's security policy
+    only lets pages load from the local engine, so the viewer fetches tiles here rather than from the provider directly."""
+    from fastapi.responses import Response
+    if src not in _TILE_SOURCES:
+        raise HTTPException(status_code=404, detail="unknown imagery source")
+    url, zmax = _TILE_SOURCES[src]
+    if not (0 <= z <= zmax and 0 <= x < (1 << z) and 0 <= y < (1 << z)):
+        raise HTTPException(status_code=404, detail="tile outside the source's range")
+    try:
+        r = requests.get(url.format(z=z, x=x, y=y), timeout=15, headers={"User-Agent": "ClimRisk-twin/1.0 (screening tool)"})
+    except requests.RequestException:
+        raise HTTPException(status_code=502, detail="imagery provider unreachable")
+    if r.status_code != 200 or not r.headers.get("content-type", "").startswith("image/"):
+        raise HTTPException(status_code=404, detail="no tile here")
+    return Response(content=r.content, media_type=r.headers["content-type"], headers={"Cache-Control": "public, max-age=86400"})
+
+
 @app.post("/asset-twin/analyse", dependencies=[_AUTH], tags=["Asset Twin"])
 def asset_twin_analyse(request: AssetTwinAnalyseRequest) -> dict:
     """Re-run the agent on an edited twin (after the user corrected heights, equipment levels or design winds)."""
