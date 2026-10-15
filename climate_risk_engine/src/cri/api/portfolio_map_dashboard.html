@@ -140,7 +140,7 @@ function parseCsv(t) {
 }
 function addAssets(list) { const bad = list.filter(x => x.bad); list = list.filter(x => !x.bad); list.forEach(a => S.assets.push(a)); renderAll(); fit();
   msg(list.length ? `Added ${list.length} asset(s).` + (bad.length ? ` Skipped ${bad.length} line(s) without a valid name, latitude and longitude (line ${bad.map(b => b.bad).join(', ')}).` : '') : 'Nothing added: each line needs name, latitude, longitude.', !list.length); }
-$('addCsv').onclick = () => addAssets(parseCsv($('csv').value));
+$('addCsv').onclick = () => { if (!$('csv').value.trim()) { msg('Paste one asset per line first: name, latitude, longitude, value, sector. Or click Example.', false); return; } addAssets(parseCsv($('csv').value)); };
 $('clr').onclick = () => { S.assets = []; S.sel = null; renderAll(); msg(''); };
 $('demo').onclick = () => addAssets(parseCsv(['Houston refinery, 29.7255, -95.0, 450000000, oil and gas', 'Rotterdam terminal, 51.95, 4.14, 120000000, chemicals', 'Chennai plant, 13.1, 80.3, 60000000, manufacturing',
   'Jubail petrochemical, 27.0, 49.6, 300000000, petrochemical', 'Santos port, -23.98, -46.3, 90000000, logistics', 'Calgary warehouse, 51.05, -114.07, 15000000, logistics'].join('\n')));
