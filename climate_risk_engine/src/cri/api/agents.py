@@ -16,6 +16,7 @@ Environment variables needed (add to Render / .env):
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -523,10 +524,11 @@ async def agent_chat(req: ChatRequest) -> dict:
     Requires GROQ_API_KEY env var.
     """
     if not GROQ_API_KEY:
-        raise HTTPException(503, detail={
-            "error": "Conversational AI not configured",
-            "hint":  "Set GROQ_API_KEY env var. Get a free key at console.groq.com"
-        })
+        # No cloud key: answer from the engine's own source library with the local model if one is running, else the cited passages themselves. Never a dead end.
+        from ..resident import answer as _AN
+        r = await asyncio.get_running_loop().run_in_executor(None, lambda: _AN.ask(req.message))
+        return {"reply": r.get("reply", ""), "conversation_id": req.conversation_id or "default", "model": r.get("mode") or "engine source library", "sources": r.get("sources", []),
+                "note": "Answered from the engine's own source library; no cloud key is set. For tool use across your watchlist, set GROQ_API_KEY (optional)."}
 
     conv_id  = req.conversation_id or "default"
     messages = _conversations[conv_id]

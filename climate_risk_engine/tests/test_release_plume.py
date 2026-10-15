@@ -93,3 +93,15 @@ def test_portfolio_map_page_is_served_and_keeps_null_visible():
     assert r.status_code == 200
     t = r.text
     assert "Not assessed" in t and "no single portfolio score" in t and "/resident/site/profile" in t
+
+
+def test_agent_chat_without_a_cloud_key_answers_from_the_source_library_not_a_503(monkeypatch):
+    from fastapi.testclient import TestClient
+    from cri.api import agents, main
+    from cri.resident import answer as AN
+    monkeypatch.setattr(agents, "GROQ_API_KEY", "")
+    monkeypatch.setattr(AN, "ask", lambda q, *a, **k: {"ok": True, "reply": "Wind damage rises steeply with gust speed.", "mode": "extractive", "sources": [{"title": "t"}]})
+    r = TestClient(main.app).post("/chat", json={"message": "how does wind damage scale?"})
+    assert r.status_code == 200, r.text
+    j = r.json()
+    assert j["reply"] and "GROQ" in j["note"] and "no cloud key" in j["note"] and j["model"] == "extractive"
