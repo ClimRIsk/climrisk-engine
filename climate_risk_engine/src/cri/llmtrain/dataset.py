@@ -478,6 +478,65 @@ def build_scenarios_csv(csv_path: Path, seed: int = 7):
     return rows
 
 
+
+PLAN_SYS = ("You are ClimRisk's climate-risk analyst. A user gives a scenario and a proposed target action plan. Review the plan against what the engine can and cannot support. "
+            "Figures in the plan are the user's own targets: say the engine has not derived them, and point out when a figure is only a fixed multiple of another. "
+            "Say what is null without coordinates. Use only numbers in the supplied facts. Not a forecast. 80 to 160 words, plain prose, no lists.")
+
+_PLAN_MEASURES = {
+    "Coastal Inundation": "flood barriers, raising critical equipment above the mapped depth and flood-proofing, which the 3D scenario lab ranks by physical performance",
+    "Riverine Flood": "flood barriers, raising critical equipment above the mapped depth and flood-proofing, which the 3D scenario lab ranks by physical performance",
+    "Extreme Heat": "high-albedo cool-roof coatings, more shade and tree canopy, re-rating cooling for higher design temperatures and heat-stress protocols for outdoor staff",
+    "Drought / Water Stress": "a water plan for the site, since the engine reports basin water-stress and drought scores as context and does not monetise them",
+    "Wildfire": "measures sized only after adding fire-history data, since the engine's wildfire screen is fuel-based and says so",
+}
+
+
+def build_plan_review(scen_csv: Path, ans_csv: Path, seed: int = 7):
+    """Scenario + the supplied target plan -> a review. The plan file gives the same three actions for every hazard and its two figures are arithmetic on the
+    scenario's own figure, so it is used as a plan to be REVIEWED, never as an answer to copy. The review states only what the supplied facts show."""
+    import csv
+    from ..modellab import scenarios as MS
+    rng = random.Random(seed)
+    with open(scen_csv, newline="", encoding="utf-8") as fh:
+        sc = {r["Scenario_ID"]: r for r in csv.DictReader(fh)}
+    with open(ans_csv, newline="", encoding="utf-8") as fh:
+        an = {r["Scenario_ID"]: r for r in csv.DictReader(fh)}
+    combos = sorted({(r["Sector"], r["Primary_Hazard"], r["Climate_Pathway"], int(r["Horizon_Year"])) for r in sc.values()})
+    rng.shuffle(combos)
+    n_te, n_va = max(1, round(len(combos) * 0.15)), max(1, round(len(combos) * 0.1))
+    role = {c: ("test" if i < n_te else "valid" if i < n_te + n_va else "train") for i, c in enumerate(combos)}
+    per = {"train": 12, "valid": 6, "test": 12}
+    by = {}
+    for sid, r in sc.items():
+        if sid in an:
+            by.setdefault((r["Sector"], r["Primary_Hazard"], r["Climate_Pathway"], int(r["Horizon_Year"])), []).append(sid)
+    rows = []
+    for c, ids in by.items():
+        split = role[c]
+        sector, haz, path, year = c
+        for sid in rng.sample(ids, min(per[split], len(ids))):
+            d, plan = sc[sid]["Description"], an[sid]["Target_Action_Plan"]
+            e = re.search(r"by (\d+)%", d); b = re.search(r"to \+([\d.]+)%", plan); m = re.search(r"threshold of (\d+)%", plan)
+            if not (e and b and m):
+                continue
+            exc, buf, eb = int(e.group(1)), float(b.group(1)), int(m.group(1))
+            ratio = round(buf / exc, 2)
+            ssp = MS.SSP_LABEL[{"SSP1-2.6": "ssp126", "SSP2-4.5": "ssp245", "SSP3-7.0": "ssp370", "SSP5-8.5": "ssp585"}[path.split(" ")[0]]]
+            facts = (f"Scenario {sid}: sector {sector}; hazard {haz}; pathway {ssp}; year {year}; user-stated exceedance {exc}%; plan buffer +{buf:g}%; plan EBITDA allowance {eb}%; "
+                     f"buffer is {ratio:g} times the exceedance; plan actions: buffers, diversify sourcing, EBITDA allowance")
+            fixed = abs(buf - ratio * exc) < 0.051
+            a = (f"The plan has three parts: a design-buffer increase, supplier diversification and an EBITDA allowance. "
+                 f"The +{buf:g}% buffer is {ratio:g} times the {exc}% exceedance you stated" + (", so it is a fixed multiple, not a site-specific design margin; " if fixed else "; ")
+                 + "the engine derives margins only from the site's own hazard return levels, which are not assessed (null) until coordinates are given. "
+                 f"The {eb}% EBITDA allowance is also your input; the engine has not verified it, and computes EBITDA at risk from asset value and hazard once they are supplied. "
+                 f"Diversifying sourcing helps only if suppliers share the hazard, which the stress test checks from their coordinates. "
+                 f"For {haz.lower()} the engine's own measures are {_PLAN_MEASURES[haz]}. Screening-grade, not a forecast.")
+            rows.append({"kind": "scenario", "split": split, "meta": {"facts": facts, "nulls": ["site hazard values", "losses"], "combo": list(c), "id": sid, "task": "plan_review"},
+                         "messages": [{"role": "system", "content": PLAN_SYS}, {"role": "user", "content": f"Engine facts: {facts}\n\nScenario: {d}\n\nProposed plan: {plan}\n\nReview this plan."}, {"role": "assistant", "content": a}]})
+    return rows
+
+
 def build_chat(rng, n: int, split: str):
     """Conversation turns in exactly the deployed format (converse.SYSTEM + CONTEXT block + user turn). Answers are correct by construction:
     they use only context numbers, call null 'not assessed', and suggest one engine step."""
@@ -572,6 +631,9 @@ def main(corpus_dir: Path, out: Path, seed: int = 7):
         _scn = Path(__file__).resolve().parents[3] / "data" / "scenarios" / "climate_risk_scenarios_1000.csv"       # the copy kept in the repo
     if "--no-scenarios" not in sys.argv and _scn.exists():
         rows += build_scenarios_csv(_scn, seed + 100)
+        _ans = _scn.with_name("climate_risk_answers_1000.csv")
+        if _ans.exists():
+            rows += build_plan_review(_scn, _ans, seed + 100)
     rows += build_chat(random.Random(seed + 80), 160, "train") + build_chat(random.Random(seed + 81), 20, "valid") + build_chat(random.Random(seed + 82), 20, "test")
     gold = build_gold()
     rows += gold + [dict(r) for r in gold if r["split"] == "train"] * 2        # gold is scarce and high quality: upweight x3

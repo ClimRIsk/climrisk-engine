@@ -63,3 +63,35 @@ def test_training_rows_carry_engine_facts_only_and_hold_out_whole_scenarios():
         assert E.nums(ref) <= E.nums(r["meta"]["facts"]) | E.nums(r["messages"][1]["content"]) | {"0", "1"}, ref
         assert "not assessed" in ref and "not zero" in ref and "your own input" in ref
         assert "no location" in ref.lower()
+
+
+ANS = CSV.with_name("climate_risk_answers_1000.csv")
+
+
+def test_answer_file_is_formulaic_so_it_is_reviewed_not_copied():
+    with open(CSV, newline="", encoding="utf-8") as fh:
+        sc = {r["Scenario_ID"]: r["Description"] for r in csv.DictReader(fh)}
+    with open(ANS, newline="", encoding="utf-8") as fh:
+        an = list(csv.DictReader(fh))
+    import re
+    assert len(an) == 1000
+    assert len({re.sub(r"[\d.]+", "N", r["Target_Action_Plan"]) for r in an}) == 1            # one template for every sector and hazard
+    for r in an:
+        exc = int(re.search(r"by (\d+)%", sc[r["Scenario_ID"]]).group(1))
+        buf = float(re.search(r"to \+([\d.]+)%", r["Target_Action_Plan"]).group(1))
+        assert buf == pytest.approx(1.2 * exc, abs=0.051)                                     # the buffer is 1.2 x the stated exceedance
+
+
+def test_plan_review_rows_flag_fixed_multiple_and_unverified_inputs():
+    from cri.llmtrain import dataset as D, evaluate as E
+    rows = D.build_plan_review(CSV, ANS)
+    assert rows and {r["split"] for r in rows} == {"train", "valid", "test"}
+    train = {tuple(r["meta"]["combo"]) for r in rows if r["split"] == "train"}
+    test = {tuple(r["meta"]["combo"]) for r in rows if r["split"] == "test"}
+    assert not (train & test)
+    for r in rows:
+        ref, facts = r["messages"][-1]["content"], r["meta"]["facts"] + r["messages"][1]["content"]
+        assert E.nums(ref) <= E.nums(facts) | {"0", "1"}, ref
+        low = ref.lower()
+        assert "fixed multiple" in low and "not assessed" in low and "has not verified" in low
+        assert "diversif" in low and "stress test" in low
