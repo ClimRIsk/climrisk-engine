@@ -73,7 +73,7 @@
 </style>
 </head>
 <body>
-<div class="header"><div class="logo">CLIMRISK</div><div class="sub">Asset Twin · the real site in 3D, how floods and cyclone winds hurt it, and how to protect it</div></div>
+<div class="header"><div class="logo">CLIMRISK</div><div class="sub">Asset Twin · the real site in 3D, how floods and cyclone winds hurt it, and how to protect it</div><a id="mapLink" href="/portfolio/map" style="margin-left:auto;color:var(--primary);font-size:12px;text-decoration:none">Portfolio hazard map →</a></div>
 <div class="layout">
   <aside class="left">
     <h3>Site</h3>
@@ -846,6 +846,7 @@ $('incAdd').onclick = () => { const d = $('incDate').value, n = $('incNote').val
 const q = new URLSearchParams(location.search);
 if (q.get('lat')) { $('lat').value = q.get('lat'); $('lon').value = q.get('lon') || ''; $('name').value = q.get('name') || ''; if (q.get('sector')) $('sector').value = q.get('sector'); }
 initGL(); renderLegend();
+$('mapLink').href = '/portfolio/map' + location.hash;
 { const hk = new URLSearchParams(location.hash.slice(1)).get('key'); if (hk) $('apiKey').value = hk; }   // desktop app passes its session token in the hash
 if (q.get('climate')) S.pendingClimate = q.get('climate');
 if (q.get('auto') === '1' && q.get('lat')) setTimeout(build, 300);   // opened by the resident agent
