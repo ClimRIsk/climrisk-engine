@@ -600,13 +600,16 @@ class Agent:
 
     _PROFILE_RX = re.compile(r"\b(?:all|every|full|complete)\s+(?:the\s+)?hazards?\b|\b(?:hazard|site|risk|location)\s+profile\b|\bfull (?:profile|screen\w*)\b|\bwhat(?:'s| is| are) the (?:hazards?|risks?) (?:at|for|in|near)\b|\bhow risky (?:is|are)\b|\bprofile\b.*\d+\.\d+", re.I)
 
+    _HAZ_Q = re.compile(r"\b(heat|hot|humid\w*|flood\w*|cyclone|hurricane|typhoon|storm|wind|water stress|drought|wildfire|fire|earthquake|seismic|freez\w*|cold|air quality|pm ?2\.?5|landslide|subsidence|risk\w*|hazards?|exposed|exposure|safe)\b", re.I)
+
     def _profile_commands(self, session, text) -> Optional[dict]:
         """Any coordinate runs every hazard by default: "9.47, 77.91", "all hazards at 22.26, 91.80", "hazard profile for Chattogram".
         Hazards with no data are built from a fallback; if that fails they are null (not assessed), never zero."""
         t = text.strip()
         ent = N.entities(t)
         bare = "lat" in ent and len(t.split()) <= 4 and not re.search(r"[a-zA-Z]{4,}", re.sub(r"(?i)\b(profile|hazards?|risk)\b", "", t))
-        if not (bare or self._PROFILE_RX.search(t)):
+        site_q = "lat" in ent and bool(self._Q.search(t)) and bool(self._HAZ_Q.search(t)) and not self._ACT.search(t)    # "what is the heat risk at 29.7, -95.0?": a question about a place, answered from that place's numbers, never from unrelated literature
+        if not (bare or site_q or self._PROFILE_RX.search(t)):
             return None
         pl = resolve_place(t, ent, session)
         if not pl:

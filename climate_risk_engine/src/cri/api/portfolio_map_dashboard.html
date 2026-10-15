@@ -116,6 +116,17 @@ function renderKpis() {
   $('kN').textContent = n; $('kW').innerHTML = w < 0 ? '<span>not assessed</span>' : `<span style="color:${SCOL[w]};font-size:15px">${SEV[w]}</span>`;
   $('kH').innerHTML = hi.length + ' <span>of ' + n + '</span>'; $('kV').textContent = vals.length ? fmtV(vals.reduce((s, a) => s + a.value, 0)) : (hi.length ? 'no values given' : '–');
 }
+function detail(a) {   // every hazard the engine ran for this site, with its number, status and (for nulls) the reason: nothing is hidden behind a colour
+  const rows = Object.values(a.profile || {}); if (!rows.length) return '<div class="meta" style="margin-top:6px">Not assessed yet. Press Run all hazards.</div>';
+  rows.sort((x, y) => (levelOf({ sev: y.severity }) - levelOf({ sev: x.severity })));
+  const stl = { modelled: 'modelled', constructed: 'constructed from a fallback', none_found: 'looked for, none found', null: 'NOT ASSESSED' };
+  return '<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:6px">' + rows.map(h => { const l = levelOf({ sev: h.severity });
+    const val = h.value != null ? `<b>${esc(typeof h.value === 'number' ? (Math.abs(h.value) >= 100 ? Math.round(h.value) : +h.value.toFixed(2)) : h.value)}</b> ${esc(h.unit || '')}` : '';
+    const why = h.status === 'null' ? (h.reason || 'no data source answered for this location') : (h.caveat || '');
+    return `<div style="margin:5px 0;font-size:11px;line-height:1.45"><span style="color:${colorOf(l)};font-weight:700">${l < 0 ? '–' : SEV[l]}</span> · ${esc(h.label || h.key)}` +
+      `<div style="color:var(--muted,#94a3b8)">${val}${val ? ' · ' : ''}${esc(stl[h.status] || h.status)}${h.evidence_grade ? ' · evidence grade ' + esc(h.evidence_grade) : ''}</div>` +
+      (why ? `<div style="color:${h.status === 'null' ? '#fcd9a0' : 'var(--muted,#94a3b8)'}">${esc(why)}</div>` : '') + '</div>'; }).join('') + '</div>';
+}
 function renderList() {
   if (!S.assets.length) { $('list').innerHTML = '<div class="empty">No assets yet.<br>Paste a list above, find a company in the register, or click <b>Example</b>.</div>'; return; }
   $('list').innerHTML = S.assets.map((a, i) => {
@@ -124,6 +135,7 @@ function renderList() {
     return `<div class="asset ${S.sel === i ? 'sel' : ''}" data-i="${i}"><div class="t"><b>${esc(a.name)}</b><span class="pill" style="border-color:${colorOf(w)};color:${colorOf(w)}">${w < 0 ? 'not assessed' : SEV[w]}</span></div>
       <div class="meta">${a.lat.toFixed(3)}, ${a.lon.toFixed(3)}${a.sector ? ' · ' + esc(a.sector) : ''}${a.value ? ' · ' + fmtV(a.value) : ''}${a.country ? ' · ' + esc(a.country) : ''}</div>
       <div class="chips">${chips}</div>
+      ${S.sel === i ? detail(a) : ''}
       <div class="row"><button class="btn sm" data-act="prof" data-i="${i}" ${a.running ? 'disabled' : ''}>${a.running ? esc(a.progress || 'running…') : a.profile ? 'Re-run all hazards' : 'Run all hazards'}</button>
         <a class="btn alt sm" style="text-decoration:none" href="/asset-twin/dashboard?lat=${a.lat}&lon=${a.lon}&name=${encodeURIComponent(a.name)}${a.sector ? '&sector=' + encodeURIComponent(a.sector) : ''}${location.hash}">Open 3D</a></div></div>`;
   }).join('');

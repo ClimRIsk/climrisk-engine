@@ -18,6 +18,8 @@
   .card { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:14px; margin-bottom:14px; overflow-x:auto; }
   .card h3 { font-size:12px; letter-spacing:1px; text-transform:uppercase; color:var(--muted); margin-bottom:10px; }
   input, select { width:100%; background:var(--bg); border:1px solid var(--border); border-radius:5px; color:var(--text); font:inherit; padding:4px 5px; outline:none; font-size:11.5px; }
+  select { min-width:70px; color-scheme:dark; }
+  td input.n { min-width:44px; }
   table { width:100%; border-collapse:collapse; font-size:11.5px; }
   th, td { text-align:left; padding:3px 4px; border-bottom:1px solid var(--border); vertical-align:middle; }
   th { color:var(--muted); font-weight:600; font-size:10px; }
@@ -56,7 +58,7 @@ const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const TOPICS = ['E1','E2','E3','E4','E5','S1','S2','S3','S4','G1'];
 const TYPES = ['negative_impact','positive_impact','risk','opportunity'];
-function sel(opts, v) { return `<select>${opts.map(o => `<option${o === v ? ' selected' : ''}>${o}</option>`).join('')}</select>`; }
+function sel(opts, v) { const w = Math.max(...opts.map(o => o.length)) * 7.5 + 26; return `<select style="min-width:${w}px">${opts.map(o => `<option${o === v ? ' selected' : ''}>${o}</option>`).join('')}</select>`; }
 function add(i = {}) {
   const tr = document.createElement('tr');
   const num = (k) => `<input class="n" type="number" min="1" max="5" value="${i[k] ?? ''}">`;

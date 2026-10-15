@@ -143,7 +143,8 @@
   .an-tbl { width: 100%; border-collapse: collapse; font-size: 11.5px; }
   .an-tbl th { text-align: left; color: var(--muted); font-weight: 600; font-size: 10.5px; padding: 4px 6px; border-bottom: 1px solid var(--border); }
   .an-tbl td { padding: 6px; border-bottom: 1px solid var(--border); vertical-align: top; }
-  .an-tbl td.r, .an-tbl th.r { text-align: right; font-family: var(--mono); white-space: nowrap; }
+  .an-tbl td.r, .an-tbl th.r { text-align: right; font-family: var(--mono); }
+  .an-tbl td.r { white-space: normal; overflow-wrap: anywhere; }
   .an-note { font-size: 11px; color: var(--muted); line-height: 1.55; margin-top: 8px; }
   .an-chips { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 8px; }
   .an-chart { width: 100%; height: 190px; display: block; }
@@ -1058,7 +1059,7 @@ function renderAnalyst() {
   document.getElementById('analyst').innerHTML = `
     <div class="an-head"><div><h2>${esc(A.name || 'Asset')}</h2>
       <div class="meta">${esc(A.sector || '')} ${esc(A.type || '')} · ${esc(A.admin1 || '')}, ${esc(A.iso3 || '')} · ${A.lat.toFixed(4)}, ${A.lon.toFixed(4)}
-      ${A.emissions_t ? ' · ' + (A.emissions_t / 1e6).toFixed(2) + ' Mt CO₂e/yr' : ''}${A.owners && A.owners.length ? ' · owners: ' + esc(A.owners.slice(0, 3).join(', ')) : ''} · ${d.elapsed_s}s</div></div>
+      ${A.emissions_t ? ' · ' + (A.emissions_t / 1e6).toFixed(2) + ' Mt CO₂e/yr' : ''}${A.owners && A.owners.length ? ' · owners of nearest register facility' + (A.register_match && A.register_match.distance_m != null ? ' (' + esc(A.register_match.name) + ', ' + A.register_match.distance_m + ' m away)' : '') + ': ' + esc(A.owners.slice(0, 3).join(', ')) : ''} · ${d.elapsed_s}s</div></div>
       <button class="an-close" onclick="anClose()">Close ✕</button></div>
     <div class="an-steps">${d.steps.map(s => `<span class="an-step done" title="${esc(s.text)}">✓ ${esc(s.stage)}</span>`).join('')}</div>
     <div class="headline" style="margin-bottom:14px">${esc(d.headline)}</div>

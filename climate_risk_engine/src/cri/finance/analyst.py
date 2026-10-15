@@ -304,6 +304,7 @@ def analyse_asset(lat: float, lon: float, name: Optional[str] = None, sector: Op
         register_index = nearest_register_asset(lat, lon)
     if register_index is not None:
         reg = register_asset(register_index)
+        reg["match_m"] = round(1000.0 * math.hypot((reg["lat"] - lat) * 111.0, (reg["lon"] - lon) * 111.0 * math.cos(math.radians(lat))))
         name = name or reg["name"]
         sector = sector or reg["sector"]
         atype = atype if atype is not None else reg["atype"]
@@ -383,7 +384,7 @@ def analyse_asset(lat: float, lon: float, name: Optional[str] = None, sector: Op
     res = {
         "asset": {"name": name, "lat": lat, "lon": lon, "iso3": iso3, "admin1": adm.get("name"), "sector": sector,
                   "type": atype, "capacity": capacity, "emissions_t": emissions_t, "owners": (reg or {}).get("owners"),
-                  "register_source": (reg or {}).get("source"), "value": val},
+                  "register_source": (reg or {}).get("source"), "register_match": None if not reg else {"name": reg["name"], "distance_m": reg.get("match_m")}, "value": val},
         "physical": {"cyclone": tc, "river_flood": river, "coastal_flood": coast,
                      "defences": {"river_rp": river["protection_rp"], "coastal_rp": coast["protection_rp"],
                                   "source": adm.get("source")},
@@ -478,7 +479,7 @@ def _headline(r: dict) -> str:
                ("coastal flood", r["physical"]["coastal_flood"]["severity"])],
               key=lambda x: ["NEGLIGIBLE", "LOW", "MODERATE", "HIGH"].index(x[1]))
     if top[1] != "NEGLIGIBLE":
-        parts.append(f"leading physical hazard: {top[0]} ({top[1]})")
+        parts.append(f"highest of the three hazards priced in this loss (cyclone, river flood, coastal flood): {top[0]} ({top[1]})")
     return "; ".join(parts) + "."
 
 
