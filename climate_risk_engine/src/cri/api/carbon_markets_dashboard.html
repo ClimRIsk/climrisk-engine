@@ -71,6 +71,19 @@ async function post(url, body, st) {
   if (!r.ok) { $(st).className = 'status error'; $(st).textContent = typeof j.detail === 'string' ? j.detail : JSON.stringify(j.detail); return null; }
   $(st).textContent = 'Done.'; return j;
 }
+
+function etsChart(j) {                       // free allocation (covered) vs shortfall (to be bought), summed over installations, from the engine's own projection
+  const yrs = j.installations[0].projection.map(p => p.year), rows = yrs.map((y, k) => ({ y, free: 0, short: 0, em: 0, cost: 0 }));
+  j.installations.forEach(i => i.projection.forEach((p, k) => { rows[k].free += Math.min(p.free_allocation_t, p.emissions_t); rows[k].short += p.shortfall_t; rows[k].em += p.emissions_t; rows[k].cost += p.cost_at_price || 0; }));
+  const mx = Math.max(...rows.map(r => r.em), 1), W = 640, H = 190, bw = Math.min(46, (W - 70) / rows.length - 8);
+  const sx = i => 56 + i * ((W - 70) / rows.length), sy = v => 10 + (H - 40) * (1 - v / mx);
+  let s = `<svg viewBox="0 0 ${W} ${H + 12}" width="100%" role="img" aria-label="Compliance obligation covered by free allocation and shortfall by year" style="font:10px system-ui;color:#94a3b8">`;
+  [0, .5, 1].forEach(f => { const v = mx * f; s += `<line x1="50" x2="${W}" y1="${sy(v)}" y2="${sy(v)}" stroke="#1c2a44"/><text x="46" y="${sy(v) + 3}" text-anchor="end" fill="#94a3b8">${fmt(v / 1000, 0)}k</text>`; });
+  rows.forEach((r, i) => { const x = sx(i); s += `<rect x="${x}" y="${sy(r.free)}" width="${bw}" height="${sy(0) - sy(r.free)}" fill="#38bdf8"><title>${r.y}: free allocation covers ${fmt(r.free)} t</title></rect>
+    <rect x="${x}" y="${sy(r.free + r.short)}" width="${bw}" height="${sy(r.free) - sy(r.free + r.short)}" fill="#f97316"><title>${r.y}: shortfall ${fmt(r.short)} t, about ${fmt(r.cost)} at the price used</title></rect>
+    <text x="${x + bw / 2}" y="${H - 12}" text-anchor="middle" fill="#94a3b8">${r.y}</text>`; });
+  return `<div style="margin-top:12px"><b style="font-size:12px">Compliance obligation, covered and uncovered (t CO₂)</b>${s}</svg><div class="foot"><span style="color:#38bdf8">■</span> covered by free allocation &nbsp; <span style="color:#f97316">■</span> shortfall to buy (before banked allowances or purchases already made). Straight from the projection above; the allocation decline and emissions change are the inputs you set.</div></div>`;
+}
 $('runi').onclick = async () => {
   const inst = Array.from($('it').querySelectorAll('tbody tr')).map(tr => { const f = tr.querySelectorAll('input,select'); return {name: f[0].value, sector: f[1].value, verified_emissions_t: Number(f[2].value || 0), free_allocation_t: Number(f[3].value || 0), allowances_held_t: Number(f[4].value || 0)}; }).filter(i => i.name);
   const j = await post('/carbon-markets/ets-position', {installations: inst, compliance_year: Number($('cy').value), eua_price: $('px').value ? Number($('px').value) : null, emissions_change_pct_per_year: Number($('ec').value || 0)}, 'si');
@@ -79,7 +92,7 @@ $('runi').onclick = async () => {
   $('oi').innerHTML = `<p style="margin:10px 0">Balance ${j.compliance_year}: <b class="${T.balance_t > 0 ? 'bad' : 'ok'}">${T.balance_t > 0 ? 'short ' : 'long '}${fmt(Math.abs(T.balance_t))} t</b> · cost to cover ${fmt(T.cost_to_cover)} ${esc(j.currency)} at ${fmt(j.eua_price, 1)}/t · surrender by ${esc(j.surrender_deadline)}</p>
     <table><tr><th>Installation</th><th>CBAM sector</th><th class="n">Balance t</th>${ys.map(y => `<th class="n">To buy ${y}</th>`).join('')}</tr>
     ${j.installations.map(i => `<tr><td>${esc(i.name)}</td><td>${i.cbam_sector ? 'yes' : 'no'}</td><td class="n ${i.balance_t > 0 ? 'bad' : 'ok'}">${fmt(i.balance_t)}</td>${i.projection.map(p => `<td class="n">${fmt(p.shortfall_t)}</td>`).join('')}</tr>`).join('')}</table>
-    <div class="foot" style="margin-top:6px">Future years: emissions minus projected free allocation, before any purchases or banked allowances. ${esc(j.price_source)}. ${j.notes.map(esc).join(' ')}</div>`;
+    <div class="foot" style="margin-top:6px">Future years: emissions minus projected free allocation, before any purchases or banked allowances. ${esc(j.price_source)}. ${j.notes.map(esc).join(' ')}</div>` + etsChart(j);
 };
 $('runc').onclick = async () => {
   const lots = Array.from($('ct').querySelectorAll('tbody tr')).map(tr => { const f = tr.querySelectorAll('input,select'); return {id: f[0].value, registry: f[1].value, project_type: f[2].value, quantity_t: Number(f[3].value || 0), vintage: f[4].value ? Number(f[4].value) : null, ccp_label: f[5].checked, corresponding_adjustment: f[6].checked, retired: f[7].checked, intended_use: f[8].value}; }).filter(l => l.id);

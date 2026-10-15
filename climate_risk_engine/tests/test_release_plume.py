@@ -105,3 +105,13 @@ def test_agent_chat_without_a_cloud_key_answers_from_the_source_library_not_a_50
     assert r.status_code == 200, r.text
     j = r.json()
     assert j["reply"] and "GROQ" in j["note"] and "no cloud key" in j["note"] and j["model"] == "extractive"
+
+
+def test_flow_explorer_and_ets_chart_are_in_the_pages_and_use_engine_fields():
+    from fastapi.testclient import TestClient
+    from cri.api import main
+    c = TestClient(main.app)
+    lca = c.get("/lca/dashboard").text
+    assert "function flowSankey" in lca and "r.detail" in lca and "Lines with no emission factor are not drawn" in lca
+    cm = c.get("/carbon-markets/dashboard").text
+    assert "function etsChart" in cm and "shortfall_t" in cm and "free_allocation_t" in cm

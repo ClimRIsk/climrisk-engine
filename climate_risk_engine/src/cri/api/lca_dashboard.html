@@ -409,6 +409,27 @@ async function dlReport(kind) {
   if (kind === 'xlsx') download(`cfp_study_${PRODUCT}.xlsx`, await r.blob());
   else download(`cfp_study_${PRODUCT}.md`, new Blob([(await r.json()).report.markdown], {type: 'text/markdown'}));
 }
+
+// ── flow explorer: inventory line -> life-cycle stage -> product footprint. Drawn only from the study's own `detail`; nothing is added. ──
+function flowSankey(r) {
+  const items = (r.detail || []).filter(d => d.kg_co2e != null && Math.abs(d.kg_co2e) > 1e-9); if (!items.length) return '';
+  const W = 900, top = 26, gap = 4, nodeW = 14, H0 = 330, pos = items.reduce((s, d) => s + Math.max(d.kg_co2e, 0), 0), neg = items.reduce((s, d) => s + Math.min(d.kg_co2e, 0), 0);
+  const k = (H0 - gap * (items.length + 2)) / Math.max(pos + Math.abs(neg), 1e-9);
+  const sorted = items.slice().sort((a, b) => b.kg_co2e - a.kg_co2e), stages = [...new Set(sorted.map(d => d.stage))];
+  let y = top; const L = sorted.map(d => { const hgt = Math.max(1.5, Math.abs(d.kg_co2e) * k), slot = Math.max(hgt, 26), n = { d, y: y + (slot - hgt) / 2, h: hgt }; y += slot + gap; return n; });   // slot keeps labels apart; band width stays proportional
+  const stageSum = {}; sorted.forEach(d => { stageSum[d.stage] = (stageSum[d.stage] || 0) + d.kg_co2e; });
+  let ym = top; const M = {}; stages.forEach(s => { const hgt = Math.max(1.5, Math.abs(stageSum[s]) * k), slot = Math.max(hgt, 26); M[s] = { y: ym + (slot - hgt) / 2, h: hgt, off: 0, sum: stageSum[s] }; ym += slot + gap * 3; });
+  const total = r.cfp_kg_co2e, R = { y: top, h: Math.max(8, Math.abs(total) * k), off: 0 }, x0 = 330, x1 = 560, x2 = 740, lc = d => d.kg_co2e < 0 ? '#16a34a' : '#38bdf8';
+  let s = `<svg viewBox="0 0 ${W} ${Math.max(y, ym) + 14}" width="100%" role="img" aria-label="Flow of emissions from inventory lines through life-cycle stages to the product footprint" style="font:11px system-ui">`, off1 = {}, off2 = 0;
+  L.forEach(n => { const m = M[n.d.stage], hh = n.h, y0 = n.y, ya = m.y + (off1[n.d.stage] || 0); off1[n.d.stage] = (off1[n.d.stage] || 0) + hh;
+    s += `<path d="M${x0} ${y0 + hh / 2} C${(x0 + x1) / 2} ${y0 + hh / 2},${(x0 + x1) / 2} ${ya + hh / 2},${x1} ${ya + hh / 2}" stroke="${lc(n.d)}" stroke-opacity=".45" stroke-width="${hh}" fill="none"><title>${esc(n.d.item)} · ${fmt(n.d.kg_co2e, 1)} kg CO₂e (${fmt(100 * n.d.kg_co2e / Math.max(Math.abs(total), 1e-9), 1)} % of total)</title></path>
+      <rect x="${x0 - nodeW}" y="${y0}" width="${nodeW}" height="${hh}" fill="${lc(n.d)}"/><text x="${x0 - nodeW - 6}" y="${y0 + hh / 2 + 4}" text-anchor="end" fill="#cbd5e1">${esc(String(n.d.item).length > 46 ? String(n.d.item).slice(0, 45) + '…' : String(n.d.item))}</text><text x="${x0 - nodeW - 6}" y="${y0 + hh / 2 + 15}" text-anchor="end" fill="#64748b" font-size="9.5">${fmt(n.d.kg_co2e, 1)} kg</text>`; });
+  stages.forEach(st => { const m = M[st], hh = m.h, ya = R.y + off2; off2 += hh;
+    s += `<path d="M${x1 + nodeW} ${m.y + hh / 2} C${(x1 + x2) / 2} ${m.y + hh / 2},${(x1 + x2) / 2} ${ya + hh / 2},${x2} ${ya + hh / 2}" stroke="${m.sum < 0 ? '#16a34a' : '#818cf8'}" stroke-opacity=".5" stroke-width="${hh}" fill="none"><title>${esc(st)} · ${fmt(m.sum, 1)} kg CO₂e</title></path>
+      <rect x="${x1}" y="${m.y}" width="${nodeW}" height="${hh}" fill="#818cf8"/><text x="${x1 + nodeW + 6}" y="${m.y + hh / 2 + 4}" fill="#e2e8f0">${esc(st)}</text>`; });
+  s += `<rect x="${x2}" y="${R.y}" width="${nodeW}" height="${R.h}" fill="#f59e0b"/><text x="${x2 + nodeW + 6}" y="${R.y + 14}" fill="#e2e8f0">Product footprint</text><text x="${x2 + nodeW + 6}" y="${R.y + 28}" fill="#94a3b8">${fmt(total, 1)} kg CO₂e</text></svg>`;
+  return `<div class="card"><h3>Flow explorer · where the footprint comes from</h3>${s}<div class="foot">Band width is proportional to kg CO₂e. Lines are the study's own inventory (${items.length}); green bands are removals or credits. Hover a band for the number. Lines with no emission factor are not drawn: see "Effect of methodological choices" and the cut-off card for what was excluded.</div></div>`;
+}
 function renderStudy(r) {
   const u = r.uncertainty, st = Object.entries(r.by_stage), mx = Math.max(1, ...st.map(([, v]) => Math.abs(v)));
   const dq = r.data_quality, cut = r.cutoff, al = r.allocation;
@@ -419,6 +440,7 @@ function renderStudy(r) {
     <div class="kpi"><div class="v" style="font-size:15px">${esc(r.verification.status)}</div><div class="l">critical review</div><div class="s">fingerprint ${esc(r.fingerprint)}</div></div></div>
   <div class="card"><button class="add" type="button" onclick="dlReport('xlsx')">Download study report (Excel)</button> <button class="add" type="button" onclick="dlReport('md')">Download study report (Markdown)</button>
     <div class="foot" style="margin-top:8px">${esc(r.communication_statement)}</div></div>
+  ${flowSankey(r)}
   <div class="grid2"><div class="card"><h3>By life-cycle stage</h3><table>${st.map(([k, v]) => `<tr><td style="width:48%">${esc(k)}</td><td><div class="bar" style="width:${Math.abs(v) / mx * 100}%"></div></td><td class="n">${fmt(v, 1)}</td></tr>`).join('')}</table></div>
   <div class="card"><h3>By GHG type (§6.4.9.4)</h3><table>${Object.entries(r.by_ghg_type).map(([k, v]) => `<tr><td>${esc(k.replace(/_/g, ' '))}</td><td class="n">${fmt(v, 1)}</td></tr>`).join('')}</table>
     ${r.aircraft_rf_uplift_kg_co2e ? `<div class="foot">Aircraft radiative-forcing uplift (not in total): ${fmt(r.aircraft_rf_uplift_kg_co2e, 1)} kg</div>` : ''}</div></div>`;
