@@ -96,8 +96,8 @@ def test_tile_proxy_passes_through_open_sources_only(monkeypatch):
 
     monkeypatch.setattr(main.requests, "get", lambda url, **kw: (seen.append(url), R())[1])
     c = TestClient(main.app)
-    ok = c.get("/asset-twin/tile/usgs/17/30000/53000")
-    assert ok.status_code == 200 and ok.content == R.content and "basemap.nationalmap.gov" in seen[0] and "/17/53000/30000" in seen[0]
+    ok = c.get("/asset-twin/tile/usgs/16/30000/53000")
+    assert ok.status_code == 200 and ok.content == R.content and "basemap.nationalmap.gov" in seen[0] and "/16/53000/30000" in seen[0]
     assert c.get("/asset-twin/tile/evil/17/1/1").status_code == 404                 # not a general proxy
     assert c.get("/asset-twin/tile/eox/15/1/1").status_code == 404                  # beyond that source's max zoom
     assert c.get("/asset-twin/tile/usgs/3/9/1").status_code == 404                  # x outside the grid
@@ -132,3 +132,21 @@ def test_flow_explorer_and_ets_chart_are_in_the_pages_and_use_engine_fields():
     assert "function flowSankey" in lca and "r.detail" in lca and "Lines with no emission factor are not drawn" in lca
     cm = c.get("/carbon-markets/dashboard").text
     assert "function etsChart" in cm and "shortfall_t" in cm and "free_allocation_t" in cm
+
+
+def test_naip_passthrough_validates_box_and_size(monkeypatch):
+    from fastapi.testclient import TestClient
+    from cri.api import main
+    seen = {}
+
+    class R:
+        status_code = 200; content = b"\xff\xd8jpg"; headers = {"content-type": "image/jpeg"}
+
+    def fake(url, **kw):
+        seen.update(kw.get("params", {})); return R()
+
+    monkeypatch.setattr(main.requests, "get", fake)
+    c = TestClient(main.app)
+    ok = c.get("/asset-twin/naip", params={"west": -95.004, "south": 29.722, "east": -94.996, "north": 29.729, "size": 99999})
+    assert ok.status_code == 200 and seen["size"] == "2048,2048" and seen["bboxSR"] == 3857
+    assert c.get("/asset-twin/naip", params={"west": -96, "south": 29, "east": -94, "north": 30}).status_code == 422     # far too large

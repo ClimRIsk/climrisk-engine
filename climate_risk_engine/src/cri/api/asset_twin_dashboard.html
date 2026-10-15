@@ -275,7 +275,7 @@ function buildTerrain() {
 
 // ── ground imagery: open sources by default; tiles pass straight through the local engine (/asset-twin/tile), nothing is stored ──
 const IMG_SRC = {
-  usgs: { label: 'USGS aerial imagery (US, public domain)', url: 'https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}', zmax: 18, us: true,
+  usgs: { label: 'USGS aerial imagery (US, public domain)', url: 'https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}', zmax: 16, us: true,
           attr: 'Imagery: USGS The National Map (public domain)' },
   eox:  { label: 'Sentinel-2 cloudless 10 m (open, non-commercial)', url: 'https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2020_3857/default/g/{z}/{y}/{x}.jpg', zmax: 14,
           attr: 'Sentinel-2 cloudless 2020 by EOX (CC BY-NC 4.0, contains modified Copernicus Sentinel data)' },
@@ -306,7 +306,18 @@ async function loadImagery() {
   const token = S.imgToken = (S.imgToken || 0) + 1; $('attrib').textContent = ''; terrainMesh.material = S.terrMatPlain;
   if (!src.url || S.imgOff) { return; }
   const ll = terrainLatLon(); let z = Math.min(src.zmax, 18);
-  const wpx = () => { const p0 = mercPx(ll.nw[0], ll.nw[1], z), p1 = mercPx(ll.se[0], ll.se[1], z); return [p1[0] - p0[0], p1[1] - p0[1], p0]; };
+  if (key === 'usgs') {   // USGS NAIP aerial photos: one request for the whole terrain box, about 0.6 m per pixel; falls back to the 2.4 m tile cache below
+    try {
+      const wm = Math.abs(ll.se[1] - ll.nw[1]) * 111320 * Math.cos(a.lat * Math.PI / 180), px = Math.max(256, Math.min(2048, Math.round(wm / 0.6)));
+      const kk = $('apiKey').value.trim(), q = 'west=' + ll.nw[1] + '&south=' + ll.se[0] + '&east=' + ll.se[1] + '&north=' + ll.nw[0] + '&size=' + px;
+      $('attrib').textContent = 'Loading imagery…';
+      const r = await fetch('/asset-twin/naip?' + q, { headers: kk ? { 'X-API-Key': kk } : {} });
+      if (r.ok) { const im = await createImageBitmap(await r.blob()); if (token !== S.imgToken) return;
+        const cv = document.createElement('canvas'); cv.width = im.width; cv.height = im.height; cv.getContext('2d').drawImage(im, 0, 0);
+        setImageryCanvas(cv, 'Imagery: USGS NAIP (public domain) · ≈' + (wm / im.width).toFixed(1) + ' m/pixel'); return; }
+    } catch (e) { /* fall through to tiles */ }
+  }
+  const wpx =() => { const p0 = mercPx(ll.nw[0], ll.nw[1], z), p1 = mercPx(ll.se[0], ll.se[1], z); return [p1[0] - p0[0], p1[1] - p0[1], p0]; };
   while (z > 12 && wpx()[0] > 2048) z--;
   const [W, H, p0] = wpx(), cv = document.createElement('canvas'); cv.width = Math.round(W); cv.height = Math.round(H); const g = cv.getContext('2d'); g.fillStyle = '#556b4a'; g.fillRect(0, 0, cv.width, cv.height);
   const tx0 = Math.floor(p0[0] / 256), ty0 = Math.floor(p0[1] / 256), tx1 = Math.floor((p0[0] + W) / 256), ty1 = Math.floor((p0[1] + H) / 256); let ok = 0, tot = 0;

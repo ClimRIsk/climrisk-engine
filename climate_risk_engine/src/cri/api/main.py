@@ -1713,7 +1713,7 @@ def asset_twin_plume(request: AssetTwinPlumeRequest) -> dict:
 
 
 _TILE_SOURCES = {   # open imagery only; fixed host list so this can never be used as a general proxy
-    "usgs": ("https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}", 18),
+    "usgs": ("https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}", 16),   # the cache ends at level 16 (verified: 404 at 17)
     "eox": ("https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2020_3857/default/g/{z}/{y}/{x}.jpg", 14),
     "esri": ("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", 18),
 }
@@ -1735,6 +1735,29 @@ def asset_twin_tile(src: str, z: int, x: int, y: int):
         raise HTTPException(status_code=502, detail="imagery provider unreachable")
     if r.status_code != 200 or not r.headers.get("content-type", "").startswith("image/"):
         raise HTTPException(status_code=404, detail="no tile here")
+    return Response(content=r.content, media_type=r.headers["content-type"], headers={"Cache-Control": "public, max-age=86400"})
+
+
+@app.get("/asset-twin/naip", dependencies=[_AUTH], tags=["Asset Twin"])
+def asset_twin_naip(west: float, south: float, east: float, north: float, size: int = 1024):
+    """USGS NAIP aerial imagery (public domain, about 0.6 to 1 m per pixel, US only) for one box, passed straight through. Sharper than the tile cache,
+    which stops at about 2.4 m per pixel."""
+    import math
+    from fastapi.responses import Response
+    if not (-90 < south < north < 90 and -180 < west < east < 180) or (east - west) > 0.05 or (north - south) > 0.05:
+        raise HTTPException(status_code=422, detail="box must be valid and under about 5 km")
+    size = max(64, min(2048, size))
+    def m(lat, lon):
+        return 6378137.0 * math.radians(lon), 6378137.0 * math.log(math.tan(math.pi / 4 + math.radians(lat) / 2))
+    x0, y0 = m(south, west); x1, y1 = m(north, east)
+    try:
+        r = requests.get("https://imagery.nationalmap.gov/arcgis/rest/services/USGSNAIPImagery/ImageServer/exportImage", timeout=40,
+                         params={"bbox": f"{x0},{y0},{x1},{y1}", "bboxSR": 3857, "imageSR": 3857, "size": f"{size},{size}", "format": "jpg", "f": "image"},
+                         headers={"User-Agent": "ClimRisk-twin/1.0 (screening tool)"})
+    except requests.RequestException:
+        raise HTTPException(status_code=502, detail="imagery provider unreachable")
+    if r.status_code != 200 or not r.headers.get("content-type", "").startswith("image/"):
+        raise HTTPException(status_code=404, detail="no imagery here")
     return Response(content=r.content, media_type=r.headers["content-type"], headers={"Cache-Control": "public, max-age=86400"})
 
 
