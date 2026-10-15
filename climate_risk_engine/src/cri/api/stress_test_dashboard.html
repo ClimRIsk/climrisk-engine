@@ -101,7 +101,7 @@ function siteRow(s = {}) { const tr = document.createElement('tr'); tr.innerHTML
 function altRow(a = {}) { const tr = document.createElement('tr'); tr.innerHTML = `<td><input value="${esc(a.name || '')}"></td><td><select><option value="">unknown</option><option value="true"${a.preapproved === true ? ' selected' : ''}>yes</option><option value="false"${a.preapproved === false ? ' selected' : ''}>no</option></select></td><td><input type="number" step="any" value="${a.backlog_weeks ?? ''}" style="width:64px"></td><td><input type="number" step="any" value="${a.qualification_days ?? ''}" style="width:64px"></td><td><button class="x">×</button></td>`; tr.querySelector('.x').onclick = () => tr.remove(); $('alts').querySelector('tbody').append(tr); }
 function fill(spec) {
   FIELDS.forEach(e => { const v = getPath(spec, e.id); e.value = v == null ? '' : v; });
-  $('sites').querySelector('tbody').innerHTML = ''; (spec.sites || []).forEach(siteRow);
+  $('sites').querySelector('tbody').innerHTML = ''; (spec.sites && spec.sites.length ? spec.sites : [{role: 'manufacturing'}, {role: 'supplier'}]).forEach(siteRow);
   $('alts').querySelector('tbody').innerHTML = ''; ((spec.supplier || {}).alternates || []).forEach(altRow);
 }
 function collect() {
