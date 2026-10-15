@@ -87,6 +87,13 @@ def score(row, out):
             tail = low.split("null")[0] if "null" in low else low
             s["null_not_called_low"] = float(not any(re.search(re.escape(n.lower()) + r"[^.;]{0,40}\b(low|zero|negligible|safe)\b", low) for n in nul))
         s["length_ok"] = float(20 <= len(out.split()) <= 140)
+    elif k == "scenario":
+        s["numbers_ok"] = float(nums(out) <= nums(row["meta"]["facts"]) | nums(u) | {"0", "1"})
+        s["says_no_location"] = float(bool(re.search(r"no location|coordinates", out, re.I)))
+        s["says_not_assessed"] = float(bool(re.search(r"not assessed|null", out, re.I)))
+        if "user-stated exceedance" in row["meta"]["facts"]:
+            s["flags_unverified_input"] = float(bool(re.search(r"your own input|not verified|has not verified", out, re.I)))
+        s["length_ok"] = float(40 <= len(out.split()) <= 170)
     elif k == "stress":
         s["numbers_ok"] = float(nums(out) <= nums(row["meta"]["facts"]) | nums(u) | {"0", "1", "2", "3", "4", "5"})
         if row["meta"].get("nulls") or row["meta"].get("status") in ("null", "partial"):

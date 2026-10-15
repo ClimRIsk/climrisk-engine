@@ -257,17 +257,18 @@ class Agent:
         Composes rain, river depth, sea level, heat and cyclone wind from the engine's own results, says how sure each is, and opens it in the 3D twin."""
         t = text.strip(); low = t.lower()
         ssp = next((k for k, rx in self._SSP_WORDS if re.search(rx, low)), None)
-        yr = re.search(r"\b(20[3-9]\d)\b", low)
+        yr = re.search(r"\b(20[3-9]\d|2100)\b", low)
         year = int(yr.group(1)) if yr else (2050 if re.search(r"mid[\s\-]*century", low) else 2090 if re.search(r"end of (?:the )?century|late[\s\-]*century", low) else None)
         climate = ssp or re.search(r"climate (?:change|scenario|future)|warmer (?:world|climate)|future (?:flood|climate|risk)", low)
         if not (climate and (year or ssp)) or re.match(r"\s*(what is|what are|explain|define|why|how does|how do)\b", low) and not re.search(r"\b(at|in|for|near)\b.*(\d+\.\d+|[A-Z][a-z]+)", t):
             return None
-        if not re.search(r"flood|surge|sea[\s\-]*level|storm|rain|wind|cyclone|hurricane|typhoon|heat|scenario|risk|site|asset|plant", low):
+        if not re.search(r"flood|inundation|surge|sea[\s\-]*level|storm|rain|wind|cyclone|hurricane|typhoon|heat|drought|water[\s\-]*stress|wildfire|fire|scenario|risk|site|asset|plant|facility", low):
             return None
         ent = N.entities(t)
         pl = resolve_place(t, ent, session)
         if not pl:
             return {"reply": "Which place is the climate scenario for? Give coordinates or a city name, plus a pathway (for example SSP2-4.5) and a year.", "blocks": [], "actions": []}
+        carried = pl.get("source", "").startswith(("the last site", "the site we just"))
         M.set_state("last_place", pl)
         ssp = ssp or "ssp245"; year = year or 2070
         rp = int(ent.get("rp") or 100)
@@ -288,7 +289,8 @@ class Agent:
                     "blocks": [_blk("table", head=["Factor", "Median change", "Range", "Confidence"], rows=rows), _blk("note", text=" ".join(c["limits"][:2]))],
                     "actions": [{"type": "open", "label": "Open in 3D (re-runs the flood solver)", "url": url}]}
         j = _job(work, "climate scenario")
-        return {"reply": f"Composing the {ssp.upper().replace('SSP', 'SSP')} scenario for {year} at {pl.get('name') or 'the site'} from the climate-model ensemble and sea-level projections …", "blocks": [], "actions": [], "job": j["id"], "intent": "scenario"}
+        note = (f"Your message names no place, so I used {pl.get('name') or 'the last site'} ({pl.get('source')}); give coordinates or a city to change it. ") if carried else ""
+        return {"reply": f"{note}Composing the {ssp.upper().replace('SSP', 'SSP')} scenario for {year} at {pl.get('name') or 'the site'} from the climate-model ensemble and sea-level projections …", "blocks": [], "actions": [], "job": j["id"], "intent": "scenario"}
 
     def _extension_commands(self, session, text) -> Optional[dict]:
         """Chat commands from private extensions (modules listed in CRI_EXTENSIONS or ~/.climrisk/extensions); none are loaded in a normal or commercial install."""

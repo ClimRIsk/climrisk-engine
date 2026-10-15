@@ -424,6 +424,60 @@ def build_stress(rng, n: int, split: str):
     return rows
 
 
+
+SCEN_SYS = ("You are ClimRisk's climate-risk analyst. A user describes a scenario by sector, hazard, climate pathway and year, with no location. Use only the engine facts supplied. "
+            "Say that without coordinates the site hazard values, return periods and losses are not assessed (null), never zero. Any 'exceeds thresholds by N%' figure is the user's own input that the engine has not verified. "
+            "Name which engine analyses will run once coordinates are given. Not a forecast. 60 to 130 words, plain prose, no lists.")
+
+# what the engine runs for each hazard once it has coordinates (module names are the engine's own)
+_SCEN_ENGINE = {
+    "Coastal Inundation": "the coastal flood hazard with sea-level rise to that year, and the site flood replay in three dimensions",
+    "Extreme Heat": "the UTCI thermal-stress hours record with the climate-model warming sensitivity, and the change in the hottest day of the year",
+    "Drought / Water Stress": "the WRI Aqueduct basin water-stress and drought scores with the engine's own future projection",
+    "Riverine Flood": "the river flood depth at the site, scaled by the pathway's extreme-rain change",
+    "Wildfire": "the wildfire fuel and fire-weather exposure screen",
+}
+_SSP_KEY = {"SSP1-2.6": "ssp126", "SSP2-4.5": "ssp245", "SSP3-7.0": "ssp370", "SSP5-8.5": "ssp585"}
+
+
+def build_scenarios_csv(csv_path: Path, seed: int = 7):
+    """Rows from a scenario list (Scenario_ID, Sector, Primary_Hazard, Climate_Pathway, Horizon_Year, Description).
+    The list's own numbers are echoed only as user inputs; every fact in the answer comes from the engine (warming by pathway and year).
+    Splits are by distinct scenario (sector, hazard, pathway, year) so a held-out scenario is never seen in training."""
+    import csv
+    from .. import climate_scenario as CS
+    from ..modellab import scenarios as MS
+    rng = random.Random(seed)
+    with open(csv_path, newline="", encoding="utf-8") as fh:
+        recs = list(csv.DictReader(fh))
+    combos = sorted({(r["Sector"], r["Primary_Hazard"], r["Climate_Pathway"], int(r["Horizon_Year"])) for r in recs})
+    rng.shuffle(combos)
+    n_te, n_va = max(1, round(len(combos) * 0.15)), max(1, round(len(combos) * 0.1))
+    role = {c: ("test" if i < n_te else "valid" if i < n_te + n_va else "train") for i, c in enumerate(combos)}
+    per = {"train": 12, "valid": 6, "test": 12}
+    by = {}
+    for r in recs:
+        by.setdefault((r["Sector"], r["Primary_Hazard"], r["Climate_Pathway"], int(r["Horizon_Year"])), []).append(r)
+    rows = []
+    for c, rs in by.items():
+        split = role[c]
+        sector, haz, path, year = c
+        ssp = _SSP_KEY[path.split(" ")[0]]
+        w = CS.warming_at(ssp, year)
+        for r in rng.sample(rs, min(per[split], len(rs))):
+            m = re.search(r"by (\d+)%", r["Description"])
+            pct = m.group(1) if m else None
+            facts = f"Scenario {r['Scenario_ID']}: sector {sector}; hazard {haz}; pathway {MS.SSP_LABEL[ssp]}; year {year}; engine global warming then {w:.1f} C above 1995-2014" + (f"; user-stated exceedance {pct}%" if pct else "")
+            a = (f"This describes a facility in the {sector.lower()} sector exposed to {haz.lower()} under {MS.SSP_LABEL[ssp]} in {year}. "
+                 f"The engine puts global warming then at about {w:.1f} °C above 1995–2014. "
+                 + (f"The {pct}% exceedance of baseline design thresholds is your own input; the engine has not verified it. " if pct else "")
+                 + f"No location was given, so the site hazard values, return periods and losses are not assessed (null), not zero. "
+                 f"With coordinates the engine runs {_SCEN_ENGINE[haz]}. Screening-grade, not a forecast.")
+            rows.append({"kind": "scenario", "split": split, "meta": {"facts": facts, "nulls": ["site hazard values", "losses"], "combo": list(c), "id": r["Scenario_ID"]},
+                         "messages": [{"role": "system", "content": SCEN_SYS}, {"role": "user", "content": f"Engine facts: {facts}\n\n{r['Description']}"}, {"role": "assistant", "content": a}]})
+    return rows
+
+
 def build_chat(rng, n: int, split: str):
     """Conversation turns in exactly the deployed format (converse.SYSTEM + CONTEXT block + user turn). Answers are correct by construction:
     they use only context numbers, call null 'not assessed', and suggest one engine step."""
@@ -513,6 +567,11 @@ def main(corpus_dir: Path, out: Path, seed: int = 7):
         rows += EC2.build_rows(_rp, seed=seed + 60, per_case=3)
     rows += build_profile(random.Random(seed + 70), 150, "train") + build_profile(random.Random(seed + 71), 20, "valid") + build_profile(random.Random(seed + 72), 20, "test")
     rows += build_stress(random.Random(seed + 90), 200, "train") + build_stress(random.Random(seed + 91), 24, "valid") + build_stress(random.Random(seed + 92), 24, "test")
+    _scn = Path(sys.argv[1]) / "scenarios" / "climate_risk_scenarios_1000.csv"
+    if not _scn.exists():
+        _scn = Path(__file__).resolve().parents[3] / "data" / "scenarios" / "climate_risk_scenarios_1000.csv"       # the copy kept in the repo
+    if "--no-scenarios" not in sys.argv and _scn.exists():
+        rows += build_scenarios_csv(_scn, seed + 100)
     rows += build_chat(random.Random(seed + 80), 160, "train") + build_chat(random.Random(seed + 81), 20, "valid") + build_chat(random.Random(seed + 82), 20, "test")
     gold = build_gold()
     rows += gold + [dict(r) for r in gold if r["split"] == "train"] * 2        # gold is scarce and high quality: upweight x3
