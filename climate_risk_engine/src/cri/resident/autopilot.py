@@ -281,7 +281,7 @@ def run_cycle(reason: str = "scheduled") -> dict:
                 bad = [r for r in sc["rows"] if not r["ok"]]
                 log.append("selfcheck: " + sc["summary"])
                 inbox_add("alert", "Some data sources are unreachable from this computer",
-                          " ".join(f'{r["name"]}: {r["fix"]}' for r in bad)[:600], key=f"selfcheck-{dt.date.today()}-{len(bad)}")
+                          " ".join(f'{r["name"]}: {r["fix"]}' for r in bad)[:600], key=f"selfcheck-{dt.date.today()}")      # one alert a day: a flaky link must not post a new, nearly identical alert each time a different source times out
         except Exception as e:                                   # noqa: BLE001
             log.append(f"selfcheck failed: {type(e).__name__}")
         try:                                                     # keep learning: refresh and extend what the agent knows (does nothing when everything is fresh)
