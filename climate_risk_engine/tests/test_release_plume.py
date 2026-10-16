@@ -19,7 +19,8 @@ def test_mass_flux_through_a_crosswind_plane_equals_the_emission_rate():
     f = r["frame"]; c = np.array(r["conc_ug_m3_xyz"]) * 1e-6                      # g/m3
     xs = np.linspace(0, f["L_m"], f["nx"]); ys = np.linspace(-f["W_m"], f["W_m"], f["ny"]); zs = np.linspace(0, f["Z_m"], f["nz"])
     i = int(np.argmin(abs(xs - 1000.0)))
-    flux = np.trapz(np.trapz(c[i] * r["inputs"]["u_at_release_ms"], zs, axis=1), ys)
+    _trapz = getattr(np, "trapezoid", None) or np.trapz
+    flux = _trapz(_trapz(c[i] * r["inputs"]["u_at_release_ms"], zs, axis=1), ys)
     assert abs(flux - 100.0) / 100.0 < 0.06, flux                                  # grid truncation in z and y, not model error
 
 

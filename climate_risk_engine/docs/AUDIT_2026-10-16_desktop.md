@@ -11,15 +11,17 @@ Checked in the running app: dashboard, Asset Intelligence 3D (Houston, Kedarnath
 6. Chat "Open the Stress Test" built a 3D twin at the last site. It now opens the screen.
 7. Autopilot posted a new, nearly identical data-source alert whenever a different source timed out. One alert a day.
 
-## Found and fixed in the website repo (needs the app rebuilt to show)
+## Found and fixed in the website repo (shipped in the 16 Oct rebuild)
 - macOS window buttons overlapped the logo and every tool-overlay title.
 - "Physical Risk (25 Hz)" used an icon name that does not exist in Phosphor.
-- Earlier fixes (hazard badge scope, "no analysis open" message, Stress Test sidebar entry) are in dashboard.html; the installed app is an older build.
+- Earlier fixes (hazard badge scope, "no analysis open" message, Stress Test sidebar entry) are in dashboard.html and now in the build.
+- A hardcoded owner licence token and a `?unlock=` back door were removed from the app, the pages and the Electron preload. Every build now needs a signed licence.
 
 ## Verified consistent
 Carbon Accounting worked example: scope totals equal the sum of entities, categories and gases; intensity = (S1+S2 location)/revenue. Real Estate worked example: EUI, area-weighted intensity and total tonnes reconcile.
 
 ## Open
-- "defended to 1-in-100/500" comes from FLOPROS design standards, not surveyed defences; it is shown for Kedarnath and Houston where it is doubtful. Needs a visible caveat.
-- Rebuild of the desktop app: npm left the Electron binary incomplete (electron/node_modules/electron has no path.txt). Delete that folder and run `npm install` again, then electron/build-mac.sh.
-- Hardcoded owner licence token in dashboard.html and the demo licence line in the app menu.
+- "Defended to 1-in-100/500" comes from FLOPROS, a modelled national/regional design standard, not a survey of the site's levees. The asset screen now says so; it is still doubtful for Kedarnath and Houston.
+- The Electron install was incomplete after the disk clean-up (npm's unzip stopped early). `mac-test/Build-App-Mac.command` now extracts with the system tool and refuses to finish if the engine is not bundled into the app. (It first built an app without the engine, because an absolute path was glued onto the relative one; the script now catches this.)
+- The model's held-out scores come from template-built rows, so they are optimistic versus free-form questions.
+- Clean-machine install test and Windows build: not done.
