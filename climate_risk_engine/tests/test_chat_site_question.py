@@ -19,3 +19,12 @@ def test_site_question_with_coordinates_routes_to_the_site_profile(ag, monkeypat
 def test_general_questions_and_tool_requests_are_not_hijacked(ag):
     assert ag._profile_commands("s-test", "What is a storm surge?") is None
     assert ag._profile_commands("s-test", "build a 3D twin at 29.7255, -95.0") is None
+
+
+def test_open_stress_test_command_opens_the_screen_not_a_twin(tmp_path, monkeypatch):
+    from cri.resident import agent as AG
+    a = AG.Agent.__new__(AG.Agent)
+    for msg in ("Open the Stress Test", "show me the stress test screen", "run a stress test"):
+        r = a._stress_commands("s", msg)
+        assert r and r["intent"] == "stress_test" and r["actions"][0]["url"] == "/stress-test/dashboard", msg
+    assert a._stress_commands("s", "what is a stress test in finance?") is None

@@ -334,8 +334,19 @@ function renderAssessment(data) {
             (s.scene_date ? `<br>Imagery ${esc(s.scene_date)} · optical history ${esc(s.temporal_scenes_used)} dates` : '') +
             (rd.available ? ` · radar ${esc(rd.scenes_used)} dates` : ''));
   document.getElementById('aiBtn').disabled = false;
+  anRefreshWithSite(data);
 }
 window.renderAssessment = renderAssessment;
+
+// The Risk Analyst can be started before the satellite analysis of the same place finishes. When it does finish, feed its findings
+// into the open analyst card (headline, unpriced hazards) instead of leaving a 0.00% headline beside a HIGH site rating.
+async function anRefreshWithSite(data) {
+  const q = AN.req, panel = document.getElementById('analyst');
+  if (!q || AN.kind !== 'asset' || q.site || !panel || !panel.classList.contains('on')) return;
+  if (!(Math.abs(q.lat - data.lat) < 1e-4 && Math.abs(q.lon - data.lon) < 1e-4)) return;
+  q.site = { headline: data.headline, risk_signal: data.risk_signal, findings: (data.findings || []).map(f => ({ hazard: f.hazard, severity: f.severity, summary: f.summary })) };
+  try { AN.data = await anPost('/analyst/asset', q); renderAnalyst(); } catch (e) { /* the first result stays on screen */ }
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Findings panel

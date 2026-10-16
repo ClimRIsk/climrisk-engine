@@ -237,6 +237,11 @@ class Agent:
         Pulls out the numbers the text states, runs the linked stress test on them (hazard, operations, supply, freight, tariff, cash) and says what it still needs.
         Missing inputs stay null; nothing is guessed."""
         from .. import stresstest as ST
+        low = (text or "").lower().strip()
+        if len(low) < 140 and re.search(r"stress[\s-]?test", low) and re.search(r"\b(open|show|launch|start|go to|take me|run|use|where)\b", low) and not ST.looks_like_stress_scenario(text):
+            return {"reply": "The Stress Test runs one scenario through storm, plant, supplier, freight, tariff and cash, and each piece also runs on its own. Opening it now; "
+                             "describe a scenario here in full if you would rather have me read the numbers out of your text.",
+                    "intent": "stress_test", "blocks": [], "actions": [{"type": "open", "label": "Open the Stress Test", "url": "/stress-test/dashboard"}]}
         if not ST.looks_like_stress_scenario(text):
             return None
         spec = ST.extract_spec(text)
