@@ -480,6 +480,17 @@ def _headline(r: dict) -> str:
               key=lambda x: ["NEGLIGIBLE", "LOW", "MODERATE", "HIGH"].index(x[1]))
     if top[1] != "NEGLIGIBLE":
         parts.append(f"highest of the three hazards priced in this loss (cyclone, river flood, coastal flood): {top[0]} ({top[1]})")
+    # hazards the site analysis rates but this loss does not price must not vanish behind a 0.00% headline
+    sa = (r["physical"].get("site_analysis") or {}).get("findings") or []
+    priced = {"flood", "tropical_cyclone"}
+    unpriced = [f"{str(f['hazard']).replace('_', ' ')} ({f['severity']})" for f in sa
+                if f.get("hazard") not in priced and f.get("severity") in ("HIGH", "MODERATE")]
+    if unpriced:
+        parts.append("not priced in this loss: " + ", ".join(unpriced) + " — 0.00% physical damage here means the priced hazards "
+                     "(cyclone, river and coastal flood) are low, not that the site is safe")
+    if v and (a["value"].get("quality") in ("proxy", "benchmark")):
+        parts.append("the asset value is itself an estimate (" + ("from emissions" if a["value"].get("quality") == "proxy" else "from capacity") +
+                     "), so the percentage of value is indicative only; give the asset value for a firm figure")
     return "; ".join(parts) + "."
 
 

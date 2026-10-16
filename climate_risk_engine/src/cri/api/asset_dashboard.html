@@ -261,6 +261,8 @@
 </div>
 
 <script>
+function emFmt(t){ t=Number(t); if(!isFinite(t)) return ''; return (t>=1e6 ? (t/1e6).toFixed(2)+' Mt' : t>=1e3 ? (t/1e3).toFixed(1)+' kt' : Math.round(t)+' t')+' CO₂e/yr'; }
+
 // ═══════════════════════════════════════════════════════════════════════════
 // State
 // ═══════════════════════════════════════════════════════════════════════════
@@ -817,7 +819,7 @@ function renderCompanyPanel() {
     pickHtml = `<div class="finding" style="padding:10px 11px">
       <div style="display:flex;align-items:center;gap:8px"><b style="flex:1">${esc(a.name)}</b><span class="pill sev-${a.screen_level}">${a.screen_level}</span></div>
       <div class="meta" style="margin:6px 0">${esc(a.sector)} · ${esc(a.country)} · ${a.lat.toFixed(3)}, ${a.lon.toFixed(3)}<br>
-      ${a.capacity != null ? 'capacity ' + fmt(a.capacity) + ' · ' : ''}${a.emissions_t != null ? fmt(a.emissions_t / 1e6) + ' Mt CO₂e/yr · ' : ''}${esc(a.source)}</div>
+      ${a.capacity != null ? 'capacity ' + fmt(a.capacity) + ' · ' : ''}${a.emissions_t != null ? emFmt(a.emissions_t) + ' · ' : ''}${esc(a.source)}</div>
       <table class="ev">
         <tr><td class="m">1-in-100-year cyclone wind</td><td class="v">${a.cyclone.rp100_ms} m/s · ${esc(a.cyclone.rp100_category)}</td></tr>
         <tr><td class="m">Hurricane-force events per year</td><td class="v">${a.cyclone.rate_cat1}</td></tr>
@@ -1059,7 +1061,7 @@ function renderAnalyst() {
   document.getElementById('analyst').innerHTML = `
     <div class="an-head"><div><h2>${esc(A.name || 'Asset')}</h2>
       <div class="meta">${esc(A.sector || '')} ${esc(A.type || '')} · ${esc(A.admin1 || '')}, ${esc(A.iso3 || '')} · ${A.lat.toFixed(4)}, ${A.lon.toFixed(4)}
-      ${A.emissions_t ? ' · ' + (A.emissions_t / 1e6).toFixed(2) + ' Mt CO₂e/yr' : ''}${A.owners && A.owners.length ? ' · owners of nearest register facility' + (A.register_match && A.register_match.distance_m != null ? ' (' + esc(A.register_match.name) + ', ' + A.register_match.distance_m + ' m away)' : '') + ': ' + esc(A.owners.slice(0, 3).join(', ')) : ''} · ${d.elapsed_s}s</div></div>
+      ${A.emissions_t ? ' · ' + emFmt(A.emissions_t) : ''}${A.owners && A.owners.length ? ' · owners of nearest register facility' + (A.register_match && A.register_match.distance_m != null ? ' (' + esc(A.register_match.name) + ', ' + A.register_match.distance_m + ' m away)' : '') + ': ' + esc(A.owners.slice(0, 3).join(', ')) : ''} · ${d.elapsed_s}s</div></div>
       <button class="an-close" onclick="anClose()">Close ✕</button></div>
     <div class="an-steps">${d.steps.map(s => `<span class="an-step done" title="${esc(s.text)}">✓ ${esc(s.stage)}</span>`).join('')}</div>
     <div class="headline" style="margin-bottom:14px">${esc(d.headline)}</div>
@@ -1086,12 +1088,12 @@ function renderAnalyst() {
         <div class="an-grid"><div><div class="meta">Effective carbon price, US$2024/t (median of ${T.models.length} models)</div><canvas class="an-chart" id="anPrice"></canvas></div>
           <div><div class="meta">${T.activity_variable ? 'Sector output index (2025 = 1): ' + esc(T.activity_variable) : 'Annual carbon cost after pass-through, median and 5–95%'}</div><canvas class="an-chart" id="anAct"></canvas></div></div>
         <table class="an-tbl" style="margin-top:10px"><tr><th>Scenario</th><th class="r">Price 2030</th><th class="r">Price 2050</th><th class="r" title="Carbon cost if nothing is done">Cost of inaction</th><th class="r" title="Carbon paid plus levelised abatement cost when the sector levers are deployed">With response</th><th class="r">Stranded</th><th class="r">Total loss PV</th><th class="r">95th pct</th></tr>${scRows}</table>
-        <div class="an-note">${T.abatement && T.abatement.enabled ? `Emissions start at ${A.emissions_t ? A.emissions_t.toLocaleString() + ' t/yr' : 'today\'s level'} and fall as sector abatement levers pay off against the carbon price the plant actually faces (card 5); “cost of inaction” is the same run with no response.` : `Emissions held at today's level (${A.emissions_t ? A.emissions_t.toLocaleString() + ' t/yr' : 'unknown'}) — the cost of not abating${T.abatement && T.abatement.note ? '. ' + esc(T.abatement.note) : ''}.`} Future carbon price reaches the plant at a sampled 30–100% (free allocation, benchmarks); pass-through ${T.assumptions.pass_through.join('/')} (low/mode/high).${[T.plant_life && T.plant_life.note, T.cbam && T.cbam.note].filter(Boolean).map(n => '<br>' + esc(n)).join('')}</div></div>
+        <div class="an-note">Total loss PV is capped at the asset's value in every draw (closure assumed), so it can be below "with response" plus "stranded" where costs exceed the value. ${T.abatement && T.abatement.enabled ? `Emissions start at ${A.emissions_t ? A.emissions_t.toLocaleString() + ' t/yr' : 'today\'s level'} and fall as sector abatement levers pay off against the carbon price the plant actually faces (card 5); “cost of inaction” is the same run with no response.` : `Emissions held at today's level (${A.emissions_t ? A.emissions_t.toLocaleString() + ' t/yr' : 'unknown'}) — the cost of not abating${T.abatement && T.abatement.note ? '. ' + esc(T.abatement.note) : ''}.`} Future carbon price reaches the plant at a sampled 30–100% (free allocation, benchmarks); pass-through ${T.assumptions.pass_through.join('/')} (low/mode/high).${[T.plant_life && T.plant_life.note, T.cbam && T.cbam.note].filter(Boolean).map(n => '<br>' + esc(n)).join('')}</div></div>
       <div class="an-card wide"><h3><span class="n">4</span>Financial loss distribution 2026–2050 · ${esc(scLabel(AN.scen))}</h3>
         <div class="an-kpis">
           <div class="kpi"><div class="v">${usd(t.mean)}</div><div class="l">expected loss (PV)${pv.mean != null ? ' · ' + pv.mean.toFixed(1) + '% of value' : ''}</div></div>
           <div class="kpi"><div class="v">${usd(t.p50)}</div><div class="l">median</div></div>
-          <div class="kpi"><div class="v" style="color:var(--high)">${usd(t.p95)}</div><div class="l">95th percentile (1-in-20)${pv.p95 != null ? ' · ' + pv.p95.toFixed(1) + '%' : ''}</div></div>
+          <div class="kpi"><div class="v" style="color:var(--high)">${usd(t.p95)}</div><div class="l" title="Each draw's loss is capped at that draw's asset value (closure assumed), and the value itself is uncertain, so the percentage can read 100% while the dollar figure is above the central value.">95th percentile (1-in-20)${pv.p95 != null ? ' · ' + pv.p95.toFixed(1) + '%' + (pv.p95 >= 99.5 ? ' (capped at value)' : '') : ''}</div></div>
           <div class="kpi"><div class="v" style="color:var(--critical)">${usd(t.es95)}</div><div class="l">expected shortfall, worst 5%</div></div></div>
         <canvas class="an-chart" id="anHist" style="height:210px"></canvas>
         <div class="an-note">${F.n_draws.toLocaleString()} Monte Carlo draws · real discount ${(100 * F.discount_rate).toFixed(0)}% · physical share of expected loss ${(100 * S.share_physical).toFixed(0)}%${S.closure_share > 0 ? ` · in ${(100 * S.closure_share).toFixed(0)}% of draws transition costs exceed the asset's value (closure assumed)` : ''}.<br>
