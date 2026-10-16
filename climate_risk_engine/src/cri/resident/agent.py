@@ -183,7 +183,7 @@ class Agent:
         text = (text or "").strip()
         if not text:
             return {"reply": "Ask me something — for example \"build a 3D twin of 22.2645, 91.805\".", "blocks": [], "actions": [], "intent": "empty"}
-        quick = self._autopilot_commands(session, text) or self._knowledge_commands(session, text) or self._stress_commands(session, text) or self._scenario_commands(session, text) or self._source_commands(session, text) or self._profile_commands(session, text) or self._lab_commands(session, text) or self._case_commands(session, text) or self._extension_commands(session, text)
+        quick = self._event_commands(session, text) or self._autopilot_commands(session, text) or self._knowledge_commands(session, text) or self._stress_commands(session, text) or self._scenario_commands(session, text) or self._source_commands(session, text) or self._profile_commands(session, text) or self._lab_commands(session, text) or self._case_commands(session, text) or self._extension_commands(session, text)
         if quick:
             if quick.get("intent") in (None, "knowledge", "learn"):      # autopilot commands log themselves
                 quick.setdefault("intent", "knowledge")
@@ -231,6 +231,17 @@ class Agent:
 
     _SSP_WORDS = (("ssp126", r"ssp\s*-?\s*1[\s.\-]*2\.?6|strong(?:ly)? mitigat\w*|paris|net[\s\-]*zero pathway|low emissions?"), ("ssp245", r"ssp\s*-?\s*2[\s.\-]*4\.?5|middle[\s\-]*of[\s\-]*the[\s\-]*road|moderate emissions?|current policies"),
                   ("ssp370", r"ssp\s*-?\s*3[\s.\-]*7\.?0|high emissions?|regional rivalry"), ("ssp585", r"ssp\s*-?\s*5[\s.\-]*8\.?5|very high emissions?|worst[\s\-]*case|business[\s\-]*as[\s\-]*usual|fossil[\s\-]*fuel(?:ed)? (?:future|pathway)"))
+
+    def _event_commands(self, session, text) -> Optional[dict]:
+        """Questions the engine answers from recorded events (storm wind -> total cost; company revenue after events). See resident/eventanswer.py."""
+        from . import eventanswer as EA
+        d = EA.detect(text)
+        if not d:
+            return None
+        out = EA.answer(text, d)
+        if out:
+            out["intent"] = "knowledge"
+        return out
 
     def _stress_commands(self, session, text) -> Optional[dict]:
         """A staged scenario that chains a physical shock, a supplier, freight and a tariff (\"typhoon hits the hub, the Tier-2 supplier is down, air freight triggers a border tariff\").
