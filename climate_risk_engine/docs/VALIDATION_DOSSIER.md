@@ -189,3 +189,21 @@ Event checks (one event per peril; they show blindness, they do not validate tai
 Fixes made. Flood-covered sites now state that surface-water and small-river flood are not assessed and the premium is flagged a lower bound; an offshore site in a typhoon basin is withheld; a cold-extremes hazard (Gumbel on annual minima, design-minimum exceedance) is in the site profile; limit texts in the rain, fire-weather and river-flood outputs carry these results. A scenario with an unrecognised sector falls back to a generic list and says so.
 
 Not fixed (see the gap register): hail, supply chain and BI, sector vulnerability (the insurer module uses one industrial flood curve for every asset), surface-water flood, ERA5 versus fallback data, Dubai Marina river-flood artefact, Houston Ship Channel unverified, offshore return levels not checked against buoys.
+
+## Learned from recorded events, tested on events it had not seen (added 16 October 2026)
+
+Two models were fitted on recorded events and scored leave-one-event-out (each event is predicted by a model that never saw it). Code: `cri/eventlearn_tc.py`, `cri/eventlearn.py`; results: `data/events/eventlearn_tc_report.json`, `data/events/eventlearn_report.json`; tests: `tests/test_eventlearn.py`.
+
+**1. US tropical cyclones: wind at the coast to total economic cost.** 61 storms 1980 to 2024. Truth: NOAA NCEI billion-dollar disasters, CPI-adjusted total economic cost per event (insured plus uninsured; not an insured-loss figure). Hazard: peak sustained wind from IBTrACS within 100 km of land inside the contiguous US. Six storms never come inside that window (Puerto Rico, Hawaii, Guam, Sandy's transition) and are left out.
+
+| Held-out score | Wind model | Guessing the typical storm |
+|---|---|---|
+| Median error factor | 2.28 | 3.95 |
+| Storms within a factor of 3 | 66% | 41% |
+| Rank correlation of predicted and observed cost | 0.65 | n/a |
+
+Where it fails: storms whose cost came from rain or surge rather than wind are under-predicted by about ten times (Katrina 0.08, Allison 0.09, Harvey 0.11 of observed); weak or fast storms that hit thinly built coast are over-predicted by six to eight times (Allen, Francine, Idalia). It predicts the whole national event, not the loss at one site, and not insured loss. Adding the year (exposure growth) did not improve it (2.28 against 2.36 without).
+
+**2. Company revenue after recorded events: no predictive skill.** 711 company-year observations from SEC filings after 53 named events (544 after tropical cyclones, 37 after floods). Median event-year revenue change after a tropical cyclone is +4.9% (middle half −2.0% to +14.5%); 32% of companies saw revenue fall. Leave-one-event-out: knowing the hazard type does not improve the prediction over the all-events average (median error 8.67 against 8.37 points; the 95% interval of the difference includes zero), and adding company size is slightly worse. The engine therefore reports these as descriptive context and does not turn them into a forecast. Hazards with fewer than five recorded events (drought, extreme cold, hail) return "not enough recorded events", not a number.
+
+What this does not show: that the engine's site-level dollar loss is right for any event. That still needs an exposure dataset or claims for a named event.

@@ -100,6 +100,21 @@ def score(row, out):
             s["says_not_modelled"] = float(bool(re.search(r"not modelled|not known|not given|not assessed|no decision owner|is null|left null", out, re.I)))
         s["says_screening"] = float(bool(re.search(r"screening|not a forecast|does not forecast", out, re.I)))
         s["length_ok"] = float(25 <= len(out.split()) <= 170)
+    elif k in ("evtc", "evfin"):
+        low = out.lower()
+        s["numbers_ok"] = float(nums(out) <= nums(row["meta"]["facts"]) | nums(u) | {"0", "1", "3", "80", "10", "90", "50"})
+        s["says_not_forecast"] = float(bool(re.search(r"not a forecast|not forecast|does not forecast", low)))
+        s["length_ok"] = float(25 <= len(out.split()) <= 160)
+        if k == "evtc":
+            s["says_not_insured_or_site"] = float(bool(re.search(r"not an insured|not insured|whole event|not the loss at one site|total economic", low)))
+            if row["meta"]["qtype"] == "predict":
+                s["gives_range"] = float(bool(re.search(r"range|between|to \$", low)))
+                s["names_misses"] = float(any(n in low for n in ("katrina", "harvey", "allison", "rain", "surge")))
+        else:
+            if row["meta"].get("nulls"):
+                s["says_not_enough"] = float(bool(re.search(r"not enough|fewer than|too few|not assessed|only \d+ recorded", low)))
+            else:
+                s["says_no_skill"] = float(bool(re.search(r"did not improve|no better|not improve|no skill", low)))
     elif k == "insurer":
         allowed = nums(row["meta"]["facts"]) | nums(u)
         used = nums(out)

@@ -1,0 +1,194 @@
+{
+ "window": {
+  "lat": [
+   23.0,
+   47.0
+  ],
+  "lon": [
+   -100.0,
+   -64.0
+  ],
+  "d2l_km": 100.0
+ },
+ "n_storms": 61,
+ "left_out": [
+  {
+   "storm": "Hurricane Iniki (September 1992)",
+   "reason": "no track point inside the contiguous-US window"
+  },
+  {
+   "storm": "Hurricane Marilyn (September 1995)",
+   "reason": "no track point inside the contiguous-US window"
+  },
+  {
+   "storm": "Hurricane Sandy (October 2012)",
+   "reason": "no track point inside the contiguous-US window"
+  },
+  {
+   "storm": "Hurricane Maria (September 2017)",
+   "reason": "no track point inside the contiguous-US window"
+  },
+  {
+   "storm": "Hurricane Fiona (September 2022)",
+   "reason": "no track point inside the contiguous-US window"
+  },
+  {
+   "storm": "Typhoon Mawar (May 2023)",
+   "reason": "no track point inside the contiguous-US window"
+  }
+ ],
+ "wind_and_year": {
+  "n": 61,
+  "median_factor_error": 2.28,
+  "baseline_median_factor_error": 3.95,
+  "within_factor_2_pct": 43,
+  "within_factor_3_pct": 66,
+  "baseline_within_factor_3_pct": 41,
+  "rank_correlation_spearman": 0.65,
+  "worst": [
+   {
+    "storm": "Hurricane Katrina (August 2005)",
+    "wind_kt": 116.0,
+    "observed_musd": 201298,
+    "predicted_musd": 16036,
+    "factor": 0.08
+   },
+   {
+    "storm": "Tropical Storm Allison (June 2001)",
+    "wind_kt": 50.0,
+    "observed_musd": 15084,
+    "predicted_musd": 1283,
+    "factor": 0.09
+   },
+   {
+    "storm": "Hurricane Harvey (August 2017)",
+    "wind_kt": 115.0,
+    "observed_musd": 160000,
+    "predicted_musd": 17854,
+    "factor": 0.11
+   },
+   {
+    "storm": "Hurricane Allen (August 1980)",
+    "wind_kt": 118.0,
+    "observed_musd": 2236,
+    "predicted_musd": 17092,
+    "factor": 7.64
+   },
+   {
+    "storm": "Hurricane Francine (September 2024)",
+    "wind_kt": 90.0,
+    "observed_musd": 1291,
+    "predicted_musd": 9316,
+    "factor": 7.22
+   },
+   {
+    "storm": "Hurricane Idalia (August 2023)",
+    "wind_kt": 115.0,
+    "observed_musd": 3560,
+    "predicted_musd": 22984,
+    "factor": 6.46
+   }
+  ],
+  "detail_file": "see eventlearn_tc_detail.json"
+ },
+ "wind_only": {
+  "n": 61,
+  "median_factor_error": 2.36,
+  "baseline_median_factor_error": 3.95,
+  "within_factor_2_pct": 48,
+  "within_factor_3_pct": 64,
+  "baseline_within_factor_3_pct": 41,
+  "rank_correlation_spearman": 0.64,
+  "worst": [
+   {
+    "storm": "Hurricane Katrina (August 2005)",
+    "wind_kt": 116.0,
+    "observed_musd": 201298,
+    "predicted_musd": 16637,
+    "factor": 0.08
+   },
+   {
+    "storm": "Tropical Storm Allison (June 2001)",
+    "wind_kt": 50.0,
+    "observed_musd": 15084,
+    "predicted_musd": 1439,
+    "factor": 0.1
+   },
+   {
+    "storm": "Hurricane Harvey (August 2017)",
+    "wind_kt": 115.0,
+    "observed_musd": 160000,
+    "predicted_musd": 16188,
+    "factor": 0.1
+   },
+   {
+    "storm": "Hurricane Allen (August 1980)",
+    "wind_kt": 118.0,
+    "observed_musd": 2236,
+    "predicted_musd": 20661,
+    "factor": 9.24
+   },
+   {
+    "storm": "Tropical Storm Imelda (September 2019)",
+    "wind_kt": 40.0,
+    "observed_musd": 6150,
+    "predicted_musd": 994,
+    "factor": 0.16
+   },
+   {
+    "storm": "Hurricane Francine (September 2024)",
+    "wind_kt": 90.0,
+    "observed_musd": 1291,
+    "predicted_musd": 7240,
+    "factor": 5.61
+   }
+  ],
+  "detail_file": "see eventlearn_tc_detail.json"
+ },
+ "fit_wind_and_year": {
+  "intercept_log10": 2.393,
+  "per_kt_log10": 0.0157,
+  "per_year_log10": 0.0054,
+  "residual_sd_log10": 0.464,
+  "multiplier_per_10kt": 1.43,
+  "multiplier_per_decade": 1.13
+ },
+ "examples": {
+  "65": {
+   "wind_kt": 65,
+   "expected_musd": 3562,
+   "p10_musd": 906,
+   "p90_musd": 14001,
+   "n_storms": 61,
+   "residual_sd_log10": 0.46,
+   "caveat": "total economic cost of a US landfalling storm, not an insured loss; rain-driven storms (Harvey) and surge (Sandy, Katrina) sit far from a wind-only curve"
+  },
+  "90": {
+   "wind_kt": 90,
+   "expected_musd": 8780,
+   "p10_musd": 2234,
+   "p90_musd": 34514,
+   "n_storms": 61,
+   "residual_sd_log10": 0.46,
+   "caveat": "total economic cost of a US landfalling storm, not an insured loss; rain-driven storms (Harvey) and surge (Sandy, Katrina) sit far from a wind-only curve"
+  },
+  "115": {
+   "wind_kt": 115,
+   "expected_musd": 21645,
+   "p10_musd": 5507,
+   "p90_musd": 85080,
+   "n_storms": 61,
+   "residual_sd_log10": 0.46,
+   "caveat": "total economic cost of a US landfalling storm, not an insured loss; rain-driven storms (Harvey) and surge (Sandy, Katrina) sit far from a wind-only curve"
+  },
+  "140": {
+   "wind_kt": 140,
+   "expected_musd": 53357,
+   "p10_musd": 13574,
+   "p90_musd": 209733,
+   "n_storms": 61,
+   "residual_sd_log10": 0.46,
+   "caveat": "total economic cost of a US landfalling storm, not an insured loss; rain-driven storms (Harvey) and surge (Sandy, Katrina) sit far from a wind-only curve"
+  }
+ }
+}

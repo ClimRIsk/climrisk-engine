@@ -1,0 +1,138 @@
+{
+ "n_company_events": 711,
+ "n_events": 53,
+ "median_abs_error_pct_points": {
+  "zero": 8.7,
+  "all_events_median": 8.37,
+  "hazard_median": 8.67,
+  "hazard_size_median": 8.93
+ },
+ "band_coverage": {
+  "hazard_iqr (nominal 50%)": 49,
+  "hazard_p10_p90 (nominal 80%)": 79,
+  "all_events_iqr (nominal 50%)": 50
+ },
+ "hazard_vs_all_events_mdae_diff": [
+  0.3,
+  [
+   -0.062,
+   0.65
+  ]
+ ],
+ "hazard_size_vs_all_events_mdae_diff": [
+  0.56,
+  [
+   0.04,
+   0.98
+  ]
+ ],
+ "note": "Negative difference = hazard-type information improves the prediction. Interval = 95% bootstrap over events.",
+ "hazards": {
+  "drought": null,
+  "extreme cold": null,
+  "flood": {
+   "hazard": "flood",
+   "n_events": 7,
+   "n_company_events": 37,
+   "median_pct": 2.4,
+   "p25_pct": -3.5,
+   "p75_pct": 9.9,
+   "p10_pct": -9.6,
+   "p90_pct": 23.8,
+   "share_decline_pct": 43,
+   "share_decline_over_10_pct": 11,
+   "examples": [
+    {
+     "event": "alberta-2013",
+     "n": 1
+    },
+    {
+     "event": "australia-floods-2022",
+     "n": 3
+    },
+    {
+     "event": "colorado-2013",
+     "n": 1
+    },
+    {
+     "event": "europe-floods-2021",
+     "n": 10
+    },
+    {
+     "event": "imelda-2019",
+     "n": 7
+    }
+   ]
+  },
+  "hail": null,
+  "severe convective storm": null,
+  "tropical cyclone": {
+   "hazard": "tropical cyclone",
+   "n_events": 27,
+   "n_company_events": 544,
+   "median_pct": 4.9,
+   "p25_pct": -2.0,
+   "p75_pct": 14.5,
+   "p10_pct": -9.0,
+   "p90_pct": 31.5,
+   "share_decline_pct": 32,
+   "share_decline_over_10_pct": 8,
+   "examples": [
+    {
+     "event": "beryl-2024",
+     "n": 15
+    },
+    {
+     "event": "delta-2020",
+     "n": 10
+    },
+    {
+     "event": "dorian-2019",
+     "n": 22
+    },
+    {
+     "event": "fiona-2022",
+     "n": 2
+    },
+    {
+     "event": "florence-2018",
+     "n": 33
+    }
+   ]
+  },
+  "wildfire": {
+   "hazard": "wildfire",
+   "n_events": 10,
+   "n_company_events": 32,
+   "median_pct": 2.5,
+   "p25_pct": -2.3,
+   "p75_pct": 11.1,
+   "p10_pct": -3.7,
+   "p90_pct": 14.4,
+   "share_decline_pct": 38,
+   "share_decline_over_10_pct": 9,
+   "examples": [
+    {
+     "event": "camp-2018",
+     "n": 5
+    },
+    {
+     "event": "canada-fires-2023",
+     "n": 1
+    },
+    {
+     "event": "dixie-2021",
+     "n": 2
+    },
+    {
+     "event": "la-fires-2025",
+     "n": 2
+    },
+    {
+     "event": "marshall-2021",
+     "n": 1
+    }
+   ]
+  }
+ }
+}

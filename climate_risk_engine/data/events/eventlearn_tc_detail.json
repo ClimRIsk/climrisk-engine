@@ -1,0 +1,429 @@
+[
+ {
+  "storm": "Hurricane Allen (August 1980)",
+  "wind_kt": 118.0,
+  "observed_musd": 2236,
+  "predicted_musd": 17092,
+  "factor": 7.64
+ },
+ {
+  "storm": "Hurricane Alicia (August 1983)",
+  "wind_kt": 100.0,
+  "observed_musd": 9450,
+  "predicted_musd": 7250,
+  "factor": 0.77
+ },
+ {
+  "storm": "Hurricane Elena (September 1985)",
+  "wind_kt": 110.0,
+  "observed_musd": 3788,
+  "predicted_musd": 11886,
+  "factor": 3.14
+ },
+ {
+  "storm": "Hurricane Gloria (September 1985)",
+  "wind_kt": 90.0,
+  "observed_musd": 2491,
+  "predicted_musd": 5604,
+  "factor": 2.25
+ },
+ {
+  "storm": "Hurricane Juan (October 1985)",
+  "wind_kt": 75.0,
+  "observed_musd": 4340,
+  "predicted_musd": 2990,
+  "factor": 0.69
+ },
+ {
+  "storm": "Tropical Storm Allison (June 1989)",
+  "wind_kt": 45.0,
+  "observed_musd": 1486,
+  "predicted_musd": 1054,
+  "factor": 0.71
+ },
+ {
+  "storm": "Hurricane Hugo (September 1989)",
+  "wind_kt": 120.0,
+  "observed_musd": 22680,
+  "predicted_musd": 16022,
+  "factor": 0.71
+ },
+ {
+  "storm": "Hurricane Bob (August 1991)",
+  "wind_kt": 98.0,
+  "observed_musd": 3472,
+  "predicted_musd": 7901,
+  "factor": 2.28
+ },
+ {
+  "storm": "Hurricane Andrew (August 1992)",
+  "wind_kt": 145.0,
+  "observed_musd": 60480,
+  "predicted_musd": 40176,
+  "factor": 0.66
+ },
+ {
+  "storm": "Tropical Storm Alberto (July 1994)",
+  "wind_kt": 55.0,
+  "observed_musd": 2127,
+  "predicted_musd": 1640,
+  "factor": 0.77
+ },
+ {
+  "storm": "Hurricane Erin (August 1995)",
+  "wind_kt": 85.0,
+  "observed_musd": 1751,
+  "predicted_musd": 5196,
+  "factor": 2.97
+ },
+ {
+  "storm": "Hurricane Opal (October 1995)",
+  "wind_kt": 103.0,
+  "observed_musd": 9612,
+  "predicted_musd": 9571,
+  "factor": 1.0
+ },
+ {
+  "storm": "Hurricane Fran (September 1996)",
+  "wind_kt": 100.0,
+  "observed_musd": 10014,
+  "predicted_musd": 8656,
+  "factor": 0.86
+ },
+ {
+  "storm": "Tropical Storm Frances (September 1998)",
+  "wind_kt": 50.0,
+  "observed_musd": 1351,
+  "predicted_musd": 1477,
+  "factor": 1.09
+ },
+ {
+  "storm": "Hurricane Bonnie (August 1998)",
+  "wind_kt": 100.0,
+  "observed_musd": 1891,
+  "predicted_musd": 9315,
+  "factor": 4.92
+ },
+ {
+  "storm": "Hurricane Georges (September 1998)",
+  "wind_kt": 95.0,
+  "observed_musd": 11550,
+  "predicted_musd": 7353,
+  "factor": 0.64
+ },
+ {
+  "storm": "Hurricane Floyd (September 1999)",
+  "wind_kt": 90.0,
+  "observed_musd": 12203,
+  "predicted_musd": 6185,
+  "factor": 0.51
+ },
+ {
+  "storm": "Tropical Storm Allison (June 2001)",
+  "wind_kt": 50.0,
+  "observed_musd": 15084,
+  "predicted_musd": 1283,
+  "factor": 0.09
+ },
+ {
+  "storm": "Hurricane Lili (October 2002)",
+  "wind_kt": 93.0,
+  "observed_musd": 1933,
+  "predicted_musd": 7475,
+  "factor": 3.87
+ },
+ {
+  "storm": "Tropical Storm Isidore (September 2002)",
+  "wind_kt": 55.0,
+  "observed_musd": 2001,
+  "predicted_musd": 1837,
+  "factor": 0.92
+ },
+ {
+  "storm": "Hurricane Isabel (September 2003)",
+  "wind_kt": 90.0,
+  "observed_musd": 9323,
+  "predicted_musd": 6565,
+  "factor": 0.7
+ },
+ {
+  "storm": "Hurricane Charley (August 2004)",
+  "wind_kt": 130.0,
+  "observed_musd": 26719,
+  "predicted_musd": 28436,
+  "factor": 1.06
+ },
+ {
+  "storm": "Hurricane Frances (September 2004)",
+  "wind_kt": 95.0,
+  "observed_musd": 16268,
+  "predicted_musd": 7911,
+  "factor": 0.49
+ },
+ {
+  "storm": "Hurricane Ivan (September 2004)",
+  "wind_kt": 110.0,
+  "observed_musd": 34031,
+  "predicted_musd": 13456,
+  "factor": 0.4
+ },
+ {
+  "storm": "Hurricane Jeanne (September 2004)",
+  "wind_kt": 105.0,
+  "observed_musd": 12444,
+  "predicted_musd": 11478,
+  "factor": 0.92
+ },
+ {
+  "storm": "Hurricane Dennis (July 2005)",
+  "wind_kt": 110.0,
+  "observed_musd": 4042,
+  "predicted_musd": 14381,
+  "factor": 3.56
+ },
+ {
+  "storm": "Hurricane Katrina (August 2005)",
+  "wind_kt": 116.0,
+  "observed_musd": 201298,
+  "predicted_musd": 16036,
+  "factor": 0.08
+ },
+ {
+  "storm": "Hurricane Rita (September 2005)",
+  "wind_kt": 103.0,
+  "observed_musd": 29415,
+  "predicted_musd": 10615,
+  "factor": 0.36
+ },
+ {
+  "storm": "Hurricane Wilma (October 2005)",
+  "wind_kt": 107.0,
+  "observed_musd": 30020,
+  "predicted_musd": 12268,
+  "factor": 0.41
+ },
+ {
+  "storm": "Hurricane Dolly (July 2008)",
+  "wind_kt": 85.0,
+  "observed_musd": 1812,
+  "predicted_musd": 5998,
+  "factor": 3.31
+ },
+ {
+  "storm": "Hurricane Gustav (September 2008)",
+  "wind_kt": 113.0,
+  "observed_musd": 8636,
+  "predicted_musd": 16398,
+  "factor": 1.9
+ },
+ {
+  "storm": "Hurricane Ike (September 2008)",
+  "wind_kt": 95.0,
+  "observed_musd": 43198,
+  "predicted_musd": 8193,
+  "factor": 0.19
+ },
+ {
+  "storm": "Hurricane Irene (August 2011)",
+  "wind_kt": 75.0,
+  "observed_musd": 18757,
+  "predicted_musd": 4084,
+  "factor": 0.22
+ },
+ {
+  "storm": "Tropical Storm Lee (September 2011)",
+  "wind_kt": 48.0,
+  "observed_musd": 3492,
+  "predicted_musd": 1513,
+  "factor": 0.43
+ },
+ {
+  "storm": "Hurricane Isaac (August 2012)",
+  "wind_kt": 70.0,
+  "observed_musd": 3786,
+  "predicted_musd": 3583,
+  "factor": 0.95
+ },
+ {
+  "storm": "Hurricane Matthew (October 2016)",
+  "wind_kt": 120.0,
+  "observed_musd": 13100,
+  "predicted_musd": 23476,
+  "factor": 1.79
+ },
+ {
+  "storm": "Hurricane Harvey (August 2017)",
+  "wind_kt": 115.0,
+  "observed_musd": 160000,
+  "predicted_musd": 17854,
+  "factor": 0.11
+ },
+ {
+  "storm": "Hurricane Irma (September 2017)",
+  "wind_kt": 115.0,
+  "observed_musd": 64000,
+  "predicted_musd": 18496,
+  "factor": 0.29
+ },
+ {
+  "storm": "Hurricane Florence (September 2018)",
+  "wind_kt": 90.0,
+  "observed_musd": 30000,
+  "predicted_musd": 7670,
+  "factor": 0.26
+ },
+ {
+  "storm": "Hurricane Michael (October 2018)",
+  "wind_kt": 140.0,
+  "observed_musd": 31219,
+  "predicted_musd": 50292,
+  "factor": 1.61
+ },
+ {
+  "storm": "Hurricane Dorian (September 2019)",
+  "wind_kt": 100.0,
+  "observed_musd": 1980,
+  "predicted_musd": 12201,
+  "factor": 6.16
+ },
+ {
+  "storm": "Tropical Storm Imelda (September 2019)",
+  "wind_kt": 40.0,
+  "observed_musd": 6150,
+  "predicted_musd": 1120,
+  "factor": 0.18
+ },
+ {
+  "storm": "Hurricane Hanna (July 2020)",
+  "wind_kt": 80.0,
+  "observed_musd": 1301,
+  "predicted_musd": 5995,
+  "factor": 4.61
+ },
+ {
+  "storm": "Hurricane Isaias (August 2020)",
+  "wind_kt": 80.0,
+  "observed_musd": 5756,
+  "predicted_musd": 5681,
+  "factor": 0.99
+ },
+ {
+  "storm": "Hurricane Laura (August 2020)",
+  "wind_kt": 130.0,
+  "observed_musd": 28090,
+  "predicted_musd": 35047,
+  "factor": 1.25
+ },
+ {
+  "storm": "Hurricane Sally (September 2020)",
+  "wind_kt": 95.0,
+  "observed_musd": 8802,
+  "predicted_musd": 9798,
+  "factor": 1.11
+ },
+ {
+  "storm": "Hurricane Delta (October 2020)",
+  "wind_kt": 87.0,
+  "observed_musd": 3469,
+  "predicted_musd": 7498,
+  "factor": 2.16
+ },
+ {
+  "storm": "Hurricane Zeta (October 2020)",
+  "wind_kt": 100.0,
+  "observed_musd": 5266,
+  "predicted_musd": 12013,
+  "factor": 2.28
+ },
+ {
+  "storm": "Tropical Storm Eta (November 2020)",
+  "wind_kt": 58.0,
+  "observed_musd": 1767,
+  "predicted_musd": 2633,
+  "factor": 1.49
+ },
+ {
+  "storm": "Tropical Storm Elsa (July 2021)",
+  "wind_kt": 65.0,
+  "observed_musd": 1407,
+  "predicted_musd": 3514,
+  "factor": 2.5
+ },
+ {
+  "storm": "Tropical Storm Fred (August 2021)",
+  "wind_kt": 55.0,
+  "observed_musd": 1481,
+  "predicted_musd": 2414,
+  "factor": 1.63
+ },
+ {
+  "storm": "Hurricane Ida (August 2021)",
+  "wind_kt": 130.0,
+  "observed_musd": 84608,
+  "predicted_musd": 32750,
+  "factor": 0.39
+ },
+ {
+  "storm": "Hurricane Nicholas (September 2021)",
+  "wind_kt": 65.0,
+  "observed_musd": 1168,
+  "predicted_musd": 3551,
+  "factor": 3.04
+ },
+ {
+  "storm": "Hurricane Ian (September 2022)",
+  "wind_kt": 140.0,
+  "observed_musd": 119626,
+  "predicted_musd": 46499,
+  "factor": 0.39
+ },
+ {
+  "storm": "Hurricane Nicole (November 2022)",
+  "wind_kt": 65.0,
+  "observed_musd": 1081,
+  "predicted_musd": 3625,
+  "factor": 3.35
+ },
+ {
+  "storm": "Hurricane Idalia (August 2023)",
+  "wind_kt": 115.0,
+  "observed_musd": 3560,
+  "predicted_musd": 22984,
+  "factor": 6.46
+ },
+ {
+  "storm": "Hurricane Beryl (July 2024)",
+  "wind_kt": 80.0,
+  "observed_musd": 7219,
+  "predicted_musd": 5916,
+  "factor": 0.82
+ },
+ {
+  "storm": "Hurricane Debby (August 2024)",
+  "wind_kt": 70.0,
+  "observed_musd": 2476,
+  "predicted_musd": 4290,
+  "factor": 1.73
+ },
+ {
+  "storm": "Hurricane Francine (September 2024)",
+  "wind_kt": 90.0,
+  "observed_musd": 1291,
+  "predicted_musd": 9316,
+  "factor": 7.22
+ },
+ {
+  "storm": "Hurricane Helene (September 2024)",
+  "wind_kt": 120.0,
+  "observed_musd": 78721,
+  "predicted_musd": 23476,
+  "factor": 0.3
+ },
+ {
+  "storm": "Hurricane Milton (October 2024)",
+  "wind_kt": 110.0,
+  "observed_musd": 34250,
+  "predicted_musd": 17023,
+  "factor": 0.5
+ }
+]

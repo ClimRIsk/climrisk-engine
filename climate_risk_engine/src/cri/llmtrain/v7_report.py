@@ -19,7 +19,7 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
-KINDS = ("stress", "scenario", "siteprofile", "chat", "gold")
+KINDS = ("stress", "scenario", "siteprofile", "chat", "gold", "evtc", "evfin")
 SKIP = re.compile(r"(^|\.)(new_numbers|invented_numbers)$")
 LOWER_BETTER = re.compile(r"invented_numbers$")
 
