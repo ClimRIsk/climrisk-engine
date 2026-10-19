@@ -1,0 +1,119 @@
+{
+ "boxes": [
+  {
+   "lat": 57.5,
+   "lon": -103.5,
+   "large_fire_days_test": 29,
+   "auc_fwi": 0.767,
+   "auc_tmax": 0.787,
+   "auc_ros_FM10": 0.477,
+   "auc_ros_ffmc_FM10": 0.681,
+   "auc_ros_FM5": 0.528,
+   "auc_ros_ffmc_FM5": 0.694,
+   "auc_ros_FM1": 0.567,
+   "auc_ros_ffmc_FM1": 0.791
+  },
+  {
+   "lat": 50.5,
+   "lon": -117.5,
+   "large_fire_days_test": 25,
+   "auc_fwi": 0.694,
+   "auc_tmax": 0.866,
+   "auc_ros_FM10": 0.648,
+   "auc_ros_ffmc_FM10": 0.676,
+   "auc_ros_FM5": 0.704,
+   "auc_ros_ffmc_FM5": 0.667,
+   "auc_ros_FM1": 0.641,
+   "auc_ros_ffmc_FM1": 0.745
+  },
+  {
+   "lat": 52.5,
+   "lon": -120.5,
+   "large_fire_days_test": 24,
+   "auc_fwi": 0.709,
+   "auc_tmax": 0.863,
+   "auc_ros_FM10": 0.629,
+   "auc_ros_ffmc_FM10": 0.674,
+   "auc_ros_FM5": 0.697,
+   "auc_ros_ffmc_FM5": 0.673,
+   "auc_ros_FM1": 0.654,
+   "auc_ros_ffmc_FM1": 0.711
+  },
+  {
+   "lat": 51.5,
+   "lon": -98.5,
+   "large_fire_days_test": 36,
+   "auc_fwi": 0.718,
+   "auc_tmax": 0.38,
+   "auc_ros_FM10": 0.468,
+   "auc_ros_ffmc_FM10": 0.602,
+   "auc_ros_FM5": 0.647,
+   "auc_ros_ffmc_FM5": 0.628,
+   "auc_ros_FM1": 0.573,
+   "auc_ros_ffmc_FM1": 0.773
+  },
+  {
+   "lat": 59.5,
+   "lon": -113.5,
+   "large_fire_days_test": 29,
+   "auc_fwi": 0.702,
+   "auc_tmax": 0.809,
+   "auc_ros_FM10": 0.512,
+   "auc_ros_ffmc_FM10": 0.608,
+   "auc_ros_FM5": 0.639,
+   "auc_ros_ffmc_FM5": 0.632,
+   "auc_ros_FM1": 0.56,
+   "auc_ros_ffmc_FM1": 0.765
+  },
+  {
+   "lat": 59.5,
+   "lon": -119.5,
+   "large_fire_days_test": 22,
+   "auc_fwi": 0.638,
+   "auc_tmax": 0.867,
+   "auc_ros_FM10": 0.375,
+   "auc_ros_ffmc_FM10": 0.537,
+   "auc_ros_FM5": 0.437,
+   "auc_ros_ffmc_FM5": 0.552,
+   "auc_ros_FM1": 0.43,
+   "auc_ros_ffmc_FM1": 0.683
+  },
+  {
+   "lat": 60.5,
+   "lon": -107.5,
+   "large_fire_days_test": 29,
+   "auc_fwi": 0.813,
+   "auc_tmax": 0.791,
+   "auc_ros_FM10": 0.55,
+   "auc_ros_ffmc_FM10": 0.668,
+   "auc_ros_FM5": 0.594,
+   "auc_ros_ffmc_FM5": 0.674,
+   "auc_ros_FM1": 0.65,
+   "auc_ros_ffmc_FM1": 0.821
+  },
+  {
+   "lat": 56.5,
+   "lon": -108.5,
+   "large_fire_days_test": 30,
+   "auc_fwi": 0.746,
+   "auc_tmax": 0.764,
+   "auc_ros_FM10": 0.553,
+   "auc_ros_ffmc_FM10": 0.71,
+   "auc_ros_FM5": 0.548,
+   "auc_ros_ffmc_FM5": 0.73,
+   "auc_ros_FM1": 0.69,
+   "auc_ros_ffmc_FM1": 0.716
+  }
+ ],
+ "summary": {
+  "auc_fwi": 0.714,
+  "auc_tmax": 0.8,
+  "auc_ros_FM10": 0.531,
+  "auc_ros_ffmc_FM10": 0.671,
+  "auc_ros_FM5": 0.617,
+  "auc_ros_ffmc_FM5": 0.67,
+  "auc_ros_FM1": 0.607,
+  "auc_ros_ffmc_FM1": 0.755,
+  "boxes": 8
+ }
+}

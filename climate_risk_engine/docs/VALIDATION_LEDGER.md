@@ -38,3 +38,6 @@ One row per hazard or model. "Tested against" means independent observations the
 
 ## Small/mid river depth (HAND + rating curve)
 - Evidence: `docs/RIVER_DEPTH_BENCHMARK.md` — pooled CSI 0.37 vs 0.76 for the plain HAND<5 m band on 11 English towns. Grade: **not validated as an improvement; not shipped in the report**. GloFAS point flows misassign river size.
+
+## Wildfire surface-fire behaviour (Rothermel)
+- Evidence: `docs/FIRE_BEHAVIOUR_BENCHMARK.md` — spread formula within ±40 % of published values; as a day-ranker 0.53–0.76 ROC area vs 0.80 for hot-day temperature and 0.71 for FWI (Canada, 8 boxes). Grade: **physical illustration, not a validated risk score; fact only, never changes the rating**.

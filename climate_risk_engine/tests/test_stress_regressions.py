@@ -317,3 +317,27 @@ def test_river_depth_declines_when_flow_cell_is_far_and_never_returns_zero_for_m
     dem = SimpleNamespace(elevations=np.zeros((20, 20)), cell_size_m=10.0, asset_row=10, asset_col=10, source="test")
     r = site_river_depth(51.0, -1.0, dem=dem, maxima=list(np.linspace(5, 50, 30)), snap_km=9.0)
     assert r["available"] is False and "depth_m" not in r
+
+
+# ---- fire behaviour (Rothermel) -----------------------------------------------------------------------------------------------------------------
+def test_rothermel_reproduces_published_behave_class_values():
+    """Anderson fuel models at 6 % dead moisture, 5 mph midflame wind, flat: published head-fire spread (ch/h) FM1 ~78, FM2 ~35, FM6 ~32, FM8 ~1.6 (Rothermel 1983 tables)."""
+    from cri.finance.fire_behaviour import spread
+    ch_h = lambda m: spread(m, 0.06, 8.05, 0)["ros_m_min"] * 60 / 20.1168      # noqa: E731
+    for m, pub in (("FM1", 78), ("FM2", 35), ("FM6", 32), ("FM8", 1.6)):
+        assert 0.6 * pub <= ch_h(m) <= 1.4 * pub, (m, ch_h(m), pub)
+
+
+def test_rothermel_responds_to_wind_slope_and_moisture():
+    from cri.finance.fire_behaviour import spread
+    base = spread("FM2", 0.08, 5.0, 0)["ros_m_min"]
+    assert spread("FM2", 0.08, 15.0, 0)["ros_m_min"] > base
+    assert spread("FM2", 0.08, 5.0, 25)["ros_m_min"] > base
+    assert spread("FM2", 0.14, 5.0, 0)["ros_m_min"] < base
+    assert spread("FM1", 0.13, 10.0, 0)["ros_m_min"] == 0.0              # above the moisture of extinction nothing spreads
+
+
+def test_fire_behaviour_not_applicable_on_non_vegetated_ground_and_not_zero_on_failure():
+    from cri.finance.fire_behaviour import site_fire_behaviour
+    r = site_fire_behaviour(float("nan"), 0.0)
+    assert r["available"] is False

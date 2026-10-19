@@ -555,9 +555,9 @@ def build_asset_report(lat: float, lon: float, name: Optional[str] = None, secto
         except Exception:                                   # noqa: BLE001
             pv = {"available": False}
         if pv.get("available"):
-            fact = {"metric": "Modelled 1-in-100 rain-on-ground depth at the pin", "value": f"{pv['depth_m']:.2f}", "unit": "m",
-                    "source": f"Local-inertial shallow-water model on {pv['terrain_source'][:48]}, {pv['cell_m']:.0f} m cells; design rain {pv['storm_mm']:.0f} mm in {pv['storm_hours']:.0f} h "
-                              f"(ERA5 daily 1-in-100 {pv['daily_rp_mm']:.0f} mm x {pv['storm_share_of_daily']:.2f}); sewer allowance {pv['drainage_allowance_mm_h']:.0f} mm/h on built-up ground"}
+            fact = _f("Modelled 1-in-100 rain-on-ground depth at the pin", f"{pv['depth_m']:.2f} m",
+                      f"Local-inertial shallow-water model on {pv['terrain_source'][:48]}, {pv['cell_m']:.0f} m cells; design rain {pv['storm_mm']:.0f} mm in {pv['storm_hours']:.0f} h "
+                      f"(ERA5 daily 1-in-100 {pv['daily_rp_mm']:.0f} mm x {pv['storm_share_of_daily']:.2f}); sewer allowance {pv['drainage_allowance_mm_h']:.0f} mm/h on built-up ground")
             sw = next((z for z in zones if z["key"] == "surface_water"), None)
             note = ("Rain-on-ground screen: ERA5 daily rain smooths short convective bursts and sewers, culverts and buildings are not resolved, so a shallow or dry result is not a "
                     "clean bill; rank skill against recorded English surface-water outlines is modest.")
@@ -604,6 +604,21 @@ def build_asset_report(lat: float, lon: float, name: Optional[str] = None, secto
         zones.append({"key": "wildfire", "title": "Wildfire", "rating": wf["severity"],
                       "zone": wf.get("summary") or _zone_from_finding(wf, "wildfire"),
                       "facts": _ev_facts(wf), "trend": None, "_finding": wf})
+    if os.environ.get("CRI_FIREBEHAVIOUR", "1") != "0":                      # fact only, never changes the rating (see docs/FIRE_BEHAVIOUR_BENCHMARK.md)
+        try:
+            from .finance import fire_behaviour as _fb
+            fbv = _fb.site_fire_behaviour(lat, lon)
+        except Exception:                                   # noqa: BLE001
+            fbv = {"available": False}
+        wz = next((z for z in zones if z["key"] == "wildfire"), None)
+        if fbv.get("available") and fbv.get("applicable") and wz is not None:
+            w = fbv["p95_day_weather"]
+            wz["facts"] = list(wz.get("facts") or []) + [_f(
+                "Surface-fire behaviour on a severe warm-season day (95th percentile)",
+                f"spread {fbv['ros_p95_m_min']:.1f} m/min, flame length {fbv['flame_length_p95_m']:.1f} m, intensity {fbv['intensity_p95_kw_m']:.0f} kW/m",
+                f"Rothermel (1972) model, fuel {fbv['fuel_model']} ({fbv['fuel_name']}) from land cover, slope {fbv['slope_deg']:.0f} deg; that day: {w['tmax_c']} C, {w['rh_min_pct']:.0f} % humidity, "
+                f"{w['wind_max_kmh']:.0f} km/h wind, FFMC {w['ffmc']}. Surface fire only: crown fire and spotting, which drive the destructive fires, are not modelled, so this does not set the rating")]
+
     hf = findings.get("urban_heat")
     try:
         from .finance.heat_hazard import site_heat

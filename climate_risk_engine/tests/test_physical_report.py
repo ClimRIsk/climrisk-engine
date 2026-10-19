@@ -27,6 +27,8 @@ def _offline_heat_and_coast(monkeypatch):
     monkeypatch.setattr(lidar_flood, "flood_position", lambda lat, lon, radius_km=2.5: {"available": False, "reason": "test: LiDAR not used"})
     from cri.finance import pluvial
     monkeypatch.setattr(pluvial, "site_pluvial", lambda *a, **k: {"available": False, "reason": "test"})
+    from cri.finance import fire_behaviour
+    monkeypatch.setattr(fire_behaviour, "site_fire_behaviour", lambda *a, **k: {"available": False, "reason": "test"})
     from cri.modellab import slr
     monkeypatch.setattr(slr, "coast_info", lambda *a, **k: {"elevation_m": 4.0, "sea_km": None, "sea_bearing": None})
 
