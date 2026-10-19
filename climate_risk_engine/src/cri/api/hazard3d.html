@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ClimRisk 3D hazard viewer</title>
+<link rel="stylesheet" href="https://cesium.com/downloads/cesiumjs/releases/1.124/Build/Cesium/Widgets/widgets.css">
+<style>
+ *{box-sizing:border-box} html,body{margin:0;height:100%;font-family:-apple-system,Segoe UI,Inter,sans-serif;background:#0b1220;color:#e5e9f0}
+ #wrap{display:flex;height:100%} #side{width:340px;min-width:340px;overflow:auto;padding:14px;background:#111a2e;border-right:1px solid #24304a}
+ #globe{flex:1;position:relative} #cesium{position:absolute;inset:0}
+ h1{font-size:15px;margin:0 0 2px} .sub{font-size:11px;color:#8a97b1;margin-bottom:10px}
+ label{display:block;font-size:11px;color:#9fb0cf;margin:9px 0 3px} select,input[type=number],input[type=text],input[type=password]{width:100%;background:#0b1220;border:1px solid #2c3a58;color:#e5e9f0;border-radius:6px;padding:6px 8px;font-size:12px}
+ .row{display:flex;gap:6px} .row>*{flex:1} button{background:#2563eb;color:#fff;border:0;border-radius:6px;padding:7px 10px;font-size:12px;font-weight:600;cursor:pointer} button.sec{background:#1e2b47;border:1px solid #2c3a58} button:disabled{opacity:.5;cursor:not-allowed}
+ .box{background:#0b1220;border:1px solid #24304a;border-radius:8px;padding:9px;margin-top:10px;font-size:11.5px;line-height:1.45}
+ .lg{display:flex;align-items:center;gap:7px;margin:2px 0} .sw{width:14px;height:14px;border-radius:3px;border:1px solid #ffffff33}
+ .bar{height:8px;background:#1a2540;border-radius:4px;overflow:hidden;display:flex;margin:4px 0}.bar i{display:block;height:100%}
+ .warn{color:#fbbf24} .bad{color:#f87171} .ok{color:#86efac} .muted{color:#8a97b1} small{font-size:10.5px}
+ #msg{position:absolute;left:50%;top:14px;transform:translateX(-50%);background:#111a2ecc;border:1px solid #2c3a58;border-radius:8px;padding:7px 12px;font-size:12px;z-index:5;display:none;max-width:70%}
+ ul{margin:4px 0 0 16px;padding:0}
+</style></head><body>
+<div id="wrap">
+ <div id="side">
+  <h1>3D hazard viewer</h1><div class="sub">One map for every hazard that has a spatial model. Screening grade.</div>
+  <label>Hazard</label><select id="hz"></select>
+  <div id="hzNote" class="muted" style="font-size:11px;margin-top:4px"></div>
+  <div class="row"><div><label>Latitude</label><input id="lat" type="number" step="0.0001" value="29.9511"></div><div><label>Longitude</label><input id="lon" type="number" step="0.0001" value="-90.0715"></div></div>
+  <label>Box half-width: <span id="rv">2.5</span> km</label><input id="rad" type="range" min="0.5" max="6" step="0.5" value="2.5" style="width:100%">
+  <div id="extra"></div>
+  <label>Study area</label>
+  <div class="row"><button class="sec" id="up">Upload KML / KMZ / GeoJSON</button><button class="sec" id="draw">Draw on map</button></div>
+  <input id="file" type="file" accept=".kml,.kmz,.json,.geojson" style="display:none">
+  <div id="saInfo" class="muted" style="font-size:11px;margin-top:4px"></div>
+  <div class="row" style="margin-top:10px"><button id="run">Compute layer</button><button class="sec" id="fly">Go to site</button></div>
+  <label>Layer opacity</label><input id="op" type="range" min="0.2" max="1" step="0.05" value="0.75" style="width:100%">
+  <label>Vertical exaggeration (relief only): <span id="exv">1</span>x</label><input id="ex" type="range" min="1" max="5" step="0.5" value="1" style="width:100%">
+  <div id="out"></div>
+  <div class="box"><b>Base map</b><div id="baseInfo" class="muted" style="margin-top:3px"></div>
+   <label>Google Maps Platform key (stored on this computer only)</label><input id="gk" type="password" placeholder="paste key, then Save" autocomplete="off">
+   <div class="row" style="margin-top:6px"><button class="sec" id="gsave">Save key</button><button class="sec" id="gclear">Remove</button></div>
+   <small class="muted">Needs the Map Tiles API enabled and billing on in your Google account. Google bills photorealistic 3D by session; check their current pricing and terms. Their attribution stays on screen.</small></div>
+ </div>
+ <div id="globe"><div id="cesium"></div><div id="msg"></div></div>
+</div>
+<script src="https://cesium.com/downloads/cesiumjs/releases/1.124/Build/Cesium/Cesium.js"></script>
+<script>
+(function(){
+const $=id=>document.getElementById(id);
+const API=location.origin;
+const _k=new URLSearchParams(location.hash.slice(1)).get('key'); const AH=_k?{'X-API-Key':_k}:{};
+function terrariumProvider(){
+  const cache=new Map();
+  function tile(z,x,y){const k=z+'/'+x+'/'+y; if(cache.has(k)) return cache.get(k);
+    const p=new Promise(res=>{const im=new Image(); im.onload=()=>{const c=document.createElement('canvas');c.width=c.height=256;const g=c.getContext('2d',{willReadFrequently:true});g.drawImage(im,0,0);
+      const d=g.getImageData(0,0,256,256).data, h=new Float32Array(256*256); for(let i=0;i<65536;i++){h[i]=(d[i*4]*256+d[i*4+1]+d[i*4+2]/256)-32768} res(h)}; im.onerror=()=>res(null); im.src=API+'/hazard3d/terrain/'+z+'/'+x+'/'+y+'.png'});
+    cache.set(k,p); if(cache.size>400) cache.delete(cache.keys().next().value); return p}
+  window._tileFn=tile;
+  return new Cesium.CustomHeightmapTerrainProvider({width:256,height:256,tilingScheme:new Cesium.WebMercatorTilingScheme(),callback:async(x,y,level)=>{
+    if(level<=15){return (await tile(level,x,y))||new Float32Array(256*256)}
+    const d=level-15, ax=x>>d, ay=y>>d, h=await tile(15,ax,ay); if(!h) return new Float32Array(256*256);
+    const n=1<<d, ox=(x-(ax<<d))*(256/n), oy=(y-(ay<<d))*(256/n), out=new Float32Array(256*256);
+    for(let r=0;r<256;r++){const fy=Math.min(255,oy+r*(256/n)/256*1); const y0=Math.floor(fy), y1=Math.min(255,y0+1), ty=fy-y0;
+      for(let c=0;c<256;c++){const fx=Math.min(255,ox+c*(256/n)/256*1), x0=Math.floor(fx), x1=Math.min(255,x0+1), tx=fx-x0;
+        out[r*256+c]=h[y0*256+x0]*(1-tx)*(1-ty)+h[y0*256+x1]*tx*(1-ty)+h[y1*256+x0]*(1-tx)*ty+h[y1*256+x1]*tx*ty}}
+    return out}});
+}
+async function elevAt(lat,lon){
+  if(!window._tileFn) return 0; const z=12, n=2**z, xf=(lon+180)/360*n, lr=lat*Math.PI/180, yf=(1-Math.log(Math.tan(lr)+1/Math.cos(lr))/Math.PI)/2*n;
+  const t=await window._tileFn(z,Math.floor(xf),Math.floor(yf)); if(!t) return 0; const px=Math.min(255,Math.floor((xf%1)*256)), py=Math.min(255,Math.floor((yf%1)*256)); return Math.max(0,t[py*256+px]);
+}
+let viewer=null, usingGoogle=false, layerEnt=null, saEnts=[], polygons=null, drawing=null, drawPts=[], catalogue=[];
+const params=new URLSearchParams(location.search);
+if(params.get('lat')) $('lat').value=params.get('lat'); if(params.get('lon')) $('lon').value=params.get('lon');
+function msg(t,ms){const m=$('msg');m.textContent=t;m.style.display=t?'block':'none';if(ms) setTimeout(()=>{if(m.textContent===t)m.style.display='none'},ms)}
+async function jget(u){const r=await fetch(API+u,{headers:AH});if(!r.ok)throw new Error(await r.text());return r.json()}
+async function jpost(u,b){const r=await fetch(API+u,{method:'POST',headers:Object.assign({'Content-Type':'application/json'},AH),body:JSON.stringify(b)});const t=await r.text();let j;try{j=JSON.parse(t)}catch(e){j={detail:t}}if(!r.ok)throw new Error(j.detail||t);return j}
+
+async function initViewer(){
+  const cfg=await jget('/hazard3d/config').catch(()=>({}));
+  const opts={animation:false,timeline:false,baseLayerPicker:false,geocoder:false,homeButton:false,sceneModePicker:false,navigationHelpButton:false,fullscreenButton:false,infoBox:false,selectionIndicator:false,
+    baseLayer:false,terrainProvider:new Cesium.EllipsoidTerrainProvider(),requestRenderMode:false,creditContainer:undefined};
+  viewer=new Cesium.Viewer('cesium',opts);
+  window._viewer=viewer;
+  if(cfg.google_maps_key){
+    try{
+      const ts=await Cesium.Cesium3DTileset.fromUrl('https://tile.googleapis.com/v1/3dtiles/root.json?key='+encodeURIComponent(cfg.google_maps_key),{showCreditsOnScreen:true});
+      viewer.scene.primitives.add(ts); viewer.scene.globe.show=false; usingGoogle=true;
+      $('baseInfo').textContent='Google Photorealistic 3D Tiles (photoreal meshes where Google has coverage).';
+    }catch(e){ $('baseInfo').innerHTML='<span class="bad">Google tiles failed to load: '+String(e.message||e).slice(0,160)+'.</span> Check the key, that Map Tiles API is enabled and billing is on. Showing the flat fallback.'; }
+  }
+  if(!usingGoogle){
+    viewer.imageryLayers.addImageryProvider(new Cesium.OpenStreetMapImageryProvider({url:'https://tile.openstreetmap.org/'}));
+    viewer.scene.globe.show=true; viewer.terrainProvider=terrariumProvider(); viewer.scene.globe.enableLighting=false;
+    if(!$('baseInfo').textContent) $('baseInfo').innerHTML='<span class="warn">No Google key: OpenStreetMap on real terrain relief (open 10-30 m elevation data). No 3D buildings.</span> Add a key below for photorealistic 3D.';
+  }
+  viewer.scene.globe.depthTestAgainstTerrain=true;
+  fly();
+}
+async function flyAt(lat,lon,spanM,range){
+  const e=usingGoogle?0:await elevAt(lat,lon);
+  viewer.camera.flyToBoundingSphere(new Cesium.BoundingSphere(Cesium.Cartesian3.fromDegrees(lon,lat,e),spanM*0.5),{offset:new Cesium.HeadingPitchRange(0,Cesium.Math.toRadians(-35),range),duration:1.4});
+}
+function fly(){ const r=+$('rad').value*1000; flyAt(+$('lat').value,+$('lon').value,r,r*2.2) }
+function clearLayer(){ if(layerEnt){viewer.entities.remove(layerEnt);layerEnt=null} }
+function clearSA(){ saEnts.forEach(e=>viewer.entities.remove(e)); saEnts=[] }
+function drawSA(){
+  clearSA(); if(!polygons) return;
+  polygons.forEach(r=>{
+    const pos=Cesium.Cartesian3.fromDegreesArray(r.flat().concat(r[0]));
+    saEnts.push(viewer.entities.add({polyline:{positions:pos,width:4,material:Cesium.Color.fromCssColorString('#ff8f00'),clampToGround:true,classificationType:Cesium.ClassificationType.BOTH}}));
+  });
+}
+function setSA(p,info){polygons=p;drawSA();$('saInfo').textContent=info||''}
+
+async function loadCatalogue(){
+  catalogue=(await jget('/hazard3d/catalogue')).hazards; const s=$('hz'); s.innerHTML='';
+  catalogue.forEach(h=>{const o=document.createElement('option');o.value=h.hazard;o.textContent=h.label+(h.spatial_surface?'':'  (no map: site value only)');s.appendChild(o)});
+  s.onchange=hzChange; hzChange();
+}
+function hzChange(){
+  const h=catalogue.find(x=>x.hazard===$('hz').value); $('hzNote').textContent=h&&!h.spatial_surface?h.reason:'';
+  const ex=$('extra'); ex.innerHTML='';
+  const f=(id,label,val,step)=>{ex.insertAdjacentHTML('beforeend','<label>'+label+'</label><input id="'+id+'" type="number" step="'+(step||'any')+'" value="'+(val??'')+'">')};
+  if(h&&h.hazard==='landslide') f('p_rp','Storm return period (years)',100,1);
+  if(h&&h.hazard==='sea_level_rise'){f('p_wl','Water level above today (m). Blank = IPCC AR6 median, SSP2-4.5 2100','',0.1)}
+  if(h&&h.hazard==='plume'){f('p_q','Release rate (g/s)','',0.1);f('p_h','Release height (m)','',1);f('p_u','10 m wind speed (m/s)','',0.1);f('p_d','Wind FROM (compass degrees)','',1)}
+  $('run').disabled=!!(h&&!h.spatial_surface);
+}
+function gather(){
+  const p={}, h=$('hz').value, n=id=>$(id)&&$(id).value!==''?+$(id).value:null;
+  if(h==='landslide'&&n('p_rp')!=null) p.return_period=n('p_rp');
+  if(h==='sea_level_rise'&&n('p_wl')!=null) p.water_level_m=n('p_wl');
+  if(h==='plume'){p.Q_g_s=n('p_q');p.H_m=n('p_h');p.u10_ms=n('p_u');p.wind_from_deg=n('p_d')}
+  return p;
+}
+const pct=v=>v==null?'-':(v*100).toFixed(v<0.1?1:0)+'%';
+function shareHTML(title,s){
+  if(!s) return ''; let h='<div style="margin-top:7px"><b>'+title+'</b> <small class="muted">('+s.cells+' cells'+(s.not_evaluated_cells?', '+s.not_evaluated_cells+' not evaluated':'')+')</small>';
+  const cols={}; $('out').querySelectorAll('[data-l]').forEach(e=>cols[e.dataset.l]=e.dataset.c);
+  h+='<div class="bar">'; Object.keys(s).filter(k=>!['cells','not_evaluated_cells'].includes(k)).forEach(k=>{h+='<i title="'+k+'" style="width:'+(s[k]*100)+'%;background:'+(cols[k]||'#555')+'"></i>'}); h+='</div>';
+  Object.keys(s).filter(k=>!['cells','not_evaluated_cells'].includes(k)).forEach(k=>{h+='<div class="muted">'+k+': '+pct(s[k])+'</div>'}); return h+'</div>';
+}
+async function run(){
+  const h=$('hz').value; $('run').disabled=true; msg('Computing '+h+'… terrain and rainfall are fetched live; this can take up to a minute.');
+  try{
+    const res=await jpost('/hazard3d/surface',{hazard:h,lat:+$('lat').value,lon:+$('lon').value,radius_km:+$('rad').value,polygons:polygons,params:gather()});
+    msg(''); clearLayer(); const o=$('out'); o.innerHTML='';
+    if(!res.available){o.innerHTML='<div class="box warn"><b>No map for this.</b><br>'+esc(res.reason)+'</div>';return}
+    const b=res.bounds;
+    layerEnt=viewer.entities.add({rectangle:{coordinates:Cesium.Rectangle.fromDegrees(b.west,b.south,b.east,b.north),material:new Cesium.ImageMaterialProperty({image:'data:image/png;base64,'+res.image_png_b64,transparent:true,color:Cesium.Color.WHITE.withAlpha(+$('op').value)}),classificationType:Cesium.ClassificationType.BOTH}});
+    flyAt((b.south+b.north)/2,(b.west+b.east)/2,(b.north-b.south)*111000,(b.north-b.south)*111000*1.25);
+    let html='<div class="box"><b>'+esc(res.title)+'</b><div class="muted" style="margin:3px 0 6px">'+esc(res.unit_note)+'</div>';
+    res.legend.forEach(l=>{html+='<div class="lg" data-l="'+esc(l.label)+'" data-c="'+(l.color||'')+'"><span class="sw" style="background:'+(l.color||'transparent')+'"></span>'+esc(l.label)+'</div>'});
+    html+='</div>'; o.innerHTML=html;
+    o.insertAdjacentHTML('beforeend','<div class="box">'+shareHTML('Whole box',res.shares_box)+shareHTML('Inside your study area',res.shares_study_area)+(polygons?'':'<div class="muted" style="margin-top:6px">Upload or draw a study area to get its own shares.</div>')+'</div>');
+    o.insertAdjacentHTML('beforeend','<div class="box"><b>Method</b><div class="muted">'+esc(res.method)+'</div><div style="margin-top:5px"><b>Validation</b> <span class="'+(/not validated|verified only/.test(res.validated)?'warn':'ok')+'">'+esc(res.validated)+'</span></div><div style="margin-top:5px"><b>Caveats</b><ul>'+res.caveats.map(c=>'<li>'+esc(c)+'</li>').join('')+'</ul></div></div>');
+  }catch(e){ msg(''); $('out').innerHTML='<div class="box bad">'+esc(String(e.message||e).slice(0,400))+'</div>'; }
+  finally{ $('run').disabled=false; }
+}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+
+$('ex').oninput=()=>{$('exv').textContent=$('ex').value; if(viewer) viewer.scene.verticalExaggeration=+$('ex').value};
+$('rad').oninput=()=>$('rv').textContent=$('rad').value; $('run').onclick=run; $('fly').onclick=fly;
+$('op').oninput=()=>{ if(layerEnt&&layerEnt.rectangle.material){layerEnt.rectangle.material.color=Cesium.Color.WHITE.withAlpha(+$('op').value)} };
+$('up').onclick=()=>$('file').click();
+$('file').onchange=async e=>{
+  const f=e.target.files[0]; if(!f) return; const fd=new FormData(); fd.append('file',f);
+  try{ const r=await fetch(API+'/hazard3d/study-area',{method:'POST',headers:AH,body:fd}); const j=await r.json(); if(!r.ok) throw new Error(j.detail||'upload failed');
+    setSA(j.polygons.length?j.polygons:null,(j.polygons.length?j.polygons.length+' polygon(s), '+j.area_km2+' km2':'a point, no boundary')+' ('+j.source+')'+(j.notes&&j.notes.length?'. '+j.notes.join('; '):''));
+    $('lat').value=j.centroid[0].toFixed(5); $('lon').value=j.centroid[1].toFixed(5); fly();
+  }catch(err){ $('saInfo').innerHTML='<span class="bad">'+esc(err.message)+'</span>' }
+  e.target.value='';
+};
+$('draw').onclick=()=>{
+  if(drawing){finishDraw();return}
+  drawPts=[]; $('draw').textContent='Finish (double-click)'; msg('Click points around the study area; double-click to finish.');
+  drawing=new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+  const pick=pos=>{let c=viewer.scene.pickPositionSupported?viewer.scene.pickPosition(pos):null; if(!c||!Cesium.defined(c)) c=viewer.camera.pickEllipsoid(pos); return c};
+  drawing.setInputAction(m=>{const c=pick(m.position); if(!c) return; const g=Cesium.Cartographic.fromCartesian(c); drawPts.push([Cesium.Math.toDegrees(g.longitude),Cesium.Math.toDegrees(g.latitude)]); polygons=drawPts.length>=3?[drawPts.slice()]:null; clearSA();
+    drawPts.forEach(p=>saEnts.push(viewer.entities.add({position:Cesium.Cartesian3.fromDegrees(p[0],p[1]),point:{pixelSize:7,color:Cesium.Color.fromCssColorString('#ff8f00'),heightReference:Cesium.HeightReference.CLAMP_TO_GROUND}})));
+    if(drawPts.length>=3) saEnts.push(viewer.entities.add({polyline:{positions:Cesium.Cartesian3.fromDegreesArray(drawPts.flat().concat(drawPts[0])),width:3,material:Cesium.Color.fromCssColorString('#ff8f00'),clampToGround:true,classificationType:Cesium.ClassificationType.BOTH}}));
+  },Cesium.ScreenSpaceEventType.LEFT_CLICK);
+  drawing.setInputAction(()=>finishDraw(),Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
+};
+function finishDraw(){
+  if(drawing){drawing.destroy();drawing=null} $('draw').textContent='Draw on map'; msg('');
+  if(drawPts.length>=3){ polygons=[drawPts.slice(0,drawPts.length)]; drawSA(); const lat=drawPts.reduce((a,p)=>a+p[1],0)/drawPts.length, lon=drawPts.reduce((a,p)=>a+p[0],0)/drawPts.length; $('lat').value=lat.toFixed(5); $('lon').value=lon.toFixed(5); $('saInfo').textContent='Drawn polygon, '+drawPts.length+' points'; }
+  else { polygons=null; clearSA(); $('saInfo').textContent='Need at least 3 points.' }
+}
+$('gsave').onclick=async()=>{ try{ await jpost('/hazard3d/config',{google_maps_key:$('gk').value}); $('gk').value=''; location.reload() }catch(e){ msg(String(e.message).slice(0,200),5000) } };
+$('gclear').onclick=async()=>{ await jpost('/hazard3d/config',{google_maps_key:''}).catch(()=>{}); location.reload() };
+loadCatalogue().then(initViewer).catch(e=>msg('Could not start: '+e.message));
+})();
+</script></body></html>

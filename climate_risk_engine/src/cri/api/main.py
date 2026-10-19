@@ -216,6 +216,11 @@ for _m in _ext.modules():
         for _r in _m.make_router(_AUTH):
             app.include_router(_r)
 
+from .hazard3d_api import make_router as _h3d_router   # noqa: E402
+_h3_prot, _h3_pub = _h3d_router(_AUTH)
+app.include_router(_h3_pub)
+app.include_router(_h3_prot)
+
 from ..story_api import make_router as _story_router   # noqa: E402
 _st_prot, _st_pub = _story_router(_AUTH)
 app.include_router(_st_pub)
