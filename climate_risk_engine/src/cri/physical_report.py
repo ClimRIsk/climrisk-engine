@@ -16,6 +16,7 @@ Ratings are hazard-intensity ratings with stated thresholds, not damage percenta
 """
 from __future__ import annotations
 
+import os
 import base64
 import html as _html
 import io
@@ -545,6 +546,31 @@ def build_asset_report(lat: float, lon: float, name: Optional[str] = None, secto
         zones.append({"key": "surface_water", "title": "Surface-water and observed flooding", "rating": ff["severity"],
                       "zone": ff.get("summary") or _zone_from_finding(ff, "surface-water flooding"),
                       "facts": _ev_facts(ff), "trend": None, "_finding": ff})
+
+    # rain-on-grid model: a second opinion that can only RAISE the surface-water rating (its rank skill is modest, see docs/PLUVIAL_BENCHMARK.md)
+    if os.environ.get("CRI_PLUVIAL", "1") != "0":
+        try:
+            from .finance import pluvial as _pl
+            pv = _pl.site_pluvial(lat, lon, rp=100, radius_km=0.6, cell_cap=160)
+        except Exception:                                   # noqa: BLE001
+            pv = {"available": False}
+        if pv.get("available"):
+            fact = {"metric": "Modelled 1-in-100 rain-on-ground depth at the pin", "value": f"{pv['depth_m']:.2f}", "unit": "m",
+                    "source": f"Local-inertial shallow-water model on {pv['terrain_source'][:48]}, {pv['cell_m']:.0f} m cells; design rain {pv['storm_mm']:.0f} mm in {pv['storm_hours']:.0f} h "
+                              f"(ERA5 daily 1-in-100 {pv['daily_rp_mm']:.0f} mm x {pv['storm_share_of_daily']:.2f}); sewer allowance {pv['drainage_allowance_mm_h']:.0f} mm/h on built-up ground"}
+            sw = next((z for z in zones if z["key"] == "surface_water"), None)
+            note = ("Rain-on-ground screen: ERA5 daily rain smooths short convective bursts and sewers, culverts and buildings are not resolved, so a shallow or dry result is not a "
+                    "clean bill; rank skill against recorded English surface-water outlines is modest.")
+            if sw is None:
+                zones.append({"key": "surface_water", "title": "Surface-water and observed flooding", "rating": pv["rating"],
+                              "zone": f"Rain-on-ground model: about {pv['depth_m']:.2f} m of water at the pin in a 1-in-100 storm. {note}", "facts": [fact], "trend": None,
+                              "rating_basis": "rain-on-grid model"})
+            else:
+                sw["facts"] = list(sw.get("facts") or []) + [fact]
+                if sw.get("rating") is None or _lv(pv["rating"]) > _lv(sw["rating"]):
+                    sw["rating"] = pv["rating"]
+                    sw["rating_basis"] = "rain-on-grid model"
+                    sw["zone"] = f"Rain-on-ground model: about {pv['depth_m']:.2f} m of water at the pin in a 1-in-100 storm. {note} " + (sw.get("zone") or "")
 
     # cyclone
     tcf = findings.get("tropical_cyclone")

@@ -223,7 +223,7 @@ def test_lidar_outside_england_and_netherlands_returns_nothing_and_never_touches
 def test_lidar_failure_falls_back_to_none_not_an_error(monkeypatch, tmp_path):
     from cri.connectors import lidar_dem as L
     monkeypatch.setattr(L, "CACHE", tmp_path)
-    L._FAILED.clear()
+    L._FAILED.clear(); L._DOWN.clear()
     monkeypatch.setattr(L, "_get", lambda *a, **k: b"<ServiceException>boom</ServiceException>")
     assert L.try_grid(54.9, -2.93, 1.0) is None
 
@@ -262,3 +262,42 @@ def test_seismic_uses_hazard_model_in_us_and_catalogue_elsewhere_and_fails_to_no
     # a US point whose hazard service fails falls back to the labelled catalogue screen instead of pretending to have a model
     fb = SH.site_seismic(34.05, -118.25, fetch=lambda url: (_ for _ in ()).throw(OSError("x")) if "nshmp" in url else "12")
     assert fb["available"] and "seismicity screen" in fb["method"]
+
+
+# ---- surface-water (rain-on-grid) model ---------------------------------------------------------------------------------------------------------
+def _bowl_dem():
+    """Flat 20 m plain with a 1.5 m deep closed bowl in the middle: rain must pond there and nowhere else."""
+    from types import SimpleNamespace
+    z = np.full((60, 60), 20.0)
+    yy, xx = np.mgrid[0:60, 0:60]
+    r = np.hypot(yy - 30, xx - 30)
+    z -= np.clip(1.5 * (1 - r / 8.0), 0, None)
+    z += 0.002 * xx                                           # a faint tilt so the plain drains out of the window
+    return SimpleNamespace(elevations=z, cell_size_m=10.0, asset_row=30, asset_col=30, source="LiDAR test grid")
+
+
+def test_pluvial_ponds_in_a_bowl_and_conserves_mass():
+    from cri.finance.pluvial import site_pluvial
+    r = site_pluvial(51.0, -1.0, rp=100, dem=_bowl_dem(), daily_rain_mm=120.0, builtup=0.0, keep_grids=True)
+    assert r["available"] and r["depth_m"] > 0.05 and r["mass_error"] < 1e-6
+    h = r["_h_max"]
+    assert h[30, 30] > h[5, 5]                                # ponding in the bowl, thinner sheet on the plain
+
+
+def test_pluvial_more_rain_is_not_less_water():
+    from cri.finance.pluvial import site_pluvial
+    a = site_pluvial(51.0, -1.0, dem=_bowl_dem(), daily_rain_mm=60.0, builtup=0.3)["depth_m"]
+    b = site_pluvial(51.0, -1.0, dem=_bowl_dem(), daily_rain_mm=160.0, builtup=0.3)["depth_m"]
+    assert b >= a
+
+
+def test_pluvial_sewers_remove_light_rain_on_built_ground():
+    from cri.finance.pluvial import site_pluvial
+    wet = site_pluvial(51.0, -1.0, dem=_bowl_dem(), daily_rain_mm=25.0, builtup=1.0)["runoff_mm"]
+    assert wet == 0.0 or wet < 25.0 * 0.35                    # 1-h share of 25 mm is under the 12 mm/h sewer allowance
+
+
+def test_pluvial_failure_is_not_assessed_not_zero():
+    from cri.finance.pluvial import site_pluvial
+    r = site_pluvial(float("nan"), 0.0)
+    assert r["available"] is False and "depth_m" not in r

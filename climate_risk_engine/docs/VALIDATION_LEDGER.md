@@ -31,3 +31,7 @@ One row per hazard or model. "Tested against" means independent observations the
 - The engine's advantage is breadth and honesty: eight perils in one report, each labelled with what it cannot see, and a "not assessed" instead of a clean zero. It is the stage before the specialist study, and the Oasis import/export is the route to plug in a specialist model's output.
 - Open LiDAR is now used wherever it exists for free (England 1 m, Netherlands 0.5 m). It improved flood ranking sharply in England (see above), and is the template for other countries: add a source to `connectors/lidar_dem.py` and re-run `scripts/lidar_flood_benchmark.py`-style tests for that country before trusting it.
 - The accuracy gap to close first, by commercial importance: (1) insured-loss validation against a named event or claims, (2) sector-specific vulnerability, (3) surface-water flood, (4) small and mid-size river flood.
+
+
+## Surface-water (rain-on-grid) model
+- Evidence: `docs/PLUVIAL_BENCHMARK.md` — AUC 0.64–0.71 on LiDAR in 3 English towns (0.46–0.63 on global tiles); a plain height-above-local-low score beat it at 2 of 3 towns. Grade: **screening, modest skill; can only raise a rating**.
