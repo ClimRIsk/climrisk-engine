@@ -76,6 +76,8 @@ class ElevationGrid:
     asset_row:  int
     asset_col:  int
     elevations: np.ndarray     # shape (rows, cols), dtype float64, metres
+    source:     str = "AWS Terrarium tiles (global composite, about 10-30 m; includes buildings and canopy in places)"
+    native_res_m: Optional[float] = None
 
 
 # ---------------------------------------------------------------------------
@@ -193,6 +195,13 @@ def get_elevation_grid(
     # ------------------------------------------------------------------ #
     # 1. Compute bounding box in degrees
     # ------------------------------------------------------------------ #
+    try:                                            # open airborne LiDAR bare earth (England, Netherlands) beats the global tiles wherever it exists
+        from .lidar_dem import try_grid as _lidar
+        _lg = _lidar(lat, lon, radius_km)
+        if _lg is not None:
+            return _lg
+    except Exception:                               # noqa: BLE001
+        pass
     _MERC = 85.0511                                 # Web-Mercator tile coverage limit
     if not (math.isfinite(lat) and math.isfinite(lon)) or abs(lat) + radius_km / 111.32 > _MERC:
         raise ValueError(f"({lat}, {lon}) is outside the terrain-tile coverage (|latitude| must stay below {_MERC} degrees "

@@ -1,0 +1,127 @@
+"""National airborne-LiDAR bare-earth terrain, used instead of the global 10-30 m tiles wherever it is open.
+
+Covered today (both keyless, open licence, WCS 2.0.1 GeoTIFF):
+  England  - Environment Agency LIDAR Composite DTM 1 m (Open Government Licence v3), EPSG:27700
+  Netherlands - AHN DTM 0.5 m (PDOK / Rijkswaterstaat, CC0), EPSG:28992
+Anything else, any failure, or CRI_LIDAR=0 returns None and the caller keeps the global tiles. The grid says which source it came from.
+
+Why it matters: LiDAR bare earth resolves kerbs, embankments, dikes and floodplain steps that 30 m global terrain smooths away, which is what decides
+whether a river or surge reaches a building. The box is fetched at most ~800 cells wide (so 5-6 m cells at a 2.5 km radius, 1 m cells under 0.4 km).
+The projected grid is treated as north-up (grid convergence is under 2 degrees in both countries).
+"""
+from __future__ import annotations
+
+import hashlib
+import logging
+import math
+import os
+import urllib.parse
+import urllib.request
+from pathlib import Path
+from typing import Optional
+
+import numpy as np
+
+log = logging.getLogger(__name__)
+CACHE = Path.home() / ".cache" / "climrisk" / "lidar"
+_FAILED: set = set()
+
+SOURCES = {
+    "england": {
+        "label": "Environment Agency LIDAR Composite DTM 1 m (England, Open Government Licence v3)", "native_m": 1.0, "epsg": 27700,
+        "bbox": (49.8, 55.9, -6.5, 1.9),
+        "url": "https://environment.data.gov.uk/spatialdata/lidar-composite-digital-terrain-model-dtm-1m-2022/wcs",
+        "cov": "13787b9a-26a4-4775-8523-806d13af58fc__Lidar_Composite_Elevation_DTM_1m", "axes": ("E", "N"),
+    },
+    "netherlands": {
+        "label": "AHN DTM 0.5 m (Netherlands, Rijkswaterstaat, CC0)", "native_m": 0.5, "epsg": 28992,
+        "bbox": (50.7, 53.6, 3.2, 7.4),
+        "url": "https://service.pdok.nl/rws/ahn/wcs/v1_0", "cov": "dtm_05m", "axes": ("x", "y"),
+    },
+}
+
+
+def _which(lat: float, lon: float) -> Optional[str]:
+    for k, s in SOURCES.items():
+        a, b, c, d = s["bbox"]
+        if a <= lat <= b and c <= lon <= d:
+            return k
+    return None
+
+
+def _get(url: str, timeout: float = 60.0) -> bytes:
+    req = urllib.request.Request(url, headers={"User-Agent": "ClimRisk/1.0 (climate risk research)"})
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return r.read()
+
+
+def _grid_from_bytes(raw: bytes, key: str, lat: float, lon: float, radius_km: float, centre_en: tuple):
+    import rasterio
+    from rasterio.io import MemoryFile
+    from .terrain_tiles import ElevationGrid
+    with MemoryFile(raw) as mf, mf.open() as ds:
+        a = ds.read(1).astype(np.float64)
+        t = ds.transform
+        res = abs(t.a)
+    a[(a < -500) | (a > 9000) | ~np.isfinite(a)] = np.nan
+    if np.isnan(a).mean() > 0.85:
+        return None
+    row = int((t.f - centre_en[1]) / res)
+    col = int((centre_en[0] - t.c) / res)
+    if not (0 <= row < a.shape[0] and 0 <= col < a.shape[1]):
+        return None
+    if np.isnan(a[row, col]):                                   # pin on masked ground (water, or just outside the survey): nearest valid cell within 25 m
+        k = max(1, int(25 / res))
+        win = a[max(0, row - k): row + k + 1, max(0, col - k): col + k + 1]
+        if np.isnan(win).all():
+            return None
+    src = SOURCES[key]
+    g = ElevationGrid(lat=lat, lon=lon, radius_km=radius_km, cell_size_m=float(res), rows=a.shape[0], cols=a.shape[1], asset_row=row, asset_col=col, elevations=a)
+    g.source = src["label"]
+    g.native_res_m = src["native_m"]
+    return g
+
+
+def try_grid(lat: float, lon: float, radius_km: float):
+    """An ElevationGrid from open LiDAR, or None (not covered, disabled, or any failure)."""
+    if os.environ.get("CRI_LIDAR", "1") == "0" or not (math.isfinite(lat) and math.isfinite(lon)):
+        return None
+    key = _which(lat, lon)
+    if key is None:
+        return None
+    ck = (key, round(lat, 3), round(lon, 3), round(radius_km, 2))
+    if ck in _FAILED:
+        return None
+    s = SOURCES[key]
+    try:
+        from pyproj import Transformer
+        e, n = Transformer.from_crs(4326, s["epsg"], always_xy=True).transform(lon, lat)
+        half = radius_km * 1000.0
+        target = max(s["native_m"], 2.0 * half / 800.0)
+        sf = round(s["native_m"] / target, 4)
+        ax, ay = s["axes"]
+        x0, x1, y0, y1 = int(e - half), int(e + half), int(n - half), int(n + half)
+        q = (f"service=WCS&version=2.0.1&request=GetCoverage&coverageId={urllib.parse.quote(s['cov'])}"
+             f"&subset={ax}({x0},{x1})&subset={ay}({y0},{y1})" + (f"&scalefactor={sf}" if sf < 1 else "") + "&format=image/tiff")
+        url = s["url"] + "?" + q
+        p = CACHE / (hashlib.md5(url.encode()).hexdigest() + ".tif")
+        if p.exists():
+            raw = p.read_bytes()
+        else:
+            raw = _get(url)
+            if raw[:4] not in (b"II*\x00", b"MM\x00*"):
+                raise ValueError("service did not return a GeoTIFF: " + raw[:120].decode("utf-8", "replace"))
+            try:
+                CACHE.mkdir(parents=True, exist_ok=True)
+                p.write_bytes(raw)
+            except Exception:                                   # noqa: BLE001
+                pass
+        # the box origin is (x0, y1) at the top-left; re-derive the asset cell from the returned transform
+        g = _grid_from_bytes(raw, key, lat, lon, radius_km, (e, n))
+        if g is None:
+            _FAILED.add(ck)
+        return g
+    except Exception as exc:                                    # noqa: BLE001
+        log.warning("LiDAR terrain unavailable at (%g, %g): %s; falling back to global tiles", lat, lon, str(exc)[:160])
+        _FAILED.add(ck)
+        return None

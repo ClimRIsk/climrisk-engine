@@ -5,8 +5,9 @@ One row per hazard or model. "Tested against" means independent observations the
 | Model | Tested against | Result | Grade |
 |---|---|---|---|
 | Flood ranking (terrain, event-trained) | Copernicus EMS flood extents (72 events), EA recorded outlines (216 windows) | AUC 0.76 / 0.81 (old rule 0.55 / 0.57). Ranks places within flood landscapes; not a depth or a probability | B |
+| Flood ranking with open LiDAR (England; new, `LIDAR_FLOOD_BENCHMARK.md`) | EA Recorded Flood Outlines, 12 flooded towns, same points scored on both terrains | HAND AUC median 0.96 (LiDAR) vs 0.76 (global tiles); better in all 12. Not independent of how thresholds were set; England only | B+ (England), not available elsewhere |
 | River flood depth maps (JRC GloFAS, third-party) | Event spot checks only | Right at Ayutthaya 2011 and Buffalo Bayou 2017; 0 m at the Ahr 2021; dry at several large-river city pins | D (small and mid rivers) |
-| Coastal flood depth (Deltares, third-party) | Spot checks | Dry on built-up and island ground; engine adds an elevation floor, itself unvalidated | C |
+| Coastal flood depth (Deltares, third-party) | Spot checks | Dry on built-up and island ground; engine adds an elevation floor, itself unvalidated. Dutch 0.5 m LiDAR now supplies ground height there (Rotterdam: 0.5 m against 6.4 m from the global tiles) | C |
 | Flood depth-damage curve | 279,517 NFIP claims | Engine 1.5-2.4x observed residential damage above 0.5 m; no industrial data exists | B (residential), C (industrial) |
 | Cyclone wind hazard | 148 station-storm pairs | r 0.53, 63 % within +-30 %, weak in the West Pacific | B |
 | Cyclone to loss (learned) | 61 US storms, leave-one-out | Median error factor 2.3 vs 4.0 for guessing; rain/surge storms under-predicted ~10x | B |
@@ -15,16 +16,18 @@ One row per hazard or model. "Tested against" means independent observations the
 | WBGT / UTCI | Station inputs through the same solver | Method matches reference code; no measured WBGT archive exists | B |
 | Drought (soil-water model) | US Drought Monitor, 26 counties | ROC 0.70 vs 0.64 for rain deficit; irrigated and non-US untested | B |
 | Fire-weather index | Canadian large-fire database | ROC 0.75, no better than temperature alone; FWI >= 30 days carry ~4.7x risk. Arithmetic matches the NRCan reference record exactly. Daily extremes as inputs inflate day counts at Mediterranean sites | B (Canada only) |
+| Earthquake (new) | Not tested here | US: USGS National Seismic Hazard Model 2018 curves (published, peer-reviewed model; PGA on rock). Elsewhere: recorded-seismicity count only, which misses unruptured faults and gives no ground motion | B (US, as published), C (elsewhere) |
 | Landslide susceptibility | NASA landslide catalogue, 40 events | AUC 0.57-0.85, mean 0.71; slope ranking only | B |
 | Sea-level rise | AR6 projections, backtest to tide gauge | Method checks pass; regional multiplier default without coordinates | B |
 | Air quality | 65 monitors | Daily r 0.58; plume screen not validated | B / C |
 | Water stress (WRI Aqueduct) | Not re-tested | Published indicator, basin scale | C |
 | Insurer correlation, terms, reinsurance | None | Assumed decay lengths; no claims | C |
 | Offshore wind return levels, damage curve | None | Not checked against buoys; placeholder curve | C |
-| Hail, convective storm, BI, supply chain, surface-water flood, earthquake loss | None | Not modelled | not built |
+| Hail, convective storm, BI, supply chain, surface-water flood, earthquake loss (damage) | None | Not modelled (earthquake shaking hazard is now in; damage is not) | not built |
 
 ## What this says
 - The engine is a **ranking and triage tool**. Where it has been tested, it separates hazardous from non-hazardous places better than a naive rule (AUC 0.7-0.8, correlation 0.5-0.6), and for the hazards tested it is far from random. None of that is the accuracy of a calibrated site model.
 - A specialist model for one hazard (a 2D hydraulic model calibrated to gauges on surveyed LiDAR with local defences, a basin-specific wildfire spread model, an event-based CAT model fitted to claims) will beat the engine on depth, extent, timing and tail loss at the site it was built for. The engine cannot claim parity, and does not use those inputs.
 - The engine's advantage is breadth and honesty: eight perils in one report, each labelled with what it cannot see, and a "not assessed" instead of a clean zero. It is the stage before the specialist study, and the Oasis import/export is the route to plug in a specialist model's output.
+- Open LiDAR is now used wherever it exists for free (England 1 m, Netherlands 0.5 m). It improved flood ranking sharply in England (see above), and is the template for other countries: add a source to `connectors/lidar_dem.py` and re-run `scripts/lidar_flood_benchmark.py`-style tests for that country before trusting it.
 - The accuracy gap to close first, by commercial importance: (1) insured-loss validation against a named event or claims, (2) sector-specific vulnerability, (3) surface-water flood, (4) small and mid-size river flood.

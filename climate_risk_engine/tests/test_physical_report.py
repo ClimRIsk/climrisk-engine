@@ -20,6 +20,11 @@ def _offline_heat_and_coast(monkeypatch):
     from cri.finance import heat_hazard
     monkeypatch.setattr(heat_hazard, "site_heat", lambda lat, lon, fetch=None: {
         "available": True, "rating": "MODERATE", "days_ge_35": 20.0, "days_ge_40": 2.0, "annual_max_mean_c": 38.0, "record_max_c": 41.0, "years": "1994-2023", "n_years": 30})
+    from cri.finance import seismic_hazard
+    monkeypatch.setattr(seismic_hazard, "site_seismic", lambda lat, lon, vs30=760, fetch=None: {"available": True, "method": "seismicity screen (recorded earthquakes)",
+        "m55_within_150km_since_1973": 0, "rate_per_year": 0.0, "rating": "NEGLIGIBLE", "source": "test catalogue"})
+    from cri.terrain import lidar_flood
+    monkeypatch.setattr(lidar_flood, "flood_position", lambda lat, lon, radius_km=2.5: {"available": False, "reason": "test: LiDAR not used"})
     from cri.modellab import slr
     monkeypatch.setattr(slr, "coast_info", lambda *a, **k: {"elevation_m": 4.0, "sea_km": None, "sea_bearing": None})
 

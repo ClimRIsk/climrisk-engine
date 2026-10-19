@@ -9,10 +9,10 @@ zones: river_flood, coastal_flood, surface_water, cyclone, wildfire, heat, slope
 """
 SITES = {
  # name: (lat, lon, {zone: {"min": R} or {"max": R}}, why)
- "miami":        (25.76, -80.19, {"cyclone": {"min": "HIGH"}, "coastal_flood": {"min": "MODERATE"}}, "Hurricane Andrew 1992, Irma 2017; one of the most sea-level-exposed cities"),
+ "miami":        (25.76, -80.19, {"cyclone": {"min": "HIGH"}, "coastal_flood": {"min": "MODERATE"}, "earthquake": {"max": "LOW"}}, "Hurricane Andrew 1992, Irma 2017; one of the most sea-level-exposed cities"),
  "new_orleans":  (29.95, -90.07, {"cyclone": {"min": "MODERATE"}, "coastal_flood": {"min": "MODERATE"}}, "Katrina 2005; city below sea level behind levees"),
- "houston":      (29.76, -95.37, {"cyclone": {"min": "MODERATE"}, "river_flood": {"min": "MODERATE"}}, "Harvey 2017 flooding; Gulf cyclone region"),
- "rotterdam":    (51.92, 4.48,   {"cyclone": {"max": "NEGLIGIBLE"}, "coastal_flood": {"max": "LOW"}, "river_flood": {"max": "LOW"}}, "no tropical cyclones; 1-in-10,000 year dike standard"),
+ "houston":      (29.76, -95.37, {"cyclone": {"min": "MODERATE"}, "river_flood": {"min": "MODERATE"}, "earthquake": {"max": "LOW"}}, "Harvey 2017 flooding; Gulf cyclone region"),
+ "rotterdam":    (51.92, 4.48,   {"cyclone": {"max": "NEGLIGIBLE"}, "coastal_flood": {"max": "LOW"}, "river_flood": {"max": "LOW"}, "earthquake": {"max": "LOW"}}, "no tropical cyclones; 1-in-10,000 year dike standard"),
  "dhaka":        (23.81, 90.41,  {"river_flood": {"min": "MODERATE"}, "cyclone": {"min": "LOW"}}, "Ganges-Brahmaputra-Meghna floodplain; Bay of Bengal cyclones"),
  "jakarta":      (-6.21, 106.85, {"coastal_flood": {"min": "MODERATE"}, "cyclone": {"max": "NEGLIGIBLE"}}, "land subsidence and tidal flooding; equatorial (no cyclones)"),
  "bangkok":      (13.75, 100.50, {"river_flood": {"min": "MODERATE"}}, "2011 Chao Phraya floods"),
@@ -23,20 +23,25 @@ SITES = {
  "chennai":      (13.08, 80.27,  {"river_flood": {"min": "MODERATE"}, "cyclone": {"min": "MODERATE"}}, "2015 Chennai floods; NE-monsoon cyclones"),
  "mumbai":       (19.08, 72.88,  {"coastal_flood": {"min": "LOW"}}, "2005 Mumbai floods; low-lying coast"),
  "manila":       (14.60, 120.98, {"cyclone": {"min": "HIGH"}}, "western-Pacific typhoon belt (Haiyan, Ketsana)"),
- "tokyo":        (35.68, 139.77, {"cyclone": {"min": "MODERATE"}}, "typhoon landfalls (Faxai, Hagibis 2019)"),
- "singapore":    (1.35, 103.82,  {"cyclone": {"max": "LOW"}}, "1.4 N: essentially no tropical-cyclone hazard (Typhoon Vamei 2001 was a freak exception)"),
- "reykjavik":    (64.15, -21.90, {"heat": {"max": "NEGLIGIBLE"}, "wildfire": {"max": "NEGLIGIBLE"}, "cyclone": {"max": "NEGLIGIBLE"}}, "sub-arctic oceanic climate"),
+ "tokyo":        (35.68, 139.77, {"cyclone": {"min": "MODERATE"}, "earthquake": {"min": "HIGH"}}, "typhoon landfalls (Faxai, Hagibis 2019)"),
+ "singapore":    (1.35, 103.82,  {"cyclone": {"max": "LOW"}, "earthquake": {"max": "LOW"}}, "1.4 N: essentially no tropical-cyclone hazard (Typhoon Vamei 2001 was a freak exception)"),
+ "reykjavik":    (64.15, -21.90, {"heat": {"max": "NEGLIGIBLE"}, "wildfire": {"max": "NEGLIGIBLE"}, "cyclone": {"max": "NEGLIGIBLE"}, "earthquake": {"min": "MODERATE"}}, "sub-arctic oceanic climate"),
  "phoenix":      (33.45, -112.07, {"heat": {"min": "HIGH"}, "water": {"min": "HIGH"}, "cyclone": {"max": "NEGLIGIBLE"}, "coastal_flood": {"max": "NEGLIGIBLE"}}, "Sonoran desert: 40 C+ summers, Colorado River dependence"),
- "riyadh":       (24.71, 46.68,  {"heat": {"min": "HIGH"}, "water": {"min": "HIGH"}, "cyclone": {"max": "NEGLIGIBLE"}}, "hyper-arid; 45 C+ summers"),
+ "riyadh":       (24.71, 46.68,  {"heat": {"min": "HIGH"}, "water": {"min": "HIGH"}, "cyclone": {"max": "NEGLIGIBLE"}, "earthquake": {"max": "LOW"}}, "hyper-arid; 45 C+ summers"),
  "delhi":        (28.61, 77.21,  {"heat": {"min": "HIGH"}, "water": {"min": "HIGH"}}, "pre-monsoon heatwaves above 45 C; severe water stress"),
  "kuwait_city":  (29.38, 47.99,  {"heat": {"min": "HIGH"}, "coastal_flood": {"max": "LOW"}}, "among the hottest cities on Earth (50 C+)"),
- "pasadena_fire":(34.18, -118.15, {"wildfire": {"min": "MODERATE"}}, "San Gabriel foothills: Station Fire 2009, Eaton Fire 2025"),
+ "pasadena_fire":(34.18, -118.15, {"wildfire": {"min": "MODERATE"}, "earthquake": {"min": "HIGH"}}, "San Gabriel foothills: Station Fire 2009, Eaton Fire 2025"),
  "blue_mountains":(-33.72, 150.31, {"wildfire": {"min": "HIGH"}}, "Black Summer 2019-20"),
- "kathmandu":    (27.72, 85.32,  {"slope": {"min": "MODERATE"}}, "steep Himalayan terrain, monsoon landslides"),
+ "kathmandu":    (27.72, 85.32,  {"slope": {"min": "MODERATE"}, "earthquake": {"min": "MODERATE"}}, "steep Himalayan terrain, monsoon landslides"),
  "death_valley": (36.46, -116.87, {"heat": {"min": "HIGH"}, "cyclone": {"max": "NEGLIGIBLE"}}, "world record air temperature 56.7 C"),
  "venice":       (45.44, 12.33,  {"coastal_flood": {"min": "MODERATE"}}, "acqua alta (2019 peak 1.87 m)"),
  "funafuti":     (-8.52, 179.20, {"coastal_flood": {"min": "MODERATE"}}, "atoll, highest ground ~4 m"),
  "male":         (4.18, 73.51,   {"coastal_flood": {"min": "MODERATE"}}, "Maldives, average elevation ~1.5 m"),
+ "christchurch": (-43.53, 172.64, {"earthquake": {"min": "HIGH"}}, "2010 Darfield and 2011 Christchurch earthquakes"),
+ # England, where open 1 m LiDAR exists. These towns are also in scripts/lidar_flood_benchmark.py, from which the LiDAR band thresholds come: not independent of it.
+ "carlisle":     (54.8878, -2.9547, {"river_flood": {"min": "MODERATE"}}, "Storm Desmond, Dec 2015: Caldew and Eden floods (Denton Holme)"),
+ "cockermouth":  (54.6635, -3.3646, {"river_flood": {"min": "MODERATE"}}, "Nov 2009 and Dec 2015 floods at the Cocker/Derwent confluence"),
+ "tewkesbury":   (51.9937, -2.1605, {"river_flood": {"min": "MODERATE"}}, "July 2007 Severn/Avon floods"),
 }
 
 

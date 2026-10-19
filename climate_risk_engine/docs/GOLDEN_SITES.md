@@ -5,7 +5,9 @@
 climatology, **not** from the engine's output. The physical-risk report was run at each site with the network available and the zone
 ratings frozen in `tests/golden/snapshot_2026-10-19.json`.
 
-## Result: 38 of 46 expectations met (83 %), 8 missed (was 28 of 46, 61 %, before the fixes of the same day)
+## Result: 51 of 59 expectations met (86 %), 8 missed (was 28 of 46, 61 %, at the start of the day)
+
+Later the same day: open LiDAR terrain (England 1 m, Netherlands 0.5 m) and a floodplain-position screen were added, three English flood towns joined the set (all met), and an earthquake zone was added (USGS hazard model in the US, recorded-seismicity screen elsewhere; 11 new expectations, all met). The English towns are not independent of the LiDAR benchmark that set the thresholds. The remaining eight misses are listed in `KNOWN_GAPS`.
 
 | Zone | Met | Missed | Why it misses / what changed |
 |---|---|---|---|

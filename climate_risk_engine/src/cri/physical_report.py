@@ -240,7 +240,12 @@ AGE_NOTES = {
     "fire": "Older cladding, roof voids and ventilation openings are more likely to let embers in.",
     "heat": "Cooling and ventilation plant is sized to historical design temperatures and loses capacity with age.",
     "water": "Older plant tends to be less water-efficient and harder to retrofit.",
+    "quake": "Structures built before modern seismic codes (roughly before the 1970s in most countries) usually lack ductile detailing and tied connections, and anchorage of tanks, stacks and equipment is often original.",
 }
+
+QUAKE_TEXT = ("Strong ground shaking damages brittle or poorly tied structures first. Tall slender items (stacks, towers, silos), tanks and vessels on weak anchorage, "
+              "piping between differently supported equipment, switchgear and control rooms, and unreinforced masonry are the usual failure points; a shaking-induced "
+              "power or utility loss can stop a site that is structurally intact.")
 
 
 def profile_key(sector: Optional[str], atype: Optional[str]) -> str:
@@ -458,6 +463,24 @@ def build_asset_report(lat: float, lon: float, name: Optional[str] = None, secto
                       "zone": "Not assessed: " + (riv.get("reason") or "no river flood map covers this location") + ".",
                       "facts": []})
 
+    # LiDAR floodplain position (England): where the 10-30 m global terrain and the 1 km river map are blind, a 1 m bare-earth DEM is not
+    try:
+        from .terrain.lidar_flood import flood_position as _fp
+        _lf = _fp(lat, lon)
+    except Exception as _e:                                 # noqa: BLE001
+        _lf = {"available": False, "reason": type(_e).__name__}
+    _rz = next((z for z in zones if z["key"] == "river_flood"), None)
+    if _lf.get("available") and _rz is not None:
+        _rz.setdefault("facts", []).append(_f("Height above nearest drainage (LiDAR)", f"{_lf['hand_m']:.1f} m", _lf["source"]))
+        _fl = _lf.get("floor")
+        if _fl and _lv(_fl) > _lv(_rz.get("rating") or "NEGLIGIBLE"):
+            _rz["zone"] = (f"Terrain floodplain screen, not a modelled flood depth: open LiDAR puts the site {_lf['hand_m']:.1f} m above the nearest drainage channel. "
+                           f"In a test on 12 flooded English towns, 79-95 % of sampled points lower than 5 m above drainage lay inside Environment Agency recorded flood outlines "
+                           f"and only 3 % of points above 10 m did. The river flood map is blind to many such places, so the rating is held at {_fl}. "
+                           "Defences built since the survey, culverts and drainage are not represented. " + (_rz.get("zone") or ""))
+            _rz["rating"] = _fl
+            _rz["rating_basis"] = "LiDAR floodplain screen"
+
     # coastal
     if cst.get("available"):
         rps = cst["rps"]
@@ -579,6 +602,28 @@ def build_asset_report(lat: float, lon: float, name: Optional[str] = None, secto
         zones.append({"key": "heat", "title": "Heat", "rating": None,
                       "zone": f"Not assessed: {ht.get('reason', 'no temperature data')}.", "facts": [], "trend": None, "_finding": None})
 
+    # earthquake: USGS hazard model in the contiguous US, recorded-seismicity screen elsewhere (clearly labelled)
+    try:
+        from .finance.seismic_hazard import site_seismic
+        sq = site_seismic(lat, lon)
+    except Exception as e:                                  # noqa: BLE001
+        sq = {"available": False, "reason": f"earthquake module failed ({type(e).__name__})"}
+    if sq.get("available"):
+        if "pga_475yr_g" in sq:
+            qf = [_f("Peak ground acceleration, 475-year", f"{sq['pga_475yr_g']:.2f} g (rock, Vs30 {sq['vs30_m_s']} m/s)", sq["source"]),
+                  _f("Peak ground acceleration, 2,475-year", "n/a" if sq.get("pga_2475yr_g") is None else f"{sq['pga_2475yr_g']:.2f} g", sq["source"])]
+            qz = (f"Ground shaking with a 10 % chance of being exceeded in 50 years reaches about {sq['pga_475yr_g']:.2f} g on rock (USGS National Seismic Hazard Model 2018). "
+                  "This is shaking, not damage: soil amplification and the structure's design are not included.")
+        else:
+            qf = [_f("Earthquakes of magnitude 5.5 or more within 150 km, 1973 onward", str(sq["m55_within_150km_since_1973"]), sq["source"])]
+            qz = (f"Seismicity screen from recorded earthquakes, not a ground-motion hazard model: {sq['m55_within_150km_since_1973']} events of magnitude 5.5 or more "
+                  "within 150 km since 1973. It misses faults that have not ruptured in 50 years and says nothing about shaking at the site or soil amplification.")
+        zones.append({"key": "earthquake", "title": "Earthquake" if "pga_475yr_g" in sq else "Earthquake (recorded-seismicity screen)", "rating": sq["rating"],
+                      "zone": qz, "facts": qf, "trend": None, "_finding": None})
+    else:
+        zones.append({"key": "earthquake", "title": "Earthquake", "rating": None, "zone": "Not assessed: " + str(sq.get("reason", "no earthquake data")) + ".",
+                      "facts": [], "trend": None, "_finding": None})
+
     # water stress
     try:
         w = analyst._water(lat, lon, sector)
@@ -603,15 +648,15 @@ def build_asset_report(lat: float, lon: float, name: Optional[str] = None, secto
 
     # ── issues: what will go wrong ───────────────────────────────────────────
     group = {"river_flood": "flood", "coastal_flood": "flood", "surface_water": "flood", "cyclone": "wind", "slope": "slope",
-             "wildfire": "fire", "heat": "heat", "water": "water"}
+             "wildfire": "fire", "heat": "heat", "water": "water", "earthquake": "quake"}
     agekey = {"river_flood": "flood", "coastal_flood": "coast", "surface_water": "flood", "cyclone": "wind", "slope": "slope",
-              "wildfire": "fire", "heat": "heat", "water": "water"}
+              "wildfire": "fire", "heat": "heat", "water": "water", "earthquake": "quake"}
     issues = []
     for z in zones:
         if z.get("rating") is None or _lv(z["rating"]) < 1:
             continue
         g = group[z["key"]]
-        what = [prof[g]]
+        what = [prof.get(g) or QUAKE_TEXT]
         if z["key"] == "river_flood" and z.get("_depth100"):
             d = z["_depth100"]
             what.insert(0, f"A 1-in-100 flood puts about {d:.1f} m of water over the site; anything below that level "

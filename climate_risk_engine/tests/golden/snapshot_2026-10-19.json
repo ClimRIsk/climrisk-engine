@@ -10,6 +10,7 @@
    "slope": "LOW",
    "wildfire": "NEGLIGIBLE",
    "heat": "NEGLIGIBLE",
+   "earthquake": "NEGLIGIBLE",
    "water": "HIGH"
   },
   "new_orleans": {
@@ -20,6 +21,7 @@
    "slope": "LOW",
    "wildfire": "NEGLIGIBLE",
    "heat": "NEGLIGIBLE",
+   "earthquake": "NEGLIGIBLE",
    "water": "MODERATE"
   },
   "houston": {
@@ -30,16 +32,18 @@
    "slope": "LOW",
    "wildfire": "NEGLIGIBLE",
    "heat": "MODERATE",
+   "earthquake": "NEGLIGIBLE",
    "water": "MODERATE"
   },
   "rotterdam": {
    "river_flood": "NEGLIGIBLE",
    "coastal_flood": "NEGLIGIBLE",
-   "surface_water": "NEGLIGIBLE",
+   "surface_water": "HIGH",
    "cyclone": "NEGLIGIBLE",
    "slope": "LOW",
    "wildfire": "NEGLIGIBLE",
    "heat": "NEGLIGIBLE",
+   "earthquake": "NEGLIGIBLE",
    "water": "MODERATE"
   },
   "dhaka": {
@@ -50,6 +54,7 @@
    "slope": "LOW",
    "wildfire": "MODERATE",
    "heat": "LOW",
+   "earthquake": "LOW",
    "water": "CRITICAL"
   },
   "jakarta": {
@@ -60,6 +65,7 @@
    "slope": "LOW",
    "wildfire": "NEGLIGIBLE",
    "heat": "NEGLIGIBLE",
+   "earthquake": "HIGH",
    "water": "HIGH"
   },
   "bangkok": {
@@ -70,6 +76,7 @@
    "slope": "LOW",
    "wildfire": "NEGLIGIBLE",
    "heat": "MODERATE",
+   "earthquake": "NEGLIGIBLE",
    "water": "HIGH"
   },
   "brisbane": {
@@ -80,6 +87,7 @@
    "slope": "LOW",
    "wildfire": "NEGLIGIBLE",
    "heat": "LOW",
+   "earthquake": "NEGLIGIBLE",
    "water": "HIGH"
   },
   "dresden": {
@@ -90,6 +98,7 @@
    "slope": "LOW",
    "wildfire": "LOW",
    "heat": "NEGLIGIBLE",
+   "earthquake": "NEGLIGIBLE",
    "water": "MODERATE"
   },
   "cologne": {
@@ -100,6 +109,7 @@
    "slope": "LOW",
    "wildfire": "NEGLIGIBLE",
    "heat": "NEGLIGIBLE",
+   "earthquake": "NEGLIGIBLE",
    "water": "MODERATE"
   },
   "ahrweiler": {
@@ -110,6 +120,7 @@
    "slope": "LOW",
    "wildfire": "MODERATE",
    "heat": "NEGLIGIBLE",
+   "earthquake": "NEGLIGIBLE",
    "water": "MODERATE"
   },
   "chennai": {
@@ -120,6 +131,7 @@
    "slope": "LOW",
    "wildfire": "NEGLIGIBLE",
    "heat": "HIGH",
+   "earthquake": "NEGLIGIBLE",
    "water": "CRITICAL"
   },
   "mumbai": {
@@ -130,6 +142,7 @@
    "slope": "LOW",
    "wildfire": "NEGLIGIBLE",
    "heat": "LOW",
+   "earthquake": "NEGLIGIBLE",
    "water": "HIGH"
   },
   "manila": {
@@ -140,6 +153,7 @@
    "slope": "LOW",
    "wildfire": "NEGLIGIBLE",
    "heat": "LOW",
+   "earthquake": "CRITICAL",
    "water": "HIGH"
   },
   "tokyo": {
@@ -150,6 +164,7 @@
    "slope": "MODERATE",
    "wildfire": "NEGLIGIBLE",
    "heat": "NEGLIGIBLE",
+   "earthquake": "CRITICAL",
    "water": "MODERATE"
   },
   "singapore": {
@@ -160,6 +175,7 @@
    "slope": "LOW",
    "wildfire": "MODERATE",
    "heat": "NEGLIGIBLE",
+   "earthquake": "NEGLIGIBLE",
    "water": "MODERATE"
   },
   "reykjavik": {
@@ -170,6 +186,7 @@
    "slope": "MODERATE",
    "wildfire": "NEGLIGIBLE",
    "heat": "NEGLIGIBLE",
+   "earthquake": "MODERATE",
    "water": "NEGLIGIBLE"
   },
   "phoenix": {
@@ -180,6 +197,7 @@
    "slope": "LOW",
    "wildfire": "NEGLIGIBLE",
    "heat": "CRITICAL",
+   "earthquake": "NEGLIGIBLE",
    "water": "CRITICAL"
   },
   "riyadh": {
@@ -190,6 +208,7 @@
    "slope": "LOW",
    "wildfire": "NEGLIGIBLE",
    "heat": "CRITICAL",
+   "earthquake": "NEGLIGIBLE",
    "water": "CRITICAL"
   },
   "delhi": {
@@ -200,6 +219,7 @@
    "slope": "LOW",
    "wildfire": "LOW",
    "heat": "HIGH",
+   "earthquake": "NEGLIGIBLE",
    "water": "CRITICAL"
   },
   "kuwait_city": {
@@ -210,6 +230,7 @@
    "slope": "LOW",
    "wildfire": "NEGLIGIBLE",
    "heat": "CRITICAL",
+   "earthquake": "NEGLIGIBLE",
    "water": "CRITICAL"
   },
   "pasadena_fire": {
@@ -220,6 +241,7 @@
    "slope": "LOW",
    "wildfire": "MODERATE",
    "heat": "MODERATE",
+   "earthquake": "CRITICAL",
    "water": "CRITICAL"
   },
   "blue_mountains": {
@@ -230,6 +252,7 @@
    "slope": "LOW",
    "wildfire": "MODERATE",
    "heat": "NEGLIGIBLE",
+   "earthquake": "LOW",
    "water": "HIGH"
   },
   "kathmandu": {
@@ -240,6 +263,7 @@
    "slope": "MODERATE",
    "wildfire": "NEGLIGIBLE",
    "heat": "NEGLIGIBLE",
+   "earthquake": "MODERATE",
    "water": "HIGH"
   },
   "death_valley": {
@@ -250,6 +274,7 @@
    "slope": "MODERATE",
    "wildfire": "NEGLIGIBLE",
    "heat": "CRITICAL",
+   "earthquake": "HIGH",
    "water": "CRITICAL"
   },
   "venice": {
@@ -260,6 +285,7 @@
    "slope": "LOW",
    "wildfire": "NEGLIGIBLE",
    "heat": "NEGLIGIBLE",
+   "earthquake": "MODERATE",
    "water": "HIGH"
   },
   "funafuti": {
@@ -270,6 +296,7 @@
    "slope": "LOW",
    "wildfire": "NEGLIGIBLE",
    "heat": "NEGLIGIBLE",
+   "earthquake": "NEGLIGIBLE",
    "water": null
   },
   "male": {
@@ -280,7 +307,52 @@
    "slope": "LOW",
    "wildfire": "NEGLIGIBLE",
    "heat": "NEGLIGIBLE",
+   "earthquake": "NEGLIGIBLE",
    "water": null
+  },
+  "christchurch": {
+   "river_flood": "NEGLIGIBLE",
+   "coastal_flood": "NEGLIGIBLE",
+   "surface_water": "LOW",
+   "cyclone": "LOW",
+   "slope": "LOW",
+   "wildfire": "NEGLIGIBLE",
+   "heat": "NEGLIGIBLE",
+   "earthquake": "HIGH",
+   "water": "MODERATE"
+  },
+  "carlisle": {
+   "river_flood": "HIGH",
+   "coastal_flood": "NEGLIGIBLE",
+   "surface_water": "NEGLIGIBLE",
+   "cyclone": "NEGLIGIBLE",
+   "slope": "LOW",
+   "wildfire": "LOW",
+   "heat": "NEGLIGIBLE",
+   "earthquake": "NEGLIGIBLE",
+   "water": "HIGH"
+  },
+  "cockermouth": {
+   "river_flood": "MODERATE",
+   "coastal_flood": "NEGLIGIBLE",
+   "surface_water": "MODERATE",
+   "cyclone": "NEGLIGIBLE",
+   "slope": "MODERATE",
+   "wildfire": "MODERATE",
+   "heat": "NEGLIGIBLE",
+   "earthquake": "NEGLIGIBLE",
+   "water": "HIGH"
+  },
+  "tewkesbury": {
+   "river_flood": "HIGH",
+   "coastal_flood": "NEGLIGIBLE",
+   "surface_water": "MODERATE",
+   "cyclone": "NEGLIGIBLE",
+   "slope": "LOW",
+   "wildfire": "LOW",
+   "heat": "NEGLIGIBLE",
+   "earthquake": "NEGLIGIBLE",
+   "water": "HIGH"
   }
  }
 }

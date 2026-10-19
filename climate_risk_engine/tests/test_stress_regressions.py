@@ -34,6 +34,7 @@ def test_terrain_failure_does_not_refetch_every_tile(monkeypatch):
     def fake(z, x, y):
         calls.append((z, x, y)); return None
     monkeypatch.setattr(tt, "_fetch_tile", fake)
+    monkeypatch.setenv("CRI_LIDAR", "0")                      # this point is inside the Dutch LiDAR cover; the test is about the global tiles
     with pytest.raises(RuntimeError):
         tt.get_elevation_grid(51.5, 4.4, radius_km=2)
     assert len(calls) == len(set(calls)), "a failed tile was fetched more than once"
@@ -188,3 +189,76 @@ def test_fire_weather_index_matches_the_published_reference_values():
     r = fire.run_series([17.0], [42.0], [25.0], [0.0], [4], tropical=False)
     for k, v in {"ffmc": 87.7, "dmc": 8.5, "dc": 19.0, "isi": 10.9, "bui": 8.5, "fwi": 10.1}.items():
         assert abs(r[k][0] - v) < 0.1, (k, r[k][0], v)
+
+
+# ── LiDAR terrain: floodplain screen and grid source ─────────────────────────
+import numpy as np
+
+
+def _valley(n=120, res=5.0):
+    """A V-shaped valley with a channel along the middle column: floor at 10 m, slopes rising 0.1 m per metre sideways."""
+    x = np.abs(np.arange(n) - n // 2) * res
+    return np.tile(10.0 + 0.1 * x, (n, 1)) - np.linspace(0, 0.5, n)[:, None]       # gentle fall along the valley so flow routes to one end
+
+
+def test_hand_is_small_on_the_valley_floor_and_large_on_the_slope():
+    from cri.terrain.lidar_flood import hand_and_rel, band_for
+    d = _valley()
+    rel, hand = hand_and_rel(d, 5.0, channel_km2=0.005)
+    mid, side = hand[60, 60], hand[60, 5]
+    assert np.isfinite(mid) and mid < 1.0
+    assert np.isfinite(side) and side > 10.0
+    assert band_for(0.4) == "HIGH" and band_for(3.0) == "MODERATE" and band_for(8.0) == "LOW" and band_for(12.0) is None and band_for(None) is None
+
+
+def test_lidar_outside_england_and_netherlands_returns_nothing_and_never_touches_the_network(monkeypatch):
+    from cri.connectors import lidar_dem as L
+    monkeypatch.setattr(L, "_get", lambda *a, **k: (_ for _ in ()).throw(AssertionError("network touched")))
+    assert L.try_grid(34.05, -118.25, 1.0) is None            # Los Angeles
+    assert L.try_grid(float("nan"), 0.0, 1.0) is None
+    monkeypatch.setenv("CRI_LIDAR", "0")
+    assert L.try_grid(51.5, -0.12, 1.0) is None               # London, but switched off
+
+
+def test_lidar_failure_falls_back_to_none_not_an_error(monkeypatch, tmp_path):
+    from cri.connectors import lidar_dem as L
+    monkeypatch.setattr(L, "CACHE", tmp_path)
+    L._FAILED.clear()
+    monkeypatch.setattr(L, "_get", lambda *a, **k: b"<ServiceException>boom</ServiceException>")
+    assert L.try_grid(54.9, -2.93, 1.0) is None
+
+
+def test_flood_position_says_not_available_outside_lidar_cover(monkeypatch):
+    from cri.terrain import lidar_flood as LF
+    from cri.connectors import terrain_tiles as T
+    fake = T.ElevationGrid(lat=34.0, lon=-118.0, radius_km=1.0, cell_size_m=10.0, rows=5, cols=5, asset_row=2, asset_col=2, elevations=np.ones((5, 5)))
+    monkeypatch.setattr(T, "get_elevation_grid", lambda *a, **k: fake)
+    r = LF.flood_position(34.0, -118.0)
+    assert r["available"] is False and "England only" in r["reason"]
+
+
+# ── earthquake hazard ────────────────────────────────────────────────────────
+def test_seismic_rating_bands_and_curve_interpolation():
+    from cri.finance import seismic_hazard as SH
+    assert [SH.pga_rating(x) for x in (0.01, 0.05, 0.1, 0.2, 0.4)] == ["NEGLIGIBLE", "LOW", "MODERATE", "HIGH", "CRITICAL"]
+    assert [SH.count_rating(x) for x in (0, 2, 10, 30, 100)] == ["NEGLIGIBLE", "LOW", "MODERATE", "HIGH", "CRITICAL"]
+    xs, ys = [0.1, 0.2, 0.4], [1e-2, 1e-3, 1e-4]                          # a straight line in log-log space: rate falls a decade per doubling
+    assert abs(SH._loglog(xs, ys, 1e-3) - 0.2) < 1e-6 and SH._loglog(xs, ys, 1e-9) is None
+
+
+def test_seismic_uses_hazard_model_in_us_and_catalogue_elsewhere_and_fails_to_not_assessed():
+    import json
+    from cri.finance import seismic_hazard as SH
+    r475 = -__import__("math").log(0.9) / 50.0
+    curve = {"status": "success", "response": {"hazardCurves": [{"imt": {"value": "PGA"}, "data": [{"component": "Total", "values": {
+        "xs": [0.1, 0.2, 0.4], "ys": [10 * r475, r475, r475 / 10]}}]}]}}
+    us = SH.site_seismic(34.05, -118.25, fetch=lambda url: json.dumps(curve))
+    assert us["available"] and us["method"].startswith("USGS NSHM") and abs(us["pga_475yr_g"] - 0.2) < 0.01 and us["rating"] == "HIGH"
+    eu = SH.site_seismic(51.5, -0.12, fetch=lambda url: "0")
+    assert eu["available"] and eu["rating"] == "NEGLIGIBLE" and "seismicity screen" in eu["method"]
+    def boom(url): raise OSError("down")
+    bad = SH.site_seismic(51.5, -0.12, fetch=boom)
+    assert bad["available"] is False and "rating" not in bad
+    # a US point whose hazard service fails falls back to the labelled catalogue screen instead of pretending to have a model
+    fb = SH.site_seismic(34.05, -118.25, fetch=lambda url: (_ for _ in ()).throw(OSError("x")) if "nshmp" in url else "12")
+    assert fb["available"] and "seismicity screen" in fb["method"]
