@@ -7,7 +7,21 @@
     "pge-2019"
    ],
    "p1": "A power utility whose lines sparked deadly blazes was pushed into bankruptcy. What does that teach about liability?",
-   "p2": "Why can damages from fires started by electrical equipment wipe out a grid operator's equity?"
+   "p2": "Why can damages from fires started by electrical equipment wipe out a grid operator's equity?",
+   "gold_adj": {
+    "p1": [
+     "pge-2019",
+     "camp-2018"
+    ],
+    "p2": [
+     "pge-2019",
+     "maui-2023"
+    ]
+   },
+   "adj_note": {
+    "p1": "same utility; its Camp Fire lawsuits and costs are the liability story",
+    "p2": "parent lost over half its market value and was cut to junk after its equipment-sparked fire"
+   }
   },
   {
    "id": "orsted-2023",
@@ -128,7 +142,17 @@
     "rs-brazil-2024"
    ],
    "p1": "How did severe floods in southern Brazil affect steel and car plants and the banks lending in the state?",
-   "p2": "Why does logistics damage hurt every company in a flooded region, not only the flooded ones?"
+   "p2": "Why does logistics damage hurt every company in a flooded region, not only the flooded ones?",
+   "gold_adj": {
+    "p2": [
+     "rs-brazil-2024",
+     "kzn-2022",
+     "idai-2019"
+    ]
+   },
+   "adj_note": {
+    "p2": "port and corridor logistics damage hit all regional traders"
+   }
   },
   {
    "id": "harvey-arkema-2017",
@@ -144,7 +168,16 @@
     "maria-baxter-2017"
    ],
    "p1": "Why did a hurricane in the Caribbean island lead to a shortage of saline bags in American hospitals?",
-   "p2": "What does a single-site product made in a storm zone mean for national supply?"
+   "p2": "What does a single-site product made in a storm zone mean for national supply?",
+   "gold_adj": {
+    "p2": [
+     "maria-baxter-2017",
+     "helene-2024"
+    ]
+   },
+   "adj_note": {
+    "p2": "Baxter North Cove site flooded in 2024: same single-site supply risk"
+   }
   },
   {
    "id": "shell-hague",
@@ -176,7 +209,16 @@
     "gabrielle-2023"
    ],
    "p1": "How did claims estimates move after the cyclone and floods in the New Zealand North Island?",
-   "p2": "Why do early loss figures understate the final bill in a small insurance market?"
+   "p2": "Why do early loss figures understate the final bill in a small insurance market?",
+   "gold_adj": {
+    "p2": [
+     "gabrielle-2023",
+     "ahr-2021"
+    ]
+   },
+   "adj_note": {
+    "p2": "early Verisk estimate far below the later industry figure; Gabrielle's cards show claims counts rising but do not state the understatement, so the original gold is weakly supported"
+   }
   },
   {
    "id": "kzn-2022",
@@ -229,5 +271,254 @@
   "Explain wildfire risk screening",
   "how do I upload a file",
   "give me a risk score for this company"
- ]
+ ],
+ "_adjudication": "gold_adj lists the acceptable events per split after review by one reviewer (not independent); 'gold' is the original. Both are reported.",
+ "p3": [
+  {
+   "q": "What did a record dry spell mean for a southern African country that gets about 85% of its power from one dam?",
+   "gold": [
+    "kariba-2024"
+   ],
+   "covered_by_curated_cards": true
+  },
+  {
+   "q": "What share of one recent year's catastrophe losses went uninsured, and which kinds of peril dominated insured losses the next year?",
+   "gold": [
+    "swissre-sigma"
+   ],
+   "covered_by_curated_cards": true
+  },
+  {
+   "q": "On what grounds did an appeals court overturn an order telling an oil major to cut its CO2 emissions 45% by 2030?",
+   "gold": [
+    "shell-hague"
+   ],
+   "covered_by_curated_cards": true
+  },
+  {
+   "q": "What jobs and conditions came with the UK subsidy for swapping blast furnaces for scrap-based electric steelmaking?",
+   "gold": [
+    "tata-port-talbot"
+   ],
+   "covered_by_curated_cards": true
+  },
+  {
+   "q": "What did a British insurer estimate the December 2022 cold snap cost it?",
+   "gold": [
+    "uk-freeze-2022"
+   ],
+   "covered_by_curated_cards": true
+  },
+  {
+   "q": "In the August 2017 flood near Houston, how many chemical sites along the ship channel were offline?",
+   "gold": [
+    "harvey-arkema-2017"
+   ],
+   "covered_by_curated_cards": true
+  },
+  {
+   "q": "What were one oil sands producer's second-quarter 2016 loss and cost per barrel after forest fires stopped production?",
+   "gold": [
+    "mcmurray-2016"
+   ],
+   "covered_by_curated_cards": true
+  },
+  {
+   "q": "How much of its disaster loss did the operator of Osaka's airports recover from insurance?",
+   "gold": [
+    "jebi-2018"
+   ],
+   "covered_by_curated_cards": true
+  },
+  {
+   "q": "How big was the Texas grid operator's shortfall after the winter freeze, and which cooperative's bankruptcy caused most of it?",
+   "gold": [
+    "uri-2021"
+   ],
+   "covered_by_curated_cards": true
+  },
+  {
+   "q": "How many provinces and factories did the 2011 floods in Southeast Asia reach, and how many industrial parks did they breach?",
+   "gold": [
+    "thailand-2011"
+   ],
+   "covered_by_curated_cards": true
+  },
+  {
+   "q": "How many other insurers kept writing new homeowner policies in the Golden State after its two biggest stopped?",
+   "gold": [
+    "ca-insurers-2023"
+   ],
+   "covered_by_curated_cards": true
+  },
+  {
+   "q": "How long did ships wait at the worst point of the lake-level crisis on the isthmus canal, and how many daily crossings were allowed?",
+   "gold": [
+    "panama-2023"
+   ],
+   "covered_by_curated_cards": true
+  },
+  {
+   "q": "How far apart were an early industry estimate of German insured flood losses and the later figure?",
+   "gold": [
+    "ahr-2021"
+   ],
+   "covered_by_curated_cards": true
+  },
+  {
+   "q": "What share of its market value did the Hawaii utility's parent lose, and what was its settlement share?",
+   "gold": [
+    "maui-2023"
+   ],
+   "covered_by_curated_cards": true
+  },
+  {
+   "q": "Which river barge operator saw profit fall because of low water and a poor grain harvest?",
+   "gold": [
+    "drought-2012"
+   ],
+   "covered_by_curated_cards": false
+  },
+  {
+   "q": "How did a New York cable operator's fourth-quarter 2012 revenue suffer from a late-October coastal storm?",
+   "gold": [
+    "sandy-2012"
+   ],
+   "covered_by_curated_cards": false
+  },
+  {
+   "q": "Which vehicle remarketer sold tens of thousands of flood-damaged cars after an East Coast superstorm?",
+   "gold": [
+    "sandy-2012"
+   ],
+   "covered_by_curated_cards": false
+  },
+  {
+   "q": "A Florida homebuilder missed closings after a September 2022 storm: how big was the revenue hit?",
+   "gold": [
+    "ian-2022"
+   ],
+   "covered_by_curated_cards": false
+  },
+  {
+   "q": "What did lawsuits against the utility owner of a northern California blaze blame for it?",
+   "gold": [
+    "camp-2018"
+   ],
+   "covered_by_curated_cards": false
+  },
+  {
+   "q": "What credit did a phone company give customers after the Gulf Coast's worst 2005 storm, and how much revenue did it cost?",
+   "gold": [
+    "katrina-2005"
+   ],
+   "covered_by_curated_cards": false
+  },
+  {
+   "q": "How did a big US bank release reserves tied to an old Gulf hurricane?",
+   "gold": [
+    "katrina-2005"
+   ],
+   "covered_by_curated_cards": false
+  },
+  {
+   "q": "How will shipping lines be hit when Europe extends its carbon market to maritime transport?",
+   "gold": [
+    "eu-ets"
+   ],
+   "covered_by_curated_cards": false
+  },
+  {
+   "q": "What does the EU tariff on carbon in imported goods mean for a steelmaker?",
+   "gold": [
+    "cbam"
+   ],
+   "covered_by_curated_cards": false
+  },
+  {
+   "q": "Which tax credit in the 2022 US climate law gave an industrial tooling company about $10 million in a quarter?",
+   "gold": [
+    "ira-2022"
+   ],
+   "covered_by_curated_cards": false
+  },
+  {
+   "q": "Which biogas company sold a record tax credit under the 2022 US climate law?",
+   "gold": [
+    "ira-2022"
+   ],
+   "covered_by_curated_cards": false
+  },
+  {
+   "q": "How did insurers book losses from the Japanese typhoon of October 2019?",
+   "gold": [
+    "hagibis-2019"
+   ],
+   "covered_by_curated_cards": false
+  },
+  {
+   "q": "Which insurers took charges for the February 2010 windstorm that hit western France?",
+   "gold": [
+    "xynthia-2010"
+   ],
+   "covered_by_curated_cards": false
+  },
+  {
+   "q": "How did a coal miner's first-quarter 2017 earnings suffer from an Australian tropical cyclone?",
+   "gold": [
+    "debbie-2017"
+   ],
+   "covered_by_curated_cards": false
+  },
+  {
+   "q": "How exposed was a Californian bank's loan book to the January 2025 Los Angeles blazes?",
+   "gold": [
+    "la-fires-2025"
+   ],
+   "covered_by_curated_cards": false
+  },
+  {
+   "q": "How did smoke and fires in Canada affect oilfield equipment revenue in mid-2023?",
+   "gold": [
+    "canada-fires-2023"
+   ],
+   "covered_by_curated_cards": false
+  },
+  {
+   "q": "How much did one Australian bank's profit fall after the Queensland flood at the end of 2010?",
+   "gold": [
+    "qld-floods-2011"
+   ],
+   "covered_by_curated_cards": false
+  },
+  {
+   "q": "How did a California utility compensate customers for the October 2019 intentional blackouts meant to cut wildfire risk?",
+   "gold": [
+    "psps-2019"
+   ],
+   "covered_by_curated_cards": false
+  },
+  {
+   "q": "Which northeastern US states threatened to leave a regional power-plant carbon market?",
+   "gold": [
+    "rggi"
+   ],
+   "covered_by_curated_cards": false
+  },
+  {
+   "q": "What losses did reinsurers book for the January 2007 European windstorm?",
+   "gold": [
+    "kyrill-2007"
+   ],
+   "covered_by_curated_cards": false
+  },
+  {
+   "q": "How did apartment owners' casualty losses rise in the Northeast and Midwest after severe cold in early 2014?",
+   "gold": [
+    "polar-vortex-2014"
+   ],
+   "covered_by_curated_cards": false
+  }
+ ],
+ "_p3_note": "p3 = fresh held-out set written from the indexed source text BEFORE looking at any retriever output on it. 14 about curated events, 22 about events with filing sentences only. Never used for tuning."
 }

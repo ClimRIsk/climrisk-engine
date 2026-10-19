@@ -31,7 +31,34 @@ def _rank(passages, ok):
     return None
 
 
-def run_a(retrieve=None):
+def _ev_rank(ps, gold):
+    seen, r = [], None
+    for p in ps:
+        if p["event"] not in seen:
+            seen.append(p["event"])
+        if p["event"] in gold:
+            r = len(seen)
+            break
+    return r
+
+
+def run_p3(retrieve=None):
+    """Fresh held-out set (p3). Reported overall and split by whether the gold event has curated case cards."""
+    retrieve = retrieve or CB.retrieve
+    qs = json.loads((ROOT / "rag_bench_questions.json").read_text()).get("p3", [])
+    out = {}
+    for name, sel in (("all", lambda q: True), ("curated", lambda q: q["covered_by_curated_cards"]), ("filings_only", lambda q: not q["covered_by_curated_cards"])):
+        sub = [q for q in qs if sel(q)]
+        if not sub:
+            continue
+        ranks = [_ev_rank(retrieve(q["q"], 6), q["gold"]) for q in sub]
+        m = _metrics(ranks, len(sub))
+        m["routed_to_case_library"] = round(sum(1 for q in sub if CB.is_case_question(q["q"])) / len(sub), 3)
+        out[name] = m
+    return out
+
+
+def run_a(retrieve=None, adjudicated=False):
     retrieve = retrieve or CB.retrieve
     qs = json.loads((ROOT / "rag_bench_questions.json").read_text())["paraphrase"]
     out = {}
@@ -40,14 +67,8 @@ def run_a(retrieve=None):
         for q in qs:
             ps = retrieve(q[split], 6)
             # event-level rank: the first passage whose event is gold (dedupe so repeated events count once)
-            seen, r = [], None
-            for p in ps:
-                if p["event"] not in seen:
-                    seen.append(p["event"])
-                if p["event"] in q["gold"]:
-                    r = len(seen)
-                    break
-            ranks.append(r)
+            gold = (q.get("gold_adj") or {}).get(split, q["gold"]) if adjudicated else q["gold"]
+            ranks.append(_ev_rank(ps, gold))
             route += 1 if CB.is_case_question(q[split]) else 0
         m = _metrics(ranks, len(qs))
         m["routed_to_case_library"] = round(route / len(qs), 3)
@@ -73,7 +94,7 @@ def run_b(retrieve=None, n=60, seed=7):
 
 
 def main():
-    res = {"A_paraphrase": run_a(), "B_entity": run_b()}
+    res = {"A_paraphrase": run_a(), "A_paraphrase_adjudicated": run_a(adjudicated=True), "P3_heldout": run_p3(), "B_entity": run_b()}
     print(json.dumps(res, indent=1))
     if "--json" in sys.argv:
         Path(sys.argv[sys.argv.index("--json") + 1]).write_text(json.dumps(res, indent=1))
