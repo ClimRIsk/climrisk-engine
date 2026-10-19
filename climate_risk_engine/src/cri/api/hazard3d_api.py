@@ -127,6 +127,15 @@ def make_router(auth):
         except ValueError as e:
             raise HTTPException(422, str(e)) from e
 
+    @prot.post("/hazard3d/buildings")
+    def buildings(req: SurfaceReq) -> dict:
+        from .. import hazardsurface as H
+        polys = [[(float(p[0]), float(p[1])) for p in r] for r in (req.polygons or []) if len(r) >= 3] or None
+        try:
+            return H.buildings(req.lat, req.lon, min(req.radius_km, 1.5), hazard=req.hazard if req.hazard != "none" else None, polygons=polys)
+        except Exception as e:                                   # noqa: BLE001
+            raise HTTPException(502, f"{type(e).__name__}: {e}") from e
+
     @prot.post("/hazard3d/surface")
     def surface(req: SurfaceReq) -> dict:
         from .. import hazardsurface as H

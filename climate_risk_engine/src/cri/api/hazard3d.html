@@ -31,6 +31,9 @@
   <div class="row" style="margin-top:10px"><button id="run">Compute layer</button><button class="sec" id="fly">Go to site</button></div>
   <label>Layer opacity</label><input id="op" type="range" min="0.2" max="1" step="0.05" value="0.75" style="width:100%">
   <label>Vertical exaggeration (relief only): <span id="exv">1</span>x</label><input id="ex" type="range" min="1" max="5" step="0.5" value="1" style="width:100%">
+  <div class="box"><b>3D buildings (OpenStreetMap, no key needed)</b>
+   <div class="row" style="margin-top:6px"><button class="sec" id="bld">Show buildings</button><button class="sec" id="bldoff">Hide</button></div>
+   <div id="bldInfo" class="muted" style="font-size:11px;margin-top:5px">Extruded footprints around the site (up to 1.5 km). Compute a hazard layer first to colour each building by the hazard class under it.</div></div>
   <div id="out"></div>
   <div class="box"><b>Base map</b><div id="baseInfo" class="muted" style="margin-top:3px"></div>
    <label>Google Maps Platform key (stored on this computer only)</label><input id="gk" type="password" placeholder="paste key, then Save" autocomplete="off">
@@ -155,6 +158,32 @@ async function run(){
   finally{ $('run').disabled=false; }
 }
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+
+
+let bldEnts=[];
+function clearB(){ bldEnts.forEach(e=>viewer.entities.remove(e)); bldEnts=[]; }
+async function showBuildings(){
+  if(usingGoogle){ $('bldInfo').textContent='Google photorealistic tiles already include buildings; extruded OSM buildings are for the keyless base map.'; return; }
+  $('bld').disabled=true; $('bldInfo').textContent='Fetching buildings from OpenStreetMap…';
+  try{
+    const h=$('hz').value;
+    const r=await jpost('/hazard3d/buildings',{hazard:h,lat:+$('lat').value,lon:+$('lon').value,radius_km:Math.min(+$('rad').value,1.5),polygons:polygons,params:{}});
+    clearB();
+    const pal=r.legend?r.legend.map(l=>l.color):null;
+    r.buildings.forEach(b=>{
+      const col=(pal&&b.cls!=null&&pal[b.cls])?Cesium.Color.fromCssColorString(pal[b.cls]):Cesium.Color.fromCssColorString('#b8bec6');
+      bldEnts.push(viewer.entities.add({polygon:{hierarchy:Cesium.Cartesian3.fromDegreesArray(b.ring.flat()),height:0,heightReference:Cesium.HeightReference.CLAMP_TO_GROUND,extrudedHeight:b.h,extrudedHeightReference:Cesium.HeightReference.RELATIVE_TO_GROUND,material:col.withAlpha(0.92),outline:false}}));
+    });
+    const hs=Object.keys(r.height_sources).map(k=>r.height_sources[k]+' '+k).join('; ');
+    let t=r.count+' buildings'+(r.capped?' (capped)':'')+'. Heights: '+hs+'.';
+    if(r.class_counts) t+=' By hazard class: '+Object.keys(r.class_counts).map(k=>k+' '+r.class_counts[k]).join(', ')+'.';
+    else t+=' Grey = no hazard layer computed for this hazard.';
+    $('bldInfo').textContent=t+' '+r.caveat;
+    if(!bldEnts.length) $('bldInfo').textContent='No buildings mapped here in OpenStreetMap.';
+  }catch(e){ $('bldInfo').textContent=String(e.message||e).slice(0,300); }
+  finally{ $('bld').disabled=false; }
+}
+$('bld').onclick=showBuildings; $('bldoff').onclick=clearB;
 
 $('ex').oninput=()=>{$('exv').textContent=$('ex').value; if(viewer) viewer.scene.verticalExaggeration=+$('ex').value};
 $('rad').oninput=()=>$('rv').textContent=$('rad').value; $('run').onclick=run; $('fly').onclick=fly;

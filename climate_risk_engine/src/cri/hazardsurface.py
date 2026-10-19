@@ -24,6 +24,9 @@ LABELS = ["Very high", "High", "Moderate", "Low"]
 MAX_PX = 700
 
 
+RASTERS: dict = {}          # last class raster per hazard: (cls array, box, labels); lets buildings() read the class under a footprint
+
+
 class NoSurface(Exception):
     pass
 
@@ -96,6 +99,7 @@ def _package(hazard, title, cls, n_classes, labels, box, unit_note, method, vali
            "image_png_b64": _png(cls, n_classes, alpha=alpha), "alpha": alpha / 255.0, "legend": [{"label": labels[k], "color": PALETTE[k]} for k in range(len(labels))],
            "shares_box": shares(np.ones(cls.shape, bool)), "shares_study_area": shares(inside) if inside is not None else None,
            "unit_note": unit_note, "method": method, "validated": validated, "caveats": caveats, "grid": {"rows": h, "cols": w}}
+    RASTERS[("last", hazard)] = (cls, dict(box), list(labels))
     if clear_label:
         out["legend"].append({"label": clear_label, "color": None})
     if extra:
@@ -274,3 +278,123 @@ def surface(hazard: str, lat: float, lon: float, radius_km: float = 2.5, polygon
         return REGISTRY[hazard]["fn"](clat, clon, rad, polygons, **params)
     except NoSurface as e:
         return {"available": False, "hazard": hazard, "reason": str(e)}
+
+
+# ── 3D buildings (OpenStreetMap), optionally coloured by the hazard class under each footprint ───────────────────────────────
+
+OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter", "https://overpass.private.coffee/api/interpreter"]
+_UA = "ClimRisk/1.0 (climate risk research; contact via project owner)"
+MAX_BUILDINGS = 1800
+
+
+def _cache_dir():
+    import os
+    from pathlib import Path
+    return Path(os.environ.get("CRI_CACHE_DIR", Path.home() / ".climrisk" / "cache")) / "osm"
+
+
+def _overpass_buildings(lat, lon, radius_km, fetch=None):
+    import hashlib
+    import json as _j
+    import time
+    import urllib.request
+    from pathlib import Path
+    dlat = radius_km / 111.32
+    dlon = radius_km / (111.32 * math.cos(math.radians(lat)))
+    s, w, n, e = lat - dlat, lon - dlon, lat + dlat, lon + dlon
+    q = f'[out:json][timeout:40];way["building"]({s},{w},{n},{e});out tags geom;'
+    if fetch is not None:
+        return fetch(q)
+    key = _cache_dir() / ("b_" + hashlib.md5(f"{s:.4f}{w:.4f}{n:.4f}{e:.4f}".encode()).hexdigest() + ".json")
+    if key.exists():
+        try:
+            return _j.loads(key.read_text())
+        except Exception:                                       # noqa: BLE001
+            pass
+    last = None
+    for ep, attempt in [(e, a) for a in (0, 1) for e in OVERPASS]:   # every mirror once, then every mirror again (public servers rate-limit and recover quickly)
+        req = urllib.request.Request(ep, data=("data=" + urllib.request.quote(q)).encode(), headers={"User-Agent": _UA, "Content-Type": "application/x-www-form-urlencoded"})
+        try:
+            with urllib.request.urlopen(req, timeout=45) as r:
+                out = _j.loads(r.read())
+            try:
+                key.parent.mkdir(parents=True, exist_ok=True)
+                key.write_text(_j.dumps(out, separators=(",", ":")))
+            except Exception:                                   # noqa: BLE001
+                pass
+            return out
+        except Exception as exc:                                # noqa: BLE001
+            last = exc
+            time.sleep(1.0 + 2.0 * attempt)
+    raise RuntimeError(f"OpenStreetMap buildings unavailable ({type(last).__name__})")
+
+
+def _height(tags: dict):
+    """(metres, source). Real tag if present; storeys x 3.2 m next; otherwise a flagged default of 7 m."""
+    import re as _re
+
+    def num(v):
+        m = _re.match(r"\s*([0-9]+(?:\.[0-9]+)?)", str(v or ""))
+        return float(m.group(1)) if m else None
+    h = num(tags.get("height"))
+    if h and 1 <= h <= 600:
+        return h, "height tag"
+    lv = num(tags.get("building:levels"))
+    if lv and 1 <= lv <= 150:
+        return lv * 3.2 + 0.5, "storeys x 3.2 m"
+    return 7.0, "assumed (no height in OpenStreetMap)"
+
+
+def class_at(raster, lon: float, lat: float):
+    """Class index at a point from a raster tuple (cls, box, labels), or -1 outside / not evaluated."""
+    cls, box, _ = raster
+    h, w = cls.shape
+    c = int((lon - box["west"]) / (box["east"] - box["west"]) * w)
+    r = int((box["north"] - lat) / (box["north"] - box["south"]) * h)
+    if 0 <= r < h and 0 <= c < w:
+        return int(cls[r, c])
+    return -1
+
+
+def buildings(lat: float, lon: float, radius_km: float = 1.0, hazard: str = None, polygons=None, fetch=None) -> dict:
+    """OpenStreetMap building footprints with heights. If a hazard layer for the same hazard was just computed, each building gets the WORST class among its corners and centre
+    (a terrain-cell value under the footprint: it is not the building's own vulnerability). Heights are flagged by source."""
+    radius_km = float(min(max(radius_km, 0.2), 1.5))
+    osm = _overpass_buildings(lat, lon, radius_km, fetch)
+    raster = RASTERS.get(("last", hazard)) if hazard else None
+    labels = raster[2] if raster else None
+    out, counts, hs = [], {}, {}
+    from .geo_io import points_in_polygons
+    for el in osm.get("elements", []):
+        g = el.get("geometry")
+        if el.get("type") != "way" or not g or len(g) < 4:
+            continue
+        ring = [[round(p["lon"], 6), round(p["lat"], 6)] for p in g]
+        if ring[0] == ring[-1]:
+            ring = ring[:-1]
+        if len(ring) < 3:
+            continue
+        h, hsrc = _height(el.get("tags") or {})
+        hs[hsrc] = hs.get(hsrc, 0) + 1
+        item = {"ring": ring, "h": round(h, 1), "h_src": hsrc}
+        if raster:
+            cx = sum(p[0] for p in ring) / len(ring)
+            cy = sum(p[1] for p in ring) / len(ring)
+            cs = [class_at(raster, px, py) for px, py in ring + [[cx, cy]]]
+            ok = [c for c in cs if c >= 0]
+            item["cls"] = (min(ok) if ok else None)
+            item["label"] = labels[item["cls"]] if item["cls"] is not None and item["cls"] < len(labels) else None
+            counts[item["label"] or "not evaluated"] = counts.get(item["label"] or "not evaluated", 0) + 1
+        out.append(item)
+        if len(out) >= MAX_BUILDINGS:
+            break
+    if polygons:
+        cen = [(sum(p[0] for p in b["ring"]) / len(b["ring"]), sum(p[1] for p in b["ring"]) / len(b["ring"])) for b in out]
+        if cen:
+            m = points_in_polygons([c[0] for c in cen], [c[1] for c in cen], polygons)
+            for b, inside in zip(out, m):
+                b["in_study_area"] = bool(inside)
+    return {"available": True, "count": len(out), "capped": len(out) >= MAX_BUILDINGS, "buildings": out, "height_sources": hs,
+            "hazard": hazard if raster else None, "legend": ([{"label": l, "color": PALETTE[i]} for i, l in enumerate(labels)] if raster else None), "class_counts": counts or None,
+            "legend_colors": PALETTE, "source": "OpenStreetMap contributors (ODbL)",
+            "caveat": "Footprints and heights come from OpenStreetMap volunteers and are incomplete in many places; heights marked 'assumed' are a flat 7 m. The hazard class is the terrain-cell value under the footprint, not an assessment of the building."}
