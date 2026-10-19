@@ -93,14 +93,20 @@ class ClimateMonitorClient:
         """Return a 0-100 hazard score derived from the monitoring Space.
 
         Useful as a quick cross-check against the engine's own hazard estimates.
-        Returns 50.0 on error (neutral / unknown).
+        Returns None when the Space gave no usable answer: an unknown hazard is not a "Moderate" one.
         """
         report = self.get_risk_report(lat=lat, lon=lon, location=location)
+        return self.score_from_report(report)
+
+    @staticmethod
+    def score_from_report(report: Dict[str, Any]) -> Optional[float]:
+        if not report.get("available", True) or report.get("risk_level") is None:
+            return None
         tier_scores = {"Low": 20.0, "Moderate": 40.0, "High": 65.0, "Severe": 85.0}
         tier  = report.get("risk_level", "Moderate")
         base  = tier_scores.get(tier, 40.0)
         # Adjust ±10 pts by temperature anomaly (clamped)
-        delta = report.get("temperature_anomaly", 0.0)
+        delta = report.get("temperature_anomaly") or 0.0
         return round(min(100.0, max(0.0, base + delta * 5.0)), 1)
 
     # ── Internal helpers ──────────────────────────────────────────────────────
@@ -149,9 +155,10 @@ class ClimateMonitorClient:
                     pass
             if isinstance(data, dict):
                 return {
-                    "risk_level":              data.get("risk_level", "Moderate"),
-                    "temperature_anomaly":     float(data.get("temperature_anomaly", 0.0)),
-                    "precipitation_anomaly":   float(data.get("precipitation_anomaly", 0.0)),
+                    "available":               True,
+                    "risk_level":              data.get("risk_level"),
+                    "temperature_anomaly":     (float(data["temperature_anomaly"]) if data.get("temperature_anomaly") is not None else None),
+                    "precipitation_anomaly":   (float(data["precipitation_anomaly"]) if data.get("precipitation_anomaly") is not None else None),
                     "summary":                 data.get("summary", ""),
                     "source":                  "hf_climate_monitor",
                     "lat":                     lat,
@@ -161,23 +168,17 @@ class ClimateMonitorClient:
         except Exception as exc:
             log.debug("Could not parse HF Climate Monitor response: %s", exc)
 
-        # Graceful degradation — return neutral record
-        return {
-            "risk_level":             "Moderate",
-            "temperature_anomaly":    0.0,
-            "precipitation_anomaly":  0.0,
-            "summary":                "Data unavailable — using engine defaults.",
-            "source":                 "hf_climate_monitor_fallback",
-            "lat": lat, "lon": lon,
-        }
+        # Degrade to an explicit "no data" record: nulls, not a neutral "Moderate" with zero anomalies
+        return ClimateMonitorClient._fallback(lat, lon, "unparseable response")
 
     @staticmethod
     def _fallback(lat: float, lon: float, reason: str) -> Dict[str, Any]:
         return {
-            "risk_level":             "Moderate",
-            "temperature_anomaly":    0.0,
-            "precipitation_anomaly":  0.0,
-            "summary":                f"Climate Monitor unavailable ({reason}).",
+            "available":              False,
+            "risk_level":             None,
+            "temperature_anomaly":    None,
+            "precipitation_anomaly":  None,
+            "summary":                f"Climate Monitor unavailable ({reason}); no hazard reading from this source.",
             "source":                 "hf_climate_monitor_fallback",
             "lat": lat, "lon": lon,
         }

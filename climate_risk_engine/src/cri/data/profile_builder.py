@@ -199,6 +199,12 @@ class CompanyProfileBuilder:
         fin_p            = get_sector_financial_params(canonical_sector)
         trans_p          = get_sector_transition_params(canonical_sector)
         data_notes: list[str] = []
+        from .parameters import sector_recognised
+        if not sector_recognised(sector):
+            data_notes.append(
+                f"SECTOR NOT RECOGNISED: '{sector}' did not match any sector the model knows, so it is scored with the "
+                "technology profile, which is the model's lowest-risk sector. Supply a sector (e.g. cement, utilities, "
+                "oil-gas, real-estate) before reading any number here as a finding.")
 
         # ── 1. Financials ─────────────────────────────────────────────────────
         ebitda    = revenue_usd_m * fin_p["ebitda_margin"]

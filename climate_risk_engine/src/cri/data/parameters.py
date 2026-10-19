@@ -513,23 +513,32 @@ _GICS_HINTS = {"materials": "mining", "materials & mining": "mining", "industria
                "health care": "healthcare"}
 
 
+def sector_recognised(sector_str: str) -> bool:
+    """False when normalise_sector had to fall back to its default (so callers can say so instead of presenting it as a finding)."""
+    return _normalise_sector(sector_str)[1]
+
+
 def normalise_sector(sector_str: str) -> str:
     """Return the canonical sector key from a free-text sector description."""
-    s = sector_str.lower().strip().replace("_", " ")
+    return _normalise_sector(sector_str)[0]
+
+
+def _normalise_sector(sector_str: str) -> tuple:
+    s = (sector_str or "").lower().strip().replace("_", " ")
     if s.replace(" ", "_") in SECTOR_PHYSICAL_SENSITIVITY:
-        return s.replace(" ", "_")
+        return s.replace(" ", "_"), True
     if s in _GICS_HINTS:
-        return _GICS_HINTS[s]
+        return _GICS_HINTS[s], True
     words = set(re.findall(r"[a-z]+", s))
     # Alias lookup — short aliases ("it", "air", "car") must match a whole word, longer ones a substring
     for alias, canonical in SECTOR_ALIASES.items():
         if (len(alias) <= 3 and alias in words) or (len(alias) > 3 and alias in s):
-            return canonical
+            return canonical, True
     # Partial match on canonical keys
     for key in SECTOR_PHYSICAL_SENSITIVITY:
         if key in s:
-            return key
-    return "technology"   # safe low-risk default for unknown sectors
+            return key, True
+    return "technology", False   # fallback for unknown sectors: the LOWEST-risk profile, so callers must flag it
 
 
 # ════════════════════════════════════════════════════════════════════════════

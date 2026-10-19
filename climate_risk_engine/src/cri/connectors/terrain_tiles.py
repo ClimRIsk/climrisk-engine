@@ -54,6 +54,7 @@ _LAST_ERROR: list = [""]          # most recent permanent tile failure, for a us
 _TILE_SIZE  = 256          # pixels per tile side
 _ZOOM       = 14           # default zoom — ~9.5 m/px at equator
 _TIMEOUT    = 15           # seconds per HTTP request
+_MAX_TILES  = 256          # refuse grids that would exhaust memory (16 x 16 tiles = 4096 px square, ~130 MB)
 _RETRY      = 2            # retries on transient failure
 
 # In-memory tile cache keyed by (z, x, y) → numpy uint8 (256, 256, 3)
@@ -192,6 +193,10 @@ def get_elevation_grid(
     # ------------------------------------------------------------------ #
     # 1. Compute bounding box in degrees
     # ------------------------------------------------------------------ #
+    _MERC = 85.0511                                 # Web-Mercator tile coverage limit
+    if not (math.isfinite(lat) and math.isfinite(lon)) or abs(lat) + radius_km / 111.32 > _MERC:
+        raise ValueError(f"({lat}, {lon}) is outside the terrain-tile coverage (|latitude| must stay below {_MERC} degrees "
+                         "including the search radius); no elevation model is available there")
     deg_per_km_lat = 1.0 / 111.32                  # ~0.008983°/km
     deg_per_km_lon = 1.0 / (111.32 * math.cos(math.radians(lat)))
 
@@ -211,6 +216,9 @@ def get_elevation_grid(
 
     n_tx = tx_max - tx_min + 1
     n_ty = ty_max - ty_min + 1
+    if n_tx * n_ty > _MAX_TILES:           # high latitude: a fixed radius spans many tiles east-west
+        raise ValueError(f"the {radius_km:g} km search radius at latitude {lat:g} needs {n_tx * n_ty} terrain tiles "
+                         f"(limit {_MAX_TILES}); use a smaller radius or a lower latitude")
     log.info("Fetching %d×%d tiles (zoom=%d) for (%g, %g) r=%.1f km",
              n_tx, n_ty, zoom, lat, lon, radius_km)
 
@@ -227,13 +235,13 @@ def get_elevation_grid(
     _keys = [(zoom, tx, ty) for ty in range(ty_min, ty_max + 1)
                             for tx in range(tx_min, tx_max + 1)]
     with ThreadPoolExecutor(max_workers=min(16, len(_keys))) as _pool:
-        list(_pool.map(lambda k: _fetch_tile(*k), _keys))
+        _got = dict(zip(_keys, _pool.map(lambda k: _fetch_tile(*k), _keys)))
 
     n_ok = 0
     for j, ty in enumerate(range(ty_min, ty_max + 1)):
         for i, tx in enumerate(range(tx_min, tx_max + 1)):
-            rgb = _fetch_tile(zoom, tx, ty)
-            if rgb is None:
+            rgb = _got.get((zoom, tx, ty))      # use the prefetch result: re-fetching a failed tile here
+            if rgb is None:                     # would repeat every retry sleep, serially, per tile
                 continue
             elev = _decode_terrarium(rgb)
             row0 = j * _TILE_SIZE

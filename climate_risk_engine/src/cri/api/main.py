@@ -240,6 +240,34 @@ async def _licence_gate(request, call_next):
     return await call_next(request)
 
 
+# ── Error contract: a request the engine cannot process is a 4xx/503 with a short message, never a bare 500 or a traceback. ──
+import logging as _logging   # noqa: E402
+_elog = _logging.getLogger("cri.api")
+
+
+@app.exception_handler(KeyError)
+@app.exception_handler(TypeError)
+@app.exception_handler(ValueError)
+@app.exception_handler(AttributeError)
+@app.exception_handler(IndexError)
+async def _bad_input_handler(request, exc):
+    """Free-form fields (dicts, nested lists) are validated by the engine, not the schema; a malformed one used to surface as a 500."""
+    _elog.warning("422 on %s %s: %s: %s", request.method, request.url.path, type(exc).__name__, exc)
+    return _JSONResponse(status_code=422, content={"error": "unprocessable_request", "detail": (
+        f"The request body has a shape this endpoint cannot use ({type(exc).__name__}: {str(exc)[:160]}). "
+        "Check the field names and nesting against /docs.")})
+
+
+@app.exception_handler(OSError)
+@app.exception_handler(__import__("httpx").HTTPError)
+async def _upstream_handler(request, exc):
+    """Network / file-system failure reaching something the route depends on (a map server, a data service, another process)."""
+    _elog.warning("503 on %s %s: %s: %s", request.method, request.url.path, type(exc).__name__, exc)
+    return _JSONResponse(status_code=503, content={"error": "dependency_unavailable", "detail": (
+        f"A service this endpoint depends on could not be reached ({type(exc).__name__}: {str(exc)[:160]}). "
+        "Check the internet connection and retry.")})
+
+
 @app.get("/licence/status")
 def licence_status() -> dict:
     """Licence state for the app's activation screen and banner: none, active (days left, remaining runs), exhausted, expired, invalid."""
@@ -712,7 +740,9 @@ def agent_assess(request: AssessRequest) -> dict:
             "sector": company.sector,
             "jurisdiction": getattr(company, "hq_region", "US"),
             "revenue_usd_m": {"value": company.financials.revenue,
-                              "tier": "reported" if _data_source == "registry" else "user-supplied"},
+                              "tier": ("reported" if _data_source == "registry"
+                                       else "user-supplied" if "revenue_usd_m" in request.model_fields_set
+                                       else "assumed (placeholder default, not company data)")},
             "scope1_mt_co2e": s1,
             "scope2_mt_co2e": s2,
             "scope3_mt_co2e": s3,
@@ -1380,9 +1410,10 @@ def location_hazard_score(request: LocationHazardRequest) -> dict:
     from ..connectors.hf_climate_monitor import get_client
     client = get_client()
     report = client.get_risk_report(lat=request.lat, lon=request.lon, location=request.location)
-    score  = client.hazard_score(lat=request.lat, lon=request.lon, location=request.location)
+    score  = client.score_from_report(report)
     return {
         "hazard_score":  score,
+        "available":     score is not None,
         "risk_report":   report,
         "methodology": {
             "source": "towardsinnovationlab/Climate_Risk_Monitoring (HuggingFace Spaces MCP)",

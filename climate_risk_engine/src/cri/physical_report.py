@@ -352,6 +352,16 @@ def build_asset_report(lat: float, lon: float, name: Optional[str] = None, secto
     fl = _flood if _flood is not None else site_flood(lat, lon, 250.0, elev_m=(ai.get("terrain") or {}).get("elevation_m"))
     terr, sat, lc, sar = ai.get("terrain") or {}, ai.get("satellite") or {}, ai.get("land_cover") or {}, ai.get("radar") or {}
     findings = {f["hazard"]: f for f in ai.get("findings", [])}
+    # Open water / unmapped: the terrain model also covers the sea floor (and reads 0 m for much of the open sea), so an offshore
+    # pin used to be rated as a "valley" 5 km down with CRITICAL surface-water flooding, and a pole (no layers at all) as
+    # NEGLIGIBLE. Neither is a finding. Every real island nation has an admin unit in the boundary layer; open water has none.
+    _elev = terr.get("elevation_m")
+    if (not adm.get("found")) or (not adm.get("name") and not iso3 and _elev is not None and _elev < -15):
+        raise ValueError(
+            f"({lat:.4f}, {lon:.4f}) is not on assessable land: no administrative unit in the engine's boundary layer covers it "
+            "(open water, or land the layer does not map such as the polar caps)"
+            + (f", and the terrain model puts it {abs(_elev):.0f} m below sea level" if _elev is not None and _elev < -15 else "")
+            + ". A land-based physical-risk rating is not meaningful there; move the pin onto the site.")
     asset = {"name": name or "Site", "lat": lat, "lon": lon, "country": iso3, "admin1": adm.get("name"),
              "sector": sector, "asset_type": asset_type, "profile": pk, "profile_label": prof["label"],
              "commissioned_year": commissioned_year}
@@ -624,6 +634,19 @@ def build_asset_report(lat: float, lon: float, name: Optional[str] = None, secto
         cautions.append(f"The site is only {elev:.0f} m above sea level and about {sat['nearest_water_m']:.0f} m from water, yet the "
                         "coastal flood map shows no flooding. The map uses a 90 m surface model that can overstate ground "
                         "height in dense urban areas, so treat this as unconfirmed and check against a local flood study.")
+    sz = next((z for z in zones if z["key"] == "slope"), None)
+    if elev is not None and elev < 10 and cz and cz.get("rating") in (None, "NEGLIGIBLE", "LOW") and \
+            (sat.get("nearest_water_m") is None or sat["nearest_water_m"] < 1500):
+        cautions.append(f"The elevation model puts this site at {elev:.0f} m above sea level, close to the sea. Global terrain (about 30 m) and "
+                        "coastal-flood maps (about 90 m) cannot resolve atolls, reclaimed land, dikes or narrow coastal strips, and routinely read "
+                        "low islands several metres too high (Tuvalu, the Maldives and Kiribati are the usual examples), so a low or negligible "
+                        "coastal rating here is unconfirmed. Use a surveyed ground level and a local inundation study.")
+    if elev is not None and elev < 5 and sz and sz.get("rating") in ("HIGH", "CRITICAL"):
+        cautions.append("The slope rating comes from a terrain model that is at or near sea level here; steep cells next to the shore are usually "
+                        "sea-floor or noise rather than land that can slide. Treat the landslide rating as unconfirmed.")
+    if "water" in str(lc.get("class_at_asset") or "").lower():
+        cautions.append("The pin sits on permanent water in the land-cover map (a lake, sea or river). Every rating below describes "
+                        "that location as if it were land; if the asset is on the shore, move the pin onto it.")
     gaps = [f"{k}: {v}" for k, v in (ai.get("errors") or {}).items()]
     for z in zones:
         z.pop("_finding", None)
