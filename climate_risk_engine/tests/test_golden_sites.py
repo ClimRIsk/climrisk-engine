@@ -49,7 +49,7 @@ def test_snapshot_covers_all_sites_without_errors():
 def test_agreement_rate_is_reported_and_not_worse_than_today():
     total = sum(1 for _ in _cases())
     met = sum(1 for n, z, c in _cases() if not _fails(SNAP[n].get(z), c))
-    assert total >= 40 and met / total >= 0.58, (met, total)      # 27 of 46 on 19 Oct 2026; raise this floor as gaps are fixed
+    assert total >= 40 and met / total >= 0.58, (met, total)      # 28 of 46 on 19 Oct 2026; raise this floor as gaps are fixed
 
 
 def test_live_cyclone_rate_agrees_with_expectations():

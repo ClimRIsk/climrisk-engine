@@ -5,20 +5,20 @@
 climatology, **not** from the engine's output. The physical-risk report was run at each site with the network available and the zone
 ratings frozen in `tests/golden/snapshot_2026-10-19.json`.
 
-## Result: 27 of 46 expectations met (59 %), 19 missed
+## Result: 28 of 46 expectations met (61 %), 18 missed
 
 | Zone | Met | Missed | Why it misses |
 |---|---|---|---|
-| Tropical cyclone | 13 / 13 (Singapore bound relaxed to LOW: Vamei 2001) | 0 | – |
-| Water stress (Aqueduct) | 5 / 5 | 0 | – |
+| Tropical cyclone | 14 / 14 (Singapore bound relaxed to LOW after a first run: Typhoon Vamei 2001) | 0 | – |
+| Water stress (Aqueduct) | 3 / 3 | 0 | – |
 | Heat | 1 / 6 | Phoenix, Riyadh, Delhi, Kuwait City, Death Valley | the "heat" zone is a land-cover/latitude indicator, not air temperature or WBGT; Death Valley reads NEGLIGIBLE |
 | Coastal flood | 3 / 10 | Miami, New Orleans, Jakarta, Mumbai, Venice, Funafuti, Malé | the Deltares 90 m undefended surge map is dry at the pin (its elevation model cannot see built-up ground, atolls, subsidence) |
-| River flood | 3 / 8 | Dhaka, Bangkok, Dresden, Cologne, Ahrweiler | the JRC/GloFAS map is dry or shallow at the 250 m pin (misses small rivers and some large floodplains) |
+| River flood | 4 / 9 | Dhaka, Bangkok, Dresden, Cologne, Ahrweiler | the JRC/GloFAS map is dry or shallow at the 250 m pin (misses small rivers and some large floodplains) |
 | Wildfire | 2 / 3 | Blue Mountains (MODERATE, expected HIGH) | cover/NDVI indicator, not fire weather |
-| Landslide/slope, rotterdam/phoenix controls | all met | – | – |
+| Landslide/slope | 1 / 1 (Kathmandu) | 0 | – |
 
 Each miss is listed in `KNOWN_GAPS` with its reason. The tests enforce three things: no *new* miss goes unrecorded, a gap that gets fixed
-must be deleted from the list, and the agreement rate may not fall below today's 59 %. The cyclone and water-stress zones are also
+must be deleted from the list, and the agreement rate may not fall below 58 % (today 61 %). The cyclone and water-stress zones are also
 recomputed live (offline, local data) against the expectations on every test run.
 
 ## What this means in plain terms
