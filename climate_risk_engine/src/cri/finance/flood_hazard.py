@@ -171,15 +171,26 @@ def coastal_depths(lat: float, lon: float, radius_m: float = 250.0) -> dict:
         y, rp = yr
         return yr, _chunk(y, rp, i, j, n)
 
+    errors = []
+
+    def guarded(x):
+        try:
+            return one(x)
+        except Exception as exc:                           # noqa: BLE001
+            errors.append(f"{x[0]}_{x[1]}: {type(exc).__name__}")
+            return x, "ERR"
     try:
         with ThreadPoolExecutor(8) as pool:
-            res = dict(pool.map(lambda x: _safe_pair(one, x), jobs))
+            res = dict(pool.map(guarded, jobs))
     except Exception as exc:                               # noqa: BLE001
         out.update(available=False, reason=repr(exc)[:200])
         return out
+    if errors:      # a failed read is NOT a dry pixel: it used to be turned into zero depth and reported as available
+        out.update(available=False, reason=f"{len(errors)} of {len(jobs)} Deltares reads failed ({errors[0]}); coastal flood not assessed")
+        return out
     depths = {}
     for (y, rp), w in res.items():
-        if w is None:
+        if w is None:                                      # no data chunk at this location = sea/fill or dry land
             depths[f"{y}_{rp}"] = []
             continue
         v = w[mask]
@@ -221,7 +232,8 @@ def site_flood(lat: float, lon: float, radius_m: float = 250.0, coastal: Optiona
         river = fr.result()
         coast = fc.result() if fc else {"available": False, "reason": "site above 30 m — coastal flooding not assessed"}
     res = {"river": river, "coastal": coast, "elapsed_s": round(time.time() - t, 1)}
-    if river.get("available") is not False or coast.get("available") is not False:
+    # never cache a failed read (it would be served as the answer for ever); skipping coastal for a high site is a real result
+    if river.get("available") is not False and (coast.get("available") is not False or str(coast.get("reason", "")).startswith("site above")):
         try:
             key.write_text(json.dumps(res, separators=(",", ":")))
         except Exception:                                  # noqa: BLE001

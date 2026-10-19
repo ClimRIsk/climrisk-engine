@@ -1,0 +1,287 @@
+{
+ "generated": "2026-10-19",
+ "mode": "online",
+ "note": "Physical-risk report zone ratings per golden site, produced by build_asset_report(include_image=False). A drift in these is a change in engine behaviour.",
+ "sites": {
+  "ahrweiler": {
+   "river_flood": "NEGLIGIBLE",
+   "coastal_flood": "NEGLIGIBLE",
+   "surface_water": "MODERATE",
+   "cyclone": "NEGLIGIBLE",
+   "slope": "LOW",
+   "wildfire": "MODERATE",
+   "heat": "NEGLIGIBLE",
+   "water": "MODERATE"
+  },
+  "bangkok": {
+   "river_flood": "LOW",
+   "coastal_flood": "NEGLIGIBLE",
+   "surface_water": "NEGLIGIBLE",
+   "cyclone": "NEGLIGIBLE",
+   "slope": "LOW",
+   "wildfire": "NEGLIGIBLE",
+   "heat": "MODERATE",
+   "water": "HIGH"
+  },
+  "blue_mountains": {
+   "river_flood": "NEGLIGIBLE",
+   "coastal_flood": "NEGLIGIBLE",
+   "surface_water": "NEGLIGIBLE",
+   "cyclone": "NEGLIGIBLE",
+   "slope": "LOW",
+   "wildfire": "MODERATE",
+   "heat": "NEGLIGIBLE",
+   "water": "HIGH"
+  },
+  "brisbane": {
+   "river_flood": "HIGH",
+   "coastal_flood": "NEGLIGIBLE",
+   "surface_water": "NEGLIGIBLE",
+   "cyclone": "LOW",
+   "slope": "LOW",
+   "wildfire": "NEGLIGIBLE",
+   "heat": "MODERATE",
+   "water": "HIGH"
+  },
+  "chennai": {
+   "river_flood": "MODERATE",
+   "coastal_flood": "NEGLIGIBLE",
+   "surface_water": "LOW",
+   "cyclone": "MODERATE",
+   "slope": "LOW",
+   "wildfire": "NEGLIGIBLE",
+   "heat": "MODERATE",
+   "water": "CRITICAL"
+  },
+  "cologne": {
+   "river_flood": "NEGLIGIBLE",
+   "coastal_flood": "NEGLIGIBLE",
+   "surface_water": "NEGLIGIBLE",
+   "cyclone": "NEGLIGIBLE",
+   "slope": "LOW",
+   "wildfire": "NEGLIGIBLE",
+   "heat": "MODERATE",
+   "water": "MODERATE"
+  },
+  "death_valley": {
+   "river_flood": "NEGLIGIBLE",
+   "coastal_flood": "NEGLIGIBLE",
+   "surface_water": "MODERATE",
+   "cyclone": "NEGLIGIBLE",
+   "slope": "MODERATE",
+   "wildfire": "NEGLIGIBLE",
+   "heat": "NEGLIGIBLE",
+   "water": "CRITICAL"
+  },
+  "delhi": {
+   "river_flood": "NEGLIGIBLE",
+   "coastal_flood": "NEGLIGIBLE",
+   "surface_water": "LOW",
+   "cyclone": "NEGLIGIBLE",
+   "slope": "LOW",
+   "wildfire": "LOW",
+   "heat": "MODERATE",
+   "water": "CRITICAL"
+  },
+  "dhaka": {
+   "river_flood": "NEGLIGIBLE",
+   "coastal_flood": "NEGLIGIBLE",
+   "surface_water": "NEGLIGIBLE",
+   "cyclone": "MODERATE",
+   "slope": "LOW",
+   "wildfire": "MODERATE",
+   "heat": "MODERATE",
+   "water": "CRITICAL"
+  },
+  "dresden": {
+   "river_flood": "NEGLIGIBLE",
+   "coastal_flood": "NEGLIGIBLE",
+   "surface_water": "NEGLIGIBLE",
+   "cyclone": "NEGLIGIBLE",
+   "slope": "LOW",
+   "wildfire": "LOW",
+   "heat": "MODERATE",
+   "water": "MODERATE"
+  },
+  "funafuti": {
+   "river_flood": null,
+   "coastal_flood": "NEGLIGIBLE",
+   "surface_water": "NEGLIGIBLE",
+   "cyclone": "LOW",
+   "slope": "LOW",
+   "wildfire": "NEGLIGIBLE",
+   "heat": "NEGLIGIBLE",
+   "water": null
+  },
+  "houston": {
+   "river_flood": "HIGH",
+   "coastal_flood": "NEGLIGIBLE",
+   "surface_water": "NEGLIGIBLE",
+   "cyclone": "MODERATE",
+   "slope": "LOW",
+   "wildfire": "NEGLIGIBLE",
+   "heat": "MODERATE",
+   "water": "MODERATE"
+  },
+  "jakarta": {
+   "river_flood": "NEGLIGIBLE",
+   "coastal_flood": "NEGLIGIBLE",
+   "surface_water": "LOW",
+   "cyclone": "NEGLIGIBLE",
+   "slope": "LOW",
+   "wildfire": "NEGLIGIBLE",
+   "heat": "MODERATE",
+   "water": "HIGH"
+  },
+  "kathmandu": {
+   "river_flood": "NEGLIGIBLE",
+   "coastal_flood": "NEGLIGIBLE",
+   "surface_water": "NEGLIGIBLE",
+   "cyclone": "NEGLIGIBLE",
+   "slope": "MODERATE",
+   "wildfire": "NEGLIGIBLE",
+   "heat": "MODERATE",
+   "water": "HIGH"
+  },
+  "kuwait_city": {
+   "river_flood": "NEGLIGIBLE",
+   "coastal_flood": "NEGLIGIBLE",
+   "surface_water": "NEGLIGIBLE",
+   "cyclone": "NEGLIGIBLE",
+   "slope": "LOW",
+   "wildfire": "NEGLIGIBLE",
+   "heat": "MODERATE",
+   "water": "CRITICAL"
+  },
+  "male": {
+   "river_flood": "NEGLIGIBLE",
+   "coastal_flood": "NEGLIGIBLE",
+   "surface_water": "NEGLIGIBLE",
+   "cyclone": "LOW",
+   "slope": "LOW",
+   "wildfire": "NEGLIGIBLE",
+   "heat": "NEGLIGIBLE",
+   "water": null
+  },
+  "manila": {
+   "river_flood": "NEGLIGIBLE",
+   "coastal_flood": "NEGLIGIBLE",
+   "surface_water": "NEGLIGIBLE",
+   "cyclone": "HIGH",
+   "slope": "LOW",
+   "wildfire": "NEGLIGIBLE",
+   "heat": "MODERATE",
+   "water": "HIGH"
+  },
+  "miami": {
+   "river_flood": "NEGLIGIBLE",
+   "coastal_flood": "NEGLIGIBLE",
+   "surface_water": "HIGH",
+   "cyclone": "HIGH",
+   "slope": "LOW",
+   "wildfire": "NEGLIGIBLE",
+   "heat": "MODERATE",
+   "water": "HIGH"
+  },
+  "mumbai": {
+   "river_flood": "NEGLIGIBLE",
+   "coastal_flood": "NEGLIGIBLE",
+   "surface_water": "LOW",
+   "cyclone": "LOW",
+   "slope": "LOW",
+   "wildfire": "NEGLIGIBLE",
+   "heat": "MODERATE",
+   "water": "HIGH"
+  },
+  "new_orleans": {
+   "river_flood": "NEGLIGIBLE",
+   "coastal_flood": "NEGLIGIBLE",
+   "surface_water": "HIGH",
+   "cyclone": "HIGH",
+   "slope": "LOW",
+   "wildfire": "NEGLIGIBLE",
+   "heat": "MODERATE",
+   "water": "MODERATE"
+  },
+  "pasadena_fire": {
+   "river_flood": "NEGLIGIBLE",
+   "coastal_flood": "NEGLIGIBLE",
+   "surface_water": "NEGLIGIBLE",
+   "cyclone": "NEGLIGIBLE",
+   "slope": "LOW",
+   "wildfire": "MODERATE",
+   "heat": "MODERATE",
+   "water": "CRITICAL"
+  },
+  "phoenix": {
+   "river_flood": "NEGLIGIBLE",
+   "coastal_flood": "NEGLIGIBLE",
+   "surface_water": "NEGLIGIBLE",
+   "cyclone": "NEGLIGIBLE",
+   "slope": "LOW",
+   "wildfire": "NEGLIGIBLE",
+   "heat": "MODERATE",
+   "water": "CRITICAL"
+  },
+  "reykjavik": {
+   "river_flood": "NEGLIGIBLE",
+   "coastal_flood": "NEGLIGIBLE",
+   "surface_water": "NEGLIGIBLE",
+   "cyclone": "NEGLIGIBLE",
+   "slope": "MODERATE",
+   "wildfire": "NEGLIGIBLE",
+   "heat": "NEGLIGIBLE",
+   "water": "NEGLIGIBLE"
+  },
+  "riyadh": {
+   "river_flood": "NEGLIGIBLE",
+   "coastal_flood": "NEGLIGIBLE",
+   "surface_water": "NEGLIGIBLE",
+   "cyclone": "NEGLIGIBLE",
+   "slope": "LOW",
+   "wildfire": "NEGLIGIBLE",
+   "heat": "MODERATE",
+   "water": "CRITICAL"
+  },
+  "rotterdam": {
+   "river_flood": "NEGLIGIBLE",
+   "coastal_flood": "NEGLIGIBLE",
+   "surface_water": "NEGLIGIBLE",
+   "cyclone": "NEGLIGIBLE",
+   "slope": "LOW",
+   "wildfire": "NEGLIGIBLE",
+   "heat": "MODERATE",
+   "water": "MODERATE"
+  },
+  "singapore": {
+   "river_flood": "NEGLIGIBLE",
+   "coastal_flood": "NEGLIGIBLE",
+   "surface_water": "NEGLIGIBLE",
+   "cyclone": "LOW",
+   "slope": "LOW",
+   "wildfire": "MODERATE",
+   "heat": "NEGLIGIBLE",
+   "water": "MODERATE"
+  },
+  "tokyo": {
+   "river_flood": "NEGLIGIBLE",
+   "coastal_flood": "NEGLIGIBLE",
+   "surface_water": "NEGLIGIBLE",
+   "cyclone": "CRITICAL",
+   "slope": "MODERATE",
+   "wildfire": "NEGLIGIBLE",
+   "heat": "MODERATE",
+   "water": "MODERATE"
+  },
+  "venice": {
+   "river_flood": "NEGLIGIBLE",
+   "coastal_flood": "NEGLIGIBLE",
+   "surface_water": "MODERATE",
+   "cyclone": "NEGLIGIBLE",
+   "slope": "LOW",
+   "wildfire": "NEGLIGIBLE",
+   "heat": "MODERATE",
+   "water": "HIGH"
+  }
+ }
+}

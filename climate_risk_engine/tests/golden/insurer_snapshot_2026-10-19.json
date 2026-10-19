@@ -1,0 +1,88 @@
+{
+ "generated": "2026-10-19",
+ "note": "insurance.run on 8 golden sites, TIV USD 10m each, cement sector, 3000 simulated years, online hazards. AAL in USD.",
+ "sites": {
+  "miami": {
+   "aal": 24824.830001184186,
+   "rate_pm": 2.482,
+   "wind": 24824.830001184186,
+   "river": 0.0,
+   "coast": 0.0,
+   "na": [
+    "flood: surface-water and small-river"
+   ]
+  },
+  "new_orleans": {
+   "aal": 41420.432637969716,
+   "rate_pm": 4.142,
+   "wind": 39425.153445045216,
+   "river": 1995.2791929244995,
+   "coast": 0.0,
+   "na": [
+    "flood: surface-water and small-river"
+   ]
+  },
+  "houston": {
+   "aal": 26191.77203049093,
+   "rate_pm": 2.619,
+   "wind": 18231.02017909119,
+   "river": 7960.751851399739,
+   "coast": 0.0,
+   "na": [
+    "flood: surface-water and small-river"
+   ]
+  },
+  "rotterdam": {
+   "aal": 0.0,
+   "rate_pm": 0.0,
+   "wind": 0.0,
+   "river": 0.0,
+   "coast": 0.0,
+   "na": [
+    "wind",
+    "flood: surface-water and small-river"
+   ]
+  },
+  "phoenix": {
+   "aal": 0.0,
+   "rate_pm": 0.0,
+   "wind": 0.0,
+   "river": 0.0,
+   "coast": 0.0,
+   "na": [
+    "wind",
+    "flood: surface-water and small-river"
+   ]
+  },
+  "dhaka": {
+   "aal": 13997.197073018106,
+   "rate_pm": 1.4,
+   "wind": 13997.197073018106,
+   "river": 0.0,
+   "coast": 0.0,
+   "na": [
+    "flood: surface-water and small-river"
+   ]
+  },
+  "tokyo": {
+   "aal": 6800.374167617971,
+   "rate_pm": 0.68,
+   "wind": 6800.374167617971,
+   "river": 0.0,
+   "coast": 0.0,
+   "na": [
+    "flood: surface-water and small-river"
+   ]
+  },
+  "manila": {
+   "aal": 15274.78952069777,
+   "rate_pm": 1.527,
+   "wind": 15274.78952069777,
+   "river": 0.0,
+   "coast": 0.0,
+   "na": [
+    "flood: surface-water and small-river"
+   ]
+  }
+ }
+}

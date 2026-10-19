@@ -61,7 +61,7 @@ def test_utci_is_finite_or_explicit_nan_never_inf(t, rh, v, tmrt):
     u = float(U.utci(t, rh, v, tmrt))
     assert not math.isinf(u)
     if -50 <= t <= 50 and -30 <= tmrt - t <= 70:
-        assert math.isfinite(u) and -90 < u < 90
+        assert math.isfinite(u) and -120 < u < 90       # UTCI reaches about -100 C at -50 C air with a gale
 
 
 @settings(max_examples=12, deadline=None, suppress_health_check=[HealthCheck.too_slow])

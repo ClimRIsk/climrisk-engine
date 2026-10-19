@@ -489,6 +489,10 @@ def build_asset_report(lat: float, lon: float, name: Optional[str] = None, secto
     elif "above 30 m" in str(cst.get("reason") or ""):
         zones.append({"key": "coastal_flood", "title": "Coastal flooding and sea-level rise", "rating": "NEGLIGIBLE",
                       "zone": "Site is above 30 m; coastal flooding is not a hazard here.", "facts": []})
+    else:
+        zones.append({"key": "coastal_flood", "title": "Coastal flooding and sea-level rise", "rating": None,
+                      "zone": "Not assessed: " + (str(cst.get("reason") or "no coastal flood map could be read for this location")[:200]) + ".",
+                      "facts": []})
 
     # surface-water / observed flooding (terrain + satellite + radar)
     ff = findings.get("flood")

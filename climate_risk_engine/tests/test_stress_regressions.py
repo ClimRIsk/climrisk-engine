@@ -114,3 +114,14 @@ def test_failed_gis_resolution_is_labelled_placeholder(monkeypatch):
         sig = None
     if sig is not None:
         assert "UNAVAILABLE" in sig.data_sources["gis"] and "UNAVAILABLE" in sig.data_sources["temperature_baseline"]
+
+
+def test_failed_coastal_read_is_not_a_dry_site(monkeypatch):
+    """Every failed Deltares read used to become a zero depth with available=True -> 'NEGLIGIBLE' and cached for ever."""
+    from cri.finance import flood_hazard as FH
+
+    def boom(*a, **k):
+        raise OSError("down")
+    monkeypatch.setattr(FH, "_chunk", boom)
+    r = FH.coastal_depths(25.76, -80.19)
+    assert r["available"] is False and "not assessed" in r["reason"]
