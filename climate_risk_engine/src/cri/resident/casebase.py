@@ -66,6 +66,7 @@ _EVENT_PREFIX = re.compile(r"^(hurricane|typhoon|super ?typhoon|cyclone|tropical
 
 # ── the index ───────────────────────────────────────────────────────────────
 
+SEM_W = float(os.environ.get("CRI_RAG_SEM_W", "0.35"))               # weight of the semantic score in the text-relevance term (0 = BM25 only)
 _LOCK = threading.RLock()
 _IDX: dict = {"path": None, "mtime": None, "items": [], "inv": {}, "df": {}, "avgdl": 1.0, "events": {}, "companies": {}, "cards": {}, "ev_text": {}}
 
@@ -127,7 +128,11 @@ def _load() -> dict:
         for r in items:
             if r["kind"] not in _CO_KINDS:
                 ev_text[r["event"]] += " " + r["text"].lower()
-        _IDX.update(path=str(p), mtime=mt, items=items, inv=dict(inv), df=dict(df), avgdl=total / max(1, len(items)), events=events, companies=dict(companies), cards=cards, ev_text=dict(ev_text))
+        sem = None
+        if os.environ.get("CRI_RAG_SEMANTIC", "1") != "0" and p == PACKAGED:          # the shipped vectors belong to the shipped index only
+            from . import semantic as _S
+            sem = _S.Dense.load(len(items))
+        _IDX.update(path=str(p), mtime=mt, items=items, inv=dict(inv), df=dict(df), avgdl=total / max(1, len(items)), events=events, companies=dict(companies), cards=cards, ev_text=dict(ev_text), sem=sem)
         return _IDX
 
 
@@ -169,6 +174,24 @@ def _match_entities(q: str, ix: dict) -> tuple:
     return evs, cos
 
 
+SEM_ROUTE = float(os.environ.get("CRI_RAG_ROUTE", "0.65"))          # cosine of the best curated card above which a question is routed to the case library
+
+
+def semantic_best(q: str) -> float:
+    """Cosine similarity of the question to its closest curated card (frame / fact / response). 0.0 when the dense layer is not available."""
+    ix = _load()
+    if ix.get("sem") is None:
+        return 0.0
+    cs = ix["sem"].scores(q)
+    if cs is None:
+        return 0.0
+    best = 0.0
+    for i, r in enumerate(ix["items"]):
+        if r["kind"] in ("frame", "fact", "resp") and cs[i] > best:
+            best = float(cs[i])
+    return best
+
+
 def is_case_question(q: str) -> bool:
     if not available():
         return False
@@ -176,7 +199,9 @@ def is_case_question(q: str) -> bool:
     evs, cos = _match_entities(q, ix)
     if evs or cos:
         return True
-    return bool(_ASK_PRECEDENT.search(q))
+    if _ASK_PRECEDENT.search(q):
+        return True
+    return semantic_best(q) >= SEM_ROUTE
 
 
 def coverage_gap(q: str) -> Optional[dict]:
@@ -244,20 +269,28 @@ def retrieve(q: str, k: int = 6, per_group: int = 2) -> list:
     qtoks = _tokens(q)
     # entity tokens are already handled by the boosts; the rest of the question picks the passages within the entity
     sc = _bm25(qtoks, ix)
-    if not sc and not evs and not cos:
+    sem = {}
+    if ix.get("sem") is not None and SEM_W > 0:
+        cs = ix["sem"].scores(q)
+        if cs is not None:
+            for i in cs.argsort()[::-1][:60]:
+                if cs[i] > 0.2:
+                    sem[int(i)] = float(cs[i])
+    if not sc and not sem and not evs and not cos:
         return []
     want_fig, want_resp = bool(_WANT_FIG.search(q)), bool(_WANT_RESP.search(q))
     ev_set, co_set = set(evs), set(cos)
-    cand = set(sc)
+    cand = set(sc) | set(sem)
     if ev_set or co_set:                                             # entity-matched items are candidates even when no other question word hits them
         for i, r in enumerate(ix["items"]):
             if r["event"] in ev_set or (r["kind"] in _CO_KINDS and _co_norm(r.get("company") or "") in co_set):
                 cand.add(i)
     ranked = []
     top = max(sc.values()) if sc else 1.0
+    stop = max(sem.values()) if sem else 1.0
     for i in cand:
         r = ix["items"][i]
-        s = sc.get(i, 0.0) / (top or 1.0)                              # 0..1 text relevance
+        s = (1 - SEM_W) * sc.get(i, 0.0) / (top or 1.0) + SEM_W * sem.get(i, 0.0) / (stop or 1.0)          # 0..1 text relevance: BM25 blended with the offline semantic score
         if r["event"] in ev_set:
             s += 1.0
         if r["kind"] in _CO_KINDS and _co_norm(r.get("company") or "") in co_set:

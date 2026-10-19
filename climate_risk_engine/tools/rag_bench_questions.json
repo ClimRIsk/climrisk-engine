@@ -1,0 +1,233 @@
+{
+ "_note": "Paraphrase questions: each avoids the event/company proper names and the exact words of the case card, so lexical overlap alone cannot find it. p1 = development set (used to tune the blend weight), p2 = test set (never used for tuning). gold = event ids that are acceptable answers. not_case_questions: general app/science questions that must NOT be routed to the case library (false-positive check for the semantic router; threshold chosen on p1 + these).",
+ "paraphrase": [
+  {
+   "id": "pge-2019",
+   "gold": [
+    "pge-2019"
+   ],
+   "p1": "A power utility whose lines sparked deadly blazes was pushed into bankruptcy. What does that teach about liability?",
+   "p2": "Why can damages from fires started by electrical equipment wipe out a grid operator's equity?"
+  },
+  {
+   "id": "orsted-2023",
+   "gold": [
+    "orsted-2023"
+   ],
+   "p1": "Why did a Danish developer of sea-based turbines write down its American projects and raise fresh capital?",
+   "p2": "How can fixed-price power contracts plus higher borrowing costs turn a green build-out into big write-offs?"
+  },
+  {
+   "id": "basf-rhine-2018",
+   "gold": [
+    "basf-rhine-2018"
+   ],
+   "p1": "How did a drought that left the big German river shallow hurt a chemicals plant that relied on barges?",
+   "p2": "What happens to an inland factory's earnings when barge shipping is restricted by dry weather?"
+  },
+  {
+   "id": "uri-2021",
+   "gold": [
+    "uri-2021"
+   ],
+   "p1": "What happened to Texas power generators and retailers during the deep freeze when gas supply failed?",
+   "p2": "How did the price spike in the Texas grid during the cold wave leave some firms with unpaid balances?"
+  },
+  {
+   "id": "thailand-2011",
+   "gold": [
+    "thailand-2011"
+   ],
+   "p1": "Flooding near Bangkok halted hard-drive and electronics factories. How did it affect companies elsewhere?",
+   "p2": "How can a single flooded manufacturing zone shut assembly lines in other countries?"
+  },
+  {
+   "id": "jebi-2018",
+   "gold": [
+    "jebi-2018"
+   ],
+   "p1": "A strong storm hit the Osaka bay region and flooded the airport. How reliable were early insurance loss estimates?",
+   "p2": "Why did modellers disagree about insured losses after the Japanese typhoon in the Kansai area?"
+  },
+  {
+   "id": "ahr-2021",
+   "gold": [
+    "ahr-2021",
+    "europe-floods-2021"
+   ],
+   "p1": "After record rain flash-flooded German valleys, how much of the damage was actually covered by insurance?",
+   "p2": "Why were insurers' results small relative to the economic damage from the western European deluge?"
+  },
+  {
+   "id": "maui-2023",
+   "gold": [
+    "maui-2023"
+   ],
+   "p1": "How did the island blaze affect the Hawaii electricity company's credit rating and its access to capital markets?",
+   "p2": "What happens when a utility's wildfire liability is far larger than its market value?"
+  },
+  {
+   "id": "ca-insurers-2023",
+   "gold": [
+    "ca-insurers-2023"
+   ],
+   "p1": "Why did big home insurers stop selling new policies in the Golden State?",
+   "p2": "What happens to the housing market when regulated premiums cannot keep up with modelled fire risk?"
+  },
+  {
+   "id": "panama-2023",
+   "gold": [
+    "panama-2023"
+   ],
+   "p1": "How did low lake levels restrict ships crossing between the oceans, and who bore the cost?",
+   "p2": "What does a drought at a water-dependent shipping chokepoint do to queues and slot auctions?"
+  },
+  {
+   "id": "tsmc-2021",
+   "gold": [
+    "tsmc-2021"
+   ],
+   "p1": "How did chip factories cope when reservoirs were low after the monsoon failed?",
+   "p2": "Can a water-hungry fab avoid output loss in a dry spell by paying for tanker deliveries?"
+  },
+  {
+   "id": "kariba-2024",
+   "gold": [
+    "kariba-2024"
+   ],
+   "p1": "How did a record dry spell cut dam electricity and affect African copper producers?",
+   "p2": "What happens to a mine's margins when its hydroelectric supply falls and it must import power?"
+  },
+  {
+   "id": "chennai-2015",
+   "gold": [
+    "chennai-2015"
+   ],
+   "p1": "How did the heaviest rainfall in a century hit vehicle factories in southern India?",
+   "p2": "How much of a short factory shutdown from flooding can be recovered with overtime?"
+  },
+  {
+   "id": "valencia-2024",
+   "gold": [
+    "valencia-2024"
+   ],
+   "p1": "How did the Spanish public reinsurer handle claims after the torrential rain in the eastern region?",
+   "p2": "How does a state-backed pre-funded insurance reserve change who pays for a flood disaster?"
+  },
+  {
+   "id": "idai-2019",
+   "gold": [
+    "idai-2019"
+   ],
+   "p1": "What happened to the Mozambique harbour and coal terminal after the powerful storm came ashore?",
+   "p2": "Why did the single railway line remain the weak point for trade through the Beira corridor?"
+  },
+  {
+   "id": "rs-brazil-2024",
+   "gold": [
+    "rs-brazil-2024"
+   ],
+   "p1": "How did severe floods in southern Brazil affect steel and car plants and the banks lending in the state?",
+   "p2": "Why does logistics damage hurt every company in a flooded region, not only the flooded ones?"
+  },
+  {
+   "id": "harvey-arkema-2017",
+   "gold": [
+    "harvey-arkema-2017"
+   ],
+   "p1": "Why did a chemical plant near Houston catch fire after backup power was flooded?",
+   "p2": "Is backup power that shares the same flood exposure as the main supply real protection?"
+  },
+  {
+   "id": "maria-baxter-2017",
+   "gold": [
+    "maria-baxter-2017"
+   ],
+   "p1": "Why did a hurricane in the Caribbean island lead to a shortage of saline bags in American hospitals?",
+   "p2": "What does a single-site product made in a storm zone mean for national supply?"
+  },
+  {
+   "id": "shell-hague",
+   "gold": [
+    "shell-hague"
+   ],
+   "p1": "A Dutch court told an oil major to cut its emissions, then the ruling was overturned. What does it show about legal risk?",
+   "p2": "Can a court set emission targets for a company including customers' emissions?"
+  },
+  {
+   "id": "swissre-sigma",
+   "gold": [
+    "swissre-sigma"
+   ],
+   "p1": "How much of the world's disaster damage is uninsured, and who ends up paying?",
+   "p2": "What is the protection gap in insurance and why do secondary perils like severe thunderstorms matter?"
+  },
+  {
+   "id": "mcmurray-2016",
+   "gold": [
+    "mcmurray-2016"
+   ],
+   "p1": "How did a forest blaze that forced evacuation affect Canadian bitumen production?",
+   "p2": "Can a fire idle productive assets for weeks without big physical damage, so that the loss is lost output?"
+  },
+  {
+   "id": "gabrielle-2023",
+   "gold": [
+    "gabrielle-2023"
+   ],
+   "p1": "How did claims estimates move after the cyclone and floods in the New Zealand North Island?",
+   "p2": "Why do early loss figures understate the final bill in a small insurance market?"
+  },
+  {
+   "id": "kzn-2022",
+   "gold": [
+    "kzn-2022"
+   ],
+   "p1": "How did the floods in eastern South Africa affect the Durban harbour and rail links?",
+   "p2": "Why does port throughput recover more slowly than the headline restart suggests?"
+  },
+  {
+   "id": "tata-port-talbot",
+   "gold": [
+    "tata-port-talbot"
+   ],
+   "p1": "How is a Welsh steelworks replacing blast furnaces, and what role does state funding play?",
+   "p2": "Why does transition investment in steelmaking depend on grid connection timing?"
+  },
+  {
+   "id": "uk-freeze-2022",
+   "gold": [
+    "uk-freeze-2022"
+   ],
+   "p1": "How did burst pipes from a December cold snap affect a British insurer's quarter?",
+   "p2": "Can one cold spell be material for an insurer's quarter even if the year stays near its weather average?"
+  }
+ ],
+ "not_case_questions": [
+  "What is the weather in Mumbai tomorrow?",
+  "Show my portfolio on the map",
+  "How do I export the results to Excel?",
+  "What is a covenant breach?",
+  "Run a flood study for 51.5, -0.12",
+  "Explain what the climate score means",
+  "How many assets are in my register?",
+  "Who are you and what can you do?",
+  "Calculate carbon price exposure for a cement plant",
+  "What is CBAM?",
+  "Add a new site in Rotterdam",
+  "What is the wind speed return period at this site?",
+  "Translate this to French",
+  "What does factor of safety mean for a slope?",
+  "Summarise my last report",
+  "How does the stress test work?",
+  "What licence do I have?",
+  "Is the water stress at my site high?",
+  "What is the sea level rise projection for 2050?",
+  "Open the 3D twin",
+  "Which model are you running?",
+  "What is NGFS scenario Net Zero 2050?",
+  "Explain wildfire risk screening",
+  "how do I upload a file",
+  "give me a risk score for this company"
+ ]
+}

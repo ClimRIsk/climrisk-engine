@@ -183,7 +183,7 @@ class Agent:
         text = (text or "").strip()
         if not text:
             return {"reply": "Ask me something — for example \"build a 3D twin of 22.2645, 91.805\".", "blocks": [], "actions": [], "intent": "empty"}
-        quick = self._event_commands(session, text) or self._autopilot_commands(session, text) or self._knowledge_commands(session, text) or self._stress_commands(session, text) or self._scenario_commands(session, text) or self._source_commands(session, text) or self._profile_commands(session, text) or self._lab_commands(session, text) or self._case_commands(session, text) or self._extension_commands(session, text)
+        quick = self._event_commands(session, text) or self._userdoc_commands(session, text) or self._autopilot_commands(session, text) or self._knowledge_commands(session, text) or self._stress_commands(session, text) or self._scenario_commands(session, text) or self._source_commands(session, text) or self._profile_commands(session, text) or self._lab_commands(session, text) or self._case_commands(session, text) or self._extension_commands(session, text)
         if quick:
             if quick.get("intent") in (None, "knowledge", "learn"):      # autopilot commands log themselves
                 quick.setdefault("intent", "knowledge")
@@ -669,6 +669,45 @@ class Agent:
         holder["j"] = _job(work, f'all hazards at {pl["name"]}')
         return {"reply": f'Running every hazard for {pl["name"]} ({pl["lat"]:.4f}, {pl["lon"]:.4f}). Where a source has no data I try a fallback; if that fails the hazard is reported as null (not assessed), never as zero. First results appear within seconds; the deep studies take a few minutes.',
                 "blocks": [], "actions": [], "job": holder["j"]["id"], "intent": "site_profile"}
+
+    # ── the user's own documents (private, local) ──
+    _DOC_ADD = re.compile(r"(?i)^\s*(?:please\s+)?(?:add|index|read|ingest|upload|load)\s+(?:my\s+|this\s+|the\s+)?(?:document|doc|file|report|pdf|spreadsheet|filing)\s+(?:from\s+|at\s+)?(.+?)\s*$")
+    _DOC_ASK = re.compile(r"(?i)\b(my|our|the uploaded|the attached|the added)\s+(documents?|docs?|files?|reports?|filings?|registers?|uploads?|pdfs?|spreadsheets?)\b|\b(in|from|according to|per)\s+(my|our)\s+(documents?|docs?|files?|reports?)\b|\b(search|check|look)\s+(my|the)\s+(documents?|files?)\b")
+
+    def _userdoc_commands(self, session, text) -> Optional[dict]:
+        from . import userdocs as UD
+        t = text.strip()
+        low = t.lower()
+        m = self._DOC_ADD.match(t)
+        if m and ("/" in m.group(1) or "\\" in m.group(1) or "." in m.group(1)):
+            path = m.group(1).strip().strip('"\'')
+
+            def work():
+                r = UD.add(path)
+                if not r.get("ok"):
+                    return {"reply": f'I could not add that file: {r.get("error")}.', "blocks": [], "actions": []}
+                return {"reply": f'Added “{r["name"]}”: {r["passages"]} passages across {r["locations"]} page/sheet/section(s). It stays on this computer. Ask me about it, for example “what does my report say about flood risk?”.',
+                        "blocks": [], "actions": [{"type": "say", "label": "List my documents", "text": "list my documents"}]}
+            j = _job(work, "reading your document")
+            return {"reply": "Reading your document …", "blocks": [], "actions": [], "job": j["id"], "intent": "docs"}
+        if re.match(r"(?i)^\s*(?:list|show|what)\b.*\b(my|your)\s+(documents?|docs|files)\b", low) or low in ("my documents", "list documents"):
+            ds = UD.list_docs()
+            if not ds:
+                return {"reply": "You have not added any documents yet. Say “add document /path/to/file.pdf” (pdf, docx, xlsx, csv, txt and md work).", "blocks": [], "actions": [], "intent": "docs"}
+            return {"reply": f"You have {len(ds)} document(s) added. They are stored only on this computer.", "blocks": [_blk("table", head=["Document", "Passages", "Added"], rows=[[d["name"], str(d["passages"]), d["added"]] for d in ds])],
+                    "actions": [], "intent": "docs"}
+        m = re.match(r"(?i)^\s*(?:forget|remove|delete)\s+(?:my\s+|the\s+)?(?:document|doc|file)\s+(.+?)\s*$", t)
+        if m:
+            n = UD.remove(m.group(1).strip().strip('"\''))
+            return {"reply": f"Removed that document ({n} passages)." if n else "I have no document by that name. Say “list my documents” to see them.", "blocks": [], "actions": [], "intent": "docs"}
+        if self._DOC_ASK.search(t) and UD.has_docs() and not self._NOT_CASE.search(t):
+            def work2():
+                r = UD.ask(t)
+                blocks = [_blk("note", text="Sources from your documents: " + "; ".join(f'[{x["n"]}] {x["title"]}' for x in r["sources"]))] if r.get("sources") else []
+                return {"reply": r["reply"], "blocks": blocks, "actions": []}
+            j = _job(work2, "searching your documents")
+            return {"reply": "Searching your documents …", "blocks": [], "actions": [], "job": j["id"], "intent": "docs"}
+        return None
 
     def _knowledge_commands(self, session, text) -> Optional[dict]:
         """learn from <url> / learn about <topic> / what do you know / forget <url> — keyword-routed."""

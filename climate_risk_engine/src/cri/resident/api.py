@@ -47,6 +47,12 @@ class LearnReq(BaseModel):
     topic: Optional[str] = None
     force: bool = False
 
+class DocReq(BaseModel):
+    name: str = Field(..., max_length=200)
+    data_b64: Optional[str] = None
+    text: Optional[str] = None
+
+
 class AskReq(BaseModel):
     question: str = Field(..., max_length=1000)
     context: Optional[str] = None
@@ -227,6 +233,43 @@ def make_router(auth_dep) -> tuple:
         if req.topic:
             return K.learn_topic(req.topic)
         return K.learn_seed(force=req.force)
+
+    # ── the user's own documents: stored only in ~/.climrisk/userdocs.db ──
+    @prot.get("/docs")
+    def docs_list() -> dict:
+        from . import userdocs as UD
+        return {"documents": UD.list_docs()}
+
+    @prot.post("/docs")
+    def docs_add(req: DocReq) -> dict:
+        import base64, re as _re, tempfile
+        from pathlib import Path as _P
+        from . import userdocs as UD
+        if req.text:
+            return UD.add_text(_re.sub(r"[^\w .\-]", "_", req.name)[:120] or "pasted.txt", req.text)
+        if not req.data_b64:
+            return {"ok": False, "error": "send data_b64 (file bytes) or text"}
+        try:
+            raw = base64.b64decode(req.data_b64, validate=False)
+        except Exception:                                            # noqa: BLE001
+            return {"ok": False, "error": "the file data could not be decoded"}
+        if len(raw) > UD.MAX_BYTES:
+            return {"ok": False, "error": "that file is larger than 60 MB"}
+        safe = _re.sub(r"[^\w .\-]", "_", _P(req.name).name)[:120] or "document"
+        with tempfile.TemporaryDirectory() as d:
+            f = _P(d) / safe
+            f.write_bytes(raw)
+            return UD.add(str(f))
+
+    @prot.delete("/docs/{name}")
+    def docs_remove(name: str) -> dict:
+        from . import userdocs as UD
+        return {"removed_passages": UD.remove(name)}
+
+    @prot.post("/docs/ask")
+    def docs_ask(req: AskReq) -> dict:
+        from . import userdocs as UD
+        return UD.ask(req.question)
 
     @prot.post("/ask")
     def ask(req: AskReq) -> dict:
