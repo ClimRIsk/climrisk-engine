@@ -71,6 +71,16 @@ _LOCK = threading.RLock()
 _IDX: dict = {"path": None, "mtime": None, "items": [], "inv": {}, "df": {}, "avgdl": 1.0, "events": {}, "companies": {}, "cards": {}, "ev_text": {}}
 
 
+def _vectors_match(p: Path) -> bool:
+    """True when index file p is byte-identical to the index the shipped vectors were built from (sha256 stored next to them)."""
+    import hashlib
+    try:
+        want = (PACKAGED.parent / "case_embeddings.sha256").read_text().strip()
+        return hashlib.sha256(Path(p).read_bytes()).hexdigest() == want
+    except OSError:
+        return False
+
+
 def index_path() -> Path:
     env = os.environ.get("CRI_CASE_INDEX")
     if env:
@@ -129,7 +139,7 @@ def _load() -> dict:
             if r["kind"] not in _CO_KINDS:
                 ev_text[r["event"]] += " " + r["text"].lower()
         sem = None
-        if os.environ.get("CRI_RAG_SEMANTIC", "1") != "0" and p == PACKAGED:          # the shipped vectors belong to the shipped index only
+        if os.environ.get("CRI_RAG_SEMANTIC", "1") != "0" and _vectors_match(p):          # the shipped vectors belong to the exact index they were built from (by content hash)
             from . import semantic as _S
             sem = _S.Dense.load(len(items))
         _IDX.update(path=str(p), mtime=mt, items=items, inv=dict(inv), df=dict(df), avgdl=total / max(1, len(items)), events=events, companies=dict(companies), cards=cards, ev_text=dict(ev_text), sem=sem)
