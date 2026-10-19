@@ -4132,38 +4132,35 @@ async def portfolio_stream(request: PortfolioStreamRequest):
         "orsted":      "ORSTED.CO",
     }
 
-    def _fetch_price_change(company_id: str) -> float:
-        """Try yfinance; fall back to ±2% random walk if unavailable."""
-        import random as _rnd
+    def _fetch_price_change(company_id: str) -> Optional[float]:
+        """Latest close-to-close return from yfinance, or None when it cannot be read.
+        (It used to fall back to a random +/-2% walk, which fed invented market moves into the live VaR figures.)"""
         try:
             import yfinance as yf
             ticker = _TICKER_MAP.get(company_id.lower())
             if not ticker:
-                return _rnd.uniform(-0.02, 0.02)
-            # Fast 2-day history — returns a single close-to-close return
+                return None
             hist = yf.Ticker(ticker).history(period="2d", interval="1d", timeout=3)
             if len(hist) >= 2:
                 c0, c1 = hist["Close"].iloc[-2], hist["Close"].iloc[-1]
                 return float(c1 / c0 - 1.0)
-            return _rnd.uniform(-0.005, 0.005)
+            return None
         except Exception:
-            import random as _rnd2
-            return _rnd2.uniform(-0.02, 0.02)
+            return None
 
     async def event_generator():
         import random as _rand
         tick = 0
         while tick < max_ticks:
             try:
-                # Task 58: attempt real price changes from yfinance; fall back to random walk
-                price_changes = {p.company_id: _fetch_price_change(p.company_id)
-                                 for p in base_positions}
+                # Real price changes from yfinance; where none can be read the exposure is left unchanged and the position says so
+                price_changes = {p.company_id: _fetch_price_change(p.company_id) for p in base_positions}
 
                 live_positions = [
                     PortfolioPosition(
                         company_id=p.company_id,
                         company_name=p.company_name,
-                        exposure_usd_m=p.exposure_usd_m * (1.0 + price_changes.get(p.company_id, 0.0)),
+                        exposure_usd_m=p.exposure_usd_m * (1.0 + (price_changes.get(p.company_id) or 0.0)),
                         sector=p.sector,
                         region=p.region,
                         physical_score=p.physical_score,
@@ -4188,6 +4185,8 @@ async def portfolio_stream(request: PortfolioStreamRequest):
                             "company_id":      p.company_id,
                             "company_name":    p.company_name,
                             "exposure_usd_m":  p.exposure_usd_m,
+                            "price_change":    price_changes.get(p.company_id),
+                            "price_source":    "yfinance" if price_changes.get(p.company_id) is not None else "unavailable (exposure unchanged)",
                             "eal_cp_usd_m":    r.eal_cp_usd_m,
                             "mc_cvar99_usd_m": r.mc_cvar99_usd_m,
                             "mc_cvar99_pct":   r.mc_cvar99_pct,
@@ -4861,11 +4860,12 @@ async def batch_assess_assets(request: BatchAssessmentRequest) -> BatchAssessmen
     for a in request.assets:
         # 1. Resolve country
         iso2 = a.country_iso2
+        _country_guessed = False
         if not iso2:
             try:
                 iso2 = country_from_latlon(a.lat, a.lon)
             except Exception:
-                iso2 = "GL"
+                iso2, _country_guessed = "GL", True      # global placeholder: the result is flagged ESTIMATED below
 
         # 2. Physical EAL from geo-calibrated lookup
         ebitda = a.ebitda_usd_m if a.ebitda_usd_m is not None else a.annual_revenue_usd_m * 0.20
@@ -4961,7 +4961,7 @@ async def batch_assess_assets(request: BatchAssessmentRequest) -> BatchAssessmen
         )
 
         # 10. Data quality
-        data_quality = "CALIBRATED" if hazard_bkdn else "ESTIMATED"
+        data_quality = "CALIBRATED" if (hazard_bkdn and not _country_guessed) else "ESTIMATED"
 
         total_rcv += a.replacement_cost_usd_m
         total_rev += a.annual_revenue_usd_m

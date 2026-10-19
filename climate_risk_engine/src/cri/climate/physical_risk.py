@@ -870,6 +870,7 @@ def assess_physical_risk(
     _SSP_TO_WF = {"ssp126": "nze", "ssp245": "delayed", "ssp370": "delayed", "ssp585": "cp"}
     wf_scenario = _SSP_TO_WF.get(scenario, "delayed")
     wf_eal_baseline = 0.0
+    _skipped_stages: List[str] = []     # stages that failed or could not run: their loss is NOT zero, it is missing
     wf_eal_2050 = 0.0
     wf_npv = 0.0
 
@@ -915,7 +916,7 @@ def assess_physical_risk(
                 if total_mitigation_capex > 0 else 0.0
             )
     except Exception as _wf_err:
-        pass  # wildfire skipped — totals unchanged
+        _skipped_stages.append(f"Wildfire loss not included: stage failed ({type(_wf_err).__name__}); totals exclude it, which is not the same as zero wildfire loss")
 
     # ── Stage 4c: Sea Level Rise integration (Fix #5) ─────────────────────────
     slr_expected_loss_2050 = 0.0
@@ -940,8 +941,11 @@ def assess_physical_risk(
             if slr.p_inundation_2050 > 0.05 and elevation_m <= 5.0:
                 slr_amp = 1.0 + slr.p_inundation_2050 * 0.3
                 eal_flood_direct_2050 = eal_flood_direct_2050 * slr_amp
-        except Exception:
+        except Exception as _slr_err:
             slr_expected_loss_2050 = 0.0
+            _skipped_stages.append(f"Sea-level-rise loss not included: stage failed ({type(_slr_err).__name__}); totals exclude it, which is not the same as zero")
+    elif elevation_m is None:
+        _skipped_stages.append("Sea-level-rise loss not assessed: no site elevation was given (the regional multiplier is also not location-specific here), so totals exclude it")
 
     # ── Stage 4d: Rebuild totals with wildfire + SLR contributions ────────────
     total_eal_baseline += wf_eal_baseline
@@ -1132,7 +1136,7 @@ def assess_physical_risk(
         f"Ensemble mean agreement: {_mean_agreement*100:.0f}% → "
         f"CV={_cv:.3f}, sigma={_sigma:.3f} → "
         f"EAL P10/P50/P90: ${eal_p10:.2f}M / ${eal_p50:.2f}M / ${eal_p90:.2f}M",
-    ]
+    ] + _skipped_stages
 
     return PhysicalRiskResult(
         company_name        = company_name,

@@ -19,6 +19,7 @@ Usage (CLI):
 
 from __future__ import annotations
 
+import logging
 import json
 import time
 from dataclasses import dataclass, field
@@ -85,8 +86,8 @@ def _enrich_asset_hazards(
     # This is a no-op if lat/lon is None (falls through to region tables).
     try:
         hm.assess(asset, scenario_family, horizon)
-    except Exception:
-        pass   # non-fatal — pipeline continues with region-level data
+    except Exception as exc:
+        logging.getLogger(__name__).warning("hazard pre-warm failed for %s (%s); region-level data is used", getattr(asset, "id", "?"), type(exc).__name__)
     return asset
 
 
@@ -452,8 +453,8 @@ def _derive_rating_fields(r: "PipelineRunResult", ngfs_family: str) -> dict:
 def _get_company_from_run(r: "PipelineRunResult"):
     """Retrieve the Company object from the pipeline run. Returns None on failure."""
     try:
-        from ..data.companies_climrisk import COMPANY_REGISTRY
-        return COMPANY_REGISTRY.get(r.company_id.lower())
+        from ..data.companies_seed import all_seed
+        return all_seed().get(r.company_id.lower())
     except Exception:
         return None
 

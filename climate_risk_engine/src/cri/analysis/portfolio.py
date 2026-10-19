@@ -182,8 +182,9 @@ def _composite_score(full: FullRunResult) -> float:
     """Extract composite CRI score from FullRunResult.rating."""
     try:
         return float(full.rating.composite_score)
-    except Exception:
-        return 50.0  # fallback: Moderate
+    except Exception as exc:
+        # Used to return 50.0 ("Moderate"), which silently blended an invented score into the portfolio average.
+        raise ValueError(f"holding has no composite score ({type(exc).__name__}); it cannot be averaged into the portfolio") from exc
 
 
 def _ev_impact_pct(full: FullRunResult, scenario: str) -> float:

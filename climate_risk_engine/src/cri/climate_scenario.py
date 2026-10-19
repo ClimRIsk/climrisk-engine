@@ -69,12 +69,15 @@ def _wind(lat, lon, ssp, year):
         from .climate import tropical_cyclone as TC
         h = TC.site_hazard(lat, lon)
         exposed = (h.annual_rate_ge_ts or 0.0) >= 0.05
-    except Exception:                                              # noqa: BLE001
-        exposed = False
+        failed = None
+    except Exception as exc:                                       # noqa: BLE001
+        exposed, failed = False, type(exc).__name__
     w = warming_at(ssp, year)
     med, lo, hi = (FC.KNUTSON["wind"][i] * w / FC.KNUTSON["per"] for i in range(3))
-    return {"tc_exposed": exposed, "warming_k": w, "scale": {"median": 1 + med, "low": 1 + lo, "high": 1 + hi} if exposed else {"median": 1.0, "low": 1.0, "high": 1.0},
-            "note": "Tropical cyclones reach this site; peak wind scaled by the published assessment (+5 % per 2 °C, range 1-10 %)." if exposed else "Tropical-cyclone winds do not reach this site often enough to scale; other wind extremes are not projected, so wind is unchanged."}
+    unknown_note = (f"Cyclone exposure could not be determined here ({failed}), so wind is left unchanged. That is NOT evidence that the "
+                    "site is outside cyclone areas.") if failed else None
+    return {"tc_exposed": exposed, "tc_status": "unavailable" if failed else "ok", "warming_k": w, "scale": {"median": 1 + med, "low": 1 + lo, "high": 1 + hi} if exposed else {"median": 1.0, "low": 1.0, "high": 1.0},
+            "note": unknown_note or "Tropical cyclones reach this site; peak wind scaled by the published assessment (+5 % per 2 °C, range 1-10 %)." if exposed else unknown_note or "Tropical-cyclone winds do not reach this site often enough to scale; other wind extremes are not projected, so wind is unchanged."}
 
 
 def compose(lat: float, lon: float, ssp: str = "ssp245", year: int = 2070, fetch=None, tile_fetch=None, with_sea: bool = True) -> dict:

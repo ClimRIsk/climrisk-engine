@@ -445,7 +445,7 @@ def _try_gis_resolve(lat: float, lon: float) -> dict:
         return {
             "elevation_m": 0.0, "coastal_km": 999.0,
             "is_cyclone_belt": False, "is_permafrost": False,
-            "is_arid": False, "koppen_zone": "",
+            "is_arid": False, "koppen_zone": "", "_failed": True,
         }
 
 
@@ -503,7 +503,8 @@ class SpatialDownscaler:
         signals.is_permafrost  = gis["is_permafrost"]
         signals.is_arid        = gis["is_arid"]
         signals.koppen_zone    = gis["koppen_zone"]
-        signals.data_sources["gis"] = "CRI embedded GIS resolver (SRTM/Köppen/IBTrACS)"
+        signals.data_sources["gis"] = ("UNAVAILABLE: GIS resolver failed; elevation 0 m, coastal distance 999 km and all terrain/climate flags are placeholders, not data"
+                                       if gis.get("_failed") else "CRI embedded GIS resolver (SRTM/Köppen/IBTrACS)")
 
         # ── 2. NASA POWER satellite baseline ──────────────────────────────
         nasa_key = gis_key
@@ -520,6 +521,10 @@ class SpatialDownscaler:
         if self._nasa_cache[nasa_key]:
             signals.data_sources["temperature_baseline"] = (
                 "NASA POWER (MERRA-2/CERES/MODIS/IMERG), 1991-2020"
+            )
+        else:
+            signals.data_sources["temperature_baseline"] = (
+                "UNAVAILABLE: NASA POWER gave no data; 28 C / 3.5 m/s / 65 % / 200 W/m2 are placeholders, not data for this site"
             )
 
         # ── 3. ERA5 historical baseline ────────────────────────────────────
@@ -585,27 +590,35 @@ class SpatialDownscaler:
             )
 
         # ── 5. WRI Aqueduct water risk ─────────────────────────────────────
+        # Local Aqueduct 4.0 dataset first (offline, real data); the web point API second; otherwise say it is missing.
         wri_key = gis_key
         if wri_key not in self._wri_cache:
-            raw_wri = _fetch_wri_aqueduct_point(lat, lon)
-            self._wri_cache[wri_key] = (
-                _parse_wri_aqueduct_point(raw_wri) if raw_wri else {}
-            )
+            local = {}
+            try:
+                from ..connectors.wri_aqueduct import WRIAqueductConnector
+                r = WRIAqueductConnector().get_water_risk(lat, lon, 2019)
+                if r.get("source") == "wri_aqueduct_4.0":
+                    local = {"water_stress": r.get("water_stress"), "flood_riverine": r.get("flood_riverine"),
+                             "flood_coastal": r.get("flood_coastal"), "drought": r.get("drought_risk"), "_src": "local"}
+                    local = {k: v for k, v in local.items() if v is not None}
+            except Exception:
+                local = {}
+            if len(local) > 1:
+                self._wri_cache[wri_key] = local
+            else:
+                raw_wri = _fetch_wri_aqueduct_point(lat, lon)
+                self._wri_cache[wri_key] = _parse_wri_aqueduct_point(raw_wri) if raw_wri else {}
         wri = self._wri_cache[wri_key]
         if wri:
             signals.water_stress_score   = float(wri.get("water_stress",   2.5))
             signals.flood_riverine_score = float(wri.get("flood_riverine", 2.0))
             signals.flood_coastal_score  = float(wri.get("flood_coastal",  1.5))
             signals.drought_score        = float(wri.get("drought",        2.3))
-            signals.data_sources["water_risk"] = "WRI Aqueduct 4.0 point query"
+            signals.data_sources["water_risk"] = ("WRI Aqueduct 4.0 (embedded dataset)" if wri.get("_src") == "local"
+                                                  else "WRI Aqueduct 4.0 point query")
         else:
-            # Fall back to region embedded table
-            from ..connectors.wri_aqueduct import WRIAqueductConnector, REGIONAL_WATER_RISK
-            reg = REGIONAL_WATER_RISK.get(region, {})
-            signals.water_stress_score   = reg.get("water_stress",   2.5)
-            signals.flood_riverine_score = reg.get("flood_risk",     2.0)
-            signals.drought_score        = reg.get("drought_risk",   2.3)
-            signals.data_sources["water_risk"] = "WRI Aqueduct 4.0 embedded regional table"
+            signals.data_sources["water_risk"] = ("UNAVAILABLE: no Aqueduct data for this location (open water or outside coverage); "
+                                                  "water-stress, flood and drought scores are placeholders, not data")
 
         # ── 6. Live conditions ─────────────────────────────────────────────
         import datetime

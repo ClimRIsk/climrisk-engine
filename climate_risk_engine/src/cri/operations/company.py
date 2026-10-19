@@ -8,6 +8,7 @@ structure rather than assumed constant.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 
 from ..climate.physical import adaptation_capex, expected_loss_fraction
@@ -503,8 +504,9 @@ def get_physical_provenance(
                 )
             )
 
-        except Exception:
-            # Provenance is supplementary — never let it break a run
+        except Exception as exc:
+            # Provenance is supplementary — never let it break a run, but say so in the log
+            logging.getLogger(__name__).warning("provenance skipped for asset %s (%s)", getattr(asset, "id", "?"), type(exc).__name__)
             continue
 
     return provenance_list

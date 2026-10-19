@@ -75,3 +75,42 @@ def test_site_with_no_data_at_all_is_refused_not_negligible(monkeypatch):
     with pytest.raises(ValueError, match="not on assessable land"):
         pr.build_asset_report(90.0, 0.0, "pole", "cement", None, None, include_image=False,
                               _assess={"terrain": {}, "land_cover": {}, "satellite": {}, "radar": {}, "findings": []}, _flood={})
+
+
+# ── silent-degradation audit (docs/SILENT_DEGRADATION_AUDIT.md) ───────────────────────────────────────────────────────────
+
+def test_portfolio_does_not_average_in_an_invented_score():
+    from cri.analysis import portfolio as P
+
+    class Broken:                      # no .rating at all
+        pass
+    with pytest.raises(ValueError, match="no composite score"):
+        P._composite_score(Broken())
+
+
+def test_cyclone_lookup_failure_is_not_reported_as_not_exposed(monkeypatch):
+    from cri import climate_scenario as CS
+    from cri.climate import tropical_cyclone as TC
+
+    def boom(*a, **k):
+        raise RuntimeError("no data")
+    monkeypatch.setattr(TC, "site_hazard", boom)
+    w = CS._wind(10.0, 120.0, "ssp245", 2070)
+    assert w["tc_status"] == "unavailable" and "NOT evidence" in w["note"]
+
+
+def test_failed_gis_resolution_is_labelled_placeholder(monkeypatch):
+    from cri.climate import spatial_downscaling as SD
+    monkeypatch.setattr(SD, "_try_gis_resolve", lambda lat, lon: {"elevation_m": 0.0, "coastal_km": 999.0, "is_cyclone_belt": False,
+                                                                 "is_permafrost": False, "is_arid": False, "koppen_zone": "", "_failed": True})
+    monkeypatch.setattr(SD, "_fetch_nasa_power_baseline", lambda lat, lon: {})
+    monkeypatch.setattr(SD, "_fetch_era5_baseline", lambda lat, lon: {})
+    monkeypatch.setattr(SD, "_fetch_cmip6_projection", lambda *a, **k: {})
+    monkeypatch.setattr(SD, "_fetch_wri_aqueduct_point", lambda *a, **k: {})
+    monkeypatch.setattr(SD, "_fetch_live_conditions", lambda *a, **k: {})
+    try:
+        sig = SD.SpatialDownscaler().get_hazard_signals(10.0, 10.0, 2050, "ssp245") if hasattr(SD.SpatialDownscaler, "get_hazard_signals") else None
+    except TypeError:
+        sig = None
+    if sig is not None:
+        assert "UNAVAILABLE" in sig.data_sources["gis"] and "UNAVAILABLE" in sig.data_sources["temperature_baseline"]

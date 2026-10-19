@@ -179,24 +179,12 @@ def _phi(hazard: str, sector: str) -> float:
 def _structural_damage_fraction(hazard: str, sector: str) -> float:
     """
     Fraction of asset replacement cost damaged per event occurrence.
-    Uses JRC depth-damage curves for flood hazards; WTW calibrated fractions
-    for non-flood hazards.
+    Non-flood hazards use fixed calibrated fractions; flood hazards currently use the same generic 5 % default (see the note below).
     """
-    if hazard in ("flood_riverine", "flood_coastal", "sea_level_rise"):
-        try:
-            from .damage_curves import damage_fraction, SectorAssetClass
-            # Map sector to JRC asset class key
-            _JRC_MAP = {
-                "oil_gas": "industrial", "chemicals": "industrial",
-                "steel": "industrial", "utilities": "critical_infrastructure",
-                "agriculture": "agriculture", "real_estate": "residential",
-                "default": "commercial",
-            }
-            asset_cls_key = _JRC_MAP.get(sector, "commercial")
-            frac = damage_fraction(asset_cls_key, _EXPECTED_FLOOD_DEPTH_M)
-            return frac
-        except Exception:
-            pass
+    # NOTE (stress audit): the intended JRC depth-damage path here imported two names that do not exist, so it NEVER ran and every
+    # flood hazard has always used the generic default below (5 % of replacement value). Wiring it to climate.damage_curves would
+    # change this model's numbers a lot (27-92 % at the 0.8 m median depth, and the "chemical"/"critical_infrastructure" curves are
+    # not credible), so it is deliberately NOT enabled until those curves are reviewed. The flat default is stated, not hidden.
     # Non-flood WTW calibrated values (fraction of asset replacement value)
     _NON_FLOOD_DAMAGE = {
         "heat_stress": 0.02, "water_stress": 0.01, "drought": 0.03,

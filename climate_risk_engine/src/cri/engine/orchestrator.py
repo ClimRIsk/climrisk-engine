@@ -44,6 +44,7 @@ FULL_CRI            : all of the above + composite CRI rating
 
 from __future__ import annotations
 
+import logging
 import hashlib
 import json
 import uuid
@@ -275,9 +276,9 @@ def run_full(
         )
         for r in (r_nze, r_dt, r_cp):
             r.physical_hazard_detail = provenance
-    except Exception:
-        # Provenance is supplementary — never let it break a run
-        pass
+    except Exception as exc:
+        # Provenance is supplementary — never let it break a run, but say so in the log
+        logging.getLogger(__name__).warning("physical-hazard provenance not attached (%s: %s)", type(exc).__name__, str(exc)[:120])
 
     return FullRunResult(
         company_id=company.id,
