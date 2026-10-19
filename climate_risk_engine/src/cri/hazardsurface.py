@@ -143,7 +143,7 @@ def _landslide(lat, lon, radius_km, polygons, return_period=100, c_kpa=5.0, phi_
     cav = ["Generic soil strength (not a soil map) and a single soil depth.", "Initiation only: no runout, no earthquake trigger, no vegetation root strength.",
            "The class edges (FS 1.0 / 1.25 / 1.5) are a common engineering convention, not calibrated to a landslide inventory.", f"Rainfall: {return_period}-year daily rain {d_T:.0f} mm from {src}."]
     return _package("landslide", f"Landslide susceptibility after a {return_period}-year storm (factor of safety)", cls, 4, LABELS, box, "FS < 1.0 very high; 1.0-1.25 high; 1.25-1.5 moderate; above 1.5 low",
-                    "Infinite-slope stability with a rainfall-driven pore-pressure term (modellab.landslide)", "verified against hand calculations. Not validated or calibrated: a screening check on 40 NASA Global Landslide Catalog events at 5 sites ranks slope better than chance (AUC 0.57-0.85, mean 0.71), which tests the slope ranking only, not the rainfall term", cav, polygons,
+                    "Infinite-slope stability with a rainfall-driven pore-pressure term (modellab.landslide)", "verified against hand calculations; not validated or calibrated (a screening check on 40 NASA Global Landslide Catalog events at 5 sites ranks slope better than chance (AUC 0.57-0.85, mean 0.71), which tests the slope ranking only, not the rainfall term)", cav, polygons,
                     {"saturation": round(m, 3), "rain_mm": round(d_T, 1), "return_period": return_period, "cell_m": round(float(d.cell_size_m), 1)})
 
 
