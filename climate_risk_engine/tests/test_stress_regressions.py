@@ -179,3 +179,12 @@ def test_dateline_site_gets_tiles_from_both_sides(monkeypatch):
     assert any(x > n - 4 for x in seen) and any(x < 4 for x in seen), "both the eastern-most and western-most tile columns are needed"
     assert 0 <= g.asset_row < g.rows and 0 <= g.asset_col < g.cols
     assert abs(g.asset_col - g.cols / 2) < 0.1 * g.cols, "the asset sits near the middle of the grid, not at an edge"
+
+
+def test_fire_weather_index_matches_the_published_reference_values():
+    """Van Wagner/NRCan reference record (T 17 C, RH 42 %, wind 25 km/h, no rain, start FFMC 85 / DMC 6 / DC 15). The index code is right;
+    inflated day counts at Mediterranean sites come from using daily extremes as inputs, not from the arithmetic."""
+    from cri.modellab import fire
+    r = fire.run_series([17.0], [42.0], [25.0], [0.0], [4], tropical=False)
+    for k, v in {"ffmc": 87.7, "dmc": 8.5, "dc": 19.0, "isi": 10.9, "bui": 8.5, "fwi": 10.1}.items():
+        assert abs(r[k][0] - v) < 0.1, (k, r[k][0], v)
