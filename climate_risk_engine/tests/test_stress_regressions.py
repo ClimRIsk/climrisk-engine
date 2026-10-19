@@ -125,3 +125,57 @@ def test_failed_coastal_read_is_not_a_dry_site(monkeypatch):
     monkeypatch.setattr(FH, "_chunk", boom)
     r = FH.coastal_depths(25.76, -80.19)
     assert r["available"] is False and "not assessed" in r["reason"]
+
+
+# ── heat: observed temperature record, not a land-cover guess ─────────────────
+def _fake_tmax(peak, n_hot35, n_hot40):
+    """30 years of synthetic daily maxima: n_hot35 days at 36 C (incl. n_hot40 days at 41 C), the rest 20 C."""
+    days, vals = [], []
+    import datetime as _d
+    for y in range(1994, 2024):
+        for k in range(365):
+            dd = _d.date(y, 1, 1) + _d.timedelta(days=k)
+            days.append(dd.isoformat())
+            vals.append(41.0 if k < n_hot40 else (36.0 if k < n_hot35 else 20.0))
+        vals[-1] = peak
+    return {"daily": {"time": days, "temperature_2m_max": vals}}
+
+
+def test_heat_rating_thresholds_and_failure_modes():
+    from cri.finance.heat_hazard import rate, site_heat
+    assert rate(0, 0) == "NEGLIGIBLE" and rate(5, 0) == "LOW" and rate(20, 0) == "MODERATE"
+    assert rate(50, 0) == "HIGH" and rate(5, 12) == "HIGH" and rate(100, 70) == "CRITICAL" and rate(160, 0) == "CRITICAL"
+    hot = site_heat(24.7, 46.7, fetch=lambda url: _fake_tmax(45.0, 140, 70))
+    assert hot["available"] and hot["rating"] == "CRITICAL" and hot["days_ge_40"] >= 60
+    cool = site_heat(64.1, -21.9, fetch=lambda url: _fake_tmax(20.0, 0, 0))
+    assert cool["rating"] == "NEGLIGIBLE" and cool["days_ge_35"] == 0
+    def boom(url): raise OSError("net down")
+    bad = site_heat(10.0, 10.0, fetch=boom)
+    assert bad["available"] is False and "rating" not in bad                       # a failed read is never a rating
+    assert site_heat(float("nan"), 0.0)["available"] is False
+    short = site_heat(1.0, 1.0, fetch=lambda url: {"daily": {"time": ["2000-01-01"], "temperature_2m_max": [30.0]}})
+    assert short["available"] is False
+
+
+def test_compose_rejects_bad_coordinates_before_any_network():
+    import pytest
+    from cri import climate_scenario as CS
+    for la, lo in [(1e308, 0), (0, 1e308), (91, 0), (0, 181), (float("nan"), 0), ("x", 0)]:
+        with pytest.raises(ValueError):
+            CS.compose(la, lo, "ssp245", 2050, fetch=lambda *a, **k: (_ for _ in ()).throw(AssertionError("network touched")))
+
+
+def test_dateline_site_gets_tiles_from_both_sides(monkeypatch):
+    import numpy as np
+    from cri.connectors import terrain_tiles as T
+    seen = []
+
+    def fake(z, x, y):
+        seen.append(x)
+        return np.zeros((256, 256, 3), dtype=np.uint8) + np.array([128, 0, 0], dtype=np.uint8)
+    monkeypatch.setattr(T, "_fetch_tile", fake)
+    g = T.get_elevation_grid(-17.0, 179.995, radius_km=2.5, zoom=13)
+    n = 2 ** 13
+    assert any(x > n - 4 for x in seen) and any(x < 4 for x in seen), "both the eastern-most and western-most tile columns are needed"
+    assert 0 <= g.asset_row < g.rows and 0 <= g.asset_col < g.cols
+    assert abs(g.asset_col - g.cols / 2) < 0.1 * g.cols, "the asset sits near the middle of the grid, not at an edge"

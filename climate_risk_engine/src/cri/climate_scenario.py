@@ -80,7 +80,32 @@ def _wind(lat, lon, ssp, year):
             "note": unknown_note or "Tropical cyclones reach this site; peak wind scaled by the published assessment (+5 % per 2 °C, range 1-10 %)." if exposed else unknown_note or "Tropical-cyclone winds do not reach this site often enough to scale; other wind extremes are not projected, so wind is unchanged."}
 
 
+_COMPOSE_CACHE: dict = {}
+
+
 def compose(lat: float, lon: float, ssp: str = "ssp245", year: int = 2070, fetch=None, tile_fetch=None, with_sea: bool = True) -> dict:
+    """Public entry: validates the point, and reuses a result for the same place/pathway/year (the CMIP6 reads take 30-40 s)."""
+    import copy
+    import math
+    try:
+        lat, lon = float(lat), float(lon)
+    except (TypeError, ValueError):
+        raise ValueError("lat and lon must be numbers")
+    if not (math.isfinite(lat) and math.isfinite(lon)) or not (-90.0 <= lat <= 90.0) or not (-180.0 <= lon <= 180.0):
+        raise ValueError(f"coordinates out of range: lat {lat}, lon {lon} (lat must be within -90..90 and lon within -180..180)")
+    cacheable = fetch is None and tile_fetch is None
+    key = (round(lat, 2), round(lon, 2), ssp, int(year), bool(with_sea))
+    if cacheable and key in _COMPOSE_CACHE:
+        return copy.deepcopy(_COMPOSE_CACHE[key])
+    out = _compose(lat, lon, ssp, year, fetch, tile_fetch, with_sea)
+    if cacheable:
+        if len(_COMPOSE_CACHE) > 256:
+            _COMPOSE_CACHE.pop(next(iter(_COMPOSE_CACHE)))
+        _COMPOSE_CACHE[key] = copy.deepcopy(out)
+    return out
+
+
+def _compose(lat: float, lon: float, ssp: str = "ssp245", year: int = 2070, fetch=None, tile_fetch=None, with_sea: bool = True) -> dict:
     if ssp not in SSPS:
         raise ValueError(f"unknown pathway {ssp!r}; choose one of {SSPS}")
     year = int(max(2025, min(2099, year)))

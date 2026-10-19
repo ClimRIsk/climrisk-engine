@@ -41,3 +41,14 @@ python tools/stress_sites.py --route location-hazard|water-risk|asset|report --o
 python tools/stress_load.py 32
 pytest tests/test_stress_properties.py tests/test_stress_regressions.py
 ```
+
+## Follow-up fixes (19 Oct 2026, after the golden-site run)
+- Heat zone now reads real ERA5 daily maxima (`finance/heat_hazard.py`); golden heat sites 6/6.
+- Coastal flood: an elevation screen stops a dry 90 m surge map on very low ground near the sea from reading as safe (golden coastal 8/10; Jakarta and Mumbai remain).
+- River flood: not fixed (no usable free higher-resolution global map); the report now warns when water is within 300 m of a site the map shows as dry.
+- `/climate-scenario/compose`: coordinates are range-checked (1e308 returned 502) and results are cached per place, pathway and year (a cold call takes 30-40 s).
+- Terrain tiles now wrap across the antimeridian instead of clamping.
+- `assess_physical_risk` accepts `asset_lat`/`asset_lon`; without them it states that the sea-level-rise regional multiplier is the global default.
+- Insurer dashboard tags sites with incomplete cover as "partial".
+- `test_hyper_arid_site_gets_no_fire_model` made hermetic (network blocked).
+- Open: the model lab's fire-weather index gives implausible values (Pasadena 230 days a year at FWI ≥ 30, London 9), so it was not wired into the wildfire zone; FEMA NRI benchmark script exists but needs the county CSV, which this environment could not download; flat 5 % flood damage in the legacy `hazard_financial` model is unchanged.

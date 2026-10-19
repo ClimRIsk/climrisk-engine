@@ -213,6 +213,11 @@ def get_elevation_grid(
     # ------------------------------------------------------------------ #
     tx_min, ty_min = _lat_lon_to_tile(north, west, zoom)   # top-left tile
     tx_max, ty_max = _lat_lon_to_tile(south, east, zoom)   # bottom-right tile
+    # Across the antimeridian the box is NOT clamped at +-180: tile columns are counted in unwrapped longitude and wrapped only
+    # when a tile is fetched, so a site at 179.99 E gets tiles on both sides of the dateline instead of a one-sided grid.
+    _n = 2 ** zoom
+    tx_min = int(math.floor((west + 180.0) / 360.0 * _n))
+    tx_max = int(math.floor((east + 180.0) / 360.0 * _n))
 
     n_tx = tx_max - tx_min + 1
     n_ty = ty_max - ty_min + 1
@@ -235,7 +240,7 @@ def get_elevation_grid(
     _keys = [(zoom, tx, ty) for ty in range(ty_min, ty_max + 1)
                             for tx in range(tx_min, tx_max + 1)]
     with ThreadPoolExecutor(max_workers=min(16, len(_keys))) as _pool:
-        _got = dict(zip(_keys, _pool.map(lambda k: _fetch_tile(*k), _keys)))
+        _got = dict(zip(_keys, _pool.map(lambda k: _fetch_tile(k[0], k[1] % _n, k[2]), _keys)))
 
     n_ok = 0
     for j, ty in enumerate(range(ty_min, ty_max + 1)):

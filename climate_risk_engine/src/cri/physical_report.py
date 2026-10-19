@@ -494,6 +494,28 @@ def build_asset_report(lat: float, lon: float, name: Optional[str] = None, secto
                       "zone": "Not assessed: " + (str(cst.get("reason") or "no coastal flood map could be read for this location")[:200]) + ".",
                       "facts": []})
 
+    # elevation screen: the 90 m surge map reads dry on built-up, reclaimed and island ground its surface model cannot resolve.
+    # A dry reading at very low ground next to the sea is therefore NOT a clean bill: raise the rating to a stated floor.
+    _cz = next(z for z in zones if z["key"] == "coastal_flood")
+    _e, _nw = terr.get("elevation_m"), sat.get("nearest_water_m")
+    _sea_km = None
+    if (cst.get("available") and _e is not None and -10 <= _e <= 8 and _cz.get("rating") in ("NEGLIGIBLE", "LOW") and prot_c < 1000):
+        try:                                                # distance to open sea from the terrain tiles; below-sea-level inland ground (Death Valley) is not coastal
+            from .modellab import slr as _slr
+            _sea_km = _slr.coast_info(lat, lon)["sea_km"]
+        except Exception:                                   # noqa: BLE001
+            _sea_km = None
+    if _sea_km is not None and _sea_km <= (15.0 if _e <= 3 else 5.0):      # surge reaches further inland over very low ground
+        floor = "MODERATE" if (_e <= 3 or prot_c < 100) else "LOW"
+        if _lv(floor) > _lv(_cz["rating"]):
+            _cz["rating"] = floor
+            _cz["zone"] = (f"Elevation screen, not a modelled flood depth: the ground model puts the site at about {_e:.0f} m above sea level"
+                           + (f", about {_sea_km:.0f} km from the sea" if _sea_km else ", at the shoreline")
+                           + (f", with {'no' if not prot_c else 'only about 1-in-%d' % prot_c} recorded coastal defence standard" if prot_c < 100 else "")
+                           + f". The storm-surge map reads dry or shallow here, but its 90 m surface model overstates ground height on built-up, reclaimed and island ground, "
+                           f"so the rating is held at {floor} until a surveyed ground level and a local inundation study say otherwise. " + _cz["zone"])
+            _cz["rating_basis"] = "elevation screen floor"
+
     # surface-water / observed flooding (terrain + satellite + radar)
     ff = findings.get("flood")
     if ff:
@@ -534,10 +556,28 @@ def build_asset_report(lat: float, lon: float, name: Optional[str] = None, secto
                       "zone": wf.get("summary") or _zone_from_finding(wf, "wildfire"),
                       "facts": _ev_facts(wf), "trend": None, "_finding": wf})
     hf = findings.get("urban_heat")
-    if hf:
-        zones.append({"key": "heat", "title": "Heat (land-cover indicator)", "rating": hf["severity"],
-                      "zone": _zone_from_finding(hf, "heat") + " Indicator from land cover and latitude, not a temperature projection.",
+    try:
+        from .finance.heat_hazard import site_heat
+        ht = site_heat(lat, lon)
+    except Exception as e:                                  # noqa: BLE001
+        ht = {"available": False, "reason": f"heat module failed ({type(e).__name__})"}
+    if ht.get("available"):
+        facts = [f"Days per year at or above 35 C: {ht['days_ge_35']} (mean {ht['years']}, ERA5 reanalysis)",
+                 f"Days per year at or above 40 C: {ht['days_ge_40']}",
+                 f"Hottest day of the year, average: {ht['annual_max_mean_c']} C; hottest in record {ht['record_max_c']} C"]
+        zones.append({"key": "heat", "title": "Heat (observed temperature record)", "rating": ht["rating"],
+                      "zone": ("Daily maximum temperatures reach levels that stress people, equipment and infrastructure on many days a year."
+                               if _lv(ht["rating"]) >= 3 else
+                               "Daily maximum temperatures only occasionally reach levels that stress people, equipment and infrastructure.")
+                              + " Dry-bulb air temperature from a reanalysis cell; humid-heat (wet-bulb) stress in the tropics is understated, and a nearby station can differ by a few degrees.",
+                      "facts": facts, "trend": None, "_finding": hf})
+    elif hf:
+        zones.append({"key": "heat", "title": "Heat (land-cover indicator only)", "rating": hf["severity"],
+                      "zone": _zone_from_finding(hf, "heat") + f" Indicator from land cover and latitude only: the temperature record could not be read ({ht.get('reason', 'unavailable')}), so this is not a measured heat exposure and may badly understate hot climates.",
                       "facts": _ev_facts(hf), "trend": None, "_finding": hf})
+    else:
+        zones.append({"key": "heat", "title": "Heat", "rating": None,
+                      "zone": f"Not assessed: {ht.get('reason', 'no temperature data')}.", "facts": [], "trend": None, "_finding": None})
 
     # water stress
     try:
@@ -638,6 +678,11 @@ def build_asset_report(lat: float, lon: float, name: Optional[str] = None, secto
         cautions.append(f"The site is only {elev:.0f} m above sea level and about {sat['nearest_water_m']:.0f} m from water, yet the "
                         "coastal flood map shows no flooding. The map uses a 90 m surface model that can overstate ground "
                         "height in dense urban areas, so treat this as unconfirmed and check against a local flood study.")
+    rz = next((z for z in zones if z["key"] == "river_flood"), None)
+    if rz and rz.get("rating") in ("NEGLIGIBLE", "LOW") and sat.get("nearest_water_m") is not None and sat["nearest_water_m"] < 300:
+        cautions.append(f"Permanent water lies about {sat['nearest_water_m']:.0f} m from the site, yet the river flood map shows {'no' if rz['rating'] == 'NEGLIGIBLE' else 'little'} flooding. "
+                        "That map has a roughly 1 km cell and is built from a global hydrological model, so it misses the floodplains of small and mid-size rivers "
+                        "(the 2021 Ahr valley flood is a documented example) and large deltas with local drainage. Treat the river rating as unconfirmed and check a local flood study.")
     sz = next((z for z in zones if z["key"] == "slope"), None)
     if elev is not None and elev < 10 and cz and cz.get("rating") in (None, "NEGLIGIBLE", "LOW") and \
             (sat.get("nearest_water_m") is None or sat["nearest_water_m"] < 1500):

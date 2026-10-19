@@ -209,6 +209,15 @@ def test_fire_index_stays_finite_in_extreme_dry_heat():
 
 
 def test_hyper_arid_site_gets_no_fire_model(monkeypatch):
+    import urllib.request as _u
+    from cri.modellab import data as _D
+
+    def _no_net(*a, **k):
+        raise OSError("network blocked in a hermetic test")
+    monkeypatch.setattr(_u, "urlopen", _no_net)
+    monkeypatch.setattr(_D, "archive", _no_net)
+    monkeypatch.setattr(_D, "power_daily", _no_net)
+    monkeypatch.setenv("CRI_DATA_PROVIDER", "era5")
     monkeypatch.setitem(studies_evt.HAZ["fire"], "extract", lambda la, lo, fetch=None: (list(range(1982, 2024)), [200.0] * 42, {"days_over_30": [300] * 42, "_rain_mm": 46.0}))
     r = hazards.run_generic("fire", 24.7, 46.7, "Desert", {})
     assert r["status"].startswith("no model") and "arid" in r["standfirst"]

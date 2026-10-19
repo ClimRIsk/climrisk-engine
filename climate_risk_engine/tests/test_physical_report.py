@@ -14,6 +14,16 @@ client = TestClient(app)
 REAL = PR.build_asset_report
 
 
+@pytest.fixture(autouse=True)
+def _offline_heat_and_coast(monkeypatch):
+    """These tests inject the site assessment; the heat record and sea-distance reads must not touch the network either."""
+    from cri.finance import heat_hazard
+    monkeypatch.setattr(heat_hazard, "site_heat", lambda lat, lon, fetch=None: {
+        "available": True, "rating": "MODERATE", "days_ge_35": 20.0, "days_ge_40": 2.0, "annual_max_mean_c": 38.0, "record_max_c": 41.0, "years": "1994-2023", "n_years": 30})
+    from cri.modellab import slr
+    monkeypatch.setattr(slr, "coast_info", lambda *a, **k: {"elevation_m": 4.0, "sea_km": None, "sea_bearing": None})
+
+
 def stub_ai(tc="MODERATE", flood="HIGH"):
     ev = lambda m, v, u="": {"metric": m, "value": v, "unit": u, "source": "test"}      # noqa: E731
     return {
@@ -145,15 +155,36 @@ def test_api_formats_and_validation(monkeypatch):
     assert client.post("/reports/physical-risk", json={"assets": [{"lat": 95, "lon": 0}]}).status_code == 422
 
 
-def test_low_lying_urban_site_with_no_surge_gets_a_verify_caution():
+def _dry_low_coast_report(monkeypatch, coast_info):
+    from cri.modellab import slr
+    monkeypatch.setattr(slr, "coast_info", coast_info)
     ai = stub_ai()
     ai["terrain"]["elevation_m"] = 2.0
     flood = {"river": FLOOD["river"], "coastal": {"available": True, "rps": [10, 100], "years": [2018, 2050],
              "depths": {"2018_10": [0.0], "2018_100": [0.0], "2050_10": [0.0], "2050_100": [0.0]}}}
-    r = PR.build_asset_report(25.77, -80.19, "Tower", "real estate", "office", 2005, include_image=False,
-                              _assess=ai, _flood=flood)
+    return PR.build_asset_report(25.77, -80.19, "Tower", "real estate", "office", 2005, include_image=False, _assess=ai, _flood=flood)
+
+
+def test_low_lying_urban_site_with_no_surge_gets_a_verify_caution(monkeypatch):
+    """Sea distance unknown (tile read fails): the rating is left as the map says, but the report must say it is unconfirmed."""
+    def boom(*a, **k):
+        raise OSError("no tiles")
+    r = _dry_low_coast_report(monkeypatch, boom)
     assert r["cautions"] and "unconfirmed" in r["cautions"][0]
     assert "Verify:" in PR.render_html(r)
+
+
+def test_dry_surge_map_on_very_low_ground_next_to_the_sea_is_floored_not_cleared(monkeypatch):
+    r = _dry_low_coast_report(monkeypatch, lambda *a, **k: {"elevation_m": 2.0, "sea_km": 0.0, "sea_bearing": 90})
+    z = next(z for z in r["zones"] if z["key"] == "coastal_flood")
+    assert z["rating"] == "MODERATE" and z["zone"].startswith("Elevation screen, not a modelled flood depth")
+    assert z["rating_basis"] == "elevation screen floor"
+
+
+def test_elevation_screen_ignores_inland_ground_far_from_the_sea(monkeypatch):
+    r = _dry_low_coast_report(monkeypatch, lambda *a, **k: {"elevation_m": 2.0, "sea_km": 40.0, "sea_bearing": 90})
+    z = next(z for z in r["zones"] if z["key"] == "coastal_flood")
+    assert z["rating"] == "NEGLIGIBLE" and "rating_basis" not in z
 
 
 def test_dashboard_served():

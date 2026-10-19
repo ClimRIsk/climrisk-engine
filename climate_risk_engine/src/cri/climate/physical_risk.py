@@ -553,6 +553,8 @@ def assess_physical_risk(
     natural_capital_buffers: Optional[List[str]] = None,
     # Override flags
     confidence_tier: str = "ESTIMATED",
+    asset_lat: Optional[float] = None,
+    asset_lon: Optional[float] = None,
 ) -> PhysicalRiskResult:
     """
     Execute the 4-stage physical risk engine.
@@ -930,13 +932,15 @@ def assess_physical_risk(
             slr = _compute_slr(
                 asset_id=company_name,
                 asset_name=company_name,
-                asset_lat=0.0,
-                asset_lon=0.0,
+                asset_lat=0.0 if asset_lat is None else float(asset_lat),
+                asset_lon=0.0 if asset_lon is None else float(asset_lon),
                 asset_elevation_m=elevation_m,
                 ev_usd_m=asset_replacement_value_usd_m,
                 scenario=_SSP_TO_SLR.get(scenario, "SSP2-4.5"),
             )
             slr_expected_loss_2050 = slr.expected_loss_2050_usd_m
+            if asset_lat is None or asset_lon is None:
+                _skipped_stages.append("Sea-level-rise regional multiplier is the global default: no site coordinates were given, so the regional pattern of sea-level rise (e.g. the US Gulf and Atlantic coasts rise faster than average) is not applied")
             # SLR raises coastal flood frequency — amplify flood EAL for low-elevation assets
             if slr.p_inundation_2050 > 0.05 and elevation_m <= 5.0:
                 slr_amp = 1.0 + slr.p_inundation_2050 * 0.3

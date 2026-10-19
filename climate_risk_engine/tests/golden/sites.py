@@ -42,11 +42,9 @@ SITES = {
 
 COASTAL = "Deltares 90 m undefended surge-and-tide map reads dry (or nearly) at the pin: its elevation model cannot resolve built-up ground, atolls or subsiding coasts. The engine reports 'outside the modelled storm-surge zone', which is what the data says, not what the place experiences."
 RIVER = "The JRC/GloFAS river-flood map (30 arcsec) is dry or shallow at the 250 m pin: it misses small rivers and some large-river floodplains and ignores local flood history. For Ahrweiler the engine's own insurer module documents this miss (2021)."
-HEAT = "The 'heat' zone is a land-cover and latitude indicator (built-up, tree canopy), not an air-temperature or WBGT model, so hot-desert and hot-city sites cannot reach HIGH. WBGT/UTCI heat exists in the model lab but is not in this panel."
 KNOWN_GAPS = {
- ("miami", "coastal_flood"): COASTAL, ("new_orleans", "coastal_flood"): COASTAL, ("jakarta", "coastal_flood"): COASTAL,
- ("mumbai", "coastal_flood"): COASTAL, ("venice", "coastal_flood"): COASTAL, ("funafuti", "coastal_flood"): COASTAL, ("male", "coastal_flood"): COASTAL,
+ ("jakarta", "coastal_flood"): COASTAL + " Jakarta: the ground model reads 10 m at the pin, above the elevation screen's 8 m limit, although the city is sinking.",
+ ("mumbai", "coastal_flood"): COASTAL + " Mumbai: the ground model reads 6 m and the recorded defence standard is 1-in-100, so the elevation screen holds the rating at most LOW and only within 5 km of the sea.",
  ("dhaka", "river_flood"): RIVER, ("bangkok", "river_flood"): RIVER, ("dresden", "river_flood"): RIVER, ("cologne", "river_flood"): RIVER, ("ahrweiler", "river_flood"): RIVER,
- ("phoenix", "heat"): HEAT, ("riyadh", "heat"): HEAT, ("delhi", "heat"): HEAT, ("kuwait_city", "heat"): HEAT, ("death_valley", "heat"): HEAT,
  ("blue_mountains", "wildfire"): "Wildfire zone comes from vegetation cover and NDVI at the pin, not from fire-weather or fire history; Black Summer sites read MODERATE.",
 }
