@@ -301,3 +301,19 @@ def test_pluvial_failure_is_not_assessed_not_zero():
     from cri.finance.pluvial import site_pluvial
     r = site_pluvial(float("nan"), 0.0)
     assert r["available"] is False and "depth_m" not in r
+
+
+# ---- river depth (lab function) ----------------------------------------------------------------------------------------------------------------
+def test_river_stage_grows_with_flow_and_falls_with_slope():
+    from cri.finance.river_depth import manning_depth
+    assert manning_depth(200, 0.001) > manning_depth(20, 0.001) > 0
+    assert manning_depth(100, 0.0005) > manning_depth(100, 0.005)
+    assert manning_depth(0, 0.001) == 0.0
+
+
+def test_river_depth_declines_when_flow_cell_is_far_and_never_returns_zero_for_missing_data():
+    from cri.finance.river_depth import site_river_depth
+    from types import SimpleNamespace
+    dem = SimpleNamespace(elevations=np.zeros((20, 20)), cell_size_m=10.0, asset_row=10, asset_col=10, source="test")
+    r = site_river_depth(51.0, -1.0, dem=dem, maxima=list(np.linspace(5, 50, 30)), snap_km=9.0)
+    assert r["available"] is False and "depth_m" not in r

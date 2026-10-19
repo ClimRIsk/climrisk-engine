@@ -35,3 +35,6 @@ One row per hazard or model. "Tested against" means independent observations the
 
 ## Surface-water (rain-on-grid) model
 - Evidence: `docs/PLUVIAL_BENCHMARK.md` — AUC 0.64–0.71 on LiDAR in 3 English towns (0.46–0.63 on global tiles); a plain height-above-local-low score beat it at 2 of 3 towns. Grade: **screening, modest skill; can only raise a rating**.
+
+## Small/mid river depth (HAND + rating curve)
+- Evidence: `docs/RIVER_DEPTH_BENCHMARK.md` — pooled CSI 0.37 vs 0.76 for the plain HAND<5 m band on 11 English towns. Grade: **not validated as an improvement; not shipped in the report**. GloFAS point flows misassign river size.
