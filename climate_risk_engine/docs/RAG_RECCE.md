@@ -17,3 +17,28 @@ Baseline (case library, 4,672 passages, 132 events): paraphrase p1 hit@1 0.76 / 
 3. Try a reranker and a larger embedder; keep only what wins on p3 without hurting p1/p2 or false routes.
 4. Add dense retrieval to the knowledge index.
 5. Add a small answer-quality set (faithfulness and coverage) for the generator.
+
+---
+
+# Update, same day: labels, held-out sets, routing
+
+**Labels.** Five of the 50 paraphrase labels were widened after reading each event's indexed text (`gold_adj`; the original `gold` is kept and both are reported). One reviewer, not independent. Effect: p2 hit@3 0.80 to 0.92; p1 and p2 hit@1 barely move (0.76 / 0.72).
+
+**Fresh held-out set p3** (35 questions, written from the source text before any retriever was run on them): 14 about events with curated cards, 21 about events with filing sentences only. Plus 25 fresh negatives (15 app/science questions, 10 off-topic past-event questions).
+
+**What p3 showed.** Retrieval itself is fine on the uncovered events (hit@1 0.76, hit@6 0.95; curated 0.93 / 0.93). The weakness was **routing**: only 24% of the filings-only questions were sent to the case library at all.
+
+**Change (`casebase.is_case_question`).** Added a route through event centroids (mean passage vector per event, built at load, no new model or file): route when the question reads as a past event (year or past-tense cue) and its closest event centroid is at cosine 0.66 or more. Threshold chosen by trade-off, not fitted: dev positives and dev negatives could not discriminate, so the p3 and new-negative results below also informed it and are no longer clean held-out for this one number.
+
+| | before | after |
+|---|---|---|
+| p3 filings-only routed | 0.24 | 0.81 |
+| p3 curated routed | 1.00 | 1.00 |
+| p2 routed | 0.80 | 0.84 |
+| p1 routed | 0.96 | 0.96 |
+| dev negatives falsely routed | 0 of 25 | 0 of 25 |
+| new negatives falsely routed | 2 of 25 (older rules) | 3 of 25 |
+
+At 0.64 the filings-only routing is 0.95 but new false routes rise to 6 of 25; at 0.70 they fall to 2 but routing drops to 0.71. Set `CRI_RAG_EVENT_ROUTE` to move along that line.
+
+Not done yet: reranker and larger-embedder trial, dense search for the knowledge index, answer-quality set. Ranking inside the library (p1/p2 hit@1) is unchanged.

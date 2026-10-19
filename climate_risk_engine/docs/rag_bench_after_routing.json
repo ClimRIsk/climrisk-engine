@@ -1,0 +1,97 @@
+{
+ "A_paraphrase": {
+  "p1": {
+   "n": 25,
+   "hit@1": 0.76,
+   "hit@3": 0.8,
+   "hit@6": 0.88,
+   "mrr": 0.798,
+   "routed_to_case_library": 0.96
+  },
+  "p2": {
+   "n": 25,
+   "hit@1": 0.68,
+   "hit@3": 0.8,
+   "hit@6": 0.88,
+   "mrr": 0.76,
+   "routed_to_case_library": 0.84
+  },
+  "false_routes": {
+   "n": 25,
+   "routed": 0
+  },
+  "false_routes_p3": {
+   "n": 25,
+   "routed": 3,
+   "which": [
+    "What happened to the Roman Empire after the great famine?",
+    "What did Apple report about iPhone sales last quarter?",
+    "How did the pandemic change office rents in 2021?"
+   ]
+  }
+ },
+ "A_paraphrase_adjudicated": {
+  "p1": {
+   "n": 25,
+   "hit@1": 0.76,
+   "hit@3": 0.8,
+   "hit@6": 0.92,
+   "mrr": 0.808,
+   "routed_to_case_library": 0.96
+  },
+  "p2": {
+   "n": 25,
+   "hit@1": 0.72,
+   "hit@3": 0.92,
+   "hit@6": 0.92,
+   "mrr": 0.807,
+   "routed_to_case_library": 0.84
+  },
+  "false_routes": {
+   "n": 25,
+   "routed": 0
+  },
+  "false_routes_p3": {
+   "n": 25,
+   "routed": 3,
+   "which": [
+    "What happened to the Roman Empire after the great famine?",
+    "What did Apple report about iPhone sales last quarter?",
+    "How did the pandemic change office rents in 2021?"
+   ]
+  }
+ },
+ "P3_heldout": {
+  "all": {
+   "n": 35,
+   "hit@1": 0.829,
+   "hit@3": 0.886,
+   "hit@6": 0.943,
+   "mrr": 0.869,
+   "routed_to_case_library": 0.886
+  },
+  "curated": {
+   "n": 14,
+   "hit@1": 0.929,
+   "hit@3": 0.929,
+   "hit@6": 0.929,
+   "mrr": 0.929,
+   "routed_to_case_library": 1.0
+  },
+  "filings_only": {
+   "n": 21,
+   "hit@1": 0.762,
+   "hit@3": 0.857,
+   "hit@6": 0.952,
+   "mrr": 0.829,
+   "routed_to_case_library": 0.81
+  }
+ },
+ "B_entity": {
+  "n": 60,
+  "hit@1": 1.0,
+  "hit@3": 1.0,
+  "hit@6": 1.0,
+  "mrr": 1.0
+ }
+}

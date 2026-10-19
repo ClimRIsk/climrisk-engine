@@ -520,5 +520,33 @@
    "covered_by_curated_cards": false
   }
  ],
- "_p3_note": "p3 = fresh held-out set written from the indexed source text BEFORE looking at any retriever output on it. 14 about curated events, 22 about events with filing sentences only. Never used for tuning."
+ "_p3_note": "p3 = fresh held-out set written from the indexed source text BEFORE looking at any retriever output on it. 14 about curated events, 22 about events with filing sentences only. Never used for tuning.",
+ "not_case_questions_p3": [
+  "Draw a flood map for my plant",
+  "Export my asset register to Excel",
+  "Compute value at risk for my loan portfolio",
+  "How do I upload a KML file?",
+  "What does AUC mean?",
+  "Explain the Gumbel distribution",
+  "How does the landslide map work?",
+  "Which hazards have a 3D map?",
+  "Write an email to my manager about the quarterly numbers",
+  "What is the capital of Australia?",
+  "Summarise the PDF I uploaded",
+  "What is the difference between scope 1 and scope 2 emissions?",
+  "Explain the infinite slope model",
+  "How do I reset my password?",
+  "Show my saved reports",
+  "Who won the 2018 football World Cup?",
+  "What happened to the Roman Empire after the great famine?",
+  "How did the Apollo 13 crew survive after the explosion?",
+  "What did the central bank decide at its last meeting about interest rates?",
+  "Did Bitcoin fall after the exchange-traded fund decision?",
+  "How did the 2008 financial crisis hit Lehman Brothers?",
+  "What did Apple report about iPhone sales last quarter?",
+  "How did Tesla's shares react after its earnings call?",
+  "Which team was relegated after the final match of the season?",
+  "How did the pandemic change office rents in 2021?"
+ ],
+ "_neg3_note": "25 fresh negatives written before any router change: 15 app/science/chat questions and 10 past-event questions that are off-topic for the case library (adversarial for a 'past event' cue)."
 }

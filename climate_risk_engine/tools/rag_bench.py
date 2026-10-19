@@ -76,6 +76,9 @@ def run_a(retrieve=None, adjudicated=False):
     qj = json.loads((ROOT / "rag_bench_questions.json").read_text())
     neg = qj.get("not_case_questions", [])
     out["false_routes"] = {"n": len(neg), "routed": sum(1 for x in neg if CB.is_case_question(x))}
+    neg3 = qj.get("not_case_questions_p3", [])
+    if neg3:
+        out["false_routes_p3"] = {"n": len(neg3), "routed": sum(1 for x in neg3 if CB.is_case_question(x)), "which": [x for x in neg3 if CB.is_case_question(x)]}
     return out
 
 

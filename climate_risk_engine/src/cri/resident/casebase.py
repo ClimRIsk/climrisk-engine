@@ -142,6 +142,17 @@ def _load() -> dict:
         if os.environ.get("CRI_RAG_SEMANTIC", "1") != "0" and _vectors_match(p):          # the shipped vectors belong to the exact index they were built from (by content hash)
             from . import semantic as _S
             sem = _S.Dense.load(len(items))
+        evmat, evids = None, []
+        if sem is not None:                                                              # one centroid per event (mean of its passage vectors): lets a question about ANY indexed event route, not only the 25 with curated cards
+            import numpy as _np
+            rows: dict = defaultdict(list)
+            for i, r in enumerate(items):
+                if r["event"] != "climate-reports":                                   # a catch-all bucket, not an event
+                    rows[r["event"]].append(i)
+            evids = list(rows)
+            evmat = _np.stack([sem.mat[rows[e]].mean(0) for e in evids])
+            evmat /= _np.linalg.norm(evmat, axis=1, keepdims=True)
+        _IDX.update(evmat=evmat, evids=evids)
         _IDX.update(path=str(p), mtime=mt, items=items, inv=dict(inv), df=dict(df), avgdl=total / max(1, len(items)), events=events, companies=dict(companies), cards=cards, ev_text=dict(ev_text), sem=sem)
         return _IDX
 
@@ -202,6 +213,24 @@ def semantic_best(q: str) -> float:
     return best
 
 
+SEM_EVENT = float(os.environ.get("CRI_RAG_EVENT_ROUTE", "0.66"))    # cosine of the closest event centroid above which a PAST-EVENT question is routed to the case library
+_PAST_CUE = re.compile(r"\b(?:(?:19[89]\d|20[0-2]\d)|did|was|were|had|saw|took|booked|reported|hit|fell|lost|cost|after|during|following|since|when)\b|\b[a-z]{4,}ed\b", re.I)
+
+
+def event_best(q: str) -> float:
+    """Cosine of the question to the closest event centroid (0.0 without the dense layer)."""
+    ix = _load()
+    if ix.get("sem") is None or ix.get("evmat") is None:
+        return 0.0
+    from . import semantic as _S
+    import numpy as _np
+    v = _S.embed_texts([q], query=True)
+    if v is None:
+        return 0.0
+    v = v[0] / (float(_np.linalg.norm(v[0])) or 1.0)
+    return float((ix["evmat"] @ v).max())
+
+
 def is_case_question(q: str) -> bool:
     if not available():
         return False
@@ -211,7 +240,9 @@ def is_case_question(q: str) -> bool:
         return True
     if _ASK_PRECEDENT.search(q):
         return True
-    return semantic_best(q) >= SEM_ROUTE
+    if semantic_best(q) >= SEM_ROUTE:
+        return True
+    return bool(_PAST_CUE.search(q)) and event_best(q) >= SEM_EVENT      # asks about something that happened AND sounds like one of the indexed events
 
 
 def coverage_gap(q: str) -> Optional[dict]:
