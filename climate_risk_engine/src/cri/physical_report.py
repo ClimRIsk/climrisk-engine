@@ -30,6 +30,17 @@ LEVELS = ["NEGLIGIBLE", "LOW", "MODERATE", "HIGH", "CRITICAL"]
 REF_YEAR = 2050
 
 
+def _bounded(fn, seconds: float = 45.0) -> dict:
+    """Run an optional slow model with a deadline so it can never stall a report; a timeout reads as 'not available', never as zero."""
+    ex = ThreadPoolExecutor(1)
+    try:
+        return ex.submit(fn).result(timeout=seconds)
+    except Exception:                                       # noqa: BLE001  (includes TimeoutError)
+        return {"available": False, "reason": "model did not finish in time"}
+    finally:
+        ex.shutdown(wait=False)
+
+
 def _lv(x: str) -> int:
     return LEVELS.index(x) if x in LEVELS else 0
 
@@ -551,7 +562,7 @@ def build_asset_report(lat: float, lon: float, name: Optional[str] = None, secto
     if os.environ.get("CRI_PLUVIAL", "1") != "0":
         try:
             from .finance import pluvial as _pl
-            pv = _pl.site_pluvial(lat, lon, rp=100, radius_km=0.6, cell_cap=160)
+            pv = _bounded(lambda: _pl.site_pluvial(lat, lon, rp=100, radius_km=0.6, cell_cap=160))
         except Exception:                                   # noqa: BLE001
             pv = {"available": False}
         if pv.get("available"):
@@ -607,7 +618,7 @@ def build_asset_report(lat: float, lon: float, name: Optional[str] = None, secto
     if os.environ.get("CRI_FIREBEHAVIOUR", "1") != "0":                      # fact only, never changes the rating (see docs/FIRE_BEHAVIOUR_BENCHMARK.md)
         try:
             from .finance import fire_behaviour as _fb
-            fbv = _fb.site_fire_behaviour(lat, lon)
+            fbv = _bounded(lambda: _fb.site_fire_behaviour(lat, lon))
         except Exception:                                   # noqa: BLE001
             fbv = {"available": False}
         wz = next((z for z in zones if z["key"] == "wildfire"), None)
