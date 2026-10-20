@@ -26,12 +26,15 @@ part = here / "_partial.json"
 res = json.loads(part.read_text()) if part.exists() and "--fresh" not in sys.argv else {}
 t0 = time.time()
 todo = [n for n in SITES if n not in res]
+W = int(sys.argv[sys.argv.index("--workers") + 1]) if "--workers" in sys.argv else 7
 while todo and time.time() - t0 < budget:
-    batch, todo = todo[:7], todo[7:]
-    with ThreadPoolExecutor(7) as ex:
-        for n, r in ex.map(one, batch):
+    batch, todo = todo[:W], todo[W:]
+    with ThreadPoolExecutor(W) as ex:
+        futs = [ex.submit(one, n) for n in batch]
+        for f in futs:
+            n, r = f.result()
             res[n] = r
-    part.write_text(json.dumps(res))
+            part.write_text(json.dumps(res))                  # saved per site: a killed run loses at most the sites in flight
 left = [n for n in SITES if n not in res]
 if left:
     print(f"{len(res)}/{len(SITES)} done; rerun to continue ({len(left)} left)")
