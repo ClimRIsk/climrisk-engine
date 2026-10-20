@@ -39,11 +39,13 @@ SOURCES = {
         "bbox": (49.8, 55.9, -6.5, 1.9),
         "url": "https://environment.data.gov.uk/spatialdata/lidar-composite-digital-terrain-model-dtm-1m-2022/wcs",
         "cov": "13787b9a-26a4-4775-8523-806d13af58fc__Lidar_Composite_Elevation_DTM_1m", "axes": ("E", "N"),
+        "url_dsm": "https://environment.data.gov.uk/spatialdata/lidar-composite-digital-surface-model-last-return-dsm-1m/wcs",
+        "cov_dsm": "9ba4d5ac-d596-445a-9056-dae3ddec0178__Lidar_Composite_Elevation_LZ_DSM_1m",
     },
     "netherlands": {
         "label": "AHN DTM 0.5 m (Netherlands, Rijkswaterstaat, CC0)", "native_m": 0.5, "epsg": 28992,
         "bbox": (50.7, 53.6, 3.2, 7.4),
-        "url": "https://service.pdok.nl/rws/ahn/wcs/v1_0", "cov": "dtm_05m", "axes": ("x", "y"),
+        "url": "https://service.pdok.nl/rws/ahn/wcs/v1_0", "cov": "dtm_05m", "axes": ("x", "y"), "url_dsm": "https://service.pdok.nl/rws/ahn/wcs/v1_0", "cov_dsm": "dsm_05m",
     },
 }
 
@@ -78,7 +80,7 @@ def _get(url: str, timeout: float = 60.0) -> bytes:
         return r.read()
 
 
-def _grid_from_bytes(raw: bytes, key: str, lat: float, lon: float, radius_km: float, centre_en: tuple):
+def _grid_from_bytes(raw: bytes, key: str, lat: float, lon: float, radius_km: float, centre_en: tuple, surface: bool = False):
     import rasterio
     from rasterio.io import MemoryFile
     from .terrain_tiles import ElevationGrid
@@ -100,8 +102,10 @@ def _grid_from_bytes(raw: bytes, key: str, lat: float, lon: float, radius_km: fl
             return None
     src = SOURCES[key]
     g = ElevationGrid(lat=lat, lon=lon, radius_km=radius_km, cell_size_m=float(res), rows=a.shape[0], cols=a.shape[1], asset_row=row, asset_col=col, elevations=a)
-    g.source = src["label"]
+    g.source = (src["label"].replace("DTM", "DSM") + " - surface model, buildings and trees included") if surface else src["label"]
     g.native_res_m = src["native_m"]
+    g.epsg = src.get("epsg", 5070)
+    g.centre_en = centre_en
     return g
 
 
@@ -120,14 +124,16 @@ def _fetch_cached(url: str, timeout: float = 90.0) -> bytes:
     return raw
 
 
-def try_grid(lat: float, lon: float, radius_km: float):
-    """An ElevationGrid from open LiDAR, or None (not covered, disabled, or any failure)."""
+def try_grid(lat: float, lon: float, radius_km: float, surface: bool = False):
+    """An ElevationGrid from open LiDAR, or None (not covered, disabled, or any failure). surface=True asks for the first/last-return surface model (England, Netherlands only)."""
     if os.environ.get("CRI_LIDAR", "1") == "0" or not (math.isfinite(lat) and math.isfinite(lon)):
         return None
     key = _which(lat, lon)
     if key is None:
         return None
-    ck = (key, round(lat, 3), round(lon, 3), round(radius_km, 2))
+    if surface and key not in ('england', 'netherlands'):
+        return None
+    ck = (key, round(lat, 3), round(lon, 3), round(radius_km, 2), bool(surface))
     if ck in _FAILED:
         return None
     import time as _t
@@ -156,10 +162,10 @@ def try_grid(lat: float, lon: float, radius_km: float):
             sf = round(s["native_m"] / target, 4)
             ax, ay = s["axes"]
             x0, x1, y0, y1 = int(e - half), int(e + half), int(n - half), int(n + half)
-            q = (f"service=WCS&version=2.0.1&request=GetCoverage&coverageId={urllib.parse.quote(s['cov'])}"
+            q = (f"service=WCS&version=2.0.1&request=GetCoverage&coverageId={urllib.parse.quote(s['cov_dsm'] if surface else s['cov'])}"
                  f"&subset={ax}({x0},{x1})&subset={ay}({y0},{y1})" + (f"&scalefactor={sf}" if sf < 1 else "") + "&format=image/tiff")
-            raw = _fetch_cached(s["url"] + "?" + q, 60.0)
-            g = _grid_from_bytes(raw, key, lat, lon, radius_km, (e, n))
+            raw = _fetch_cached((s["url_dsm"] if surface else s["url"]) + "?" + q, 60.0)
+            g = _grid_from_bytes(raw, key, lat, lon, radius_km, (e, n), surface=surface)
         if g is None:
             _FAILED.add(ck)
         return g
@@ -167,3 +173,16 @@ def try_grid(lat: float, lon: float, radius_km: float):
         log.warning("LiDAR terrain unavailable at (%g, %g): %s; falling back to global tiles", lat, lon, str(exc)[:160])
         _DOWN[ck] = _t.time()
         return None
+
+
+def sample_lonlat(g, lons, lats) -> np.ndarray:
+    """Heights (m) of a LiDAR grid at geographic points (NaN where the grid does not reach or has no data). Nearest cell; the grid is north-up in its own projection."""
+    from pyproj import Transformer
+    e, n = Transformer.from_crs(4326, g.epsg, always_xy=True).transform(np.asarray(lons, float), np.asarray(lats, float))
+    e0, n0 = g.centre_en
+    col = np.round((e - e0) / g.cell_size_m + g.asset_col).astype(int)
+    row = np.round(-(n - n0) / g.cell_size_m + g.asset_row).astype(int)
+    out = np.full(np.shape(e), np.nan)
+    ok = (row >= 0) & (row < g.elevations.shape[0]) & (col >= 0) & (col < g.elevations.shape[1])
+    out[ok] = g.elevations[row[ok], col[ok]]
+    return out

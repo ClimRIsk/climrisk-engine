@@ -356,6 +356,38 @@ def class_at(raster, lon: float, lat: float):
     return -1
 
 
+def lidar_heights(lat: float, lon: float, radius_km: float, rings: list, grid_fn=None) -> Optional[list]:
+    """Building heights above ground (m) measured from open LiDAR: surface model minus bare earth, 80th percentile inside each footprint. England and the Netherlands only.
+    Returns a list parallel to `rings` (None where the footprint has too few LiDAR cells or stands under 2.5 m), or None when no LiDAR surface model covers the place."""
+    try:
+        from .connectors import lidar_dem as LD
+        fn = grid_fn or LD.try_grid
+        dsm, dtm = fn(lat, lon, radius_km, surface=True), fn(lat, lon, radius_km)
+        if dsm is None or dtm is None or dsm.elevations.shape != dtm.elevations.shape:
+            return None
+        nd = dsm.elevations - dtm.elevations
+        from pyproj import Transformer
+        from skimage.draw import polygon as _poly
+        tf = Transformer.from_crs(4326, dsm.epsg, always_xy=True)
+        e0, n0 = dsm.centre_en
+        out = []
+        for ring in rings:
+            xs, ys = tf.transform([p[0] for p in ring], [p[1] for p in ring])
+            cols = (np.asarray(xs) - e0) / dsm.cell_size_m + dsm.asset_col
+            rows = -(np.asarray(ys) - n0) / dsm.cell_size_m + dsm.asset_row
+            rr, cc = _poly(rows, cols, shape=nd.shape)
+            v = nd[rr, cc] if len(rr) else np.array([])
+            v = v[np.isfinite(v)]
+            if len(v) < 4:
+                out.append(None)
+                continue
+            h = float(np.percentile(v, 80))
+            out.append(round(min(h, 150.0), 1) if h >= 2.5 else None)
+        return out
+    except Exception:                                            # noqa: BLE001
+        return None
+
+
 def buildings(lat: float, lon: float, radius_km: float = 1.0, hazard: str = None, polygons=None, fetch=None) -> dict:
     """OpenStreetMap building footprints with heights. If a hazard layer for the same hazard was just computed, each building gets the WORST class among its corners and centre
     (a terrain-cell value under the footprint: it is not the building's own vulnerability). Heights are flagged by source."""
@@ -365,6 +397,17 @@ def buildings(lat: float, lon: float, radius_km: float = 1.0, hazard: str = None
     labels = raster[2] if raster else None
     out, counts, hs = [], {}, {}
     from .geo_io import points_in_polygons
+    rings_all = []
+    for el in osm.get("elements", []):
+        g = el.get("geometry")
+        if el.get("type") != "way" or not g or len(g) < 4:
+            continue
+        r_ = [[p["lon"], p["lat"]] for p in g]
+        if r_[0] == r_[-1]:
+            r_ = r_[:-1]
+        rings_all.append(r_ if len(r_) >= 3 else None)
+    lh = lidar_heights(lat, lon, radius_km, [r for r in rings_all if r]) if any(rings_all) else None
+    lh_iter = iter(lh) if lh is not None else None
     for el in osm.get("elements", []):
         g = el.get("geometry")
         if el.get("type") != "way" or not g or len(g) < 4:
@@ -375,6 +418,10 @@ def buildings(lat: float, lon: float, radius_km: float = 1.0, hazard: str = None
         if len(ring) < 3:
             continue
         h, hsrc = _height(el.get("tags") or {})
+        if lh_iter is not None:
+            m_ = next(lh_iter, None)
+            if m_ is not None:
+                h, hsrc = m_, "LiDAR surface model"
         hs[hsrc] = hs.get(hsrc, 0) + 1
         item = {"ring": ring, "h": round(h, 1), "h_src": hsrc}
         if raster:

@@ -35,6 +35,9 @@
    <div class="row" style="margin-top:6px"><button class="sec" id="bld">Show buildings</button><button class="sec" id="bldoff">Hide</button></div>
    <div id="bldInfo" class="muted" style="font-size:11px;margin-top:5px">Extruded footprints around the site (up to 1.5 km). Compute a hazard layer first to colour each building by the hazard class under it.</div></div>
   <div id="out"></div>
+  <div class="box"><b>Imagery on the terrain mesh</b>
+   <select id="img" style="margin-top:6px"><option value="auto">Auto: best open imagery here</option><option value="s2">Satellite photo (Sentinel-2, 10 m, anywhere)</option><option value="aerial">Aerial photo (Netherlands 8-25 cm, US NAIP)</option><option value="osm">OpenStreetMap street map</option></select>
+   <div id="imgInfo" class="muted" style="font-size:11px;margin-top:5px"></div></div>
   <div class="box"><b>Base map</b><div id="baseInfo" class="muted" style="margin-top:3px"></div>
    <label>Google Maps Platform key (stored on this computer only)</label><input id="gk" type="password" placeholder="paste key, then Save" autocomplete="off">
    <div class="row" style="margin-top:6px"><button class="sec" id="gsave">Save key</button><button class="sec" id="gclear">Remove</button></div>
@@ -89,9 +92,9 @@ async function initViewer(){
     }catch(e){ $('baseInfo').innerHTML='<span class="bad">Google tiles failed to load: '+String(e.message||e).slice(0,160)+'.</span> Check the key, that Map Tiles API is enabled and billing is on. Showing the flat fallback.'; }
   }
   if(!usingGoogle){
-    viewer.imageryLayers.addImageryProvider(new Cesium.OpenStreetMapImageryProvider({url:'https://tile.openstreetmap.org/'}));
     viewer.scene.globe.show=true; viewer.terrainProvider=terrariumProvider(); viewer.scene.globe.enableLighting=false;
-    if(!$('baseInfo').textContent) $('baseInfo').innerHTML='<span class="warn">No Google key: OpenStreetMap on real terrain relief (open 10-30 m elevation data). No 3D buildings.</span> Add a key below for photorealistic 3D.';
+    if(!$('baseInfo').textContent) $('baseInfo').innerHTML='<span class="ok">Open data, no key:</span> real satellite or aerial imagery draped on a terrain mesh (open LiDAR where it exists: England 1 m, Netherlands 0.5 m, US 3DEP; 10-30 m global tiles elsewhere), with buildings extruded from LiDAR surface heights where available (England, Netherlands) or OpenStreetMap. This is a draped reconstruction, not photogrammetry. Add a Google key below for photoreal meshes.';
+    await applyImagery();
   }
   viewer.scene.globe.depthTestAgainstTerrain=true;
   fly();
@@ -100,7 +103,36 @@ async function flyAt(lat,lon,spanM,range){
   const e=usingGoogle?0:await elevAt(lat,lon);
   viewer.camera.flyToBoundingSphere(new Cesium.BoundingSphere(Cesium.Cartesian3.fromDegrees(lon,lat,e),spanM*0.5),{offset:new Cesium.HeadingPitchRange(0,Cesium.Math.toRadians(-35),range),duration:1.4});
 }
-function fly(){ const r=+$('rad').value*1000; flyAt(+$('lat').value,+$('lon').value,r,r*2.2) }
+function fly(){ const r=+$('rad').value*1000; flyAt(+$('lat').value,+$('lon').value,r,r*2.2); applyImagery() }
+let imgBusy=false;
+async function applyImagery(){
+  if(usingGoogle||!viewer||imgBusy) return; imgBusy=true;
+  const mode=$('img').value, lat=+$('lat').value, lon=+$('lon').value, rad=+$('rad').value, info=$('imgInfo');
+  try{
+    info.textContent='Loading imagery…';
+    let cov={}; try{cov=await jget('/hazard3d/coverage?lat='+lat+'&lon='+lon)}catch(e){}
+    viewer.imageryLayers.removeAll();
+    const osm=viewer.imageryLayers.addImageryProvider(new Cesium.OpenStreetMapImageryProvider({url:'https://tile.openstreetmap.org/'}));
+    const terr=cov.lidar?'Terrain: '+cov.lidar+'.':'Terrain: global 10-30 m elevation tiles (no open LiDAR here).';
+    if(mode==='osm'){ info.textContent='OpenStreetMap street map. '+terr; return }
+    osm.brightness=0.55;
+    let used=null, note='';
+    if((mode==='auto'||mode==='aerial')&&cov.aerial){
+      viewer.imageryLayers.addImageryProvider(new Cesium.UrlTemplateImageryProvider({url:API+'/hazard3d/imagery/aerial/{z}/{x}/{y}.jpg',maximumLevel:cov.aerial.max_zoom,credit:cov.aerial.label}));
+      used=cov.aerial.label;
+    } else if(mode==='aerial'){ note='No open aerial photography here; using satellite. ' }
+    if(!used){
+      try{
+        const r=await jpost('/hazard3d/imagery/sentinel2',{hazard:'none',lat:lat,lon:lon,radius_km:Math.min(rad,3),polygons:null,params:{}});
+        if(r.available){ const b=r.bounds;
+          const p=await Cesium.SingleTileImageryProvider.fromUrl('data:image/png;base64,'+r.image_png_b64,{rectangle:Cesium.Rectangle.fromDegrees(b.west,b.south,b.east,b.north),credit:'Contains modified Copernicus Sentinel data'});
+          viewer.imageryLayers.addImageryProvider(p); used='Copernicus Sentinel-2, '+r.meta.date+', '+r.meta.cloud_pct+'% scene cloud, 10 m (covers the box only; street map outside)';
+        } else note+=r.reason+' ';
+      }catch(e){ note+='Satellite image failed: '+String(e.message||e).slice(0,120)+'. ' }
+    }
+    info.innerHTML=(used?'<span class="ok">'+esc(used)+'.</span> ':'<span class="warn">'+esc(note)+'Showing the street map.</span> ')+(used?esc(note):'')+esc(terr);
+  } finally { imgBusy=false }
+}
 function clearLayer(){ if(layerEnt){viewer.entities.remove(layerEnt);layerEnt=null} }
 function clearSA(){ saEnts.forEach(e=>viewer.entities.remove(e)); saEnts=[] }
 function drawSA(){
@@ -185,6 +217,7 @@ async function showBuildings(){
 }
 $('bld').onclick=showBuildings; $('bldoff').onclick=clearB;
 
+$('img').onchange=applyImagery;
 $('ex').oninput=()=>{$('exv').textContent=$('ex').value; if(viewer) viewer.scene.verticalExaggeration=+$('ex').value};
 $('rad').oninput=()=>$('rv').textContent=$('rad').value; $('run').onclick=run; $('fly').onclick=fly;
 $('op').oninput=()=>{ if(layerEnt&&layerEnt.rectangle.material){layerEnt.rectangle.material.color=Cesium.Color.WHITE.withAlpha(+$('op').value)} };
