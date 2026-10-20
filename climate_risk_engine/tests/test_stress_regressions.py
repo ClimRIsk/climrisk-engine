@@ -341,3 +341,35 @@ def test_fire_behaviour_not_applicable_on_non_vegetated_ground_and_not_zero_on_f
     from cri.finance.fire_behaviour import site_fire_behaviour
     r = site_fire_behaviour(float("nan"), 0.0)
     assert r["available"] is False
+
+
+def test_lidar_get_has_a_total_deadline(monkeypatch):
+    """A service that trickles bytes forever must not hold a report: the read is cut at a total deadline."""
+    import io, time
+    from cri.connectors import lidar_dem
+
+    class Slow(io.BytesIO):
+        def read(self, n=-1):
+            time.sleep(0.05)
+            return b"x" * 10
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+    monkeypatch.setattr(lidar_dem.urllib.request, "urlopen", lambda req, timeout=None: Slow())
+    t = time.time()
+    with pytest.raises(TimeoutError):
+        lidar_dem._get("http://example.invalid/x", timeout=0.5)
+    assert time.time() - t < 3
+
+
+def test_slow_lidar_service_is_skipped_for_ten_minutes(monkeypatch):
+    from cri.connectors import lidar_dem
+    lidar_dem._SLOW.clear(); lidar_dem._DOWN.clear(); lidar_dem._FAILED.clear()
+    calls = []
+    def boom(url, timeout=45.0):
+        calls.append(url); raise TimeoutError("service too slow")
+    monkeypatch.setattr(lidar_dem, "_get", boom)
+    assert lidar_dem.try_grid(51.5, -0.12, 0.5) is None
+    n = len(calls)
+    assert lidar_dem.try_grid(52.2, -1.9, 0.5) is None          # a different place, same slow service: no new request
+    assert len(calls) == n
+    lidar_dem._SLOW.clear(); lidar_dem._DOWN.clear()

@@ -28,6 +28,7 @@ import numpy as np
 log = logging.getLogger(__name__)
 CACHE = Path.home() / ".cache" / "climrisk" / "lidar"
 _FAILED: set = set()          # points confirmed not to have usable LiDAR (permanent for the process)
+_SLOW: dict = {}               # source key -> time of the last total-deadline timeout: the whole service is skipped for 10 minutes so one slow service cannot add 45 s to every call
 _DOWN: dict = {}               # points where a service call failed: retried after 120 s so a blip does not switch LiDAR off
 
 THREEDEP = "https://elevation.nationalmap.gov/arcgis/rest/services/3DEPElevation/ImageServer"
@@ -74,10 +75,19 @@ def _usa_native_m(lat: float, lon: float) -> Optional[float]:
     return float(ps) if ps else None
 
 
-def _get(url: str, timeout: float = 60.0) -> bytes:
+def _get(url: str, timeout: float = 45.0) -> bytes:
     req = urllib.request.Request(url, headers={"User-Agent": "ClimRisk/1.0 (climate risk research)"})
-    with urllib.request.urlopen(req, timeout=timeout) as r:
-        return r.read()
+    import time as _t
+    deadline = _t.time() + timeout                                # a hard TOTAL deadline: urlopen's timeout only bounds each socket read, so a slowly trickling service could hold a report for minutes
+    with urllib.request.urlopen(req, timeout=min(timeout, 20.0)) as r:
+        chunks = []
+        while True:
+            b = r.read(1 << 16)
+            if not b:
+                return b"".join(chunks)
+            chunks.append(b)
+            if _t.time() > deadline:
+                raise TimeoutError(f"service too slow: no complete response within {timeout:g} s")
 
 
 def _grid_from_bytes(raw: bytes, key: str, lat: float, lon: float, radius_km: float, centre_en: tuple, surface: bool = False):
@@ -137,6 +147,8 @@ def try_grid(lat: float, lon: float, radius_km: float, surface: bool = False):
     if ck in _FAILED:
         return None
     import time as _t
+    if _t.time() - _SLOW.get(key, -1e9) < 600:
+        return None
     if _t.time() - _DOWN.get(ck, -1e9) < 120:
         return None
     try:
@@ -164,7 +176,7 @@ def try_grid(lat: float, lon: float, radius_km: float, surface: bool = False):
             x0, x1, y0, y1 = int(e - half), int(e + half), int(n - half), int(n + half)
             q = (f"service=WCS&version=2.0.1&request=GetCoverage&coverageId={urllib.parse.quote(s['cov_dsm'] if surface else s['cov'])}"
                  f"&subset={ax}({x0},{x1})&subset={ay}({y0},{y1})" + (f"&scalefactor={sf}" if sf < 1 else "") + "&format=image/tiff")
-            raw = _fetch_cached((s["url_dsm"] if surface else s["url"]) + "?" + q, 60.0)
+            raw = _fetch_cached((s["url_dsm"] if surface else s["url"]) + "?" + q, 45.0)
             g = _grid_from_bytes(raw, key, lat, lon, radius_km, (e, n), surface=surface)
         if g is None:
             _FAILED.add(ck)
@@ -172,6 +184,8 @@ def try_grid(lat: float, lon: float, radius_km: float, surface: bool = False):
     except Exception as exc:                                    # noqa: BLE001
         log.warning("LiDAR terrain unavailable at (%g, %g): %s; falling back to global tiles", lat, lon, str(exc)[:160])
         _DOWN[ck] = _t.time()
+        if isinstance(exc, TimeoutError):
+            _SLOW[key] = _t.time()
         return None
 
 
