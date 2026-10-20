@@ -41,3 +41,6 @@ One row per hazard or model. "Tested against" means independent observations the
 
 ## Wildfire surface-fire behaviour (Rothermel)
 - Evidence: `docs/FIRE_BEHAVIOUR_BENCHMARK.md` — spread formula within ±40 % of published values; as a day-ranker 0.53–0.76 ROC area vs 0.80 for hot-day temperature and 0.71 for FWI (Canada, 8 boxes). Grade: **physical illustration, not a validated risk score; fact only, never changes the rating**.
+
+## Named-event hindcast (building level)
+- Evidence: `docs/HINDCAST_STUDY.md` — Carlisle (Desmond 2015, Jan 2005), Cockermouth 2009, York (2015, 2020), 70k footprints vs EA recorded outlines. LiDAR HAND ROC area 0.81-0.92 for the five major events (global tiles 0.50-0.87); top-10 % flagged finds 52-60 % of flooded buildings. Fixed bands are susceptibility (HIGH band hit rate 4-64 %). Grade: **supported as a ranking for England river floods; depth and loss untested**.

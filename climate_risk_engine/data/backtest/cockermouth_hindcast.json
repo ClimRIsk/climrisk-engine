@@ -1,0 +1,110 @@
+{
+ "n_buildings": 3109,
+ "events": {
+  "Nov_2009": {
+   "flooded_buildings": 250,
+   "buildings_scored": 3013,
+   "share_flooded": 0.083,
+   "metrics": {
+    "lidar_hand": {
+     "auc": 0.922,
+     "gain": {
+      "top_10pct": 0.52,
+      "top_20pct": 0.86,
+      "top_30pct": 1.0,
+      "top_50pct": 1.0
+     },
+     "rules": {
+      "HAND<1m": {
+       "flagged": 40,
+       "hit_rate": 0.044,
+       "false_alarm_rate": 0.01,
+       "precision": 0.275,
+       "csi": 0.039
+      },
+      "HAND<5m": {
+       "flagged": 543,
+       "hit_rate": 0.812,
+       "false_alarm_rate": 0.123,
+       "precision": 0.374,
+       "csi": 0.344
+      },
+      "HAND<10m": {
+       "flagged": 1055,
+       "hit_rate": 1.0,
+       "false_alarm_rate": 0.291,
+       "precision": 0.237,
+       "csi": 0.237
+      }
+     }
+    },
+    "global_hand": {
+     "auc": 0.869,
+     "gain": {
+      "top_10pct": 0.264,
+      "top_20pct": 0.664,
+      "top_30pct": 0.948,
+      "top_50pct": 1.0
+     },
+     "rules": {
+      "HAND<1m": {
+       "flagged": 392,
+       "hit_rate": 0.408,
+       "false_alarm_rate": 0.105,
+       "precision": 0.26,
+       "csi": 0.189
+      },
+      "HAND<5m": {
+       "flagged": 1198,
+       "hit_rate": 0.992,
+       "false_alarm_rate": 0.344,
+       "precision": 0.207,
+       "csi": 0.207
+      },
+      "HAND<10m": {
+       "flagged": 1917,
+       "hit_rate": 1.0,
+       "false_alarm_rate": 0.603,
+       "precision": 0.13,
+       "csi": 0.13
+      }
+     }
+    },
+    "global_rel": {
+     "auc": 0.954,
+     "gain": {
+      "top_10pct": 0.596,
+      "top_20pct": 0.988,
+      "top_30pct": 1.0,
+      "top_50pct": 1.0
+     }
+    }
+   },
+   "block_bootstrap_95ci": {
+    "auc_lidar": [
+     0.852,
+     0.967
+    ],
+    "auc_global": [
+     0.784,
+     0.929
+    ],
+    "auc_diff": [
+     -0.03,
+     0.129
+    ],
+    "top20_lidar": [
+     0.558,
+     1.0
+    ]
+   },
+   "random_flagging_gain": "top 10/20/30/50 % flagged finds 10/20/30/50 % of flooded buildings"
+  }
+ },
+ "scores": {},
+ "scores_covered": {
+  "lidar_hand": 3013,
+  "global_hand": 3109,
+  "global_rel": 3109
+ }
+}

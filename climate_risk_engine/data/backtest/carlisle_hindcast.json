@@ -1,0 +1,209 @@
+{
+ "n_buildings": 12759,
+ "events": {
+  "Desmond_2015": {
+   "flooded_buildings": 571,
+   "buildings_scored": 11614,
+   "share_flooded": 0.049,
+   "metrics": {
+    "lidar_hand": {
+     "auc": 0.896,
+     "gain": {
+      "top_10pct": 0.59,
+      "top_20pct": 0.813,
+      "top_30pct": 0.897,
+      "top_50pct": 0.995
+     },
+     "rules": {
+      "HAND<1m": {
+       "flagged": 1345,
+       "hit_rate": 0.639,
+       "false_alarm_rate": 0.089,
+       "precision": 0.271,
+       "csi": 0.235
+      },
+      "HAND<5m": {
+       "flagged": 4401,
+       "hit_rate": 0.954,
+       "false_alarm_rate": 0.349,
+       "precision": 0.124,
+       "csi": 0.123
+      },
+      "HAND<10m": {
+       "flagged": 7536,
+       "hit_rate": 1.0,
+       "false_alarm_rate": 0.631,
+       "precision": 0.076,
+       "csi": 0.076
+      }
+     }
+    },
+    "global_hand": {
+     "auc": 0.578,
+     "gain": {
+      "top_10pct": 0.145,
+      "top_20pct": 0.24,
+      "top_30pct": 0.377,
+      "top_50pct": 0.588
+     },
+     "rules": {
+      "HAND<1m": {
+       "flagged": 2368,
+       "hit_rate": 0.247,
+       "false_alarm_rate": 0.202,
+       "precision": 0.06,
+       "csi": 0.05
+      },
+      "HAND<5m": {
+       "flagged": 6766,
+       "hit_rate": 0.639,
+       "false_alarm_rate": 0.58,
+       "precision": 0.054,
+       "csi": 0.052
+      },
+      "HAND<10m": {
+       "flagged": 9429,
+       "hit_rate": 0.928,
+       "false_alarm_rate": 0.806,
+       "precision": 0.056,
+       "csi": 0.056
+      }
+     }
+    },
+    "global_rel": {
+     "auc": 0.69,
+     "gain": {
+      "top_10pct": 0.238,
+      "top_20pct": 0.42,
+      "top_30pct": 0.543,
+      "top_50pct": 0.683
+     }
+    }
+   },
+   "block_bootstrap_95ci": {
+    "auc_lidar": [
+     0.825,
+     0.941
+    ],
+    "auc_global": [
+     0.435,
+     0.712
+    ],
+    "auc_diff": [
+     0.148,
+     0.47
+    ],
+    "top20_lidar": [
+     0.593,
+     0.911
+    ]
+   },
+   "random_flagging_gain": "top 10/20/30/50 % flagged finds 10/20/30/50 % of flooded buildings"
+  },
+  "Jan_2005": {
+   "flooded_buildings": 627,
+   "buildings_scored": 11614,
+   "share_flooded": 0.054,
+   "metrics": {
+    "lidar_hand": {
+     "auc": 0.887,
+     "gain": {
+      "top_10pct": 0.526,
+      "top_20pct": 0.75,
+      "top_30pct": 0.912,
+      "top_50pct": 0.995
+     },
+     "rules": {
+      "HAND<1m": {
+       "flagged": 1345,
+       "hit_rate": 0.568,
+       "false_alarm_rate": 0.09,
+       "precision": 0.265,
+       "csi": 0.22
+      },
+      "HAND<5m": {
+       "flagged": 4401,
+       "hit_rate": 0.965,
+       "false_alarm_rate": 0.345,
+       "precision": 0.137,
+       "csi": 0.137
+      },
+      "HAND<10m": {
+       "flagged": 7536,
+       "hit_rate": 1.0,
+       "false_alarm_rate": 0.629,
+       "precision": 0.083,
+       "csi": 0.083
+      }
+     }
+    },
+    "global_hand": {
+     "auc": 0.611,
+     "gain": {
+      "top_10pct": 0.169,
+      "top_20pct": 0.27,
+      "top_30pct": 0.416,
+      "top_50pct": 0.643
+     },
+     "rules": {
+      "HAND<1m": {
+       "flagged": 2368,
+       "hit_rate": 0.276,
+       "false_alarm_rate": 0.2,
+       "precision": 0.073,
+       "csi": 0.061
+      },
+      "HAND<5m": {
+       "flagged": 6766,
+       "hit_rate": 0.689,
+       "false_alarm_rate": 0.576,
+       "precision": 0.064,
+       "csi": 0.062
+      },
+      "HAND<10m": {
+       "flagged": 9429,
+       "hit_rate": 0.949,
+       "false_alarm_rate": 0.804,
+       "precision": 0.063,
+       "csi": 0.063
+      }
+     }
+    },
+    "global_rel": {
+     "auc": 0.71,
+     "gain": {
+      "top_10pct": 0.254,
+      "top_20pct": 0.451,
+      "top_30pct": 0.573,
+      "top_50pct": 0.73
+     }
+    }
+   },
+   "block_bootstrap_95ci": {
+    "auc_lidar": [
+     0.82,
+     0.934
+    ],
+    "auc_global": [
+     0.478,
+     0.731
+    ],
+    "auc_diff": [
+     0.116,
+     0.425
+    ],
+    "top20_lidar": [
+     0.541,
+     0.894
+    ]
+   },
+   "random_flagging_gain": "top 10/20/30/50 % flagged finds 10/20/30/50 % of flooded buildings"
+  }
+ },
+ "scores": {},
+ "scores_covered": {
+  "lidar_hand": 11614,
+  "global_hand": 12759,
+  "global_rel": 12759
+ }
+}

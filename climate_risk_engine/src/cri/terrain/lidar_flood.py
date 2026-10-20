@@ -65,9 +65,11 @@ def flood_position(lat: float, lon: float, radius_km: float = 2.5) -> dict:
             win = hand[max(0, r - k): r + k + 1, max(0, c - k): c + k + 1]
             h = np.nanmin(win) if np.isfinite(win).any() else np.nan
         rl = rel[r, c]
+        valid = hand[np.isfinite(hand)]
+        pct = None if (not np.isfinite(h) or valid.size < 100) else round(float((valid > h).mean()) * 100.0, 0)     # share of the surrounding land that sits higher above its drainage
         h = None if not np.isfinite(h) else round(float(h), 2)
         return {"available": h is not None, "source": g.source, "cell_m": round(float(g.cell_size_m), 1), "hand_m": h,
-                "rel_m": None if not np.isfinite(rl) else round(float(rl), 2), "floor": band_for(h),
+                "rel_m": None if not np.isfinite(rl) else round(float(rl), 2), "floor": band_for(h), "lower_than_pct_of_surroundings": pct,
                 **({} if h is not None else {"reason": "no drainage network could be derived at the pin"})}
     except Exception as e:                                         # noqa: BLE001
         log.warning("LiDAR floodplain screen failed at (%g, %g): %s", lat, lon, str(e)[:120])

@@ -484,6 +484,10 @@ def build_asset_report(lat: float, lon: float, name: Optional[str] = None, secto
     _rz = next((z for z in zones if z["key"] == "river_flood"), None)
     if _lf.get("available") and _rz is not None:
         _rz.setdefault("facts", []).append(_f("Height above nearest drainage (LiDAR)", f"{_lf['hand_m']:.1f} m", _lf["source"]))
+        if _lf.get("lower_than_pct_of_surroundings") is not None:
+            _rz["facts"].append(_f("Position among the surrounding 2.5 km", f"lower than {_lf['lower_than_pct_of_surroundings']:.0f} % of the land around it (height above drainage)",
+                                   "Ranking is the better-supported signal: in building-level tests on three flooded English towns (docs/HINDCAST_STUDY.md) it separated flooded from dry buildings "
+                                   "(ROC area 0.81-0.92 for the major events); the fixed height bands over- or under-flag depending on the terrain"))
         _fl = _lf.get("floor")
         if _fl and _lv(_fl) > _lv(_rz.get("rating") or "NEGLIGIBLE"):
             _rz["zone"] = (f"Terrain floodplain screen, not a modelled flood depth: open LiDAR puts the site {_lf['hand_m']:.1f} m above the nearest drainage channel. "

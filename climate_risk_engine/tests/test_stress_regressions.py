@@ -373,3 +373,20 @@ def test_slow_lidar_service_is_skipped_for_ten_minutes(monkeypatch):
     assert lidar_dem.try_grid(52.2, -1.9, 0.5) is None          # a different place, same slow service: no new request
     assert len(calls) == n
     lidar_dem._SLOW.clear(); lidar_dem._DOWN.clear()
+
+
+# ---- hindcast metrics ------------------------------------------------------------------------------------------------------------------------------
+def test_hindcast_metrics_perfect_random_and_rules():
+    import importlib.util, pathlib
+    spec = importlib.util.spec_from_file_location("hc", pathlib.Path(__file__).resolve().parent.parent / "scripts" / "hindcast_carlisle.py")
+    hc = importlib.util.module_from_spec(spec); spec.loader.exec_module(hc)
+    y = np.array([1] * 10 + [0] * 90)
+    perfect = np.r_[np.zeros(10), np.ones(90)]                    # lowest score = most exposed
+    assert hc.auc(-perfect, y) == 1.0
+    assert hc.gain(perfect, y)["top_10pct"] == 1.0
+    rng = np.random.default_rng(0)
+    rnd = rng.random(20000); yr = (rng.random(20000) < 0.05).astype(int)
+    assert abs(hc.auc(-rnd, yr) - 0.5) < 0.03
+    assert abs(hc.gain(rnd, yr)["top_20pct"] - 0.2) < 0.06
+    r = hc.rule(perfect < 0.5, y)
+    assert r["hit_rate"] == 1.0 and r["false_alarm_rate"] == 0.0 and r["precision"] == 1.0
