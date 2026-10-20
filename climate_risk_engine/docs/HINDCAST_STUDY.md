@@ -36,7 +36,7 @@ The engine's fixed bands, on LiDAR:
 
 ## What we can say, and what we cannot
 
-1. **LiDAR ranking works at building level.** In the three towns' major events, flooded buildings sit in the engine's most exposed tenth five to six times as often as chance. Five of the six comparisons clear 0.8.
+1. **LiDAR ranking works at building level.** In the four major events across the three towns, flooded buildings sit in the engine's most exposed tenth five to six times as often as chance. Four of the five events clear 0.8 (the fifth, a 48-building local flood, does not).
 2. **LiDAR is worth having over the global tiles in flat, built-up places.** At Carlisle and York the global-tile score is no better than chance (0.50-0.61); the difference is large and its interval excludes zero. At Cockermouth, a steep valley town, the global tiles already do well (0.87) and a simple relative-height score on them (0.95) matched or beat LiDAR HAND; the LiDAR gain there is inside the noise.
 3. **The fixed height bands are susceptibility, not event prediction.** "HAND < 1 m" caught 62-64 % of flooded buildings at Carlisle and York but only 4 % at Cockermouth, where the 2009 flood stood well above the channel. "HAND < 5 m" catches most flooded buildings (81-98 %) but flags 18-72 % of all buildings, so it is not a statement that a building will flood; in a flat city like York almost everything is low. The report must keep describing these bands as how far the river can reach, never as a flood prediction.
 4. **It does not rank small, local floods well.** Storm Dennis at York (48 buildings) scored 0.63, with an interval that reaches 0.54.
@@ -47,7 +47,7 @@ The engine's fixed bands, on LiDAR:
 - The terrain is the 2022 LiDAR, after both the 2015 events and after the Carlisle flood-defence scheme; protected buildings that flooded in 2015 can read safe. This costs hits, so the true pre-event skill could be a little higher or lower; it is not corrected.
 - Recorded outlines are the mapped extent, not every flooded building; both sample and truth mix river and surface-water causes.
 - The two Carlisle events overlap in place and are not independent evidence. Three towns, all in England, all river floods.
-- Building footprints are from OpenStreetMap volunteers, and 9-25 % of footprints fell outside the LiDAR window and were dropped.
+- Building footprints are from OpenStreetMap volunteers, and 3 % (Cockermouth), 9 % (Carlisle) and 28 % (York) of footprints fell outside the LiDAR window and were dropped.
 
 ## What changed in the product because of this
 
