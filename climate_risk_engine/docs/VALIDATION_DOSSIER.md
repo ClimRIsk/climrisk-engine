@@ -1,6 +1,6 @@
 # ClimRisk validation dossier
 
-Status: screening-grade prototype. Prepared for external review (Mr Charles Hett). Date: 14 October 2026. Engine commit a928977 or later.
+Status: screening-grade prototype. Prepared for external review. Date: 14 October 2026. Engine commit a928977 or later.
 
 Every number below comes from a file in the repository and can be regenerated with the command shown. Where the evidence is weak or absent this document says so.
 

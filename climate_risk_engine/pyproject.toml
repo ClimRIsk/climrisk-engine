@@ -4,6 +4,7 @@ version = "0.8.0"
 description = "Climate Risk Intelligence engine — scenario-driven climate-to-finance translation"
 readme = "README.md"
 requires-python = ">=3.10"
+license = { text = "PolyForm-Noncommercial-1.0.0" }
 dependencies = [
     "pydantic>=2.6",
     "pandas>=2.2",
