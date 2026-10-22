@@ -21,7 +21,7 @@ import os
 import tempfile
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Optional
+from typing import Any, Dict, Optional
 
 import requests
 
@@ -1485,8 +1485,12 @@ def generate_issb_report(request: DisclosureRequest) -> DisclosureResponse:
     return DisclosureResponse(**report.to_dict())
 
 
+class CSRDRequest(DisclosureRequest):
+    provided: Dict[str, Any] = Field(default_factory=dict, description="The company's own values keyed by ESRS E1 checklist id (see GET /reports/csrd/checklist). Anything not given stays null.")
+
+
 @app.post("/reports/csrd", response_model=DisclosureResponse, dependencies=[_AUTH])
-def generate_csrd_report(request: DisclosureRequest) -> DisclosureResponse:
+def generate_csrd_report(request: CSRDRequest) -> DisclosureResponse:
     """
     Generate an EU CSRD ESRS E1 climate disclosure data point report.
     Requires Professional tier or above.
@@ -1513,8 +1517,63 @@ def generate_csrd_report(request: DisclosureRequest) -> DisclosureResponse:
     dt  = run_engine(company=company, scenario=SCENARIO_REGISTRY["delayed_transition"])
     cp  = run_engine(company=company, scenario=SCENARIO_REGISTRY["current_policies"])
 
-    report = generate_csrd(company, nze, dt, cp, reporting_year=request.reporting_year)
+    report = generate_csrd(company, nze, dt, cp, reporting_year=request.reporting_year, provided=request.provided)
     return DisclosureResponse(**report.to_dict())
+
+
+class CSRDGapRequest(BaseModel):
+    company_id: Optional[str] = Field(None, description="Optional. If a known company, the engine adds modelled stand-ins (never counted as provided).")
+    provided: Dict[str, Any] = Field(default_factory=dict, description="The company's own values keyed by ESRS E1 checklist id, e.g. 'E1-6.scope1'.")
+    e1_material: Optional[bool] = Field(None, description="The company's own conclusion on E1 materiality; omit if not yet assessed.")
+    e1_not_material_explanation: Optional[str] = None
+    tier: str = "professional"
+
+
+@app.get("/reports/csrd/checklist", dependencies=[_AUTH])
+def csrd_checklist() -> dict:
+    """The ESRS E1 checklist the gap assessment uses (ids, requirement, kind, unit)."""
+    from ..regulatory.esrs_e1_gap import CHECKLIST
+    return {"items": [{"id": i.id, "requirement": i.req, "title": i.title, "kind": i.kind, "unit": i.unit,
+                       "applies_when": list(i.when) if i.when else None} for i in CHECKLIST]}
+
+
+@app.post("/reports/csrd/gap", dependencies=[_AUTH])
+def csrd_gap_assessment(request: CSRDGapRequest) -> dict:
+    """
+    ESRS E1 gap assessment: which requirements the company has supplied, which only have an engine
+    estimate, and which are missing. Requires Professional tier or above, like the CSRD report.
+    """
+    from ..outcomes.tiers import Tier, TierGate
+    from ..regulatory.esrs_e1_gap import assess_esrs_e1
+
+    gate = TierGate(Tier.from_str(request.tier))
+    if not gate.features.disclosure_csrd:
+        raise HTTPException(status_code=403, detail={"error": "EU CSRD reports require Professional or Enterprise tier.",
+                                                      **TierGate.upgrade_prompt("disclosure_csrd")})
+    proxies: dict = {}
+    if request.company_id:
+        if request.company_id.lower() not in COMPANY_REGISTRY:
+            raise HTTPException(status_code=404, detail=f"Company '{request.company_id}' not found.")
+        company = COMPANY_REGISTRY[request.company_id.lower()]
+        nze = run_engine(company=company, scenario=SCENARIO_REGISTRY["nze_2050"])
+        cp = run_engine(company=company, scenario=SCENARIO_REGISTRY["current_policies"])
+        y26 = next((y for y in cp.years if y.year == 2026), None)
+        n30 = next((y for y in nze.years if y.year == 2030), None)
+        c30 = next((y for y in cp.years if y.year == 2030), None)
+        if y26:
+            for k, sk in (("scope1", "scope_1"), ("scope2", "scope_2"), ("scope3", "scope_3")):
+                proxies[k] = round(y26.emissions_by_scope.get(sk, 0.0) * 1e6, 0)
+        proxies["adaptation_capex"] = round(sum(y.adaptation_capex for y in nze.years[:5]), 1)
+        proxies["transition_capex"] = round(sum(y.transition_capex for y in nze.years[:5]), 1)
+        proxies["scenario_analysis"] = "NGFS NZE 2050, Delayed Transition and Current Policies run for this company (modelled)"
+        if n30:
+            proxies["physical_loss"] = round(n30.physical_loss_cost, 1)
+            if c30:
+                proxies["transition_effect"] = round(n30.carbon_cost + (c30.revenue - n30.revenue), 1)
+    out = assess_esrs_e1(request.provided, proxies, request.e1_material, request.e1_not_material_explanation)
+    out["engine_estimates_note"] = ("Engine estimates (USD millions for money, tCO2e for emissions) are modelled, "
+                                    "not company-reported, and are never counted as provided.") if proxies else None
+    return out
 
 
 class BRSRRequest(DisclosureRequest):

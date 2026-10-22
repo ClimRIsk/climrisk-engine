@@ -743,8 +743,20 @@ def generate_csrd(
     dt: RunResults,
     cp: RunResults,
     reporting_year: int | None = None,
+    provided: dict | None = None,
 ) -> CSRDReport:
-    """Generate an ESRS E1-aligned CSRD climate disclosure."""
+    """
+    Generate an ESRS E1-aligned CSRD climate disclosure template.
+
+    Company facts (targets, plans, policies, carbon price, energy, market-based Scope 2, removals) are
+    echoed only from `provided` (item ids as in regulatory.esrs_e1_gap) and are None otherwise. The
+    engine fills only what it models, and labels those values as modelled. Null is not zero.
+    """
+    provided = provided or {}
+
+    def p(key: str):
+        return provided.get(key)
+
     reporting_year = reporting_year or datetime.date.today().year
     now_str = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -753,141 +765,110 @@ def generate_csrd(
 
     cp_2026 = yr(cp, 2026)
     nze_2030 = yr(nze, 2030)
-    nze_2035 = yr(nze, 2035)
 
     def emissions_2026(scope_key: str) -> Optional[float]:
         if cp_2026:
             return round(cp_2026.emissions_by_scope.get(scope_key, 0.0) * 1e6, 0)
         return None
 
+    modelled = "modelled by the engine, not company-reported"
     sections = {
         "E1-1_transition_plan": {
             "esrs_ref": "ESRS E1-1",
-            "has_transition_plan": False,   # company to confirm
-            "target_net_zero": "2050",
-            "interim_targets": [
-                {"year": 2030, "reduction_pct": 30, "vs_baseline": 2025},
-                {"year": 2035, "reduction_pct": 50, "vs_baseline": 2025},
-            ],
-            "decarbonisation_levers": [
-                "Asset-level energy efficiency investments",
-                "Renewable energy procurement (Scope 2 reduction)",
-                "Supply chain engagement (Scope 3)",
-                "Transition capex allocation toward low-carbon commodities",
-            ],
-            "locked_in_emissions_note": (
-                "Remaining asset life analysis required to identify locked-in emissions "
-                "from existing infrastructure. CRI model provides carrying value by asset."
-            ),
+            "has_transition_plan": p("E1-1.has_plan"),
+            "locked_in_emissions_tco2e": p("E1-1.16d"),
+            "decarbonisation_levers": p("E1-1.16b"),
+            "company_data_needed": "Plan, targets, levers and approval are company facts; see POST /reports/csrd/gap.",
         },
         "E1-2_policies": {
             "esrs_ref": "ESRS E1-2",
-            "climate_policy_exists": False,  # company to confirm
-            "recommended_policies": [
-                "Board-level climate risk policy",
-                "Shadow carbon price for investment decisions (≥$80/tCO2e)",
-                "Asset retirement policy triggered by 1.5°C-incompatibility",
-                "Water use reduction policy for high water-stress assets",
-            ],
+            "mitigation_policy": p("E1-2.policy_mitigation"),
+            "adaptation_policy": p("E1-2.policy_adaptation"),
         },
         "E1-3_actions": {
             "esrs_ref": "ESRS E1-3",
-            "planned_adaptation_capex_5yr_usd_m": round(
-                sum(y.adaptation_capex for y in nze.years[:5]), 1
-            ),
-            "planned_transition_capex_5yr_usd_m": round(
-                sum(y.transition_capex for y in nze.years[:5]), 1
-            ),
+            "actions": p("E1-3.actions"),
+            "modelled_adaptation_capex_5yr_usd_m": round(sum(y.adaptation_capex for y in nze.years[:5]), 1),
+            "modelled_transition_capex_5yr_usd_m": round(sum(y.transition_capex for y in nze.years[:5]), 1),
+            "modelled_note": f"The two capex figures are {modelled} (NZE 2050 scenario).",
         },
         "E1-4_targets": {
             "esrs_ref": "ESRS E1-4",
-            "ghg_targets": [
-                {
-                    "scope": "Scope 1+2",
-                    "target_year": 2035,
-                    "reduction_pct_vs_2025": 50,
-                    "framework": "SBTi / 1.5°C pathway",
-                    "validation_status": "Pending SBTi validation",
-                },
-                {
-                    "scope": "Scope 1+2",
-                    "target_year": 2050,
-                    "reduction_pct_vs_2025": 100,
-                    "framework": "Net Zero",
-                    "validation_status": "Committed",
-                },
-            ],
+            "ghg_targets": p("E1-4.ghg_targets"),
+            "adaptation_targets": p("E1-4.adaptation_targets"),
         },
         "E1-5_energy": {
             "esrs_ref": "ESRS E1-5",
-            "note": (
-                "Energy consumption data (MWh) requires company ERP / metering data. "
-                "CRI model provides carbon cost and emission proxies; energy mix detail "
-                "should be sourced from company energy management system."
-            ),
+            "total_energy_mwh": p("E1-5.total_energy"),
+            "note": "Energy consumption is company data (ERP / metering). The engine does not model it.",
         },
         "E1-6_ghg_emissions": {
             "esrs_ref": "ESRS E1-6",
-            "base_year": reporting_year,
-            "scope_1_gross_tco2e": emissions_2026("scope_1"),
-            "scope_2_location_tco2e": emissions_2026("scope_2"),
-            "scope_2_market_tco2e": None,   # requires RECs / PPA data
-            "scope_3_total_tco2e": emissions_2026("scope_3"),
+            "reported": {
+                "scope_1_gross_tco2e": p("E1-6.scope1"),
+                "scope_2_location_tco2e": p("E1-6.scope2_location"),
+                "scope_2_market_tco2e": p("E1-6.scope2_market"),
+                "scope_3_total_tco2e": p("E1-6.scope3_total"),
+                "total_ghg_tco2e": p("E1-6.total_ghg"),
+            },
+            "modelled_proxy_2026": {
+                "scope_1_tco2e": emissions_2026("scope_1"),
+                "scope_2_location_tco2e": emissions_2026("scope_2"),
+                "scope_3_tco2e": emissions_2026("scope_3"),
+                "note": f"Proxy values, {modelled}. They do not replace the company's measured inventory.",
+            },
             "scope_3_categories_note": (
-                "Scope 3 covers Category 1 (purchased goods/services) and "
-                "Category 11 (use of sold products). Other categories require "
-                "supply chain data collection."
+                "The engine's Scope 3 proxy covers purchased goods and services and use of sold products only; "
+                "other categories need supply-chain data."
             ),
-            "ghg_protocol_alignment": True,
         },
         "E1-7_removals_credits": {
             "esrs_ref": "ESRS E1-7",
-            "ghg_removals_tco2e": None,
-            "carbon_credits_retired": None,
-            "note": "Carbon credit usage should be reported separately from operational emission reductions.",
+            "ghg_removals_tco2e": p("E1-7.removals"),
+            "carbon_credits_cancelled_tco2e": p("E1-7.credits_cancelled"),
+            "note": "Carbon credit usage is reported separately from operational emission reductions.",
         },
         "E1-8_internal_carbon_price": {
             "esrs_ref": "ESRS E1-8",
-            "uses_internal_price": False,
-            "recommended_price_usd_tco2e": 80,
-            "recommended_price_rationale": (
-                "Aligned with IEA APS shadow price for advanced economies; "
-                "covers investment horizon to 2035."
-            ),
+            "uses_internal_price": p("E1-8.uses_price"),
+            "price_per_tco2e": p("E1-8.price"),
         },
         "E1-9_financial_effects": {
             "esrs_ref": "ESRS E1-9",
-            "transition_risks": {
+            "reported": {
+                "physical_assets_at_risk": p("E1-9.physical_assets_at_risk"),
+                "physical_effect": p("E1-9.physical_loss"),
+                "transition_assets_at_risk": p("E1-9.transition_assets_at_risk"),
+                "transition_effect": p("E1-9.transition_effect"),
+            },
+            "modelled": {
                 "carbon_cost_2030_usd_m_nze": round(nze_2030.carbon_cost, 1) if nze_2030 else None,
                 "revenue_at_risk_nze_2030_usd_m": round(
                     (yr(cp, 2030).revenue - nze_2030.revenue), 1
                 ) if (yr(cp, 2030) and nze_2030) else None,
-            },
-            "physical_risks": {
                 "physical_loss_2030_usd_m_nze": round(nze_2030.physical_loss_cost, 1) if nze_2030 else None,
-                "adaptation_capex_5yr_usd_m": round(
-                    sum(y.adaptation_capex for y in nze.years[:5]), 1
-                ),
+                "ev_sensitivity_usd_bn": {
+                    "nze_2050": round(nze.enterprise_value / 1e3, 1),
+                    "delayed_transition": round(dt.enterprise_value / 1e3, 1),
+                    "current_policies": round(cp.enterprise_value / 1e3, 1),
+                },
+                "note": f"All figures in this block are {modelled}.",
             },
-            "ev_sensitivity_usd_bn": {
-                "nze_2050": round(nze.enterprise_value / 1e3, 1),
-                "delayed_transition": round(dt.enterprise_value / 1e3, 1),
-                "current_policies": round(cp.enterprise_value / 1e3, 1),
-            },
-            "anticipates_material_financial_effects": True,
+            "material_financial_effects": None,
             "materiality_note": (
-                "Based on CRI model outputs, climate-related risks are assessed as "
-                "financially material. The company should perform a formal double "
-                "materiality assessment per ESRS 1 paragraphs 43–67."
+                "Whether climate effects are material is the company's own conclusion from its double "
+                "materiality assessment (ESRS 1 chapter 3). The engine does not make that call."
             ),
         },
     }
 
     caveats = [
-        "ESRS E1 applies to companies in scope of EU CSRD (large PIEs from FY2024, others phased).",
-        "This output is a model-based disclosure template and requires company validation of all data points.",
-        "Double materiality assessment (impact + financial) must be performed per ESRS 1 before filing.",
-        "Energy consumption data (E1-5) must be sourced from company systems — not modelled here.",
+        "A model-based template. Company facts are echoed from the inputs supplied and are null where none were given.",
+        "Values labelled modelled are engine estimates, not company-reported, and must not be filed as such.",
+        "Whether CSRD applies to the company and any phase-in or omission relief are not assessed here. "
+        "Scope and timing have been amended by EU legislation, so confirm applicability separately.",
+        "A double materiality assessment (impact and financial) must be performed per ESRS 1 before filing.",
+        "Run POST /reports/csrd/gap to see which ESRS E1 requirements are still missing.",
     ]
 
     return CSRDReport(
@@ -898,9 +879,9 @@ def generate_csrd(
         company_name=company.name,
         reporting_year=reporting_year,
         data_sources=[
-            "WRI Aqueduct 4.0 (regional baseline statistics — parameterised)",
+            "WRI Aqueduct 4.0 (regional baseline statistics, parameterised)",
             "NGFS Phase 4 carbon price and demand pathways",
-            "NASA NEX-GDDP-CMIP6 (regional statistics — parameterised)",
+            "NASA NEX-GDDP-CMIP6 (regional statistics, parameterised)",
             "IEA WEO 2023", "GHG Protocol", "ESRS E1 Framework",
         ],
         caveats=caveats,

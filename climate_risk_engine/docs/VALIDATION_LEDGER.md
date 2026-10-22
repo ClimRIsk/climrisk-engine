@@ -44,3 +44,9 @@ One row per hazard or model. "Tested against" means independent observations the
 
 ## Named-event hindcast (building level)
 - Evidence: `docs/HINDCAST_STUDY.md` — Carlisle (Desmond 2015, Jan 2005), Cockermouth 2009, York (2015, 2020), 70k footprints vs EA recorded outlines. LiDAR HAND ROC area 0.81-0.92 for the five major events (global tiles 0.50-0.87); top-10 % flagged finds 52-60 % of flooded buildings. Fixed bands are susceptibility (HIGH band hit rate 4-64 %). Grade: **supported as a ranking for England river floods; depth and loss untested**.
+
+## CSRD / ESRS E1 gap assessment
+- Evidence: `tests/test_esrs_gap.py` (16 tests: null is not zero, format checks, conditional items, engine estimates never counted as provided, coverage arithmetic, and a regression that the CSRD template no longer invents company facts). Grade: **mechanical checklist, verified by tests; not a compliance opinion**.
+- What it is: a requirement-level checklist for ESRS E1-1 to E1-9 plus GOV-3, IRO-1 and SBM-3 (41 items), reporting provided / proxy-only / missing / invalid per item and per requirement. `POST /reports/csrd/gap`, `GET /reports/csrd/checklist`.
+- What it is not: paragraph-level or EFRAG data-point coverage, other topical standards (E2-E5, S1-S4, G1), applicability or phase-in relief, content quality, or digital tagging. The checklist is my reading of the standard and has not been reviewed by a sustainability-reporting specialist.
+- Fixed in the same change: the CSRD template (`/reports/csrd`) used to hard-code targets, a "Committed" net-zero status, "Pending SBTi validation" and a true material-effects flag. It now echoes only supplied inputs and labels engine values as modelled.
