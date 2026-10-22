@@ -1,0 +1,90 @@
+{
+ "n_points": 600,
+ "early": [
+  1996,
+  2009
+ ],
+ "late": [
+  2010,
+  2024
+ ],
+ "radius_km": 40.0,
+ "perils": {
+  "hail_1in": {
+   "mean_early_days_per_year": 1.928,
+   "mean_late_days_per_year": 2.081,
+   "late_over_early_ratio": 1.079,
+   "spearman_early_vs_late": 0.933,
+   "auc_early_ranks_late_top_quartile": 0.941,
+   "points_never_reported_early_but_reported_late": 0.045,
+   "points_never_reported_early": 0.1,
+   "median_abs_error_days": 0.279,
+   "within_factor_2_where_both_positive": 0.879,
+   "percentiles_late_days_per_year": {
+    "10": 0.0,
+    "25": 0.333,
+    "50": 1.933,
+    "75": 3.267,
+    "90": 4.54,
+    "99": 7.069
+   }
+  },
+  "hail_2in": {
+   "mean_early_days_per_year": 0.247,
+   "mean_late_days_per_year": 0.287,
+   "late_over_early_ratio": 1.164,
+   "spearman_early_vs_late": 0.818,
+   "auc_early_ranks_late_top_quartile": 0.922,
+   "points_never_reported_early_but_reported_late": 0.093,
+   "points_never_reported_early": 0.372,
+   "median_abs_error_days": 0.071,
+   "within_factor_2_where_both_positive": 0.684,
+   "percentiles_late_days_per_year": {
+    "10": 0.0,
+    "25": 0.0,
+    "50": 0.133,
+    "75": 0.4,
+    "90": 0.8,
+    "99": 1.601
+   }
+  },
+  "tornado_all": {
+   "mean_early_days_per_year": 0.512,
+   "mean_late_days_per_year": 0.502,
+   "late_over_early_ratio": 0.982,
+   "spearman_early_vs_late": 0.832,
+   "auc_early_ranks_late_top_quartile": 0.896,
+   "points_never_reported_early_but_reported_late": 0.087,
+   "points_never_reported_early": 0.227,
+   "median_abs_error_days": 0.14,
+   "within_factor_2_where_both_positive": 0.714,
+   "percentiles_late_days_per_year": {
+    "10": 0.0,
+    "25": 0.067,
+    "50": 0.333,
+    "75": 0.867,
+    "90": 1.207,
+    "99": 1.935
+   }
+  },
+  "tornado_ef1plus": {
+   "mean_early_days_per_year": 0.217,
+   "mean_late_days_per_year": 0.252,
+   "late_over_early_ratio": 1.163,
+   "spearman_early_vs_late": 0.774,
+   "auc_early_ranks_late_top_quartile": 0.897,
+   "points_never_reported_early_but_reported_late": 0.075,
+   "points_never_reported_early": 0.37,
+   "median_abs_error_days": 0.071,
+   "within_factor_2_where_both_positive": 0.656,
+   "percentiles_late_days_per_year": {
+    "10": 0.0,
+    "25": 0.0,
+    "50": 0.133,
+    "75": 0.4,
+    "90": 0.673,
+    "99": 1.402
+   }
+  }
+ }
+}

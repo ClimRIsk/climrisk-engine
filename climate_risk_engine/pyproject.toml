@@ -22,6 +22,10 @@ ml = [
     "scikit-learn>=1.4",
     "xgboost>=2.0",
 ]
+# Marine heatwave zone (opt-in, CRI_MARINE=1): reads NOAA OISST compressed chunks
+marine = [
+    "blosc>=1.11",
+]
 api = [
     "fastapi>=0.110",
     "uvicorn>=0.29",

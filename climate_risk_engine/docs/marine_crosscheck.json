@@ -1,0 +1,74 @@
+[
+ {
+  "site": "Ningaloo Nino 2011, Western Australia",
+  "events_mine": 84,
+  "events_reference": 84,
+  "identical_start_end": 84,
+  "reference_events_peak_ge_2C": 33,
+  "of_which_identical": 33
+ },
+ {
+  "site": "Northeast Pacific 'Blob' 2014-16",
+  "events_mine": 99,
+  "events_reference": 99,
+  "identical_start_end": 99,
+  "reference_events_peak_ge_2C": 43,
+  "of_which_identical": 43
+ },
+ {
+  "site": "Northeast Pacific 2019",
+  "events_mine": 99,
+  "events_reference": 99,
+  "identical_start_end": 99,
+  "reference_events_peak_ge_2C": 43,
+  "of_which_identical": 43
+ },
+ {
+  "site": "Tasman Sea 2015/16",
+  "events_mine": 104,
+  "events_reference": 104,
+  "identical_start_end": 103,
+  "reference_events_peak_ge_2C": 56,
+  "of_which_identical": 55
+ },
+ {
+  "site": "Great Barrier Reef 2016",
+  "events_mine": 128,
+  "events_reference": 128,
+  "identical_start_end": 128,
+  "reference_events_peak_ge_2C": 24,
+  "of_which_identical": 24
+ },
+ {
+  "site": "Mediterranean 2003",
+  "events_mine": 155,
+  "events_reference": 155,
+  "identical_start_end": 155,
+  "reference_events_peak_ge_2C": 102,
+  "of_which_identical": 102
+ },
+ {
+  "site": "Mediterranean 2022",
+  "events_mine": 144,
+  "events_reference": 144,
+  "identical_start_end": 144,
+  "reference_events_peak_ge_2C": 87,
+  "of_which_identical": 87
+ },
+ {
+  "site": "Northwest Atlantic 2012",
+  "events_mine": 125,
+  "events_reference": 125,
+  "identical_start_end": 124,
+  "reference_events_peak_ge_2C": 89,
+  "of_which_identical": 88
+ },
+ {
+  "site": "Peru coastal El Nino 2017",
+  "events_mine": 56,
+  "events_reference": 56,
+  "identical_start_end": 55,
+  "reference_events_peak_ge_2C": 43,
+  "of_which_identical": 43
+ }
+]

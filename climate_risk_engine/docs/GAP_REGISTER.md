@@ -36,7 +36,11 @@ What the scenario suite and event checks found missing or wrong, ranked. Evidenc
 
 ## B2. Built 22 October 2026: cold-region site models
 
-Freeze-thaw (B), avalanche release terrain (C, weak), permafrost (B, as published) and a glacial lake outburst record. Results, limits and what was not built: `docs/CRYOSPHERE_BENCHMARK.md`. Sources probed for the other hazards: `docs/HAZARD_SOURCE_PROBE.md` (hail, tornado and marine heatwave have open data and could be built and tested next).
+Freeze-thaw (B), avalanche release terrain (C, weak), permafrost (B, as published) and a glacial lake outburst record. Results, limits and what was not built: `docs/CRYOSPHERE_BENCHMARK.md`. Sources probed for the other hazards: `docs/HAZARD_SOURCE_PROBE.md` (hail, tornado and marine heatwave were then built).
+
+## B3. Built 22 October 2026: hail, tornado, marine heatwave
+
+Hail (B) and tornado (B) from US storm reports with a temporal hold-out test; marine heatwave (B) on NOAA sea-surface temperature, matching the published reference code and finding 7 of 9 documented events. Results, limits and what was not tested: `docs/CONVECTIVE_MARINE_BENCHMARK.md`. Hail and tornado cover the United States only; marine heatwave is opt-in in the report because a new site takes minutes to read.
 
 ## C. Structure of the model (not peril-specific)
 

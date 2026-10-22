@@ -260,7 +260,7 @@ QUAKE_TEXT = ("Strong ground shaking damages brittle or poorly tied structures f
               "power or utility loss can stop a site that is structurally intact.")
 
 
-_CONTEXT_KEYS = {"water", "freeze_thaw", "avalanche", "permafrost", "glof"}      # shown with their evidence grade; never part of the overall rating, issues or measures
+_CONTEXT_KEYS = {"water", "freeze_thaw", "avalanche", "permafrost", "glof", "hail", "tornado", "marine_heatwave"}      # shown with their evidence grade; never part of the overall rating, issues or measures
 _BAND_LEVEL = {"Low": "LOW", "Moderate": "MODERATE", "High": "HIGH", "Very high": "HIGH"}
 
 
@@ -315,6 +315,50 @@ def _cryosphere_zones(lat: float, lon: float, elev: Optional[float]) -> list:
                              "This is a record of what has been reported, not a hazard model: lakes that have not yet burst are not listed, remote events are under-reported, "
                              "and a flood can travel far down a valley from the lake."),
                     "facts": [_f("Reported events within 50 km", str(gl["events"]), gl["source"])], "trend": None, "_finding": None})
+    return out
+
+
+def _convective_marine_zones(lat: float, lon: float) -> list:
+    """Hail and tornado (US storm-report climatology, hold-out tested in docs/CONVECTIVE_MARINE_BENCHMARK.md) and marine heatwave (Hobday definition on
+    NOAA OISST, opt-in with CRI_MARINE=1 because a new site reads about 16,000 daily files once). Outside the source's coverage, or on any failure, the zone is
+    dropped: absence of a zone never means low hazard."""
+    out = []
+    if os.environ.get("CRI_CONVECTIVE", "1") != "0":
+        from . import convective as cv
+        hail = cv.severe_hail(lat, lon)
+        if hail.get("covered") and hail["hail_days_per_year"] >= 0.1:
+            out.append({"key": "hail", "title": "Severe hail (context, US storm reports)", "rating": _BAND_LEVEL.get(hail["band"]),
+                        "zone": (f"{hail['hail_days_per_year']:.1f} days a year with a report of hail of 1 inch or more within {hail['radius_km']:.0f} km "
+                                 f"({hail['hail_2in_days_per_year']:.1f} days with 2 inches or more; largest reported {hail['largest_reported_in']:.1f} inches), {hail['years'][0]}-{hail['years'][1]}. "
+                                 f"Band: {hail['band'].lower()} (screening judgement). Reports, not measurements: thinly populated land is under-counted, and nothing is said about damage or about future climate."),
+                        "facts": [_f("Hail days per year (1 in or more)", f"{hail['hail_days_per_year']:.2f}", hail["source"]),
+                                  _f("Test", "600 US points, 1996-2009 reports predict 2010-2024 reports: rank correlation 0.93, top-quartile AUC 0.94, median error 0.28 days a year", "docs/CONVECTIVE_MARINE_BENCHMARK.md")],
+                        "trend": None, "_finding": None})
+        tor = cv.tornado(lat, lon)
+        if tor.get("covered") and tor["tornado_days_per_year"] >= 0.05:
+            out.append({"key": "tornado", "title": "Tornado (context, US storm reports)", "rating": _BAND_LEVEL.get(tor["band"]),
+                        "zone": (f"{tor['tornado_days_per_year']:.2f} days a year with a tornado touching down within {tor['radius_km']:.0f} km "
+                                 f"({tor['ef1_plus_days_per_year']:.2f} with EF1 or stronger, {tor['ef2_plus_days_per_year']:.2f} with EF2 or stronger; strongest on record EF{tor['strongest_rating']}), "
+                                 f"{tor['years'][0]}-{tor['years'][1]}. Band: {tor['band'].lower()} (screening judgement, on EF1 or stronger). It is a count of past tornadoes, not the chance of one hitting a given building."),
+                        "facts": [_f("Tornado days per year", f"{tor['tornado_days_per_year']:.3f}", tor["source"]),
+                                  _f("Test", "600 US points, 1996-2009 reports predict 2010-2024 reports: rank correlation 0.77-0.83, top-quartile AUC 0.90, median error 0.07-0.14 days a year", "docs/CONVECTIVE_MARINE_BENCHMARK.md")],
+                        "trend": None, "_finding": None})
+    if os.environ.get("CRI_MARINE", "0") == "1":
+        from . import marine as mr
+        try:
+            m = mr.marine_heatwave(lat, lon, budget_s=150.0)
+        except Exception:                                   # noqa: BLE001  (no ocean cell nearby, or the series is still downloading)
+            m = None
+        if m and m.get("covered"):
+            st = m["strongest_event"]
+            out.append({"key": "marine_heatwave", "title": "Marine heatwave (context, NOAA sea-surface temperature)", "rating": None,
+                        "zone": (f"{m['heatwave_days_per_year_last_10_years']:.0f} marine heatwave days a year over the last ten years against {m['heatwave_days_per_year_baseline_1982_2011']:.0f} in 1982-2011 "
+                                 f"(Hobday definition, 25 km cell {m['distance_to_ocean_cell_km']:.0f} km from the site)"
+                                 + (f"; strongest event {st['start']} to {st['end']}, {st['duration_days']} days, peak {st['peak_anomaly_c']:.1f} C above normal, category {st['category']} ({m['category_names'][st['category']].lower()})" if st else "")
+                                 + ". Surface water only: it does not say what the heat does to a species, a farm or an asset, and coastal water finer than 25 km is not resolved."),
+                        "facts": [_f("Marine heatwave days per year, last ten years", f"{m['heatwave_days_per_year_last_10_years']:.0f}", m["source"]),
+                                  _f("Test", "matches the reference code on 892 of 895 events; finds 7 of 9 documented events", "docs/CONVECTIVE_MARINE_BENCHMARK.md")],
+                        "trend": None, "_finding": None})
     return out
 
 
@@ -770,6 +814,10 @@ def build_asset_report(lat: float, lon: float, name: Optional[str] = None, secto
     try:
         zones += _cryosphere_zones(lat, lon, terr.get("elevation_m"))
     except Exception:                                       # noqa: BLE001  (a cold-region model failure drops its zones; it never changes the rest of the report)
+        pass
+    try:
+        zones += _convective_marine_zones(lat, lon)
+    except Exception:                                       # noqa: BLE001  (a failure drops these zones; it never changes the rest of the report)
         pass
 
     # ── issues: what will go wrong ───────────────────────────────────────────

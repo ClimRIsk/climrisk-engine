@@ -1,0 +1,228 @@
+{
+ "criteria": {
+  "min_peak_anomaly_c": 2.0,
+  "min_duration_days": 30
+ },
+ "events": [
+  {
+   "name": "Ningaloo Nino 2011, Western Australia",
+   "source": "Pearce and Feng 2013; Feng et al. 2013",
+   "cell": [
+    -27.125,
+    112.875
+   ],
+   "window": [
+    "2010-12-01",
+    "2011-04-30"
+   ],
+   "detected": true,
+   "best_event": {
+    "start": "2011-02-04",
+    "end": "2011-03-30",
+    "duration_days": 55,
+    "peak_anomaly_c": 5.22,
+    "mean_anomaly_c": 3.43,
+    "category": 3
+   },
+   "events_overlapping_window": 4,
+   "share_of_other_years_with_such_an_event": 0.122,
+   "total_events_1982_2025": 84
+  },
+  {
+   "name": "Northeast Pacific 'Blob' 2014-16",
+   "source": "Bond et al. 2015; Di Lorenzo and Mantua 2016",
+   "cell": [
+    49.875,
+    -145.125
+   ],
+   "window": [
+    "2014-01-01",
+    "2016-12-31"
+   ],
+   "detected": true,
+   "best_event": {
+    "start": "2014-06-29",
+    "end": "2014-08-24",
+    "duration_days": 57,
+    "peak_anomaly_c": 3.45,
+    "mean_anomaly_c": 1.85,
+    "category": 2
+   },
+   "events_overlapping_window": 15,
+   "share_of_other_years_with_such_an_event": 0.275,
+   "total_events_1982_2025": 99
+  },
+  {
+   "name": "Northeast Pacific 2019",
+   "source": "Amaya et al. 2020",
+   "cell": [
+    49.875,
+    -145.125
+   ],
+   "window": [
+    "2019-07-01",
+    "2019-10-31"
+   ],
+   "detected": true,
+   "best_event": {
+    "start": "2019-05-21",
+    "end": "2019-09-23",
+    "duration_days": 126,
+    "peak_anomaly_c": 3.78,
+    "mean_anomaly_c": 2.23,
+    "category": 2
+   },
+   "events_overlapping_window": 2,
+   "share_of_other_years_with_such_an_event": 0.31,
+   "total_events_1982_2025": 99
+  },
+  {
+   "name": "Tasman Sea 2015/16",
+   "source": "Oliver et al. 2017",
+   "cell": [
+    -42.375,
+    149.625
+   ],
+   "window": [
+    "2015-09-01",
+    "2016-06-30"
+   ],
+   "detected": true,
+   "best_event": {
+    "start": "2015-10-09",
+    "end": "2016-04-12",
+    "duration_days": 187,
+    "peak_anomaly_c": 5.06,
+    "mean_anomaly_c": 2.53,
+    "category": 3
+   },
+   "events_overlapping_window": 2,
+   "share_of_other_years_with_such_an_event": 0.39,
+   "total_events_1982_2025": 104
+  },
+  {
+   "name": "Great Barrier Reef 2016",
+   "source": "Hughes et al. 2017",
+   "cell": [
+    -16.375,
+    146.125
+   ],
+   "window": [
+    "2016-02-01",
+    "2016-04-30"
+   ],
+   "detected": false,
+   "best_event": {
+    "start": "2016-02-14",
+    "end": "2016-03-05",
+    "duration_days": 21,
+    "peak_anomaly_c": 2.06,
+    "mean_anomaly_c": 1.44,
+    "category": 2
+   },
+   "events_overlapping_window": 4,
+   "share_of_other_years_with_such_an_event": 0.071,
+   "total_events_1982_2025": 128
+  },
+  {
+   "name": "Mediterranean 2003",
+   "source": "Olita et al. 2007; Hobday et al. 2018",
+   "cell": [
+    42.625,
+    6.625
+   ],
+   "window": [
+    "2003-06-01",
+    "2003-08-31"
+   ],
+   "detected": true,
+   "best_event": {
+    "start": "2003-05-30",
+    "end": "2003-07-01",
+    "duration_days": 33,
+    "peak_anomaly_c": 4.28,
+    "mean_anomaly_c": 3.22,
+    "category": 2
+   },
+   "events_overlapping_window": 2,
+   "share_of_other_years_with_such_an_event": 0.214,
+   "total_events_1982_2025": 155
+  },
+  {
+   "name": "Mediterranean 2022",
+   "source": "Marba et al. 2022; Garrabou et al. 2022",
+   "cell": [
+    40.875,
+    3.875
+   ],
+   "window": [
+    "2022-06-01",
+    "2022-08-31"
+   ],
+   "detected": true,
+   "best_event": {
+    "start": "2022-06-03",
+    "end": "2022-11-23",
+    "duration_days": 174,
+    "peak_anomaly_c": 4.78,
+    "mean_anomaly_c": 2.8,
+    "category": 2
+   },
+   "events_overlapping_window": 1,
+   "share_of_other_years_with_such_an_event": 0.286,
+   "total_events_1982_2025": 144
+  },
+  {
+   "name": "Northwest Atlantic 2012",
+   "source": "Mills et al. 2013; Chen et al. 2014",
+   "cell": [
+    41.625,
+    -67.875
+   ],
+   "window": [
+    "2012-03-01",
+    "2012-08-31"
+   ],
+   "detected": true,
+   "best_event": {
+    "start": "2012-01-26",
+    "end": "2012-06-04",
+    "duration_days": 131,
+    "peak_anomaly_c": 3.54,
+    "mean_anomaly_c": 1.89,
+    "category": 2
+   },
+   "events_overlapping_window": 4,
+   "share_of_other_years_with_such_an_event": 0.357,
+   "total_events_1982_2025": 125
+  },
+  {
+   "name": "Peru coastal El Nino 2017",
+   "source": "Garreaud 2018; Echevin et al. 2018",
+   "cell": [
+    -10.125,
+    -80.125
+   ],
+   "window": [
+    "2017-01-01",
+    "2017-04-30"
+   ],
+   "detected": false,
+   "best_event": {
+    "start": "2017-03-06",
+    "end": "2017-03-23",
+    "duration_days": 18,
+    "peak_anomaly_c": 3.82,
+    "mean_anomaly_c": 2.81,
+    "category": 1
+   },
+   "events_overlapping_window": 3,
+   "share_of_other_years_with_such_an_event": 0.167,
+   "total_events_1982_2025": 56
+  }
+ ],
+ "controls": {},
+ "detected": 7,
+ "of": 9,
+ "mean_share_of_other_years_with_such_an_event": 0.244
+}
