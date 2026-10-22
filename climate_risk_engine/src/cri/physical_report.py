@@ -693,9 +693,16 @@ def build_asset_report(lat: float, lon: float, name: Optional[str] = None, secto
         sc = max(_q) if _q else ov.get("score")
         rating = None if sc is None else LEVELS[0 if sc < 1 else 1 if sc < 2 else 2 if sc < 3 else 3 if sc < 4 else 4]
         path = w.get("water_stress_path_bau") or {}
-        zones.append({"key": "water", "title": "Water stress (context)", "rating": rating,
-                      "zone": f"Catchment water risk is {ov.get('label') or (w.get('water_stress') or {}).get('label') or 'not scored'} "
-                              f"(WRI Aqueduct 4.0, {w.get('admin1')}).",
+        _ws, _dr = (w.get("water_stress") or {}), (w.get("drought") or {})
+        _driver = ("drought risk" if (_dr.get("score") is not None and (_ws.get("score") is None or _dr["score"] > _ws["score"]))
+                   else "baseline water stress")
+        if _ws.get("label") or _dr.get("label"):
+            _zone = (f"Baseline water stress is {_ws.get('label') or 'not scored'}; drought risk is {_dr.get('label') or 'not scored'}. "
+                     f"The rating follows the higher of the two ({_driver}). WRI Aqueduct 4.0, {w.get('admin1')}.")
+        else:
+            _zone = f"Catchment water risk is {ov.get('label') or 'not scored'} (WRI Aqueduct 4.0, {w.get('admin1')})."
+        zones.append({"key": "water", "title": "Water stress (context)", "rating": rating, "_driver": _driver,
+                      "zone": _zone,
                       "facts": [_f("Baseline water stress", (w.get("water_stress") or {}).get("label"), "WRI Aqueduct 4.0"),
                                 _f("Drought risk", (w.get("drought") or {}).get("label"), "WRI Aqueduct 4.0"),
                                 _f("Groundwater decline", (w.get("groundwater_decline") or {}).get("label"), "WRI Aqueduct 4.0")],
@@ -761,7 +768,7 @@ def build_asset_report(lat: float, lon: float, name: Optional[str] = None, secto
     headline = (f"{asset['name']} ({prof['label'].lower()}): overall physical exposure {overall}. "
                 + (("Main exposures: " + "; ".join(f"{z['title'].lower()} ({z['rating']})" for z in top[:3]) + ".") if top else
                    "No hazard reaches moderate exposure at this location on the available evidence.")
-                + (f" Water supply context: {wz['rating'].lower()} water stress." if wz else ""))
+                + (f" Water supply context: {wz['rating'].lower()} {wz.get('_driver', 'water stress')}." if wz else ""))
 
     image = None
     vis = ai.get("visual") or {}

@@ -199,3 +199,18 @@ def test_elevation_screen_ignores_inland_ground_far_from_the_sea(monkeypatch):
 def test_dashboard_served():
     r = client.get("/reports/physical-risk/dashboard")
     assert r.status_code == 200 and "Physical Risk Report" in r.text and "no financial figures" in r.text.lower()
+
+
+def test_water_zone_text_names_what_drives_the_rating(monkeypatch):
+    """Regression: a HIGH rating (from drought risk) sat beside text saying catchment water risk was Low."""
+    from cri.finance import analyst
+    monkeypatch.setattr(analyst, "_water", lambda lat, lon, sector: {
+        "admin1": "Test", "overall": {"label": "Low (0-1)", "score": 0.5},
+        "water_stress": {"label": "Low (<10%)", "score": 0.5}, "drought": {"label": "Medium - High (0.6-0.8)", "score": 3.0},
+        "groundwater_decline": {"label": "Insignificant Trend", "score": 0}, "water_stress_path_bau": {}})
+    r = build(tc="NEGLIGIBLE", flood="NEGLIGIBLE")
+    wz = next(z for z in r["zones"] if z["key"] == "water")
+    assert wz["rating"] == "HIGH"
+    assert "Baseline water stress is Low" in wz["zone"] and "drought risk is Medium - High" in wz["zone"]
+    assert "follows the higher of the two (drought risk)" in wz["zone"]
+    assert "high drought risk" in r["headline"] and "high water stress" not in r["headline"]
