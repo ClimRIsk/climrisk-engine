@@ -260,6 +260,64 @@ QUAKE_TEXT = ("Strong ground shaking damages brittle or poorly tied structures f
               "power or utility loss can stop a site that is structurally intact.")
 
 
+_CONTEXT_KEYS = {"water", "freeze_thaw", "avalanche", "permafrost", "glof"}      # shown with their evidence grade; never part of the overall rating, issues or measures
+_BAND_LEVEL = {"Low": "LOW", "Moderate": "MODERATE", "High": "HIGH", "Very high": "HIGH"}
+
+
+def _cryosphere_zones(lat: float, lon: float, elev: Optional[float]) -> list:
+    """Cold-region zones from cri.cryosphere. A zone is added only when the hazard can occur at the site AND the model behind it has a test in
+    docs/CRYOSPHERE_BENCHMARK.md (or is a published map / record, labelled as such). Failure to read data drops the zone; it never reads as 'low'."""
+    if os.environ.get("CRI_CRYOSPHERE", "1") == "0":
+        return []
+    from . import cryosphere as cr
+    out = []
+    cold_possible = abs(lat) >= 23.0 or (elev is not None and elev >= 1500.0)
+    ft = None
+    if cold_possible:
+        ft = _bounded(lambda: cr.freeze_thaw(lat, lon), 40.0)
+    if ft and ft.get("band") and ft["frost_days_per_year"] >= 5:
+        out.append({"key": "freeze_thaw", "title": "Freeze-thaw and frost (context)", "rating": _BAND_LEVEL.get(ft["band"]),
+                    "zone": (f"{ft['freeze_thaw_days_per_year']:.0f} freeze-thaw days a year (minimum below 0 C and maximum above 0 C), {ft['frost_days_per_year']:.0f} frost days and "
+                             f"{ft['ice_days_per_year']:.0f} ice days, {ft['years'][0]}-{ft['years'][1]}. Band: {ft['band'].lower()} (screening judgement). "
+                             "Air temperature at a reanalysis cell: ground and surface temperatures differ, and damage depends on moisture and materials."),
+                    "facts": [_f("Freeze-thaw days per year", f"{ft['freeze_thaw_days_per_year']:.0f} (10th-90th percentile {ft['freeze_thaw_days_p10_p90'][0]:.0f}-{ft['freeze_thaw_days_p10_p90'][1]:.0f})", ft["source"]),
+                              _f("Test", "44 GHCN-Daily stations: rank correlation 0.80, mean error 11 days a year, same band at 77 %, within one band at 98 %", "docs/CRYOSPHERE_BENCHMARK.md")],
+                    "trend": None, "_finding": None})
+    cold_enough = bool(ft and ft.get("frost_days_per_year", 0) >= 60)
+    if cold_enough:
+        av = _bounded(lambda: cr.avalanche_terrain(lat, lon), 40.0)
+        if av.get("band") and av["band"] != "None":
+            t = av["tested"]
+            out.append({"key": "avalanche", "title": "Avalanche release terrain (context, weak test)", "rating": _BAND_LEVEL.get(av["band"]),
+                        "zone": (f"{av['release_terrain_share'] * 100:.0f} % of the terrain within {av['radius_m']:.0f} m has slopes of 28-50 degrees, where dry-snow slabs release"
+                                 + (f", mostly facing {av['dominant_release_aspect']}" if av.get("dominant_release_aspect") else "") +
+                                 ". This is terrain only: no snowpack, snow depth, forest or runout, and slopes further up the valley that could run out onto the site are not included. "
+                                 f"Against {t['data'].split(' (')[0]} it ranks start zones only slightly above nearby terrain (AUC {t['auc_150m_share_elevation_matched']:.2f}, 95 % range "
+                                 f"{t['auc_ci_95_elevation_matched'][0]:.2f}-{t['auc_ci_95_elevation_matched'][1]:.2f}), so treat it as a pointer to look at, not a rating."),
+                        "facts": [_f("Steepest slope within the radius", f"{av['max_slope_deg']:.0f} degrees", av["source"])], "trend": None, "_finding": None})
+    pf = cr.permafrost(lat, lon) if lat >= 25.0 else {"covered": False}
+    if pf.get("covered") and pf["permafrost_probability"] >= 0.1:
+        out.append({"key": "permafrost", "title": "Permafrost (published map, context)", "rating": None,
+                    "zone": (f"Permafrost probability {pf['permafrost_probability']:.2f} ({pf['zone'].lower()} zone) on the Obu et al. 2019 map for 2000-2016, "
+                             f"at {pf['resolution_km']:.0f} km resolution here. Published model, not measured at the site; mountain permafrost varies over tens of metres. "
+                             "Ground ice and thaw settlement are not given."),
+                    "facts": [_f("Permafrost probability", f"{pf['permafrost_probability']:.2f}", pf["source"])], "trend": None, "_finding": None})
+    try:
+        gl = cr.glof_history(lat, lon, 50.0)
+    except Exception:                                       # noqa: BLE001
+        gl = {"events": 0}
+    if gl.get("events"):
+        n0 = gl["nearest"][0]
+        out.append({"key": "glof", "title": "Glacial lake outburst floods (record of past events)", "rating": None,
+                    "zone": (f"{gl['events']} glacial lake outburst flood{'s' if gl['events'] != 1 else ''} reported within {gl['radius_km']:.0f} km "
+                             + (f"({gl['first_year']}-{gl['latest_year']}); " if gl.get("first_year") else "(dates not recorded); ") + f"nearest {n0['distance_km']:.0f} km away"
+                             + (f", {n0['country']}" if n0.get("country") else "") + ". "
+                             "This is a record of what has been reported, not a hazard model: lakes that have not yet burst are not listed, remote events are under-reported, "
+                             "and a flood can travel far down a valley from the lake."),
+                    "facts": [_f("Reported events within 50 km", str(gl["events"]), gl["source"])], "trend": None, "_finding": None})
+    return out
+
+
 def profile_key(sector: Optional[str], atype: Optional[str]) -> str:
     s, a = (sector or "").lower(), (atype or "").lower()
     t = f"{s} {a}"
@@ -709,6 +767,11 @@ def build_asset_report(lat: float, lon: float, name: Optional[str] = None, secto
                       "trend": ("Water stress under business-as-usual: " + ", ".join(f"{k} {v}" for k, v in list(path.items())[:4])
                                 if isinstance(path, dict) and path else None)})
 
+    try:
+        zones += _cryosphere_zones(lat, lon, terr.get("elevation_m"))
+    except Exception:                                       # noqa: BLE001  (a cold-region model failure drops its zones; it never changes the rest of the report)
+        pass
+
     # ── issues: what will go wrong ───────────────────────────────────────────
     group = {"river_flood": "flood", "coastal_flood": "flood", "surface_water": "flood", "cyclone": "wind", "slope": "slope",
              "wildfire": "fire", "heat": "heat", "water": "water", "earthquake": "quake"}
@@ -716,7 +779,7 @@ def build_asset_report(lat: float, lon: float, name: Optional[str] = None, secto
               "wildfire": "fire", "heat": "heat", "water": "water", "earthquake": "quake"}
     issues = []
     for z in zones:
-        if z.get("rating") is None or _lv(z["rating"]) < 1:
+        if z["key"] in (_CONTEXT_KEYS - {"water"}) or z.get("rating") is None or _lv(z["rating"]) < 1:
             continue
         g = group[z["key"]]
         what = [prof.get(g) or QUAKE_TEXT]
@@ -760,10 +823,10 @@ def build_asset_report(lat: float, lon: float, name: Optional[str] = None, secto
                              "when": "Immediately" if _lv(z["rating"]) >= 3 else "Within 12 months" if _lv(z["rating"]) == 2
                              else "Monitor and review annually", "actions": acts})
 
-    rated = [z["rating"] for z in zones if z.get("rating") and z["key"] != "water"]
+    rated = [z["rating"] for z in zones if z.get("rating") and z["key"] not in _CONTEXT_KEYS]
     overall = _max_level(rated)
     top = [z for z in sorted(zones, key=lambda z: -_lv(z.get("rating") or "NEGLIGIBLE"))
-           if _lv(z.get("rating") or "NEGLIGIBLE") >= 2 and z["key"] != "water"]
+           if _lv(z.get("rating") or "NEGLIGIBLE") >= 2 and z["key"] not in _CONTEXT_KEYS]
     wz = next((z for z in zones if z["key"] == "water" and _lv(z.get("rating") or "NEGLIGIBLE") >= 3), None)
     headline = (f"{asset['name']} ({prof['label'].lower()}): overall physical exposure {overall}. "
                 + (("Main exposures: " + "; ".join(f"{z['title'].lower()} ({z['rating']})" for z in top[:3]) + ".") if top else
@@ -886,7 +949,7 @@ def build_portfolio_report(assets: list, title: Optional[str] = None, client: Op
                                                   "overall": r["overall_rating"],
                                                   "main": [z["title"] for z in sorted(
                                                       r["zones"], key=lambda z: -_lv(z.get("rating") or "NEGLIGIBLE"))
-                                                      if _lv(z.get("rating") or "NEGLIGIBLE") >= 2 and z["key"] != "water"][:3],
+                                                      if _lv(z.get("rating") or "NEGLIGIBLE") >= 2 and z["key"] not in _CONTEXT_KEYS][:3],
                                                   "age_2050": (r["age"] or {}).get("age_2050")} for r in rs]})
     blocks.sort(key=lambda b: -max(_lv(k) for k, v in b["rating_counts"].items() if v))
     overall = {lvl: sum(1 for r in ok if r["overall_rating"] == lvl) for lvl in LEVELS}

@@ -27,12 +27,16 @@ What the scenario suite and event checks found missing or wrong, ranked. Evidenc
 | 6 | Wildfire to loss | 5 | hazard only | burnt-area and ignition data, structure vulnerability | Fort McMurray 2016; Palisades 2025 |
 | 7 | Earthquake vulnerability and low-seismic hazard | 4 | hazard only, null in low-seismic places | national or global seismic hazard maps; fragility by structure and plant type | Tohoku 2011 |
 | 8 | Freeze and ice storm to loss | 4 | hazard only | freeze-failure model (instrument lines, pumps, power loss); freezing-rain hazard | Uri; 1998 ice storm |
-| 9 | Landslide and debris flow | 4 | screen | slope and rainfall-threshold hazard with inventory validation | none sourced |
+| 9 | Landslide and debris flow | 4 | screen (slope ranking tested, AUC 0.70) | rainfall-threshold hazard with inventory validation | NASA catalogue |
 | 10 | Heat on equipment (derating) | 3 | none | hourly temperature exceedance against an equipment rating the client supplies | none sourced |
 | 11 | Lightning | 3 | none | flash-density climatology; claims experience | DNV, loss-adjuster statements |
 | 12 | Grid outage dependency | 2 | none | client dependency data | Uri |
-| 13 | Permafrost thaw | 1 (more in the north) | none | a global permafrost-zonation map | Arctic infrastructure studies |
-| 14 | Tsunami, dust and sand, snow load, subsidence, volcanic, glacial lake outburst | not in the 30 | none | separate hazard modules; dust and snow load are the cheapest | none sourced |
+| 13 | Permafrost thaw | 1 (more in the north) | permafrost probability from the published Obu et al. map (10 km), built 22 Oct 2026; no thaw settlement | borehole ground temperatures and a ground-ice map | Arctic infrastructure studies |
+| 14 | Tsunami, dust and sand, snow load, subsidence, volcanic, glacial lake outburst | not in the 30 | glacial lake outburst: record of reported events only (22 Oct 2026); avalanche terrain screen built, weak (AUC 0.59); others none | separate hazard modules; dust and snow load are the cheapest | none sourced |
+
+## B2. Built 22 October 2026: cold-region site models
+
+Freeze-thaw (B), avalanche release terrain (C, weak), permafrost (B, as published) and a glacial lake outburst record. Results, limits and what was not built: `docs/CRYOSPHERE_BENCHMARK.md`. Sources probed for the other hazards: `docs/HAZARD_SOURCE_PROBE.md` (hail, tornado and marine heatwave have open data and could be built and tested next).
 
 ## C. Structure of the model (not peril-specific)
 

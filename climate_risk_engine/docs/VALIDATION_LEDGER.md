@@ -23,7 +23,11 @@ One row per hazard or model. "Tested against" means independent observations the
 | Water stress (WRI Aqueduct) | Not re-tested | Published indicator, basin scale | C |
 | Insurer correlation, terms, reinsurance | None | Assumed decay lengths; no claims | C |
 | Offshore wind return levels, damage curve | None | Not checked against buoys; placeholder curve | C |
-| Hail, convective storm, BI, supply chain, surface-water flood, earthquake loss (damage) | None | Not modelled (earthquake shaking hazard is now in; damage is not) | not built |
+| Freeze-thaw, frost and ice days (new, `CRYOSPHERE_BENCHMARK.md`) | GHCN-Daily, 44 stations, 2004-2023 | Rank correlation 0.80 (freeze-thaw days), mean error 11 days a year, band within one at 98 %; under-counts by ~11 days in the freeze-thaw-richest climates. Air temperature, not ground or damage; sample is mostly cold Eurasia | B |
+| Avalanche release terrain (new) | SLF Swiss avalanche accidents, 300 events against nearby controls | AUC 0.59 (95 % range 0.52-0.66) against elevation-matched terrain; release slope within 60 m of only 37 % of start zones. Terrain only, Swiss Alps only; settings chosen on the same events | C |
+| Permafrost probability (new) | 10 km resample checked against the published 1 km Obu et al. 2019 map; map itself not re-tested | 698 points: mean difference 0.023, same zone class 95 % | B (as published) |
+| Glacial lake outburst floods (new) | Not tested: a record of 6,263 reported events (Luetzow and Veh v4.2) | Lists reported events within 50 km; no unburst lakes, no probability | record |
+| Hail, convective storm, tornado, lightning, blade icing, dust, subsidence, BI, supply chain, earthquake loss (damage) | None | Not modelled at site level (see `HAZARD_SOURCE_PROBE.md` for which could be built and tested from open data; earthquake shaking hazard is in, damage is not) | not built |
 
 ## What this says
 - The engine is a **ranking and triage tool**. Where it has been tested, it separates hazardous from non-hazardous places better than a naive rule (AUC 0.7-0.8, correlation 0.5-0.6), and for the hazards tested it is far from random. None of that is the accuracy of a calibrated site model.
