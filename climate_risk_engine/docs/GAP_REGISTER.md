@@ -53,3 +53,17 @@ Hail (B) and tornado (B) from US storm reports with a temporal hold-out test; ma
 | C5 | Offshore: gust and wave return levels not checked against buoys; damage curve uncalibrated; typhoon turbine vulnerability absent; claims layer tested on invented claims only. | The premium for a farm is only as good as the claims the insurer supplies |
 | C6 | Resident AI: gold answers for offshore, scope and cold are written but the model has not been retrained; the chat context does not yet carry per-site peril scope. | The local model cannot be relied on for premium numbers |
 | C7 | Event checks use one event per peril. They detect blindness; they do not validate tails. | Do not quote them as validation of return levels |
+
+
+## B4. Competitor check, 23 October 2026 (Prometeia and others)
+
+Compared against Prometeia's public product sheet (full list: `docs/COMPETITIVE_LANDSCAPE.md`). What it showed, corrected after reading the code:
+
+| Their capability | Where we are |
+|---|---|
+| Damage carried into PD, LGD, expected credit loss and capital | **Exists, not validated.** `climate/credit_risk.py` computes PD, LGD, IFRS 9 ECL and stages, and RWA with a logistic PD uplift whose coefficients are described as calibrated to the ECB 2022 climate stress test. It has no test against observed defaults or losses and no row in the ledger. `creditbridge.py` (entity, facility, collateral, loan-to-value after a 1-in-N loss) deliberately does not give PD or LGD. |
+| Company ID to asset location | Partly. `data_acquisition/entity_resolver.py` resolves a name to a legal entity via GLEIF; EDGAR, CDP, EU ETS and geocoding clients exist. Facility locations still come from the client or a register, not from a tax ID. |
+| Regulatory climate stress test | Not packaged. `stresstest.py` is an operations and supply-chain scenario, not an ECB or EBA template. NGFS carbon prices are in `connectors/ngfs.py`. |
+| Transition engine with projected balance sheets | Partly. Transition plan, carbon and ESRS gap modules exist; no projected company financials. |
+| Portfolio optimisation, economic capital, climate-adjusted capital ratio | Not built. |
+| 200+ clients, regulator relationships | Not a code gap. |

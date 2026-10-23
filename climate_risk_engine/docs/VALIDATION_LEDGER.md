@@ -30,6 +30,7 @@ One row per hazard or model. "Tested against" means independent observations the
 | Severe hail (new, `CONVECTIVE_MARINE_BENCHMARK.md`) | NOAA SPC storm reports; 1996-2009 against 2010-2024 at 600 random US points | Rank correlation 0.93, AUC 0.94, median error 0.28 days a year. Reports, not measurements; US only (not within ~33 km of the border) | B |
 | Tornado (new) | Same hold-out | Rank correlation 0.77-0.83, AUC 0.90, median error 0.07-0.14 days a year. Band on EF1+; counts of past tornadoes, not a probability for a building | B |
 | Marine heatwave (new) | Published reference code on 8 cells; 9 documented events | Same events as the reference on 892 of 895; 7 of 9 events found against a 24 % chance rate in other years. Surface temperature on a 25 km cell; intensity not independently tested; report zone opt-in | B |
+| Climate-adjusted credit risk: PD, LGD, ECL, RWA (`climate/credit_risk.py`) | None. Coefficients are described as calibrated to the ECB 2022 stress-test outcomes; no test against observed defaults or losses | Illustrative uplift, not a validated credit model; do not present as a bank-grade PD or LGD | not validated |
 | Lightning, blade icing, dust, subsidence, BI, supply chain, earthquake loss (damage) | None | Not modelled at site level (see `HAZARD_SOURCE_PROBE.md`; earthquake shaking hazard is in, damage is not) | not built |
 
 ## What this says
