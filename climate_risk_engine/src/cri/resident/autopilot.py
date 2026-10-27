@@ -291,7 +291,7 @@ def run_cycle(reason: str = "scheduled") -> dict:
                 log.append(f'learned {lr["new_passages"]} passages from {lr["sources_checked"]} sources')
                 if lr["new_passages"] > 0:
                     inbox_add("learned", f'Read {lr["sources_checked"]} sources; now know {lr["total_passages"]:,} passages',
-                              "Wikipedia, NOAA's ENSO outlook and the ClimRisk research pieces, refreshed on schedule. I quote them, with sources, when you ask a question.",
+                              "NOAA, NWS, NASA, USGS, FEMA, the EU Commission, IFRS and the GHG Protocol, NOAA's ENSO outlook and the ClimRisk research pieces, refreshed on schedule. I quote them, with sources, when you ask a question.",
                               key=f"learned-{dt.date.today()}-{lr['total_passages'] // 500}")
         except Exception as e:                                   # noqa: BLE001
             log.append(f"learn failed: {type(e).__name__}")

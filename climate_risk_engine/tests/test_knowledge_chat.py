@@ -59,10 +59,10 @@ def test_nothing_relevant_is_said_not_invented(kn):
 
 
 def test_title_match_and_stemming_rank_the_right_page(kn, monkeypatch):
-    kn._store("https://x/storm", "Storm surge (Wikipedia)", "wikipedia", ["A storm surge is a coastal flood phenomenon of rising water driven by tropical cyclones and low pressure systems over the sea " * 2])
-    kn._store("https://x/katrina", "Hurricane Katrina (Wikipedia)", "wikipedia", ["The surge in New Orleans flooded neighbourhoods near the river after the levees failed and the storm passed over the city again " * 2])
+    kn._store("https://x/storm", "NOAA NHC: Storm surge overview", "primary", ["A storm surge is a coastal flood phenomenon of rising water driven by tropical cyclones and low pressure systems over the sea " * 2])
+    kn._store("https://x/katrina", "NOAA: Hurricane Katrina report", "primary", ["The surge in New Orleans flooded neighbourhoods near the river after the levees failed and the storm passed over the city again " * 2])
     top = kn.search("what is a storm surge?", 3)
-    assert top[0]["title"].startswith("Storm surge")
+    assert "Storm surge" in top[0]["title"]
     assert kn.has("flooding", "the flood rose")
     assert kn._terms("Saffir-Simpson scale work") == ["saffir", "simpson", "scale"]
 

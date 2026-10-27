@@ -2,7 +2,7 @@
 cri/resident/answer.py — answers a free-form question from what the agent has learned, with citations.
 
   1. search the knowledge index (cri.resident.knowledge)
-  2. if the index does not cover the question, learn the topic from Wikipedia right now, then search again
+  2. if the index does not cover the question, learn the topic from the curated primary-source list (agencies, regulators, standard-setters) right now, then search again; never from a wiki
   3. compose the answer:
        - if a local language model is running (Ollama on this computer: no key, no cloud), it writes the answer
          from the numbered passages only;

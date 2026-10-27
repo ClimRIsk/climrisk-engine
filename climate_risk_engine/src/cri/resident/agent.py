@@ -183,7 +183,7 @@ class Agent:
         text = (text or "").strip()
         if not text:
             return {"reply": "Ask me something — for example \"build a 3D twin of 22.2645, 91.805\".", "blocks": [], "actions": [], "intent": "empty"}
-        quick = self._event_commands(session, text) or self._userdoc_commands(session, text) or self._autopilot_commands(session, text) or self._knowledge_commands(session, text) or self._stress_commands(session, text) or self._scenario_commands(session, text) or self._source_commands(session, text) or self._profile_commands(session, text) or self._lab_commands(session, text) or self._case_commands(session, text) or self._extension_commands(session, text)
+        quick = self._feasibility_commands(session, text) or self._event_commands(session, text) or self._userdoc_commands(session, text) or self._autopilot_commands(session, text) or self._knowledge_commands(session, text) or self._stress_commands(session, text) or self._scenario_commands(session, text) or self._source_commands(session, text) or self._profile_commands(session, text) or self._lab_commands(session, text) or self._case_commands(session, text) or self._extension_commands(session, text)
         if quick:
             if quick.get("intent") in (None, "knowledge", "learn"):      # autopilot commands log themselves
                 quick.setdefault("intent", "knowledge")
@@ -231,6 +231,42 @@ class Agent:
 
     _SSP_WORDS = (("ssp126", r"ssp\s*-?\s*1[\s.\-]*2\.?6|strong(?:ly)? mitigat\w*|paris|net[\s\-]*zero pathway|low emissions?"), ("ssp245", r"ssp\s*-?\s*2[\s.\-]*4\.?5|middle[\s\-]*of[\s\-]*the[\s\-]*road|moderate emissions?|current policies"),
                   ("ssp370", r"ssp\s*-?\s*3[\s.\-]*7\.?0|high emissions?|regional rivalry"), ("ssp585", r"ssp\s*-?\s*5[\s.\-]*8\.?5|very high emissions?|worst[\s\-]*case|business[\s\-]*as[\s\-]*usual|fossil[\s\-]*fuel(?:ed)? (?:future|pathway)"))
+
+    def _feasibility_commands(self, session, text) -> Optional[dict]:
+        """'Can I build a 10-storey building here, what would it cost?' Answered from the site's hazards; never priced, never routed to the twin tool."""
+        from . import feasibility as FE
+        if not FE.matches(text):
+            return None
+        ent = N.entities(text)
+        pl = resolve_place(text, ent, session)
+        if not pl:
+            return {"reply": "Which site? Give coordinates or a place and I will screen it for a building of that height.", "blocks": [], "actions": [], "intent": "feasibility"}
+        M.set_state("last_place", pl)
+        n = FE.storeys(text)
+        M.add_message(session, "user", text, "feasibility", {"entities": ent})
+
+        def work():
+            from .. import physical_report as PR
+            rep = PR.build_asset_report(pl["lat"], pl["lon"], name=pl.get("name"), include_image=False)
+            a = FE.analyse(rep, n)
+            M.add_run("feasibility", {"lat": pl["lat"], "lon": pl["lon"], "storeys": n}, [f'{len(a["drivers"])} hazard-driven items'], True, FE.reply_text(a, pl["name"])[:200])
+            M.set_state("last_result", {"summary": f"{n or 'tall'}-storey feasibility screen", "explain": "Hazard-driven design and cost items from the physical screening; no prices."})
+            blocks = [_blk("table", head=["Hazard", "Rating here", "What it changes in the design", "Effect on cost"],
+                           rows=[[r["hazard"], r["rating"].title(), r["design"], r["cost"]] for r in a["rows"]],
+                           caption="Ratings come from the engine's physical screening for this exact point. A hazard missing from the table was not assessed, not safe.")]
+            if a["not_assessed"]:
+                blocks.append(_blk("note", text="Not assessed here (treat as unknown, not as low): " + ", ".join(a["not_assessed"]) + "."))
+            for c in a["cautions"][:2]:
+                blocks.append(_blk("note", text=c))
+            blocks.append(_blk("list", items=FE.ALWAYS))
+            blocks.append(_blk("note", text=FE.PRICE_ROUTE))
+            return {"reply": FE.reply_text(a, pl["name"]), "blocks": blocks,
+                    "actions": [{"type": "say", "label": "Write the full physical risk report", "text": f'physical risk report for {pl["lat"]:.4f}, {pl["lon"]:.4f}'}]}
+        j = _job(work, "building feasibility screen")
+        out = {"reply": f"Screening {pl['name']} ({pl['source']}) for a {n or 'tall'}-storey building: reading the site's hazards, then what each one does to design and cost. About a minute.",
+               "blocks": [], "actions": [], "job": j["id"], "intent": "feasibility", "confidence": 1.0}
+        M.add_message(session, "agent", out["reply"], "feasibility", {"job": j["id"]})
+        return out
 
     def _event_commands(self, session, text) -> Optional[dict]:
         """Questions the engine answers from recorded events (storm wind -> total cost; company revenue after events). See resident/eventanswer.py."""

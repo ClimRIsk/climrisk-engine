@@ -1,13 +1,14 @@
 """
 cri/resident/knowledge.py — what the resident agent has learned from public sources, searchable and cited.
 
-The agent reads public pages (Wikipedia, NOAA, the ClimRisk research pieces, any URL you tell it to learn), cuts
+The agent reads public pages from primary sources (NOAA, NWS, NHC, NASA, USGS, FEMA, the EU Commission, IFRS/ISSB, the GHG Protocol,
+the ClimRisk research pieces, any URL you tell it to learn), cuts
 them into passages, and indexes them in SQLite FTS5 (BM25 ranking). Answers quote these passages with their source.
 Nothing is invented: if the index has nothing relevant the agent says so and goes and learns the topic.
 
   learn_seed()          first-run and weekly refresh of the seed sources (fail-soft, one thread per source)
   learn_url(url)        learn any web page the user names
-  learn_topic(q)        find and learn the best Wikipedia pages for a topic the index lacks
+  learn_topic(q)        find and learn the best primary-source pages for a topic the index lacks (curated list; no wikis, no forums)
   search(q, k)          best passages for a question, with title / url / learned-on date
   stats()               how much it knows and from where
 """
@@ -32,27 +33,65 @@ _UA = {"User-Agent": "ClimRisk-resident/1.0 (climate risk research agent; contac
 _LOCK = threading.RLock()
 _WORDS = (90, 170)               # passage length range, words
 
-WIKI = "https://en.wikipedia.org/w/api.php"
-WIKI_TITLES = [
-    # hazards
-    "Tropical cyclone", "Storm surge", "Saffir–Simpson scale", "Holland model", "Flood", "Coastal flooding", "Flash flood", "Sea level rise", "Heat wave", "Urban heat island",
-    "Wildfire", "Landslide", "Drought", "El Niño–Southern Oscillation", "Cyclone Amphan", "Hurricane Katrina", "Hurricane Harvey", "Typhoon Haiyan", "2022 Pakistan floods",
-    "Bay of Bengal", "Tropical cyclone forecasting", "International Best Track Archive for Climate Stewardship",
-    # physical-risk methods and data
-    "Shallow water equations", "Manning formula", "Curve number", "Gumbel distribution", "Return period", "Atmospheric dispersion modeling", "Box model", "Air quality index", "Planetary boundary layer", "Particulates", "Digital elevation model", "Height Above Nearest Drainage", "Sentinel-2", "Sentinel-1", "Synthetic-aperture radar", "ERA5", "Fragility curve", "Flood risk assessment",
-    # climate finance and policy
-    "Climate risk", "Climate change mitigation", "Stranded asset", "Carbon price", "Carbon tax", "EU Emissions Trading System", "Carbon Border Adjustment Mechanism", "Corporate Sustainability Reporting Directive",
-    "Task Force on Climate-related Financial Disclosures", "IFRS Sustainability Disclosure Standards", "Network for Greening the Financial System", "Paris Agreement", "Net zero emissions",
-    "Social cost of carbon", "Marginal abatement cost", "Climate change adaptation", "Climate resilience", "Climate-related financial risk", "Value at risk", "Expected shortfall",
-    # carbon accounting and industry
-    "Greenhouse Gas Protocol", "Life-cycle assessment", "ISO 14040", "Carbon footprint", "Global warming potential", "Cement", "Portland cement", "Cement industry", "Steelmaking", "Green steel",
-    "Aluminium smelting", "Ammonia production", "Oil refinery", "Carbon capture and storage", "Clinker (cement)", "Scope 3 emissions",
+# Primary sources only: government agencies, standard setters and regulators. Wikipedia and other user-edited sites are never read:
+# they are not citable in a risk report. (title, url, keywords that route a question to it)
+PRIMARY = [
+    ("NOAA NHC: Saffir-Simpson Hurricane Wind Scale", "https://www.nhc.noaa.gov/aboutsshws.php", "hurricane typhoon cyclone saffir simpson category wind scale damage"),
+    ("NOAA NHC: Storm surge overview", "https://www.nhc.noaa.gov/surge/", "storm surge tide coastal flood cyclone inundation"),
+    ("NOAA: Is sea level rising?", "https://oceanservice.noaa.gov/facts/sealevel.html", "sea level rise coastal subsidence tide"),
+    ("NASA: Sea level overview", "https://sealevel.nasa.gov/understanding-sea-level/overview", "sea level rise ice melt thermal expansion"),
+    ("NWS: Heat safety", "https://www.weather.gov/safety/heat", "heat wave extreme heat illness"),
+    ("NWS: Flood safety", "https://www.weather.gov/safety/flood", "flood flash river rainfall"),
+    ("NWS: Wildfire safety", "https://www.weather.gov/safety/wildfire", "wildfire fire smoke"),
+    ("NOAA CPC: ENSO diagnostic discussion", "https://www.cpc.ncep.noaa.gov/products/analysis_monitoring/enso_advisory/ensodisc.shtml", "el nino la nina enso oscillation"),
+    ("Climate.gov: ENSO", "https://www.climate.gov/enso", "el nino la nina enso oscillation"),
+    ("USGS: Earthquake hazards", "https://www.usgs.gov/programs/earthquake-hazards", "earthquake seismic fault ground motion"),
+    ("FEMA: Flood maps", "https://www.fema.gov/flood-maps", "flood zone map floodplain sfha"),
+    ("FEMA: Flood insurance (NFIP)", "https://www.fema.gov/flood-insurance", "nfip flood insurance claims premium"),
+    ("FEMA: Building codes", "https://www.fema.gov/emergency-managers/risk-management/building-science/building-codes", "building code construction design elevation foundation wind resistant"),
+    ("GOV.UK: Check your long term flood risk", "https://www.gov.uk/check-long-term-flood-risk", "flood risk england river surface water environment agency"),
+    ("EPA: Heat islands", "https://www.epa.gov/heatislands", "urban heat island pavement cooling"),
+    ("AirNow: AQI basics", "https://www.airnow.gov/aqi/aqi-basics/", "air quality index pm2.5 ozone particulate"),
+    ("EU Commission: Carbon Border Adjustment Mechanism", "https://taxation-customs.ec.europa.eu/carbon-border-adjustment-mechanism_en", "cbam carbon border adjustment cement steel aluminium"),
+    ("EU Commission: EU Emissions Trading System", "https://climate.ec.europa.eu/eu-action/carbon-markets/eu-emissions-trading-system-eu-ets_en", "ets emissions trading carbon price allowance"),
+    ("IFRS: S2 Climate-related Disclosures", "https://www.ifrs.org/issued-standards/ifrs-sustainability-standards-navigator/ifrs-s2-climate-related-disclosures/", "ifrs s2 issb climate disclosure physical transition risk"),
+    ("IFRS: TCFD recommendations", "https://www.ifrs.org/sustainability/tcfd/", "tcfd task force climate disclosure"),
+    ("GHG Protocol: Corporate Standard", "https://ghgprotocol.org/corporate-standard", "greenhouse gas protocol scope 1 2 3 inventory accounting"),
 ]
 SEED_URLS = [
     ("https://climrisk.io/research/the-loud-risk-and-the-quiet-one/", "ClimRisk research: The loud risk and the quiet one", 7 * 86400),
-    ("https://www.cpc.ncep.noaa.gov/products/analysis_monitoring/enso_advisory/ensodisc.shtml", "NOAA CPC ENSO diagnostic discussion", 12 * 3600),
-]
-_REFRESH_WIKI = 30 * 86400
+] + [(u, t, 30 * 86400 if "cpc.ncep" not in u else 12 * 3600) for (t, u, _k) in PRIMARY]
+_UNTRUSTED = re.compile(r"(^|\.)(wikipedia|wikimedia|wikidata|wiktionary|fandom|quora|reddit|answers\.com|medium)\.", re.I)
+
+
+def trusted(url: str) -> bool:
+    host = urllib.parse.urlparse(url or "").netloc.lower()
+    return bool(host) and not _UNTRUSTED.search(host)
+
+
+_PURGED = {"done": False}
+
+
+def purge_untrusted() -> int:
+    """Remove anything learned from a user-edited site (earlier versions read Wikipedia). Runs once per process."""
+    if _PURGED["done"]:
+        return 0
+    _PURGED["done"] = True
+    n = 0
+    with _LOCK:
+        c = _db()
+        try:
+            for (sid, url) in c.execute("SELECT id, url FROM kn_sources").fetchall():
+                if not trusted(url):
+                    if _fts_ok(c):
+                        for (pid, t, ti) in c.execute("SELECT id, text, title FROM kn_passages WHERE source_id=?", (sid,)).fetchall():
+                            c.execute("INSERT INTO kn_fts(kn_fts, rowid, text, title) VALUES('delete', ?, ?, ?)", (pid, t, ti))
+                    n += c.execute("DELETE FROM kn_passages WHERE source_id=?", (sid,)).rowcount
+                    c.execute("DELETE FROM kn_sources WHERE id=?", (sid,))
+            c.commit()
+        finally:
+            c.close()
+    return n
 
 
 def _db() -> sqlite3.Connection:
@@ -99,7 +138,7 @@ def _strip_html(s: str) -> tuple:
 
 def _chunk(text: str) -> list:
     """Paragraph-aware passages of ~90-170 words; headings stay attached to the paragraph that follows."""
-    # Wikipedia headings arrive as '== Name ==' lines; keep them as a plain label in front of the passage they introduce.
+    # '== Name ==' heading lines (if present) are kept as a plain label in front of the passage they introduce.
     lines = re.split(r"\n+(?==+ )|\n\s*\n", text)
     paras = []
     for p in lines:
@@ -177,31 +216,6 @@ def _mark_failed(url: str, title: str, kind: str, why: str) -> None:
 
 # ── learning ─────────────────────────────────────────────────────────────────
 
-def _wiki_extracts(titles: list) -> list:
-    """[(title, url, plaintext)] for up to 20 titles in one request."""
-    q = {"action": "query", "prop": "extracts", "explaintext": 1, "exsectionformat": "wiki", "titles": "|".join(titles), "format": "json", "redirects": 1, "exlimit": "max", "formatversion": 2}
-    j = json.loads(_get(WIKI + "?" + urllib.parse.urlencode(q)))
-    out = []
-    for p in (j.get("query", {}).get("pages") or []):
-        if p.get("missing") or not p.get("extract"):
-            continue
-        t = p["title"]
-        out.append((t, "https://en.wikipedia.org/wiki/" + urllib.parse.quote(t.replace(" ", "_")), p["extract"]))
-    return out
-
-
-def _learn_wiki(titles: list) -> int:
-    got = 0
-    for i in range(0, len(titles), 1):                              # extracts with exlimit=max returns the intro only for >1 title; fetch singly for the full article
-        try:
-            for (t, url, text) in _wiki_extracts(titles[i:i + 1]):
-                text = _CUT.sub("", "\n" + text)
-                ps = _chunk(text)[:40]
-                if ps:
-                    got += _store(url, t + " (Wikipedia)", "wikipedia", ps)
-        except Exception as e:                                       # noqa: BLE001
-            _mark_failed("https://en.wikipedia.org/wiki/" + urllib.parse.quote(titles[i].replace(" ", "_")), titles[i], "wikipedia", f"{type(e).__name__}: {e}")
-    return got
 
 
 def learn_text(url: str, title: str, text: str, kind: str = "engine") -> int:
@@ -213,6 +227,8 @@ def learn_text(url: str, title: str, text: str, kind: str = "engine") -> int:
 def learn_url(url: str, title: Optional[str] = None, kind: str = "web") -> dict:
     if not re.match(r"^https?://", url or ""):
         return {"ok": False, "error": "that is not a web address"}
+    if not trusted(url):
+        return {"ok": False, "error": "I do not learn from wikis or user-edited sites: they are not citable. Point me to a regulator, agency, standard-setter or paper."}
     try:
         raw = _get(url)
         t, text = _strip_html(raw) if "<" in raw[:2000] else ("", raw)
@@ -246,13 +262,11 @@ def learn_seed(force: bool = False, max_wiki: int = 80) -> dict:
     if os.environ.get("CRI_STORY_OFFLINE", "").strip() not in ("", "0"):      # tests and air-gapped runs: never touch the network
         s = stats()
         return {"new_passages": 0, "sources_checked": 0, "elapsed_s": 0.0, "total_passages": s["passages"], "total_sources": s["sources"]}
-    todo_urls = [(u, t, a) for (u, t, a) in SEED_URLS if force or _due(u, a)]
-    wiki_due = [t for t in WIKI_TITLES if force or _due("https://en.wikipedia.org/wiki/" + urllib.parse.quote(t.replace(" ", "_")), _REFRESH_WIKI)][:max_wiki]
+    purge_untrusted()
+    todo_urls = [(u, t, a) for (u, t, a) in SEED_URLS if force or _due(u, a)][:max_wiki]
     new = 0
     with ThreadPoolExecutor(max_workers=4) as pool:
-        futs = [pool.submit(learn_url, u, t, "research" if "climrisk" in u else "noaa") for (u, t, _) in todo_urls]
-        chunks = [wiki_due[i::4] for i in range(4) if wiki_due[i::4]]
-        futs += [pool.submit(lambda ch=ch: {"ok": True, "passages": _learn_wiki(ch)}) for ch in chunks]
+        futs = [pool.submit(learn_url, u, t, "research" if "climrisk" in u else "primary") for (u, t, _) in todo_urls]
         for f in futs:
             try:
                 r = f.result()
@@ -260,21 +274,28 @@ def learn_seed(force: bool = False, max_wiki: int = 80) -> dict:
             except Exception:                                        # noqa: BLE001
                 pass
     s = stats()
-    return {"new_passages": new, "sources_checked": len(todo_urls) + len(wiki_due), "elapsed_s": round(time.time() - t0, 1), "total_passages": s["passages"], "total_sources": s["sources"]}
+    return {"new_passages": new, "sources_checked": len(todo_urls), "elapsed_s": round(time.time() - t0, 1), "total_passages": s["passages"], "total_sources": s["sources"]}
 
 
 def learn_topic(q: str, n_pages: int = 2) -> dict:
-    """The index does not cover this: find the best Wikipedia pages for it and learn them now."""
+    """The index does not cover this: learn the best-matching primary-source pages from the curated list. If none match, say so; never fall back to a wiki."""
     if os.environ.get("CRI_STORY_OFFLINE", "").strip() not in ("", "0"):
         return {"ok": False, "error": "offline mode", "learned": []}
-    try:
-        sq = {"action": "query", "list": "search", "srsearch": q, "srlimit": n_pages + 2, "format": "json", "formatversion": 2}
-        hits = json.loads(_get(WIKI + "?" + urllib.parse.urlencode(sq))).get("query", {}).get("search", [])
-    except Exception as e:                                           # noqa: BLE001
-        return {"ok": False, "error": f"could not search: {type(e).__name__}", "learned": []}
-    titles = [h["title"] for h in hits if not re.search(r"\(disambiguation\)|^List of ", h["title"])][:n_pages]
-    got = _learn_wiki(titles) if titles else 0
-    return {"ok": got > 0, "learned": titles, "passages": got}
+    ts = {stem(t) for t in _terms(q)}
+    scored = []
+    for (title, url, kw) in PRIMARY:
+        k = {stem(w) for w in kw.split()}
+        sc = len(ts & k)
+        if sc:
+            scored.append((sc, title, url))
+    scored.sort(key=lambda x: -x[0])
+    learned, got = [], 0
+    for (_sc, title, url) in scored[:n_pages]:
+        r = learn_url(url, title, "primary")
+        if r.get("ok"):
+            learned.append(title); got += r["passages"]
+    return {"ok": got > 0, "learned": learned, "passages": got,
+            "error": None if got else "no primary source on my list covers this; I will not answer it from a wiki"}
 
 
 # ── search ───────────────────────────────────────────────────────────────────
@@ -305,6 +326,7 @@ def has(term: str, text_lower: str) -> bool:
 
 
 def search(q: str, k: int = 6) -> list:
+    purge_untrusted()
     ts = _terms(q)
     if not ts:
         return []
