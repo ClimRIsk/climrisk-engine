@@ -11,6 +11,7 @@ from __future__ import annotations
 import re
 from typing import Callable, Optional
 
+from . import classes as CL
 from . import vessel as VS
 from . import voyage as V
 from ..lca import marine_fuels as MF
@@ -73,6 +74,13 @@ def parse(text: str) -> dict:
         out["daily_t"] = _num(m.group(1))
         if m.group(2):
             out["daily_speed_kn"] = _num(m.group(2))
+    for key, rx in (("dwt", r"(\d[\d,\.]*)\s*(k?)\s*(?:dwt|deadweight)"), ("teu", r"(\d[\d,\.]*)\s*(k?)\s*teu"), ("gt", r"(\d[\d,\.]*)\s*(k?)\s*(?:gt|gross\s+ton)"), ("cbm", r"(\d[\d,\.]*)\s*(k?)\s*(?:cbm|m3|m³)")):
+        m = re.search(rx, t, re.I)
+        if m:
+            out[key] = _num(m.group(1)) * (1000.0 if m.group(2) else 1.0)
+    st = CL.classify(t)
+    if st:
+        out["ship_type"] = st
     mk = {}
     m = re.search(r"(?:bunker|fuel)[^.\d$€]{0,25}(?:price|cost|at)?[^.\d$€]{0,8}[$€]?\s*(\d[\d,\.]*)\s*(?:usd)?\s*(?:/|per)\s*(?:t|tonne|ton|mt)", t, re.I) or re.search(r"[$]\s*(\d[\d,\.]*)\s*(?:/|per)\s*(?:t|tonne|ton|mt)\b", t, re.I)
     if m:
@@ -119,7 +127,16 @@ def resolve_vessel(p: dict, data_dir=None, fleets=None) -> dict:
             return {"vessel": rec, "how": "daily consumption you gave", "missing": [], "candidates": [], "files": files, "why": None}
     if v and not v.get("missing"):
         return {"vessel": v, "how": how, "missing": [], "candidates": [], "files": files, "why": None}
-    miss = list(v["missing"]) if v else ["the ship's daily fuel consumption and the speed it applies to (for example '45 t/day at 14 knots'), or its entry in an MRV/fleet file"]
+    if p.get("ship_type") and p.get("speed_kn"):
+        unit = CL.UNIT_OF[p["ship_type"]]
+        try:
+            cv = CL.vessel_from_class(p["ship_type"], p["speed_kn"], size=p.get(unit), size_unit=unit, dwt=p.get("dwt"), name=p.get("name"))
+            if v:
+                cv.update({k: v[k] for k in ("name", "imo", "gt") if v.get(k)})
+            return {"vessel": cv, "how": "IMO DCS 2022 class median (no record for this ship)", "missing": [], "candidates": [], "files": files, "why": None}
+        except ValueError as e:
+            return {"vessel": v, "how": how, "missing": [str(e)], "candidates": cand, "files": files, "why": why}
+    miss = list(v["missing"]) if v else ["the ship's daily fuel consumption and the speed it applies to (for example '45 t/day at 14 knots'), or its type and size (for example 'container ship 8000 TEU', 'bulk carrier 75,000 dwt') plus a speed, for an IMO class-median estimate"]
     return {"vessel": v, "how": how, "missing": miss, "candidates": cand, "files": files, "why": why}
 
 
@@ -190,7 +207,8 @@ def _render_full(r, rv, o, d) -> dict:
                        "caption": "Fossil-pathway defaults only; bio and e-fuels need certified values. Same-energy comparison ignores engine efficiency and price."})
     blocks.append({"type": "note", "text": " ".join(r["flags"] + r["limits"])})
     best = sc["speed"][-1] if sc["speed"] else None
-    reply = (f"{nm}, {vy['origin']} to {vy['destination']}: {_fmt(vy['distance_nm'])} nm at {vy['speed_kn']:.1f} kn is {vy['days']:.1f} days and about {_fmt(r['fuel']['t'])} t of fuel, "
+    reply = ((f"Class estimate: I have no record for {nm}, so this uses the IMO's 2022 median for its type and size, not this ship's own fuel burn. " if r["vessel"].get("class_proxy") else "") +
+             f"{nm}, {vy['origin']} to {vy['destination']}: {_fmt(vy['distance_nm'])} nm at {vy['speed_kn']:.1f} kn is {vy['days']:.1f} days and about {_fmt(r['fuel']['t'])} t of fuel, "
              f"which is {_fmt(E['ttw_co2e_t'])} t CO2e at the funnel ({_fmt(E['wtw_co2e_t'])} t well-to-wake). EU ETS: {ets.get('status')}. FuelEU: {fe.get('status')}."
              + (f" Total of the costs you gave: {_fmt(c['total_usd_supplied_components'])} USD." if c["lines"] else " Give a bunker price and a daily hire rate and I will cost it.")
              + (f" Slowing to {best['speed_kn']:g} kn saves {abs(best['d_fuel_t']):,.0f} t of fuel for {best['d_days']:.1f} more days." if best and best["d_fuel_t"] < 0 else "")
@@ -223,7 +241,7 @@ def _render_partial(p, o, d, rv, flags, market) -> dict:
     if cy.get("most_exposed"):
         blocks.append({"type": "table", "head": ["Most storm-exposed points on the great-circle line", "Tropical storms / yr", "100-yr wind"], "rows": [[f"{x['lat']}, {x['lon']}", f"{x['storms_per_year']:.2f}", f"{x['rp100_wind_ms']:.0f} m/s"] for x in cy["most_exposed"]], "caption": cy["note"]})
     ship = p.get("name") or (f"IMO {p['imo']}" if p.get("imo") else "the ship")
-    need = rv["missing"] or ["the ship's daily fuel consumption and the speed it applies to (for example '45 t/day at 14 knots'), or its entry in an MRV/fleet file"]
+    need = rv["missing"] or ["the ship's daily fuel consumption and the speed it applies to (for example '45 t/day at 14 knots'), or its type and size (for example 'container ship 8000 TEU') plus a speed, for an IMO class-median estimate"]
     why = rv.get("why")
     if rv["candidates"]:
         why = "several ships match: " + ", ".join(f"{c['name']} (IMO {c['imo']})" for c in rv["candidates"][:6]) + ". Give the IMO number."

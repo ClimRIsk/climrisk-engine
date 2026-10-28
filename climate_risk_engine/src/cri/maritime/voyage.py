@@ -164,6 +164,8 @@ def assess_voyage(vessel: dict, distance_nm: Optional[float], speed_kn: Optional
     vref = vessel.get("reference_speed_kn")
     if vref and (speed < 0.5 * vref or (vessel.get("design_speed_kn") and speed > vessel["design_speed_kn"])):
         flags.append("The speed is far from the ship's reference speed or above its design speed: the v^2 scaling is an extrapolation there.")
+    if vessel.get("class_proxy"):
+        flags += list(vessel.get("notes") or [])
     b = _burn(vessel, distance_nm, speed, speed_exponent)
     fuel_given = fuel is not None
     fuel_key = fuel or "hfo"
@@ -274,7 +276,7 @@ def assess_voyage(vessel: dict, distance_nm: Optional[float], speed_kn: Optional
               "ETS and FuelEU scope uses the country of each port as resolved; transhipment, outermost-region and last-port-of-call rules are not modelled.",
               "Costs include only the components supplied; there is no default price anywhere in this calculation.",
               "No claim of an MRV-verified figure: this is a planning screen."]
-    return {"vessel": {k: vessel.get(k) for k in ("name", "imo", "ship_type", "gt", "dwt", "reference_speed_kn", "fuel_kg_per_nm_ref", "design_speed_kn", "notes")},
+    return {"vessel": {k: vessel.get(k) for k in ("name", "imo", "ship_type", "gt", "dwt", "class_proxy", "reference_speed_kn", "fuel_kg_per_nm_ref", "design_speed_kn", "notes")},
             "voyage": {"origin": origin.get("name"), "destination": dest.get("name"), "distance_nm": distance_nm, "great_circle_nm": gc, "speed_kn": speed, "days": b["days"], "year": year},
             "fuel": {"t": b["fuel_t"], "kg_per_nm": b["kg_per_nm"], "type": E["fuel"]}, "emissions": {"ttw_co2e_t": E["ttw_co2e_t"], "wtw_co2e_t": E["wtw_co2e_t"], "ttw_co2_t": E["ttw_co2_t"], "intensity_gco2e_per_mj": E["intensity"], "alt_reference_fuels": alt_fuels, "notes": E["notes"]},
             "ets": ets, "fueleu": fe, "cost": cost, "scenarios": {"speed": scen, "diversion": div, "delay": delays}, "cyclones": cyc, "mitigation": mit, "alternative_fuels": alts, "flags": flags, "limits": limits,

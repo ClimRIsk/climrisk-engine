@@ -1,0 +1,501 @@
+{
+ "source": "IMO, MEPC 81/6/1, Report on annual carbon intensity and efficiency of the existing fleet (Secretariat), Annex Table 6: Operational Carbon Intensity for 2022 using Fourth IMO GHG Study ship types and sizes, ships of 5,000 GT and above, non-filtered DCS fleet",
+ "url": "https://wwwcdn.imo.org/localresources/en/OurWork/Environment/Documents/DCS/MEPC 81-6-1 - Report on annual carbon intensity and efficiency of the existing fleet(Reporting years 201... (Secretariat).pdf",
+ "retrieved": "2026-10-28",
+ "aer_unit": "gCO2 per deadweight-tonne nautical mile (median over ships in the class); the size bin unit is in 'unit'",
+ "checks": "AER x mean DWT x 1e-6 gives t CO2 per nm; for a 100,000-149,999 GT cruise ship (mean DWT 10,942, AER 116.19) that is 1.27 t CO2/nm, plausible for such a ship. No independent check against reported fuel was run.",
+ "not_transcribed": [
+  "2019-2021 tables",
+  "cgDIST and EEOI columns",
+  "filtered AIS columns",
+  "bins with zero ships"
+ ],
+ "rows": [
+  {
+   "type": "bulk_carrier",
+   "unit": "dwt",
+   "lo": 0,
+   "hi": 9999,
+   "ships": 55,
+   "mean_dwt": 8040,
+   "aer_median_2022": 17.22
+  },
+  {
+   "type": "bulk_carrier",
+   "unit": "dwt",
+   "lo": 10000,
+   "hi": 34999,
+   "ships": 1373,
+   "mean_dwt": 28331,
+   "aer_median_2022": 8.47
+  },
+  {
+   "type": "bulk_carrier",
+   "unit": "dwt",
+   "lo": 35000,
+   "hi": 59999,
+   "ships": 2885,
+   "mean_dwt": 49245,
+   "aer_median_2022": 6.17
+  },
+  {
+   "type": "bulk_carrier",
+   "unit": "dwt",
+   "lo": 60000,
+   "hi": 99999,
+   "ships": 3930,
+   "mean_dwt": 75794,
+   "aer_median_2022": 4.2
+  },
+  {
+   "type": "bulk_carrier",
+   "unit": "dwt",
+   "lo": 100000,
+   "hi": 199999,
+   "ships": 1245,
+   "mean_dwt": 169471,
+   "aer_median_2022": 2.63
+  },
+  {
+   "type": "bulk_carrier",
+   "unit": "dwt",
+   "lo": 200000,
+   "hi": null,
+   "ships": 677,
+   "mean_dwt": 247986,
+   "aer_median_2022": 2.11
+  },
+  {
+   "type": "chemical_tanker",
+   "unit": "dwt",
+   "lo": 5000,
+   "hi": 9999,
+   "ships": 316,
+   "mean_dwt": 8266,
+   "aer_median_2022": 20.83
+  },
+  {
+   "type": "chemical_tanker",
+   "unit": "dwt",
+   "lo": 10000,
+   "hi": 19999,
+   "ships": 977,
+   "mean_dwt": 15536,
+   "aer_median_2022": 14.94
+  },
+  {
+   "type": "chemical_tanker",
+   "unit": "dwt",
+   "lo": 20000,
+   "hi": 39999,
+   "ships": 685,
+   "mean_dwt": 32331,
+   "aer_median_2022": 9.49
+  },
+  {
+   "type": "chemical_tanker",
+   "unit": "dwt",
+   "lo": 40000,
+   "hi": null,
+   "ships": 1445,
+   "mean_dwt": 49520,
+   "aer_median_2022": 6.41
+  },
+  {
+   "type": "container_ship",
+   "unit": "teu",
+   "lo": 0,
+   "hi": 999,
+   "ships": 440,
+   "mean_dwt": 10210,
+   "aer_median_2022": 23.11
+  },
+  {
+   "type": "container_ship",
+   "unit": "teu",
+   "lo": 1000,
+   "hi": 1999,
+   "ships": 1208,
+   "mean_dwt": 19282,
+   "aer_median_2022": 15.37
+  },
+  {
+   "type": "container_ship",
+   "unit": "teu",
+   "lo": 2000,
+   "hi": 2999,
+   "ships": 710,
+   "mean_dwt": 34982,
+   "aer_median_2022": 11.56
+  },
+  {
+   "type": "container_ship",
+   "unit": "teu",
+   "lo": 3000,
+   "hi": 4999,
+   "ships": 788,
+   "mean_dwt": 52404,
+   "aer_median_2022": 10.07
+  },
+  {
+   "type": "container_ship",
+   "unit": "teu",
+   "lo": 5000,
+   "hi": 7999,
+   "ships": 520,
+   "mean_dwt": 75482,
+   "aer_median_2022": 9.13
+  },
+  {
+   "type": "container_ship",
+   "unit": "teu",
+   "lo": 8000,
+   "hi": 11999,
+   "ships": 634,
+   "mean_dwt": 112655,
+   "aer_median_2022": 7.26
+  },
+  {
+   "type": "container_ship",
+   "unit": "teu",
+   "lo": 12000,
+   "hi": 14499,
+   "ships": 242,
+   "mean_dwt": 147819,
+   "aer_median_2022": 5.9
+  },
+  {
+   "type": "container_ship",
+   "unit": "teu",
+   "lo": 14500,
+   "hi": 19999,
+   "ships": 161,
+   "mean_dwt": 177112,
+   "aer_median_2022": 5.14
+  },
+  {
+   "type": "container_ship",
+   "unit": "teu",
+   "lo": 20000,
+   "hi": null,
+   "ships": 100,
+   "mean_dwt": 213095,
+   "aer_median_2022": 4.72
+  },
+  {
+   "type": "cruise",
+   "unit": "gt",
+   "lo": 2000,
+   "hi": 9999,
+   "ships": 29,
+   "mean_dwt": 1148,
+   "aer_median_2022": 209.29
+  },
+  {
+   "type": "cruise",
+   "unit": "gt",
+   "lo": 10000,
+   "hi": 59999,
+   "ships": 95,
+   "mean_dwt": 3491,
+   "aer_median_2022": 179.99
+  },
+  {
+   "type": "cruise",
+   "unit": "gt",
+   "lo": 60000,
+   "hi": 99999,
+   "ships": 81,
+   "mean_dwt": 8440,
+   "aer_median_2022": 128.45
+  },
+  {
+   "type": "cruise",
+   "unit": "gt",
+   "lo": 100000,
+   "hi": 149999,
+   "ships": 69,
+   "mean_dwt": 10942,
+   "aer_median_2022": 116.19
+  },
+  {
+   "type": "cruise",
+   "unit": "gt",
+   "lo": 150000,
+   "hi": null,
+   "ships": 37,
+   "mean_dwt": 15138,
+   "aer_median_2022": 103.64
+  },
+  {
+   "type": "ferry_pax_only",
+   "unit": "gt",
+   "lo": 2000,
+   "hi": null,
+   "ships": 4,
+   "mean_dwt": 3448,
+   "aer_median_2022": 170.36
+  },
+  {
+   "type": "ferry_ropax",
+   "unit": "gt",
+   "lo": 5000,
+   "hi": 9999,
+   "ships": 69,
+   "mean_dwt": 1273,
+   "aer_median_2022": 377.98
+  },
+  {
+   "type": "ferry_ropax",
+   "unit": "gt",
+   "lo": 10000,
+   "hi": 19999,
+   "ships": 109,
+   "mean_dwt": 3533,
+   "aer_median_2022": 120.59
+  },
+  {
+   "type": "ferry_ropax",
+   "unit": "gt",
+   "lo": 20000,
+   "hi": null,
+   "ships": 253,
+   "mean_dwt": 6638,
+   "aer_median_2022": 91.98
+  },
+  {
+   "type": "general_cargo",
+   "unit": "dwt",
+   "lo": 0,
+   "hi": 4999,
+   "ships": 31,
+   "mean_dwt": 3549,
+   "aer_median_2022": 43.18
+  },
+  {
+   "type": "general_cargo",
+   "unit": "dwt",
+   "lo": 5000,
+   "hi": 9999,
+   "ships": 773,
+   "mean_dwt": 8211,
+   "aer_median_2022": 17.1
+  },
+  {
+   "type": "general_cargo",
+   "unit": "dwt",
+   "lo": 10000,
+   "hi": 19999,
+   "ships": 977,
+   "mean_dwt": 13606,
+   "aer_median_2022": 13.99
+  },
+  {
+   "type": "general_cargo",
+   "unit": "dwt",
+   "lo": 20000,
+   "hi": null,
+   "ships": 869,
+   "mean_dwt": 38366,
+   "aer_median_2022": 7.44
+  },
+  {
+   "type": "gas_carrier",
+   "unit": "cbm",
+   "lo": 0,
+   "hi": 49999,
+   "ships": 453,
+   "mean_dwt": 15897,
+   "aer_median_2022": 19.57
+  },
+  {
+   "type": "gas_carrier",
+   "unit": "cbm",
+   "lo": 50000,
+   "hi": 99999,
+   "ships": 371,
+   "mean_dwt": 53578,
+   "aer_median_2022": 7.09
+  },
+  {
+   "type": "gas_carrier",
+   "unit": "cbm",
+   "lo": 100000,
+   "hi": 199999,
+   "ships": 526,
+   "mean_dwt": 86804,
+   "aer_median_2022": 8.74
+  },
+  {
+   "type": "gas_carrier",
+   "unit": "cbm",
+   "lo": 200000,
+   "hi": null,
+   "ships": 43,
+   "mean_dwt": 120860,
+   "aer_median_2022": 10.1
+  },
+  {
+   "type": "oil_tanker",
+   "unit": "dwt",
+   "lo": 5000,
+   "hi": 9999,
+   "ships": 171,
+   "mean_dwt": 7699,
+   "aer_median_2022": 23.38
+  },
+  {
+   "type": "oil_tanker",
+   "unit": "dwt",
+   "lo": 10000,
+   "hi": 19999,
+   "ships": 104,
+   "mean_dwt": 14715,
+   "aer_median_2022": 15.99
+  },
+  {
+   "type": "oil_tanker",
+   "unit": "dwt",
+   "lo": 20000,
+   "hi": 59999,
+   "ships": 407,
+   "mean_dwt": 45017,
+   "aer_median_2022": 8.43
+  },
+  {
+   "type": "oil_tanker",
+   "unit": "dwt",
+   "lo": 60000,
+   "hi": 79999,
+   "ships": 378,
+   "mean_dwt": 73086,
+   "aer_median_2022": 6.48
+  },
+  {
+   "type": "oil_tanker",
+   "unit": "dwt",
+   "lo": 80000,
+   "hi": 119999,
+   "ships": 978,
+   "mean_dwt": 110249,
+   "aer_median_2022": 4.49
+  },
+  {
+   "type": "oil_tanker",
+   "unit": "dwt",
+   "lo": 120000,
+   "hi": 199999,
+   "ships": 605,
+   "mean_dwt": 156647,
+   "aer_median_2022": 3.42
+  },
+  {
+   "type": "oil_tanker",
+   "unit": "dwt",
+   "lo": 200000,
+   "hi": null,
+   "ships": 771,
+   "mean_dwt": 307948,
+   "aer_median_2022": 2.15
+  },
+  {
+   "type": "other_liquids",
+   "unit": "dwt",
+   "lo": 1000,
+   "hi": null,
+   "ships": 13,
+   "mean_dwt": 30548,
+   "aer_median_2022": 12.21
+  },
+  {
+   "type": "reefer",
+   "unit": "dwt",
+   "lo": 2000,
+   "hi": 5999,
+   "ships": 7,
+   "mean_dwt": 5435,
+   "aer_median_2022": 53.86
+  },
+  {
+   "type": "reefer",
+   "unit": "dwt",
+   "lo": 6000,
+   "hi": 9999,
+   "ships": 131,
+   "mean_dwt": 7627,
+   "aer_median_2022": 29.8
+  },
+  {
+   "type": "reefer",
+   "unit": "dwt",
+   "lo": 10000,
+   "hi": null,
+   "ships": 125,
+   "mean_dwt": 12910,
+   "aer_median_2022": 24.59
+  },
+  {
+   "type": "ro_ro",
+   "unit": "dwt",
+   "lo": 0,
+   "hi": 4999,
+   "ships": 22,
+   "mean_dwt": 4594,
+   "aer_median_2022": 56.92
+  },
+  {
+   "type": "ro_ro",
+   "unit": "dwt",
+   "lo": 5000,
+   "hi": 9999,
+   "ships": 93,
+   "mean_dwt": 7326,
+   "aer_median_2022": 35.52
+  },
+  {
+   "type": "ro_ro",
+   "unit": "dwt",
+   "lo": 10000,
+   "hi": 14999,
+   "ships": 106,
+   "mean_dwt": 12358,
+   "aer_median_2022": 32.2
+  },
+  {
+   "type": "ro_ro",
+   "unit": "dwt",
+   "lo": 15000,
+   "hi": null,
+   "ships": 98,
+   "mean_dwt": 24917,
+   "aer_median_2022": 16.68
+  },
+  {
+   "type": "vehicle_carrier",
+   "unit": "gt",
+   "lo": 0,
+   "hi": 29999,
+   "ships": 55,
+   "mean_dwt": 5822,
+   "aer_median_2022": 43.55
+  },
+  {
+   "type": "vehicle_carrier",
+   "unit": "gt",
+   "lo": 30000,
+   "hi": 49999,
+   "ships": 155,
+   "mean_dwt": 13438,
+   "aer_median_2022": 22.68
+  },
+  {
+   "type": "vehicle_carrier",
+   "unit": "gt",
+   "lo": 50000,
+   "hi": null,
+   "ships": 479,
+   "mean_dwt": 20812,
+   "aer_median_2022": 16.98
+  }
+ ]
+}

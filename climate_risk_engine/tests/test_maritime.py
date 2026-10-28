@@ -256,3 +256,50 @@ def test_api_options_and_scenarios():
                                             "years": [2026], "bunker_prices": [500], "allowance_prices": [80]})
     assert r.status_code == 200 and len(r.json()["rows"]) == 1
     assert c.post("/maritime/fleet-baseline", json={}).status_code in (200, 422)
+
+
+# ── IMO DCS class-median fallback ────────────────────────────────────────────
+from cri.maritime import classes as CL   # noqa: E402
+
+
+def test_class_table_is_transcribed_consistently():
+    L = CL.lib()
+    assert len(L["rows"]) == 54 and "MEPC 81/6/1" in L["source"]
+    for t in {r["type"] for r in L["rows"]}:
+        rows = sorted([r for r in L["rows"] if r["type"] == t], key=lambda r: r["lo"])
+        for a, b in zip(rows, rows[1:]):
+            assert a["hi"] is not None and b["lo"] > a["hi"]           # bins ascend without overlap
+        assert rows[-1]["hi"] is None                                   # the top bin is open-ended
+        assert all(r["aer_median_2022"] > 0 and r["mean_dwt"] > 0 for r in rows)
+    # spot rows read straight from the printed table
+    bulk = next(r for r in L["rows"] if r["type"] == "bulk_carrier" and r["lo"] == 60000)
+    assert (bulk["ships"], bulk["mean_dwt"], bulk["aer_median_2022"]) == (3930, 75794, 4.20)
+    box = next(r for r in L["rows"] if r["type"] == "container_ship" and r["lo"] == 8000)
+    assert (box["ships"], box["aer_median_2022"]) == (634, 7.26)
+
+
+def test_class_reference_arithmetic_and_binning():
+    r = CL.reference("bulk_carrier", dwt=75000)
+    assert r["row"]["lo"] == 60000
+    assert r["co2e_t_per_nm"] == pytest.approx(4.20 * 75000 / 1e6)
+    w = MF.wtw("hfo")
+    assert r["fuel_kg_per_nm_hfo_eq"] == pytest.approx(r["co2e_t_per_nm"] / (w["lcv_mj_per_g"] * w["ttw"]) * 1000)
+    assert CL.reference("container_ship", size=8000)["row"]["lo"] == 8000 and CL.reference("container_ship", size=7999)["row"]["lo"] == 5000
+    assert any("nearest mean DWT" in n for n in CL.reference("container_ship", dwt=110000)["notes"])
+    with pytest.raises(ValueError):
+        CL.reference("container_ship")                                   # no size: asks, does not guess
+
+
+def test_class_proxy_voyage_is_flagged_and_scales():
+    v = CL.vessel_from_class("bulk_carrier", 13, dwt=75000)
+    r = V.assess_voyage(v, 1000, 13, "hfo", SG, RT, 2026)
+    assert r["fuel"]["t"] == pytest.approx(v["fuel_kg_per_nm_ref"])       # 1000 nm x kg/nm / 1000
+    assert any("No record for this ship" in f for f in r["flags"]) and r["vessel"]["class_proxy"]
+    assert 20 < v["fuel_kg_per_nm_ref"] * 13 * 24 / 1000 < 40            # t/day at 13 kn: plausible for a Panamax-size bulker (sanity range)
+
+
+def test_answer_uses_class_median_when_only_type_and_size_are_given(tmp_path):
+    r = A.answer("The container ship Aurora, 8000 TEU, is docked at Singapore and moving to Rotterdam, 16000 NM at 20 knots", _geo, data_dir=tmp_path)
+    assert r["result"] is not None and r["reply"].startswith("Class estimate")
+    r = A.answer("The container ship Aurora is docked at Singapore and moving to Rotterdam, 16000 NM at 20 knots", _geo, data_dir=tmp_path)
+    assert r["result"] is None and "TEU" in r["reply"]                    # size missing: asks

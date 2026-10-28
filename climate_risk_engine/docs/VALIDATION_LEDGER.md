@@ -72,3 +72,9 @@ One row per hazard or model. "Tested against" means independent observations the
 - What it is not: a voyage-performance or noon-report model. Weather, fouling, load, currents, port fuel, shore power, pooling and banking outcomes are not modelled; ETS 2026+ gas basis and phase-in, and the FuelEU penalty formula, were not in the retrieved text (flagged in outputs; the penalty is computed only if a rate is supplied). The Suez-relevance check is a longitude heuristic. Great-circle distance is a lower bound.
 - Also in this module (tests in the same file): fleet baseline (sums of reported fields, IMO AER), abatement-option techno-economics from user-supplied costs (annuity NPV and levelised cost), and year x bunker price x allowance price scenarios with the regime moving by year.
 - Not validated: no ship-level comparison with MRV-verified emissions has been run, because no MRV file is available in this environment. Grade: C (derived and unit-tested; not yet checked against reported data).
+
+## Ship class-median fallback (IMO DCS 2022)
+- Evidence: `tests/test_maritime.py` (class table section): 54 rows transcribed from MEPC 81/6/1 Annex Table 6, bins ascend without overlap, spot rows equal the printed ones, CO2/nm = AER x DWT, HFO-equivalent fuel arithmetic, DWT-to-bin matching stated, missing size asks instead of guessing, plausibility range for a Panamax bulker's t/day.
+- What it is: when a ship has no record of its own, the IMO's median AER for its type and size bin gives CO2 per nautical mile; speed is the one the user gives. Output says "Class estimate".
+- What it is not: this ship's burn. The median spans laden and ballast legs and all speeds; fuel is expressed as HFO-equivalent; bins with no ships and the 2019-2021 tables are not transcribed. Ship types outside the Fourth IMO GHG Study list (offshore, tugs, fishing) have no class.
+- Not validated against reported per-ship fuel (no MRV file here). Grade: C.
