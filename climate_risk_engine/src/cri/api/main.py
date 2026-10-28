@@ -7051,6 +7051,90 @@ def carbon_epa_factors(req: EpaFactorRequest) -> dict:
         raise HTTPException(status_code=422, detail=str(exc))
 
 
+class PortIn(BaseModel):
+    name: str
+    lat: float = Field(..., ge=-90, le=90)
+    lon: float = Field(..., ge=-180, le=180)
+    country_code: Optional[str] = Field(None, min_length=2, max_length=2, description="ISO 3166-1 alpha-2; decides EU ETS / FuelEU scope")
+
+
+class VoyageRequest(BaseModel):
+    ship_name: Optional[str] = None
+    imo: Optional[str] = Field(None, description="looked up in the fleet files under data/vessels/")
+    reference_speed_kn: Optional[float] = Field(None, gt=0, description="with fuel_kg_per_nm_ref or daily_consumption_t, overrides the fleet file")
+    daily_consumption_t: Optional[float] = Field(None, gt=0, description="tonnes per day at reference_speed_kn")
+    fuel_kg_per_nm_ref: Optional[float] = Field(None, gt=0)
+    gt: Optional[float] = Field(None, gt=0)
+    design_speed_kn: Optional[float] = Field(None, gt=0)
+    origin: PortIn
+    dest: PortIn
+    distance_nm: Optional[float] = Field(None, gt=0, description="sailed distance; without it the great-circle lower bound is used and flagged")
+    speed_kn: Optional[float] = Field(None, gt=0)
+    fuel: Optional[str] = Field(None, description="FuelEU Annex II key, see GET /lca/marine-fuels")
+    year: Optional[int] = Field(None, ge=2024, le=2050)
+    bunker_usd_per_t: Optional[float] = Field(None, ge=0)
+    charter_usd_per_day: Optional[float] = Field(None, ge=0)
+    canal_usd: Optional[float] = Field(None, ge=0)
+    port_usd: Optional[float] = Field(None, ge=0)
+    other_usd: Optional[float] = Field(None, ge=0)
+    eua_price: Optional[float] = Field(None, ge=0)
+    eua_currency: str = "EUR"
+    speed_options_kn: Optional[list[float]] = None
+    delay_days: Optional[list[float]] = None
+    diversion_pct: Optional[float] = Field(None, ge=0, le=200)
+    speed_exponent: float = Field(2.0, ge=1.0, le=3.5)
+    fueleu_penalty_eur_per_t_vlsfoe: Optional[float] = Field(None, ge=0)
+
+
+@app.get("/maritime/fleet", dependencies=[_AUTH], tags=["Maritime"])
+def maritime_fleet() -> dict:
+    """Fleet files the engine can read (data/vessels/*.csv|xlsx) with the columns it matched and ignored."""
+    from ..maritime import vessel as VS
+    out = []
+    for f in sorted(VS.DATA_DIR.glob("*")) if VS.DATA_DIR.exists() else []:
+        if f.suffix.lower() in (".csv", ".xlsx", ".xls"):
+            try:
+                L = VS.load_fleet_file(f)
+                out.append({"file": f.name, "ships": len(L["ships"]), "matched_columns": L["matched_columns"], "ignored_columns": L["ignored_columns"]})
+            except Exception as e:                                       # noqa: BLE001
+                out.append({"file": f.name, "error": f"{type(e).__name__}: {str(e)[:120]}"})
+    return {"files": out, "how_to_add": "Place the EU MRV (THETIS-MRV) annual report or your own fleet CSV in data/vessels/. Columns are matched by name; see /maritime/fleet for what was understood."}
+
+
+@app.post("/maritime/voyage", dependencies=[_AUTH], tags=["Maritime"])
+def maritime_voyage(req: VoyageRequest) -> dict:
+    """One ship, one voyage: fuel, CO2e (tank-to-wake and well-to-wake), EU ETS and FuelEU exposure, costs from the figures you give, speed/delay/diversion cases and mitigation options.
+    Fuel burn comes from the ship's record (fleet file) or from your daily consumption; nothing is assumed."""
+    from ..maritime import vessel as VS, voyage as V
+    from ..lca import marine_fuels as MF
+    v = None
+    if req.imo or req.ship_name:
+        f = VS.find(req.imo or req.ship_name)
+        v = f["vessel"]
+        if v is None and not (req.daily_consumption_t or req.fuel_kg_per_nm_ref):
+            raise HTTPException(status_code=422, detail={"error": f["why"], "candidates": f["candidates"]})
+    v = dict(v or {"name": req.ship_name, "imo": req.imo})
+    if req.reference_speed_kn:
+        v["reference_speed_kn"] = req.reference_speed_kn
+    if req.fuel_kg_per_nm_ref:
+        v["fuel_kg_per_nm_ref"] = req.fuel_kg_per_nm_ref
+    elif req.daily_consumption_t and v.get("reference_speed_kn"):
+        v["fuel_kg_per_nm_ref"] = req.daily_consumption_t * 1000.0 / (24.0 * v["reference_speed_kn"])
+    for k in ("gt", "design_speed_kn"):
+        if getattr(req, k) is not None:
+            v[k] = getattr(req, k)
+    mk = {k: getattr(req, k) for k in ("bunker_usd_per_t", "charter_usd_per_day", "canal_usd", "port_usd", "other_usd") if getattr(req, k) is not None}
+    if req.eua_price is not None:
+        mk["eua_price"], mk["currency"] = req.eua_price, req.eua_currency
+    try:
+        return V.assess_voyage(v, req.distance_nm, req.speed_kn, req.fuel, req.origin.model_dump(), req.dest.model_dump(), req.year, mk, req.speed_options_kn, req.delay_days, req.diversion_pct,
+                               req.speed_exponent, req.fueleu_penalty_eur_per_t_vlsfoe)
+    except V.VoyageInputError as exc:
+        raise HTTPException(status_code=422, detail={"error": str(exc), "missing": exc.missing})
+    except MF.MarineFuelError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+
+
 @app.get("/materiality/dashboard", tags=["CSRD"])
 def materiality_dashboard():
     from fastapi.responses import HTMLResponse

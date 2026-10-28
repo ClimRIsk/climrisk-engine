@@ -127,10 +127,10 @@ def geocode(q: str) -> Optional[dict]:
         return _GEO[q]
     try:
         import requests
-        r = requests.get("https://nominatim.openstreetmap.org/search", params={"q": q, "format": "json", "limit": 1},
+        r = requests.get("https://nominatim.openstreetmap.org/search", params={"q": q, "format": "json", "limit": 1, "addressdetails": 1},
                          headers={"User-Agent": "ClimRisk-resident/1.0"}, timeout=12)
         j = r.json()
-        v = {"lat": float(j[0]["lat"]), "lon": float(j[0]["lon"]), "name": j[0].get("display_name", q)[:80]} if j else None
+        v = {"lat": float(j[0]["lat"]), "lon": float(j[0]["lon"]), "name": j[0].get("display_name", q)[:80], "country_code": (j[0].get("address") or {}).get("country_code")} if j else None
     except Exception:                                                # noqa: BLE001
         v = None
     _GEO[q] = v
@@ -183,7 +183,7 @@ class Agent:
         text = (text or "").strip()
         if not text:
             return {"reply": "Ask me something — for example \"build a 3D twin of 22.2645, 91.805\".", "blocks": [], "actions": [], "intent": "empty"}
-        quick = self._feasibility_commands(session, text) or self._event_commands(session, text) or self._userdoc_commands(session, text) or self._autopilot_commands(session, text) or self._knowledge_commands(session, text) or self._stress_commands(session, text) or self._scenario_commands(session, text) or self._source_commands(session, text) or self._profile_commands(session, text) or self._lab_commands(session, text) or self._case_commands(session, text) or self._extension_commands(session, text)
+        quick = self._voyage_commands(session, text) or self._feasibility_commands(session, text) or self._event_commands(session, text) or self._userdoc_commands(session, text) or self._autopilot_commands(session, text) or self._knowledge_commands(session, text) or self._stress_commands(session, text) or self._scenario_commands(session, text) or self._source_commands(session, text) or self._profile_commands(session, text) or self._lab_commands(session, text) or self._case_commands(session, text) or self._extension_commands(session, text)
         if quick:
             if quick.get("intent") in (None, "knowledge", "learn"):      # autopilot commands log themselves
                 quick.setdefault("intent", "knowledge")
@@ -231,6 +231,23 @@ class Agent:
 
     _SSP_WORDS = (("ssp126", r"ssp\s*-?\s*1[\s.\-]*2\.?6|strong(?:ly)? mitigat\w*|paris|net[\s\-]*zero pathway|low emissions?"), ("ssp245", r"ssp\s*-?\s*2[\s.\-]*4\.?5|middle[\s\-]*of[\s\-]*the[\s\-]*road|moderate emissions?|current policies"),
                   ("ssp370", r"ssp\s*-?\s*3[\s.\-]*7\.?0|high emissions?|regional rivalry"), ("ssp585", r"ssp\s*-?\s*5[\s.\-]*8\.?5|very high emissions?|worst[\s\-]*case|business[\s\-]*as[\s\-]*usual|fossil[\s\-]*fuel(?:ed)? (?:future|pathway)"))
+
+    def _voyage_commands(self, session, text) -> Optional[dict]:
+        """A ship at one port, bound for another: fuel, CO2e, EU ETS/FuelEU exposure, costs, disruption cases and mitigation. See maritime/answer.py.
+        The ship's fuel burn comes from its record (fleet file) or from numbers the user gives; it is never guessed."""
+        from ..maritime import answer as MA
+        if not MA.matches(text):
+            return None
+        M.add_message(session, "user", text, "voyage", {})
+
+        def work():
+            r = MA.answer(text, geocode)
+            M.add_run("voyage", {"text": text[:200]}, [], True, r["reply"][:200])
+            return {"reply": r["reply"], "blocks": r["blocks"], "actions": r["actions"]}
+        j = _job(work, "assessing voyage")
+        out = {"reply": "Reading the ship and the two ports, then working out fuel, emissions, EU rules, costs and the disruption cases. About half a minute.", "blocks": [], "actions": [], "job": j["id"], "intent": "voyage", "confidence": 1.0}
+        M.add_message(session, "agent", out["reply"], "voyage", {"job": j["id"]})
+        return out
 
     def _feasibility_commands(self, session, text) -> Optional[dict]:
         """'Can I build a 10-storey building here, what would it cost?' Answered from the site's hazards; never priced, never routed to the twin tool."""
