@@ -46,3 +46,45 @@ def test_errors():
                  lambda: E.mobile_co2("Water", 1.0), lambda: E.travel_or_transport("Bus", 1.0, "t99")):
         with pytest.raises(E.EpaFactorError):
             call()
+
+
+# ── F-gases, blended refrigerants and waste (Hub Tables 9, 11, 12) ───────────
+
+def test_blend_gwps_reproduce_from_composition_and_table_11():
+    """Each blend's printed GWP must equal sum(fraction x GWP of its HFC/PFC parts): catches transcription slips in both tables."""
+    L = E.lib()
+    G = L["table11_gwp_ar5"]
+    known = {d["item"].split()[0] for d in L["known_discrepancies"]}
+    bad = []
+    for n, b in L["table12_blends"].items():
+        calc = sum(c["pct"] / 100 * G[c["substance"]]["gwp100_ar5"] for c in b["composition"] if c["substance"] in G)
+        if abs(calc - b["gwp100"]) > 1.0 and n not in known:
+            bad.append((n, calc, b["gwp100"]))
+    assert not bad, bad
+    assert len(L["table12_blends"]) == 30 and len(G) == 32
+
+
+def test_known_discrepancy_is_flagged_not_hidden():
+    r = E.f_gas("R-424A", 10)
+    assert r["gwp100"] == 3104 and "2,212" in r["caution"]
+    assert "caution" not in E.f_gas("R-410A", 10)
+
+
+def test_f_gas_by_hand():
+    assert E.f_gas("SF6", 2.0)["kg_co2e"] == pytest.approx(2.0 * 23500)
+    assert E.f_gas("hfc-134a", 1.0)["gwp100"] == 1300 and E.gwp("CF4")["gwp100"] == 6630
+    assert E.f_gas("R-410A", 100)["kg_co2e"] == pytest.approx(192400) and abs(0.5 * 677 + 0.5 * 3170 - 1924) < 1
+    with pytest.raises(E.EpaFactorError):
+        E.f_gas("HFO-1234yf", 1)
+
+
+def test_waste_factors_and_na_is_not_zero():
+    r = E.waste("Mixed MSW", 10, "landfilled")
+    assert r["tco2e"] == pytest.approx(5.8) and "AR4" in r["gwp_basis"]
+    assert E.waste("PET", 2, "combusted")["tco2e"] == pytest.approx(4.10)
+    with pytest.raises(E.EpaFactorError) as e:
+        E.waste("PET", 1, "composted")                       # NA in the Hub
+    assert "NA" in str(e.value)
+    with pytest.raises(E.EpaFactorError):
+        E.waste("Mixed MSW", 1, "burned")
+    assert len(E.lib()["table9_waste_tco2e_per_short_ton"]["materials"]) == 61

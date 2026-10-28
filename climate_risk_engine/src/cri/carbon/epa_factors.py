@@ -96,3 +96,55 @@ def travel_or_transport(kind: str, quantity: float, table: str = "table10_scope3
     f = T[kind]
     co2, ch4, n2o = quantity * f["kgco2_per_unit"], quantity * f["gch4_per_unit"], quantity * f["gn2o_per_unit"]
     return {"entry": kind, "quantity": quantity, "unit": f["unit"], "kg_co2": co2, "kg_co2e": _co2e(co2, ch4, n2o), **_src(table)}
+
+
+WASTE_METHODS = ("recycled", "landfilled", "combusted", "composted", "anaerobic_dry_digestate", "anaerobic_wet_digestate")
+
+
+def gwp(substance: str) -> dict:
+    """100-year GWP (IPCC AR5) from Hub Table 11, for any listed gas (HFCs, PFCs, SF6, NF3 as well as CO2, CH4, N2O)."""
+    T = lib()["table11_gwp_ar5"]
+    k = next((n for n in T if n.lower() == substance.lower() or T[n]["formula"].lower() == substance.lower()), None)
+    if k is None:
+        raise EpaFactorError(f"unknown substance {substance!r}; choose from: {', '.join(sorted(T))}")
+    return {"substance": k, "formula": T[k]["formula"], "gwp100": T[k]["gwp100_ar5"], **_src("Table 11 Global Warming Potential (AR5)")}
+
+
+def f_gas(substance: str, kg: float) -> dict:
+    """Emission of a fluorinated gas or a blended refrigerant (Table 11 / Table 12), kg released x GWP. Blend GWPs count their HFC and PFC parts only, as the Hub states."""
+    if kg < 0:
+        raise EpaFactorError("kg must be >= 0")
+    L = lib()
+    blends = L["table12_blends"]
+    b = next((n for n in blends if n.lower() == substance.lower()), None)
+    if b is not None:
+        res = {"substance": b, "kind": "blend", "gwp100": blends[b]["gwp100"], "composition": blends[b]["composition"], **_src("Table 12 GWP for Blended Refrigerants")}
+        flagged = [x for x in L.get("known_discrepancies", []) if x["item"].startswith(b)]
+        if flagged:
+            res["caution"] = flagged[0]["note"]
+    else:
+        g = gwp(substance)
+        res = {"substance": g["substance"], "kind": "gas", "gwp100": g["gwp100"], **_src("Table 11 Global Warming Potential (AR5)")}
+    res["combustion_only"] = False
+    res["kg_released"] = kg
+    res["kg_co2e"] = kg * res["gwp100"]
+    res["note"] = "Mass released to air (leakage, process venting). The Hub gives GWPs, not leak rates: how much was released must come from your own records or a measured/inventory method."
+    return res
+
+
+def waste(material: str, short_tons: float, method: str) -> dict:
+    """Scope 3 waste (Table 9, from EPA WARM): metric tons CO2e per short ton of material by disposal method. NA means the Hub gives no factor for that pair and an error is raised, not zero."""
+    T = lib()["table9_waste_tco2e_per_short_ton"]
+    M = T["materials"]
+    k = next((n for n in M if n.lower() == material.lower()), None)
+    if k is None:
+        raise EpaFactorError(f"unknown material {material!r}; choose from: {', '.join(sorted(M))}")
+    if method not in WASTE_METHODS:
+        raise EpaFactorError(f"method must be one of {', '.join(WASTE_METHODS)}")
+    f = M[k][method]
+    if f is None:
+        raise EpaFactorError(f"the Hub has no factor for {k} by {method} (NA); pick a method it lists: {', '.join(m for m in WASTE_METHODS if M[k][m] is not None)}")
+    if short_tons < 0:
+        raise EpaFactorError("short_tons must be >= 0")
+    return {"material": k, "method": method, "short_tons": short_tons, "tco2e_per_short_ton": f, "tco2e": short_tons * f, "metric_tons_material": short_tons * 0.90718474,
+            "gwp_basis": T["gwp_basis"], "excludes": T["excludes"], **_src("Table 9 Scope 3 Category 5 / 12 Waste (EPA WARM, Dec 2023)"), "combustion_only": False}

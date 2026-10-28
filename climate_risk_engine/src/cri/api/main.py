@@ -7016,10 +7016,11 @@ def lca_marine_ship_intensity(req: MarineFuelRequest) -> dict:
 
 
 class EpaFactorRequest(BaseModel):
-    kind: str = Field(..., pattern="^(stationary|mobile_co2|electricity|steam_heat|transport|travel)$")
+    kind: str = Field(..., pattern="^(stationary|mobile_co2|electricity|steam_heat|transport|travel|waste|f_gas)$")
     name: Optional[str] = Field(None, description="fuel, eGRID subregion, or transport/travel entry")
     amount: float = Field(..., ge=0)
     unit: Optional[str] = None
+    method: Optional[str] = Field(None, description="waste disposal method for kind=waste")
     hhv_mmbtu_per_unit: Optional[float] = Field(None, gt=0, description="supplier heat content; overrides the Hub default")
 
 
@@ -7030,7 +7031,8 @@ def carbon_epa_factors_list() -> dict:
     L = EF.lib()
     return {"source": L["source"], "url": L["url"], "retrieved": L["retrieved"], "not_checked": L["not_checked"], "not_transcribed": L["not_transcribed"],
             "fuels": sorted(L["table1_stationary"]), "mobile_fuels": sorted(L["table2_mobile_co2"]), "egrid_subregions": sorted(L["table6_egrid_total_output"]),
-            "transport": sorted(L["table8_scope3_transport"]), "travel": sorted(L["table10_scope3_travel"])}
+            "transport": sorted(L["table8_scope3_transport"]), "travel": sorted(L["table10_scope3_travel"]),
+            "waste_materials": sorted(L["table9_waste_tco2e_per_short_ton"]["materials"]), "f_gases": sorted(L["table11_gwp_ar5"]), "blended_refrigerants": sorted(L["table12_blends"])}
 
 
 @app.post("/carbon/epa-factors", dependencies=[_AUTH], tags=["Carbon"])
@@ -7046,6 +7048,10 @@ def carbon_epa_factors(req: EpaFactorRequest) -> dict:
             return EF.electricity(req.name or "", req.amount)
         if req.kind == "steam_heat":
             return EF.steam_heat(req.amount)
+        if req.kind == "waste":
+            return EF.waste(req.name or "", req.amount, req.method or "")
+        if req.kind == "f_gas":
+            return EF.f_gas(req.name or "", req.amount)
         return EF.travel_or_transport(req.name or "", req.amount, "table8_scope3_transport" if req.kind == "transport" else "table10_scope3_travel")
     except EF.EpaFactorError as exc:
         raise HTTPException(status_code=422, detail=str(exc))

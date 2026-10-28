@@ -20,10 +20,7 @@
  "combustion_only": "Factors are combustion (tank-to-wheel) only and exclude upstream emissions.",
  "not_transcribed": [
   "Tables 3-5 (vehicle-year CH4/N2O)",
-  "Table 9 (waste, WARM)",
-  "Table 12 (blended refrigerants)",
-  "non-baseload eGRID columns",
-  "remaining GWPs"
+  "non-baseload eGRID columns"
  ],
  "table1_stationary": {
   "Anthracite": {
@@ -912,5 +909,1157 @@
    "gn2o_per_unit": 0.0052,
    "unit": "passenger-mile"
   }
- }
+ },
+ "table11_gwp_ar5": {
+  "Carbon dioxide": {
+   "formula": "CO2",
+   "gwp100_ar5": 1
+  },
+  "Methane": {
+   "formula": "CH4",
+   "gwp100_ar5": 28
+  },
+  "Nitrous oxide": {
+   "formula": "N2O",
+   "gwp100_ar5": 265
+  },
+  "HFC-23": {
+   "formula": "CHF3",
+   "gwp100_ar5": 12400
+  },
+  "HFC-32": {
+   "formula": "CH2F2",
+   "gwp100_ar5": 677
+  },
+  "HFC-41": {
+   "formula": "CH3F",
+   "gwp100_ar5": 116
+  },
+  "HFC-125": {
+   "formula": "CHF2CF3",
+   "gwp100_ar5": 3170
+  },
+  "HFC-134": {
+   "formula": "CHF2CHF2",
+   "gwp100_ar5": 1120
+  },
+  "HFC-134a": {
+   "formula": "CH2FCF3",
+   "gwp100_ar5": 1300
+  },
+  "HFC-143": {
+   "formula": "CH2FCHF2",
+   "gwp100_ar5": 328
+  },
+  "HFC-143a": {
+   "formula": "CH3CF3",
+   "gwp100_ar5": 4800
+  },
+  "HFC-152": {
+   "formula": "CH2FCH2F",
+   "gwp100_ar5": 16
+  },
+  "HFC-152a": {
+   "formula": "CH3CHF2",
+   "gwp100_ar5": 138
+  },
+  "HFC-161": {
+   "formula": "CH3CH2F",
+   "gwp100_ar5": 4
+  },
+  "HFC-227ea": {
+   "formula": "CF3CHFCF3",
+   "gwp100_ar5": 3350
+  },
+  "HFC-236cb": {
+   "formula": "CH2FCF2CF3",
+   "gwp100_ar5": 1210
+  },
+  "HFC-236ea": {
+   "formula": "CHF2CHFCF3",
+   "gwp100_ar5": 1330
+  },
+  "HFC-236fa": {
+   "formula": "CF3CH2CF3",
+   "gwp100_ar5": 8060
+  },
+  "HFC-245ca": {
+   "formula": "CH2FCF2CHF2",
+   "gwp100_ar5": 716
+  },
+  "HFC-245fa": {
+   "formula": "CHF2CH2CF3",
+   "gwp100_ar5": 858
+  },
+  "HFC-365mfc": {
+   "formula": "CH3CF2CH2CF3",
+   "gwp100_ar5": 804
+  },
+  "HFC-43-10mee": {
+   "formula": "CF3CHFCHFCF2CF3",
+   "gwp100_ar5": 1650
+  },
+  "Sulfur hexafluoride": {
+   "formula": "SF6",
+   "gwp100_ar5": 23500
+  },
+  "Nitrogen trifluoride": {
+   "formula": "NF3",
+   "gwp100_ar5": 16100
+  },
+  "PFC-14": {
+   "formula": "CF4",
+   "gwp100_ar5": 6630
+  },
+  "PFC-116": {
+   "formula": "C2F6",
+   "gwp100_ar5": 11100
+  },
+  "PFC-218": {
+   "formula": "C3F8",
+   "gwp100_ar5": 8900
+  },
+  "PFC-318": {
+   "formula": "c-C4F8",
+   "gwp100_ar5": 9540
+  },
+  "PFC-31-10": {
+   "formula": "C4F10",
+   "gwp100_ar5": 9200
+  },
+  "PFC-41-12": {
+   "formula": "C5F12",
+   "gwp100_ar5": 8550
+  },
+  "PFC-51-14": {
+   "formula": "C6F14",
+   "gwp100_ar5": 7910
+  },
+  "PFC-91-18": {
+   "formula": "C10F18",
+   "gwp100_ar5": 7190
+  }
+ },
+ "table12_blends": {
+  "R-401A": {
+   "gwp100": 18,
+   "composition": [
+    {
+     "pct": 53.0,
+     "substance": "HCFC-22"
+    },
+    {
+     "pct": 34.0,
+     "substance": "HCFC-124"
+    },
+    {
+     "pct": 13.0,
+     "substance": "HFC-152a"
+    }
+   ]
+  },
+  "R-401B": {
+   "gwp100": 15,
+   "composition": [
+    {
+     "pct": 61.0,
+     "substance": "HCFC-22"
+    },
+    {
+     "pct": 28.0,
+     "substance": "HCFC-124"
+    },
+    {
+     "pct": 11.0,
+     "substance": "HFC-152a"
+    }
+   ]
+  },
+  "R-401C": {
+   "gwp100": 21,
+   "composition": [
+    {
+     "pct": 33.0,
+     "substance": "HCFC-22"
+    },
+    {
+     "pct": 52.0,
+     "substance": "HCFC-124"
+    },
+    {
+     "pct": 15.0,
+     "substance": "HFC-152a"
+    }
+   ]
+  },
+  "R-402A": {
+   "gwp100": 1902,
+   "composition": [
+    {
+     "pct": 38.0,
+     "substance": "HCFC-22"
+    },
+    {
+     "pct": 60.0,
+     "substance": "HFC-125"
+    },
+    {
+     "pct": 2.0,
+     "substance": "propane"
+    }
+   ]
+  },
+  "R-402B": {
+   "gwp100": 1205,
+   "composition": [
+    {
+     "pct": 60.0,
+     "substance": "HCFC-22"
+    },
+    {
+     "pct": 38.0,
+     "substance": "HFC-125"
+    },
+    {
+     "pct": 2.0,
+     "substance": "propane"
+    }
+   ]
+  },
+  "R-403B": {
+   "gwp100": 3471,
+   "composition": [
+    {
+     "pct": 56.0,
+     "substance": "HCFC-22"
+    },
+    {
+     "pct": 39.0,
+     "substance": "PFC-218"
+    },
+    {
+     "pct": 5.0,
+     "substance": "propane"
+    }
+   ]
+  },
+  "R-404A": {
+   "gwp100": 3943,
+   "composition": [
+    {
+     "pct": 44.0,
+     "substance": "HFC-125"
+    },
+    {
+     "pct": 4.0,
+     "substance": "HFC-134a"
+    },
+    {
+     "pct": 52.0,
+     "substance": "HFC-143a"
+    }
+   ]
+  },
+  "R-406A": {
+   "gwp100": 0,
+   "composition": [
+    {
+     "pct": 55.0,
+     "substance": "HCFC-22"
+    },
+    {
+     "pct": 41.0,
+     "substance": "HCFC-142b"
+    },
+    {
+     "pct": 4.0,
+     "substance": "isobutane"
+    }
+   ]
+  },
+  "R-407A": {
+   "gwp100": 1923,
+   "composition": [
+    {
+     "pct": 20.0,
+     "substance": "HFC-32"
+    },
+    {
+     "pct": 40.0,
+     "substance": "HFC-125"
+    },
+    {
+     "pct": 40.0,
+     "substance": "HFC-134a"
+    }
+   ]
+  },
+  "R-407B": {
+   "gwp100": 2547,
+   "composition": [
+    {
+     "pct": 10.0,
+     "substance": "HFC-32"
+    },
+    {
+     "pct": 70.0,
+     "substance": "HFC-125"
+    },
+    {
+     "pct": 20.0,
+     "substance": "HFC-134a"
+    }
+   ]
+  },
+  "R-407C": {
+   "gwp100": 1624,
+   "composition": [
+    {
+     "pct": 23.0,
+     "substance": "HFC-32"
+    },
+    {
+     "pct": 25.0,
+     "substance": "HFC-125"
+    },
+    {
+     "pct": 52.0,
+     "substance": "HFC-134a"
+    }
+   ]
+  },
+  "R-407D": {
+   "gwp100": 1487,
+   "composition": [
+    {
+     "pct": 15.0,
+     "substance": "HFC-32"
+    },
+    {
+     "pct": 15.0,
+     "substance": "HFC-125"
+    },
+    {
+     "pct": 70.0,
+     "substance": "HFC-134a"
+    }
+   ]
+  },
+  "R-408A": {
+   "gwp100": 2430,
+   "composition": [
+    {
+     "pct": 47.0,
+     "substance": "HCFC-22"
+    },
+    {
+     "pct": 7.0,
+     "substance": "HFC-125"
+    },
+    {
+     "pct": 46.0,
+     "substance": "HFC-143a"
+    }
+   ]
+  },
+  "R-409A": {
+   "gwp100": 0,
+   "composition": [
+    {
+     "pct": 60.0,
+     "substance": "HCFC-22"
+    },
+    {
+     "pct": 25.0,
+     "substance": "HCFC-124"
+    },
+    {
+     "pct": 15.0,
+     "substance": "HCFC-142b"
+    }
+   ]
+  },
+  "R-410A": {
+   "gwp100": 1924,
+   "composition": [
+    {
+     "pct": 50.0,
+     "substance": "HFC-32"
+    },
+    {
+     "pct": 50.0,
+     "substance": "HFC-125"
+    }
+   ]
+  },
+  "R-410B": {
+   "gwp100": 2048,
+   "composition": [
+    {
+     "pct": 45.0,
+     "substance": "HFC-32"
+    },
+    {
+     "pct": 55.0,
+     "substance": "HFC-125"
+    }
+   ]
+  },
+  "R-411A": {
+   "gwp100": 15,
+   "composition": [
+    {
+     "pct": 87.5,
+     "substance": "HCFC-22"
+    },
+    {
+     "pct": 11.0,
+     "substance": "HFC-152a"
+    },
+    {
+     "pct": 1.5,
+     "substance": "propylene"
+    }
+   ]
+  },
+  "R-411B": {
+   "gwp100": 4,
+   "composition": [
+    {
+     "pct": 94.0,
+     "substance": "HCFC-22"
+    },
+    {
+     "pct": 3.0,
+     "substance": "HFC-152a"
+    },
+    {
+     "pct": 3.0,
+     "substance": "propylene"
+    }
+   ]
+  },
+  "R-414A": {
+   "gwp100": 0,
+   "composition": [
+    {
+     "pct": 51.0,
+     "substance": "HCFC-22"
+    },
+    {
+     "pct": 28.5,
+     "substance": "HCFC-124"
+    },
+    {
+     "pct": 16.5,
+     "substance": "HCFC-142b"
+    },
+    {
+     "pct": 4.0,
+     "substance": "isobutane"
+    }
+   ]
+  },
+  "R-414B": {
+   "gwp100": 0,
+   "composition": [
+    {
+     "pct": 50.0,
+     "substance": "HCFC-22"
+    },
+    {
+     "pct": 39.0,
+     "substance": "HCFC-124"
+    },
+    {
+     "pct": 9.5,
+     "substance": "HCFC-142b"
+    },
+    {
+     "pct": 1.5,
+     "substance": "isobutane"
+    }
+   ]
+  },
+  "R-417A": {
+   "gwp100": 2127,
+   "composition": [
+    {
+     "pct": 46.6,
+     "substance": "HFC-125"
+    },
+    {
+     "pct": 50.0,
+     "substance": "HFC-134a"
+    },
+    {
+     "pct": 3.4,
+     "substance": "butane"
+    }
+   ]
+  },
+  "R-422A": {
+   "gwp100": 2847,
+   "composition": [
+    {
+     "pct": 85.1,
+     "substance": "HFC-125"
+    },
+    {
+     "pct": 11.5,
+     "substance": "HFC-134a"
+    },
+    {
+     "pct": 3.4,
+     "substance": "isobutane"
+    }
+   ]
+  },
+  "R-422D": {
+   "gwp100": 2473,
+   "composition": [
+    {
+     "pct": 65.1,
+     "substance": "HFC-125"
+    },
+    {
+     "pct": 31.5,
+     "substance": "HFC-134a"
+    },
+    {
+     "pct": 3.4,
+     "substance": "isobutane"
+    }
+   ]
+  },
+  "R-424A": {
+   "gwp100": 3104,
+   "composition": [
+    {
+     "pct": 50.5,
+     "substance": "HFC-125"
+    },
+    {
+     "pct": 47.0,
+     "substance": "HFC-134a"
+    },
+    {
+     "pct": 1.0,
+     "substance": "butane"
+    },
+    {
+     "pct": 0.9,
+     "substance": "isobutane"
+    },
+    {
+     "pct": 0.6,
+     "substance": "isopentane"
+    }
+   ]
+  },
+  "R-426A": {
+   "gwp100": 1371,
+   "composition": [
+    {
+     "pct": 5.1,
+     "substance": "HFC-125"
+    },
+    {
+     "pct": 93.0,
+     "substance": "HFC-134a"
+    },
+    {
+     "pct": 1.3,
+     "substance": "butane"
+    },
+    {
+     "pct": 0.6,
+     "substance": "isobutane"
+    }
+   ]
+  },
+  "R-428A": {
+   "gwp100": 3417,
+   "composition": [
+    {
+     "pct": 77.5,
+     "substance": "HFC-125"
+    },
+    {
+     "pct": 20.0,
+     "substance": "HFC-143a"
+    },
+    {
+     "pct": 1.9,
+     "substance": "isobutane"
+    },
+    {
+     "pct": 0.6,
+     "substance": "propane"
+    }
+   ]
+  },
+  "R-434A": {
+   "gwp100": 3075,
+   "composition": [
+    {
+     "pct": 63.2,
+     "substance": "HFC-125"
+    },
+    {
+     "pct": 16.0,
+     "substance": "HFC-134a"
+    },
+    {
+     "pct": 18.0,
+     "substance": "HFC-143a"
+    },
+    {
+     "pct": 2.8,
+     "substance": "isobutane"
+    }
+   ]
+  },
+  "R-507A": {
+   "gwp100": 3985,
+   "composition": [
+    {
+     "pct": 50.0,
+     "substance": "HFC-125"
+    },
+    {
+     "pct": 50.0,
+     "substance": "HFC-143a"
+    }
+   ]
+  },
+  "R-508A": {
+   "gwp100": 11607,
+   "composition": [
+    {
+     "pct": 39.0,
+     "substance": "HFC-23"
+    },
+    {
+     "pct": 61.0,
+     "substance": "PFC-116"
+    }
+   ]
+  },
+  "R-508B": {
+   "gwp100": 11698,
+   "composition": [
+    {
+     "pct": 46.0,
+     "substance": "HFC-23"
+    },
+    {
+     "pct": 54.0,
+     "substance": "PFC-116"
+    }
+   ]
+  }
+ },
+ "table9_waste_tco2e_per_short_ton": {
+  "gwp_basis": "AR4 (the Hub states WARM factors use AR4 GWPs)",
+  "excludes": "avoided emissions from every disposal method; includes transport to the facility",
+  "materials": {
+   "Aluminum Cans": {
+    "recycled": 0.06,
+    "landfilled": 0.02,
+    "combusted": 0.01,
+    "composted": null,
+    "anaerobic_dry_digestate": null,
+    "anaerobic_wet_digestate": null
+   },
+   "Aluminum Ingot": {
+    "recycled": 0.04,
+    "landfilled": 0.02,
+    "combusted": 0.01,
+    "composted": null,
+    "anaerobic_dry_digestate": null,
+    "anaerobic_wet_digestate": null
+   },
+   "Steel Cans": {
+    "recycled": 0.32,
+    "landfilled": 0.02,
+    "combusted": 0.01,
+    "composted": null,
+    "anaerobic_dry_digestate": null,
+    "anaerobic_wet_digestate": null
+   },
+   "Copper Wire": {
+    "recycled": 0.18,
+    "landfilled": 0.02,
+    "combusted": 0.01,
+    "composted": null,
+    "anaerobic_dry_digestate": null,
+    "anaerobic_wet_digestate": null
+   },
+   "Glass": {
+    "recycled": 0.05,
+    "landfilled": 0.02,
+    "combusted": 0.01,
+    "composted": null,
+    "anaerobic_dry_digestate": null,
+    "anaerobic_wet_digestate": null
+   },
+   "HDPE": {
+    "recycled": 0.21,
+    "landfilled": 0.02,
+    "combusted": 2.8,
+    "composted": null,
+    "anaerobic_dry_digestate": null,
+    "anaerobic_wet_digestate": null
+   },
+   "LDPE": {
+    "recycled": null,
+    "landfilled": 0.02,
+    "combusted": 2.8,
+    "composted": null,
+    "anaerobic_dry_digestate": null,
+    "anaerobic_wet_digestate": null
+   },
+   "PET": {
+    "recycled": 0.23,
+    "landfilled": 0.02,
+    "combusted": 2.05,
+    "composted": null,
+    "anaerobic_dry_digestate": null,
+    "anaerobic_wet_digestate": null
+   },
+   "LLDPE": {
+    "recycled": null,
+    "landfilled": 0.02,
+    "combusted": 2.8,
+    "composted": null,
+    "anaerobic_dry_digestate": null,
+    "anaerobic_wet_digestate": null
+   },
+   "PP": {
+    "recycled": 0.2,
+    "landfilled": 0.02,
+    "combusted": 2.8,
+    "composted": null,
+    "anaerobic_dry_digestate": null,
+    "anaerobic_wet_digestate": null
+   },
+   "PS": {
+    "recycled": null,
+    "landfilled": 0.02,
+    "combusted": 3.02,
+    "composted": null,
+    "anaerobic_dry_digestate": null,
+    "anaerobic_wet_digestate": null
+   },
+   "PVC": {
+    "recycled": null,
+    "landfilled": 0.02,
+    "combusted": 1.26,
+    "composted": null,
+    "anaerobic_dry_digestate": null,
+    "anaerobic_wet_digestate": null
+   },
+   "PLA": {
+    "recycled": null,
+    "landfilled": 0.02,
+    "combusted": 0.01,
+    "composted": 0.13,
+    "anaerobic_dry_digestate": null,
+    "anaerobic_wet_digestate": null
+   },
+   "Corrugated Containers": {
+    "recycled": 0.11,
+    "landfilled": 1.0,
+    "combusted": 0.05,
+    "composted": null,
+    "anaerobic_dry_digestate": null,
+    "anaerobic_wet_digestate": null
+   },
+   "Magazines/Third-class mail": {
+    "recycled": 0.02,
+    "landfilled": 0.46,
+    "combusted": 0.05,
+    "composted": null,
+    "anaerobic_dry_digestate": null,
+    "anaerobic_wet_digestate": null
+   },
+   "Newspaper": {
+    "recycled": 0.02,
+    "landfilled": 0.39,
+    "combusted": 0.05,
+    "composted": null,
+    "anaerobic_dry_digestate": null,
+    "anaerobic_wet_digestate": null
+   },
+   "Office Paper": {
+    "recycled": 0.02,
+    "landfilled": 1.41,
+    "combusted": 0.05,
+    "composted": null,
+    "anaerobic_dry_digestate": null,
+    "anaerobic_wet_digestate": null
+   },
+   "Phonebooks": {
+    "recycled": 0.04,
+    "landfilled": 0.39,
+    "combusted": 0.05,
+    "composted": null,
+    "anaerobic_dry_digestate": null,
+    "anaerobic_wet_digestate": null
+   },
+   "Textbooks": {
+    "recycled": 0.04,
+    "landfilled": 1.41,
+    "combusted": 0.05,
+    "composted": null,
+    "anaerobic_dry_digestate": null,
+    "anaerobic_wet_digestate": null
+   },
+   "Dimensional Lumber": {
+    "recycled": null,
+    "landfilled": 0.17,
+    "combusted": 0.05,
+    "composted": null,
+    "anaerobic_dry_digestate": null,
+    "anaerobic_wet_digestate": null
+   },
+   "Medium-density Fiberboard": {
+    "recycled": null,
+    "landfilled": 0.07,
+    "combusted": 0.05,
+    "composted": null,
+    "anaerobic_dry_digestate": null,
+    "anaerobic_wet_digestate": null
+   },
+   "Food Waste (non-meat)": {
+    "recycled": null,
+    "landfilled": 0.67,
+    "combusted": 0.05,
+    "composted": 0.11,
+    "anaerobic_dry_digestate": 0.14,
+    "anaerobic_wet_digestate": 0.11
+   },
+   "Food Waste (meat only)": {
+    "recycled": null,
+    "landfilled": 0.69,
+    "combusted": 0.05,
+    "composted": 0.11,
+    "anaerobic_dry_digestate": 0.14,
+    "anaerobic_wet_digestate": 0.11
+   },
+   "Beef": {
+    "recycled": null,
+    "landfilled": 0.64,
+    "combusted": 0.05,
+    "composted": 0.11,
+    "anaerobic_dry_digestate": 0.14,
+    "anaerobic_wet_digestate": 0.11
+   },
+   "Poultry": {
+    "recycled": null,
+    "landfilled": 0.73,
+    "combusted": 0.05,
+    "composted": 0.11,
+    "anaerobic_dry_digestate": 0.14,
+    "anaerobic_wet_digestate": 0.11
+   },
+   "Grains": {
+    "recycled": null,
+    "landfilled": 2.06,
+    "combusted": 0.05,
+    "composted": 0.11,
+    "anaerobic_dry_digestate": 0.14,
+    "anaerobic_wet_digestate": 0.11
+   },
+   "Bread": {
+    "recycled": null,
+    "landfilled": 1.49,
+    "combusted": 0.05,
+    "composted": 0.11,
+    "anaerobic_dry_digestate": 0.14,
+    "anaerobic_wet_digestate": 0.11
+   },
+   "Fruits and Vegetables": {
+    "recycled": null,
+    "landfilled": 0.28,
+    "combusted": 0.05,
+    "composted": 0.11,
+    "anaerobic_dry_digestate": 0.14,
+    "anaerobic_wet_digestate": 0.11
+   },
+   "Dairy Products": {
+    "recycled": null,
+    "landfilled": 0.72,
+    "combusted": 0.05,
+    "composted": 0.11,
+    "anaerobic_dry_digestate": 0.14,
+    "anaerobic_wet_digestate": 0.11
+   },
+   "Yard Trimmings": {
+    "recycled": null,
+    "landfilled": 0.36,
+    "combusted": 0.05,
+    "composted": 0.14,
+    "anaerobic_dry_digestate": 0.11,
+    "anaerobic_wet_digestate": null
+   },
+   "Grass": {
+    "recycled": null,
+    "landfilled": 0.28,
+    "combusted": 0.05,
+    "composted": 0.14,
+    "anaerobic_dry_digestate": 0.09,
+    "anaerobic_wet_digestate": null
+   },
+   "Leaves": {
+    "recycled": null,
+    "landfilled": 0.28,
+    "combusted": 0.05,
+    "composted": 0.14,
+    "anaerobic_dry_digestate": 0.12,
+    "anaerobic_wet_digestate": null
+   },
+   "Branches": {
+    "recycled": null,
+    "landfilled": 0.58,
+    "combusted": 0.05,
+    "composted": 0.14,
+    "anaerobic_dry_digestate": 0.15,
+    "anaerobic_wet_digestate": null
+   },
+   "Mixed Paper (general)": {
+    "recycled": 0.07,
+    "landfilled": 0.89,
+    "combusted": 0.05,
+    "composted": null,
+    "anaerobic_dry_digestate": null,
+    "anaerobic_wet_digestate": null
+   },
+   "Mixed Paper (primarily residential)": {
+    "recycled": 0.07,
+    "landfilled": 0.86,
+    "combusted": 0.05,
+    "composted": null,
+    "anaerobic_dry_digestate": null,
+    "anaerobic_wet_digestate": null
+   },
+   "Mixed Paper (primarily from offices)": {
+    "recycled": 0.03,
+    "landfilled": 0.84,
+    "combusted": 0.05,
+    "composted": null,
+    "anaerobic_dry_digestate": null,
+    "anaerobic_wet_digestate": null
+   },
+   "Mixed Metals": {
+    "recycled": 0.23,
+    "landfilled": 0.02,
+    "combusted": 0.01,
+    "composted": null,
+    "anaerobic_dry_digestate": null,
+    "anaerobic_wet_digestate": null
+   },
+   "Mixed Plastics": {
+    "recycled": 0.22,
+    "landfilled": 0.02,
+    "combusted": 2.34,
+    "composted": null,
+    "anaerobic_dry_digestate": null,
+    "anaerobic_wet_digestate": null
+   },
+   "Mixed Recyclables": {
+    "recycled": 0.09,
+    "landfilled": 0.75,
+    "combusted": 0.11,
+    "composted": null,
+    "anaerobic_dry_digestate": null,
+    "anaerobic_wet_digestate": null
+   },
+   "Food Waste": {
+    "recycled": null,
+    "landfilled": 0.68,
+    "combusted": 0.05,
+    "composted": 0.11,
+    "anaerobic_dry_digestate": null,
+    "anaerobic_wet_digestate": null
+   },
+   "Mixed Organics": {
+    "recycled": null,
+    "landfilled": 0.54,
+    "combusted": 0.05,
+    "composted": 0.13,
+    "anaerobic_dry_digestate": null,
+    "anaerobic_wet_digestate": null
+   },
+   "Mixed MSW": {
+    "recycled": null,
+    "landfilled": 0.58,
+    "combusted": 0.43,
+    "composted": null,
+    "anaerobic_dry_digestate": null,
+    "anaerobic_wet_digestate": null
+   },
+   "Carpet": {
+    "recycled": null,
+    "landfilled": 0.02,
+    "combusted": 1.68,
+    "composted": null,
+    "anaerobic_dry_digestate": null,
+    "anaerobic_wet_digestate": null
+   },
+   "Desktop CPUs": {
+    "recycled": 0.01,
+    "landfilled": 0.02,
+    "combusted": 0.4,
+    "composted": null,
+    "anaerobic_dry_digestate": null,
+    "anaerobic_wet_digestate": null
+   },
+   "Portable Electronic Devices": {
+    "recycled": 0.02,
+    "landfilled": 0.02,
+    "combusted": 0.89,
+    "composted": null,
+    "anaerobic_dry_digestate": null,
+    "anaerobic_wet_digestate": null
+   },
+   "Flat-panel Displays": {
+    "recycled": 0.02,
+    "landfilled": 0.02,
+    "combusted": 0.74,
+    "composted": null,
+    "anaerobic_dry_digestate": null,
+    "anaerobic_wet_digestate": null
+   },
+   "CRT Displays": {
+    "recycled": null,
+    "landfilled": 0.02,
+    "combusted": 0.64,
+    "composted": null,
+    "anaerobic_dry_digestate": null,
+    "anaerobic_wet_digestate": null
+   },
+   "Electronic Peripherals": {
+    "recycled": 0.05,
+    "landfilled": 0.02,
+    "combusted": 2.23,
+    "composted": null,
+    "anaerobic_dry_digestate": null,
+    "anaerobic_wet_digestate": null
+   },
+   "Hard-copy Devices": {
+    "recycled": 0.01,
+    "landfilled": 0.02,
+    "combusted": 1.92,
+    "composted": null,
+    "anaerobic_dry_digestate": null,
+    "anaerobic_wet_digestate": null
+   },
+   "Mixed Electronics": {
+    "recycled": 0.02,
+    "landfilled": 0.02,
+    "combusted": 0.96,
+    "composted": null,
+    "anaerobic_dry_digestate": null,
+    "anaerobic_wet_digestate": null
+   },
+   "Clay Bricks": {
+    "recycled": null,
+    "landfilled": 0.02,
+    "combusted": null,
+    "composted": null,
+    "anaerobic_dry_digestate": null,
+    "anaerobic_wet_digestate": null
+   },
+   "Concrete": {
+    "recycled": 0.01,
+    "landfilled": 0.02,
+    "combusted": null,
+    "composted": null,
+    "anaerobic_dry_digestate": null,
+    "anaerobic_wet_digestate": null
+   },
+   "Fly Ash": {
+    "recycled": 0.01,
+    "landfilled": 0.02,
+    "combusted": null,
+    "composted": null,
+    "anaerobic_dry_digestate": null,
+    "anaerobic_wet_digestate": null
+   },
+   "Tires": {
+    "recycled": 0.1,
+    "landfilled": 0.02,
+    "combusted": 2.21,
+    "composted": null,
+    "anaerobic_dry_digestate": null,
+    "anaerobic_wet_digestate": null
+   },
+   "Asphalt Concrete": {
+    "recycled": 0.004,
+    "landfilled": 0.02,
+    "combusted": null,
+    "composted": null,
+    "anaerobic_dry_digestate": null,
+    "anaerobic_wet_digestate": null
+   },
+   "Asphalt Shingles": {
+    "recycled": 0.03,
+    "landfilled": 0.02,
+    "combusted": 0.7,
+    "composted": null,
+    "anaerobic_dry_digestate": null,
+    "anaerobic_wet_digestate": null
+   },
+   "Drywall": {
+    "recycled": null,
+    "landfilled": 0.02,
+    "combusted": null,
+    "composted": null,
+    "anaerobic_dry_digestate": null,
+    "anaerobic_wet_digestate": null
+   },
+   "Fiberglass Insulation": {
+    "recycled": 0.05,
+    "landfilled": 0.02,
+    "combusted": null,
+    "composted": null,
+    "anaerobic_dry_digestate": null,
+    "anaerobic_wet_digestate": null
+   },
+   "Structural Steel": {
+    "recycled": 0.04,
+    "landfilled": 0.02,
+    "combusted": null,
+    "composted": null,
+    "anaerobic_dry_digestate": null,
+    "anaerobic_wet_digestate": null
+   },
+   "Vinyl Flooring": {
+    "recycled": null,
+    "landfilled": 0.02,
+    "combusted": 0.29,
+    "composted": null,
+    "anaerobic_dry_digestate": null,
+    "anaerobic_wet_digestate": null
+   },
+   "Wood Flooring": {
+    "recycled": null,
+    "landfilled": 0.18,
+    "combusted": 0.08,
+    "composted": null,
+    "anaerobic_dry_digestate": null,
+    "anaerobic_wet_digestate": null
+   }
+  }
+ },
+ "known_discrepancies": [
+  {
+   "item": "R-424A blend GWP",
+   "printed": 3104,
+   "arithmetic_from_printed_composition_and_Table_11": 2211.85,
+   "note": "50.5% HFC-125 + 47% HFC-134a with the Table 11 values gives 2,212, not 3,104. Every other HFC/PFC blend reproduces the printed value to within 1. Not resolved; the printed value is stored as printed and flagged in results."
+  }
+ ]
 }
