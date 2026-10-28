@@ -1,0 +1,167 @@
+{
+ "source": "US EPA, 40 CFR Part 98 Subpart W, Table W-1: Default Whole Gas Population Emission Factors (89 FR 42323, May 14, 2024), as published by Cornell LII e-CFR mirror",
+ "url": "https://www.law.cornell.edu/cfr/text/40/appendix-Table_W-1_to_subpart_W_of_part_98",
+ "retrieved": "2026-10-28",
+ "standard_conditions": "60 degF and 14.7 psia (stated in Subpart W section 98.233, dehydrator population factor note)",
+ "notes": [
+  "These are regulatory default population factors for GHG reporting: whole-gas volumes per component, not CH4. CH4 needs the CH4 mole fraction of the gas (from a gas analysis or Subpart W's own default, which was not found in the retrieved text).",
+  "Row-to-segment mapping: the printed table lists segments in a left column and components in the next with no row alignment in the text extract; the segment text here is as printed and is a coverage list, not a per-row assignment.",
+  "Tables W-1A, W-2 to W-7 (leaker factors, onshore production whole-gas, LNG, etc.) were not transcribed."
+ ],
+ "rows": [
+  {
+   "group": "pneumatic_gas_service",
+   "segments": "production; gathering and boosting; processing; transmission compression; underground storage; distribution (the table lists the segments in two columns; the component factors apply as printed)",
+   "component": "Continuous Low Bleed Pneumatic Device Vents",
+   "scf_whole_gas_per_hour_per_unit": 6.8,
+   "unit": "scf whole gas/hour/device"
+  },
+  {
+   "group": "pneumatic_gas_service",
+   "segments": "as above",
+   "component": "Continuous High Bleed Pneumatic Device Vents",
+   "scf_whole_gas_per_hour_per_unit": 21,
+   "unit": "scf whole gas/hour/device"
+  },
+  {
+   "group": "pneumatic_gas_service",
+   "segments": "as above",
+   "component": "Intermittent Bleed Pneumatic Device Vents",
+   "scf_whole_gas_per_hour_per_unit": 8.8,
+   "unit": "scf whole gas/hour/device"
+  },
+  {
+   "group": "pneumatic_gas_service",
+   "segments": "as above",
+   "component": "Pneumatic Pumps",
+   "scf_whole_gas_per_hour_per_unit": 13.3,
+   "unit": "scf whole gas/hour/pump"
+  },
+  {
+   "group": "major_equipment_gas_service",
+   "segments": "onshore petroleum and natural gas production; gathering and boosting",
+   "component": "Wellhead",
+   "scf_whole_gas_per_hour_per_unit": 8.87,
+   "unit": "scf whole gas/hour/unit"
+  },
+  {
+   "group": "major_equipment_gas_service",
+   "segments": "as above",
+   "component": "Separator",
+   "scf_whole_gas_per_hour_per_unit": 9.65,
+   "unit": "scf whole gas/hour/unit"
+  },
+  {
+   "group": "major_equipment_gas_service",
+   "segments": "as above",
+   "component": "Meters/Piping",
+   "scf_whole_gas_per_hour_per_unit": 7.04,
+   "unit": "scf whole gas/hour/unit"
+  },
+  {
+   "group": "major_equipment_gas_service",
+   "segments": "as above",
+   "component": "Compressor",
+   "scf_whole_gas_per_hour_per_unit": 13.8,
+   "unit": "scf whole gas/hour/unit"
+  },
+  {
+   "group": "major_equipment_gas_service",
+   "segments": "as above",
+   "component": "Dehydrator",
+   "scf_whole_gas_per_hour_per_unit": 8.09,
+   "unit": "scf whole gas/hour/unit"
+  },
+  {
+   "group": "major_equipment_gas_service",
+   "segments": "as above",
+   "component": "Heater",
+   "scf_whole_gas_per_hour_per_unit": 5.22,
+   "unit": "scf whole gas/hour/unit"
+  },
+  {
+   "group": "major_equipment_gas_service",
+   "segments": "as above",
+   "component": "Storage Vessel",
+   "scf_whole_gas_per_hour_per_unit": 1.83,
+   "unit": "scf whole gas/hour/unit"
+  },
+  {
+   "group": "major_equipment_crude_service",
+   "segments": "onshore petroleum and natural gas production",
+   "component": "Wellhead",
+   "scf_whole_gas_per_hour_per_unit": 4.13,
+   "unit": "scf whole gas/hour/unit"
+  },
+  {
+   "group": "major_equipment_crude_service",
+   "segments": "as above",
+   "component": "Separator",
+   "scf_whole_gas_per_hour_per_unit": 4.77,
+   "unit": "scf whole gas/hour/unit"
+  },
+  {
+   "group": "major_equipment_crude_service",
+   "segments": "as above",
+   "component": "Meters/Piping",
+   "scf_whole_gas_per_hour_per_unit": 12.4,
+   "unit": "scf whole gas/hour/unit"
+  },
+  {
+   "group": "major_equipment_crude_service",
+   "segments": "as above",
+   "component": "Compressor",
+   "scf_whole_gas_per_hour_per_unit": 13.8,
+   "unit": "scf whole gas/hour/unit"
+  },
+  {
+   "group": "major_equipment_crude_service",
+   "segments": "as above",
+   "component": "Dehydrator",
+   "scf_whole_gas_per_hour_per_unit": 8.09,
+   "unit": "scf whole gas/hour/unit"
+  },
+  {
+   "group": "major_equipment_crude_service",
+   "segments": "as above",
+   "component": "Heater",
+   "scf_whole_gas_per_hour_per_unit": 3.2,
+   "unit": "scf whole gas/hour/unit"
+  },
+  {
+   "group": "major_equipment_crude_service",
+   "segments": "as above",
+   "component": "Storage Vessel",
+   "scf_whole_gas_per_hour_per_unit": 1.91,
+   "unit": "scf whole gas/hour/unit"
+  },
+  {
+   "group": "gathering_pipelines",
+   "segments": "onshore petroleum and natural gas gathering and boosting",
+   "component": "Protected Steel",
+   "scf_whole_gas_per_hour_per_unit": 0.93,
+   "unit": "scf whole gas/hour/mile"
+  },
+  {
+   "group": "gathering_pipelines",
+   "segments": "as above",
+   "component": "Unprotected Steel",
+   "scf_whole_gas_per_hour_per_unit": 8.2,
+   "unit": "scf whole gas/hour/mile"
+  },
+  {
+   "group": "gathering_pipelines",
+   "segments": "as above",
+   "component": "Plastic/Composite",
+   "scf_whole_gas_per_hour_per_unit": 0.28,
+   "unit": "scf whole gas/hour/mile"
+  },
+  {
+   "group": "gathering_pipelines",
+   "segments": "as above",
+   "component": "Cast Iron",
+   "scf_whole_gas_per_hour_per_unit": 8.4,
+   "unit": "scf whole gas/hour/mile"
+  }
+ ]
+}

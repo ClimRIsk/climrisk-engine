@@ -7212,6 +7212,52 @@ def maritime_fleet_baseline(req: FleetBaselineRequest) -> dict:
         raise HTTPException(status_code=422, detail=str(exc))
 
 
+class SafBlendRequest(BaseModel):
+    energy_mj: float = Field(..., ge=0)
+    saf_energy_share: float = Field(..., ge=0, le=1)
+    saf_lca_g_per_mj: float = Field(..., description="certified life-cycle value of the SAF, gCO2e/MJ; there is no default")
+
+
+@app.post("/lca/aviation-saf", dependencies=[_AUTH], tags=["LCA"])
+def lca_aviation_saf(req: SafBlendRequest) -> dict:
+    """SAF blend life-cycle intensity and reduction against the 89 gCO2e/MJ fossil baseline ICAO uses; the SAF value is yours (certified)."""
+    from ..lca import aviation as AV
+    try:
+        return AV.blend(req.energy_mj, req.saf_energy_share, req.saf_lca_g_per_mj)
+    except AV.AviationError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+
+
+class OgItem(BaseModel):
+    group: str
+    component: str
+    units: float = Field(..., ge=0)
+    hours: float = Field(..., ge=0)
+
+
+class OilGasMethaneRequest(BaseModel):
+    items: list[OgItem] = Field(..., min_length=1)
+    ch4_mole_fraction: float = Field(..., gt=0, le=1, description="from a gas analysis; there is no default")
+    gwp_ch4: Optional[float] = Field(None, gt=0)
+
+
+@app.get("/carbon/oilgas-methane", dependencies=[_AUTH], tags=["Carbon"])
+def carbon_oilgas_methane_list() -> dict:
+    from ..carbon import oilgas_methane as OG
+    L = OG.lib()
+    return {"source": L["source"], "notes": L["notes"], "entries": [{"group": r["group"], "component": r["component"], "unit": r["unit"]} for r in L["rows"]]}
+
+
+@app.post("/carbon/oilgas-methane", dependencies=[_AUTH], tags=["Carbon"])
+def carbon_oilgas_methane(req: OilGasMethaneRequest) -> dict:
+    """Methane from equipment populations with the US EPA Subpart W Table W-1 defaults; the CH4 mole fraction is yours."""
+    from ..carbon import oilgas_methane as OG
+    try:
+        return OG.facility([i.model_dump() for i in req.items], req.ch4_mole_fraction, req.gwp_ch4)
+    except OG.MethaneError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+
+
 @app.get("/materiality/dashboard", tags=["CSRD"])
 def materiality_dashboard():
     from fastapi.responses import HTMLResponse
