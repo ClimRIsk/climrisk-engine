@@ -113,7 +113,7 @@ def normalise_site(s: dict, k: int) -> dict:
             "terms": {"wind": {"ded": w_ded if w_ded is not None else ded, "lim": w_lim if w_lim is not None else lim},
                       "flood": {"ded": f_ded if f_ded is not None else ded, "lim": f_lim if f_lim is not None else lim},
                       "total_limit": lim},
-            "hazard": s.get("hazard"), "vulnerability": s.get("vulnerability"), "offshore": off}
+            "hazard": s.get("hazard"), "vulnerability": s.get("vulnerability"), "offshore": off, "asset_class": s.get("asset_class")}
 
 
 # ── hazards ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -217,7 +217,7 @@ def _flood_damage_curve(h: dict, key: str, cont: str, depth_factor: float = 1.0,
             continue
         wet = d > 0.05
         d = np.where(wet, d * depth_factor + add_m, d)
-        dmg.append(float(np.mean(vulnerability.flood_damage(np.clip(d, 0, None), cont))))
+        dmg.append(float(np.mean(vulnerability.flood_damage(np.clip(d, 0, None), cont, h.get("jrc_class", "industrial")))))
     dmg = np.maximum.accumulate(np.asarray(dmg))                  # damage cannot fall with return period
     return {"rps": rps, "damage": dmg.tolist(), "protection": float(spec.get("protection") or 0.0)}
 
@@ -558,7 +558,8 @@ def _site_rows(sites, hazards, L, g, cap_q, coc, exp_ratio, unc_load):
                      "hazard": {"cyclone_rate": w.get("lam"), "cyclone_rp100_ms": w.get("rp100_ms"), "river_map": bool(h.get("river")),
                                 "coast_map": bool(h.get("coast")), "river_protection_rp": (h.get("river") or {}).get("protection"),
                                 "coast_protection_rp": (h.get("coast") or {}).get("protection")},
-                     "notes": list(h.get("notes") or []), "climate": h.get("_climate")})
+                     "notes": list(h.get("notes") or []), "climate": h.get("_climate"),
+                     "flood_vulnerability": {"jrc_class": h.get("jrc_class"), "class_basis": h.get("jrc_class_basis"), "curve": ("empirical NFIP residential claims, US" if h.get("cont") == "nfip_residential_us" else h.get("jrc_curve_basis"))}})
     return rows
 
 
@@ -611,6 +612,13 @@ def run(sites_in: list, hazards: Optional[list] = None, n_years: int = 5000, see
         if o_ is not None:
             from .analysis import claims_credibility as _cc
             s_["_experience"] = _cc.assess(o_.get("claims"), float(o_.get("claims_exposure_turbine_years") or 0.0), "turbine-years", float(o_.get("turbines") or 1.0))
+    from .finance import vulnerability as _V
+    for s_, h_ in zip(sites, hz):                                  # the JRC asset class of each line (stated in the output), so homes, offices and farms are not priced on the industrial curve
+        try:
+            h_["jrc_class"], h_["jrc_class_basis"] = _V.classify_asset(s_.get("sector"), s_.get("name"), s_.get("asset_class"))
+        except ValueError as e:
+            raise InsuranceError(f"site {s_['name']}: {e}")
+        h_["jrc_curve_basis"] = _V.jrc_curve(h_.get("cont", "oceania") if h_.get("cont") in ("africa", "asia", "europe", "northamerica", "oceania", "southamerica") else "oceania", h_["jrc_class"])[1]
     for s_, h_ in zip(sites, hz):                                  # optional empirical US residential flood curve per policy line
         if s_.get("vulnerability") == "nfip_residential_us":
             h_["cont"] = "nfip_residential_us"
@@ -641,7 +649,7 @@ def run(sites_in: list, hazards: Optional[list] = None, n_years: int = 5000, see
     res = {"n_sites": len(sites), "tiv": tiv_total, "n_years": ny, "seed": seed, "stats": stats, "sites": rows, "accumulation": acc, "deductible_ladder": ladder,
            "premium": {"technical_total": None if all_gap else prem_total, "rate_permille": None if all_gap else _rate_str(prem_total, tiv_total),
                        "complete": not gaps, "sites_with_perils_not_assessed": [r["name"] for r in gaps], "scope_note": scope_note,
-                       "vulnerability_basis": "Flood damage uses the JRC industrial depth-damage curve for the continent and wind the Emanuel sigmoid by cyclone basin, for every asset. Homes, offices, mines, solar farms and data centres are not given curves of their own, so loss for them is indicative only.", "sites_with_primary_perils_outside_price": out_of_price,
+                       "vulnerability_basis": "Flood damage uses the JRC (Huizinga et al. 2017) depth-damage curve for each site's asset class (residential, commercial, industrial, transport, infrastructure, agriculture) and continent, stated per site under flood_vulnerability; where JRC publishes no table for a continent the mean of the published ones is used and said so. The class comes from the sector or an asset_class you give; it is a classification, not a measurement. Wind uses the Emanuel sigmoid by cyclone basin for every asset, with no asset-class distinction.", "sites_with_primary_perils_outside_price": out_of_price,
                        "coverage_warning": (None if not gaps else ("NO PREMIUM: no covered peril could be assessed at any site; this is not a zero-risk finding." if all_gap else
                                             f"LOWER BOUND: {len(gaps)} of {len(rows)} sites have covered perils the engine could not assess; their missing perils are not zero.")),
                        "formula": f"(AAL x (1 + {uncertainty_load:.0%} model-uncertainty load) + {cost_of_capital:.0%} cost of capital x capital proxy) / (1 - {expense_ratio:.0%} expenses); "
