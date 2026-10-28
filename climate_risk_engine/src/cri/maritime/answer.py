@@ -12,6 +12,7 @@ import re
 from typing import Callable, Optional
 
 from . import classes as CL
+from . import ports as PT
 from . import vessel as VS
 from . import voyage as V
 from ..lca import marine_fuels as MF
@@ -55,6 +56,11 @@ def parse(text: str) -> dict:
     m = re.search(r"\b(?:moving|moves|move|sail(?:s|ing)?|head(?:s|ing)?|going|go|bound|steam(?:s|ing)?|voyage|travel(?:s|ling)?|transit(?:s|ing)?|proceed(?:s|ing)?)\b[^.]*?\b(?:to|for|towards?)\s+(?:the\s+)?(?:[Pp]ort\s+of\s+)?([A-Z][\w\-']+(?:\s+[A-Z][\w\-']+){0,2})", t) or re.search(r"\bto\s+(?:the\s+)?(?:[Pp]ort\s+of\s+)?([A-Z][\w\-']+(?:\s+[A-Z][\w\-']+){0,2})", t)
     if m:
         out["dest"] = re.sub(r"\s+Port$", "", m.group(1)).strip()
+    for key, nm_ in (("origin_country", out.get("origin")), ("dest_country", out.get("dest"))):
+        if nm_:
+            m = re.search(re.escape(nm_) + r"(?:\s+[Pp]ort)?\s*(?:,\s*|\s*\()([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+)?)\)?", t)
+            if m and m.group(1).lower() not in ("and", "the", "port", "moving", "heading", "then", "to"):
+                out[key] = m.group(1)
     m = re.search(r"(\d[\d,\.]*)\s*(?:nm|n\.?m\.?|nautical\s+miles?)\b", t, re.I)
     if m:
         out["distance_nm"] = _num(m.group(1))
@@ -98,14 +104,19 @@ def parse(text: str) -> dict:
     return out
 
 
-def _place(name: str, geocode: Callable) -> Optional[dict]:
-    if not name:
-        return None
-    for q in (f"port of {name}", name):
+def _search_from(geocode: Callable, search: Optional[Callable]) -> Callable:
+    if search is not None:
+        return search
+    def one(q):                                                    # single-result geocoder: treated as a place match, never as a verified port feature
         g = geocode(q)
-        if g:
-            return {"name": name, "lat": g["lat"], "lon": g["lon"], "country_code": (g.get("country_code") or "").upper() or None, "source": "OpenStreetMap geocoder"}
-    return None
+        return [] if not g else [{"lat": g["lat"], "lon": g["lon"], "name": q, "country_code": g.get("country_code"), "country": g.get("country"), "class": "place", "type": "city", "importance": 1.0}]
+    return one
+
+
+def _resolve_port(name: Optional[str], country: Optional[str], search: Callable, evidence: Optional[Callable] = None) -> dict:
+    if not name:
+        return {"status": "not_found", "port": None, "candidates": [], "notes": []}
+    return PT.resolve(name, country, search, evidence)
 
 
 def resolve_vessel(p: dict, data_dir=None, fleets=None) -> dict:
@@ -144,17 +155,34 @@ def _fmt(x, d=0):
     return "n/a" if x is None else f"{x:,.{d}f}"
 
 
-def answer(text: str, geocode: Callable, params: Optional[dict] = None, data_dir=None, fleets=None) -> dict:
+def answer(text: str, geocode: Callable, params: Optional[dict] = None, data_dir=None, fleets=None, search: Optional[Callable] = None, evidence: Optional[Callable] = None) -> dict:
     p = parse(text)
     if params:
         p.update({k: v for k, v in params.items() if v is not None})
     blocks, flags = [], list(p.get("flags", []))
-    o, d = _place(p.get("origin"), geocode), _place(p.get("dest"), geocode)
     if not p.get("dest") or not p.get("origin"):
         return {"reply": "I need both ports: where the ship is now and where it is going (for example 'docked at Singapore, moving to Rotterdam, 16000 nm').", "blocks": [], "actions": [], "result": None}
-    if not o or not d:
-        bad = [n for n, x in ((p["origin"], o), (p["dest"], d)) if not x]
-        return {"reply": f"I could not place {', '.join(bad)} on the map. Give the port with its country (for example 'Rotterdam, Netherlands') or coordinates.", "blocks": [], "actions": [], "result": None}
+    srch = _search_from(geocode, search)
+    ro = _resolve_port(p["origin"], p.get("origin_country"), srch, evidence)
+    rd = _resolve_port(p["dest"], p.get("dest_country"), srch, evidence)
+    for which, r_, nm_ in (("origin", ro, p["origin"]), ("dest", rd, p["dest"])):
+        if r_["status"] == "ambiguous":
+            opts = r_["candidates"]
+            acts = []
+            for c in opts:
+                label = f"{nm_}, {c['country']}"
+                acts.append({"type": "say", "label": label, "text": re.sub(r"\b" + re.escape(nm_) + r"\b", label, text, count=1)})
+            return {"reply": f"'{nm_}' matches ports in more than one country ({', '.join(str(c['country']) for c in opts)}), and the country decides which EU rules apply. Which one? Add the country to the port name, for example '{nm_}, {opts[0]['country']}'.",
+                    "blocks": [{"type": "table", "head": ["Candidate", "Country", "Matched feature", "Lat, lon"], "rows": [[c["name"], c["country"], c["feature"] + {True: " · harbour/port feature found nearby", False: " · no harbour found within 15 km", None: ""}[c["port_evidence"]], f"{c['lat']:.3f}, {c['lon']:.3f}"] for c in opts]}], "actions": acts, "result": None}
+        if r_["status"] == "not_found":
+            return {"reply": f"I could not find '{nm_}' as a port or place on the map. Give the port with its country (for example 'Rotterdam, Netherlands') or coordinates.", "blocks": [], "actions": [], "result": None}
+    o = {**ro["port"], "name": p["origin"], "source": ro["port"]["source"]}
+    d = {**rd["port"], "name": p["dest"], "source": rd["port"]["source"]}
+    port_notes = ro["notes"] + rd["notes"]
+    ports_block = {"type": "table", "head": ["Port as understood", "Matched to", "Country", "Feature", "Lat, lon"],
+                   "rows": [[p["origin"] + " (from)", ro["port"]["name"], ro["port"]["country"] or "?", ro["port"]["feature"] + (" (port feature)" if ro["port"]["is_port_feature"] else " (place" + {True: ", harbour found within 15 km)", False: ", NO harbour found within 15 km)", None: ", port evidence not checked)"}[ro["port"]["port_evidence"]]), f"{ro['port']['lat']:.3f}, {ro['port']['lon']:.3f}"],
+                            [p["dest"] + " (to)", rd["port"]["name"], rd["port"]["country"] or "?", rd["port"]["feature"] + (" (port feature)" if rd["port"]["is_port_feature"] else " (place" + {True: ", harbour found within 15 km)", False: ", NO harbour found within 15 km)", None: ", port evidence not checked)"}[rd["port"]["port_evidence"]]), f"{rd['port']['lat']:.3f}, {rd['port']['lon']:.3f}"]],
+                   "caption": "Check these: the country of each port decides EU ETS and FuelEU scope. " + " ".join(port_notes)}
     rv = resolve_vessel(p, data_dir, fleets)
     market = p.get("market") or {}
     if rv["vessel"] and not rv["missing"]:
@@ -164,8 +192,12 @@ def answer(text: str, geocode: Callable, params: Optional[dict] = None, data_dir
         except V.VoyageInputError as e:
             return {"reply": f"The voyage cannot be computed yet: {e}. Missing: {'; '.join(e.missing)}.", "blocks": [], "actions": [], "result": None}
         r["flags"] = flags + r["flags"]
-        return _render_full(r, rv, o, d)
-    return _render_partial(p, o, d, rv, flags, market)
+        out = _render_full(r, rv, o, d)
+        out["blocks"].insert(0, ports_block)
+        return out
+    out = _render_partial(p, o, d, rv, flags, market)
+    out["blocks"].insert(0, ports_block)
+    return out
 
 
 def _render_full(r, rv, o, d) -> dict:

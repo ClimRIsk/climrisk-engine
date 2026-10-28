@@ -181,6 +181,8 @@ def test_agent_routes_a_ship_sentence_to_the_voyage_model(monkeypatch, tmp_path)
     import time
     from cri.resident import agent as AG
     monkeypatch.setattr(AG, "geocode", _geo)
+    monkeypatch.setattr(AG, "geocode_many", lambda q, limit=8: [{**g, "name": q, "country": "x", "class": "place", "type": "city", "importance": 1.0} for g in [_geo(q)] if g])
+    monkeypatch.setattr(AG, "port_evidence", lambda lat, lon, radius_m=15000: True)
     monkeypatch.setattr(VS, "DATA_DIR", tmp_path)
     out = AG.Agent().handle("t-voyage", "The ship Aurora is docked at Singapore and moving to Rotterdam, 16000 NM at 14 knots, burns 45 t/day at 14 knots")
     assert out["intent"] == "voyage" and out["job"]

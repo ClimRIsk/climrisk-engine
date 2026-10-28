@@ -137,6 +137,50 @@ def geocode(q: str) -> Optional[dict]:
     return v
 
 
+_GEO_MANY: dict = {}
+
+
+def geocode_many(q: str, limit: int = 8) -> list:
+    """Nominatim candidates with feature class/type and country, for places where the choice matters (ports)."""
+    q = q.strip()
+    if q in _GEO_MANY:
+        return _GEO_MANY[q]
+    out = []
+    try:
+        import requests
+        r = requests.get("https://nominatim.openstreetmap.org/search", params={"q": q, "format": "json", "limit": limit, "addressdetails": 1},
+                         headers={"User-Agent": "ClimRisk-resident/1.0"}, timeout=12)
+        for j in r.json():
+            a = j.get("address") or {}
+            out.append({"lat": float(j["lat"]), "lon": float(j["lon"]), "name": j.get("display_name", q)[:90], "country_code": a.get("country_code"), "country": a.get("country"),
+                        "class": j.get("class"), "type": j.get("type"), "importance": j.get("importance")})
+    except Exception:                                                # noqa: BLE001
+        return []                                                    # not cached: a network failure must not stick
+    _GEO_MANY[q] = out
+    return out
+
+
+_EVID: dict = {}
+
+
+def port_evidence(lat: float, lon: float, radius_m: int = 15000) -> Optional[bool]:
+    """True if OpenStreetMap has a harbour/port/pier feature within radius of the point, False if it has none, None if the check could not run. Cached only on success."""
+    k = (round(lat, 2), round(lon, 2))
+    if k in _EVID:
+        return _EVID[k]
+    q = f'[out:json][timeout:20];nwr(around:{radius_m},{lat},{lon})[~"^(landuse|harbour|seamark:type|man_made|industrial)$"~"^(harbour|port|pier|quay)$"];out ids 1;'
+    try:
+        import requests
+        r = requests.post("https://overpass-api.de/api/interpreter", data={"data": q}, headers={"User-Agent": "ClimRisk-resident/1.0"}, timeout=30)
+        if r.status_code != 200:
+            return None
+        v = len(r.json().get("elements", [])) > 0
+    except Exception:                                                # noqa: BLE001
+        return None
+    _EVID[k] = v
+    return v
+
+
 def _place_words(text: str, ent: dict) -> Optional[str]:
     m = re.search(r"\b(?:at|in|of|for|on|near|around)\s+(?:the\s+)?([A-Z][\w\-']+(?:\s+[A-Z][\w\-']+){0,3})", text)
     return m.group(1) if m else None
@@ -241,7 +285,7 @@ class Agent:
         M.add_message(session, "user", text, "voyage", {})
 
         def work():
-            r = MA.answer(text, geocode)
+            r = MA.answer(text, geocode, search=geocode_many, evidence=port_evidence)
             M.add_run("voyage", {"text": text[:200]}, [], True, r["reply"][:200])
             return {"reply": r["reply"], "blocks": r["blocks"], "actions": r["actions"]}
         j = _job(work, "assessing voyage")
