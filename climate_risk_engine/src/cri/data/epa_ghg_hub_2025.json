@@ -1,0 +1,916 @@
+{
+ "source": "US EPA, Emission Factors for Greenhouse Gas Inventories (GHG Emission Factors Hub), last modified 15 January 2025",
+ "url": "https://www.epa.gov/system/files/documents/2025-01/ghg-emission-factors-hub-2025.pdf",
+ "retrieved": "2026-10-28",
+ "not_checked": "whether EPA has issued a later edition; values transcribed by hand from the PDF text and cross-checked by arithmetic (HHV x kg CO2/mmBtu = printed kg CO2/unit)",
+ "gwp100_ar5": {
+  "CO2": 1,
+  "CH4": 28,
+  "N2O": 265,
+  "SF6": 23500,
+  "NF3": 16100,
+  "HFC-134a": 1300,
+  "HFC-125": 3170,
+  "HFC-32": 677,
+  "HFC-143a": 4800,
+  "HFC-23": 12400,
+  "CF4": 6630,
+  "C2F6": 11100
+ },
+ "combustion_only": "Factors are combustion (tank-to-wheel) only and exclude upstream emissions.",
+ "not_transcribed": [
+  "Tables 3-5 (vehicle-year CH4/N2O)",
+  "Table 9 (waste, WARM)",
+  "Table 12 (blended refrigerants)",
+  "non-baseload eGRID columns",
+  "remaining GWPs"
+ ],
+ "table1_stationary": {
+  "Anthracite": {
+   "unit": "short ton",
+   "hhv_mmbtu_per_unit": 25.09,
+   "kgco2_per_mmbtu": 103.69,
+   "gch4_per_mmbtu": 11,
+   "gn2o_per_mmbtu": 1.6,
+   "printed_kgco2_per_unit": 2602,
+   "category": "coal"
+  },
+  "Bituminous": {
+   "unit": "short ton",
+   "hhv_mmbtu_per_unit": 24.93,
+   "kgco2_per_mmbtu": 93.28,
+   "gch4_per_mmbtu": 11,
+   "gn2o_per_mmbtu": 1.6,
+   "printed_kgco2_per_unit": 2325,
+   "category": "coal"
+  },
+  "Sub-bituminous": {
+   "unit": "short ton",
+   "hhv_mmbtu_per_unit": 17.25,
+   "kgco2_per_mmbtu": 97.17,
+   "gch4_per_mmbtu": 11,
+   "gn2o_per_mmbtu": 1.6,
+   "printed_kgco2_per_unit": 1676,
+   "category": "coal"
+  },
+  "Lignite": {
+   "unit": "short ton",
+   "hhv_mmbtu_per_unit": 14.21,
+   "kgco2_per_mmbtu": 97.72,
+   "gch4_per_mmbtu": 11,
+   "gn2o_per_mmbtu": 1.6,
+   "printed_kgco2_per_unit": 1389,
+   "category": "coal"
+  },
+  "Mixed (Commercial Sector)": {
+   "unit": "short ton",
+   "hhv_mmbtu_per_unit": 21.39,
+   "kgco2_per_mmbtu": 94.27,
+   "gch4_per_mmbtu": 11,
+   "gn2o_per_mmbtu": 1.6,
+   "printed_kgco2_per_unit": 2016,
+   "category": "coal"
+  },
+  "Mixed (Electric Power Sector)": {
+   "unit": "short ton",
+   "hhv_mmbtu_per_unit": 19.73,
+   "kgco2_per_mmbtu": 95.52,
+   "gch4_per_mmbtu": 11,
+   "gn2o_per_mmbtu": 1.6,
+   "printed_kgco2_per_unit": 1885,
+   "category": "coal"
+  },
+  "Mixed (Industrial Coking)": {
+   "unit": "short ton",
+   "hhv_mmbtu_per_unit": 26.28,
+   "kgco2_per_mmbtu": 93.9,
+   "gch4_per_mmbtu": 11,
+   "gn2o_per_mmbtu": 1.6,
+   "printed_kgco2_per_unit": 2468,
+   "category": "coal"
+  },
+  "Mixed (Industrial Sector)": {
+   "unit": "short ton",
+   "hhv_mmbtu_per_unit": 22.35,
+   "kgco2_per_mmbtu": 94.67,
+   "gch4_per_mmbtu": 11,
+   "gn2o_per_mmbtu": 1.6,
+   "printed_kgco2_per_unit": 2116,
+   "category": "coal"
+  },
+  "Coal Coke": {
+   "unit": "short ton",
+   "hhv_mmbtu_per_unit": 24.8,
+   "kgco2_per_mmbtu": 113.67,
+   "gch4_per_mmbtu": 11,
+   "gn2o_per_mmbtu": 1.6,
+   "printed_kgco2_per_unit": 2819,
+   "category": "coal"
+  },
+  "Municipal Solid Waste": {
+   "unit": "short ton",
+   "hhv_mmbtu_per_unit": 9.95,
+   "kgco2_per_mmbtu": 90.7,
+   "gch4_per_mmbtu": 32,
+   "gn2o_per_mmbtu": 4.2,
+   "printed_kgco2_per_unit": 902,
+   "category": "other_solid"
+  },
+  "Petroleum Coke (Solid)": {
+   "unit": "short ton",
+   "hhv_mmbtu_per_unit": 30.0,
+   "kgco2_per_mmbtu": 102.41,
+   "gch4_per_mmbtu": 32,
+   "gn2o_per_mmbtu": 4.2,
+   "printed_kgco2_per_unit": 3072,
+   "category": "other_solid"
+  },
+  "Plastics": {
+   "unit": "short ton",
+   "hhv_mmbtu_per_unit": 38.0,
+   "kgco2_per_mmbtu": 75.0,
+   "gch4_per_mmbtu": 32,
+   "gn2o_per_mmbtu": 4.2,
+   "printed_kgco2_per_unit": 2850,
+   "category": "other_solid"
+  },
+  "Tires": {
+   "unit": "short ton",
+   "hhv_mmbtu_per_unit": 28.0,
+   "kgco2_per_mmbtu": 85.97,
+   "gch4_per_mmbtu": 32,
+   "gn2o_per_mmbtu": 4.2,
+   "printed_kgco2_per_unit": 2407,
+   "category": "other_solid"
+  },
+  "Agricultural Byproducts": {
+   "unit": "short ton",
+   "hhv_mmbtu_per_unit": 8.25,
+   "kgco2_per_mmbtu": 118.17,
+   "gch4_per_mmbtu": 32,
+   "gn2o_per_mmbtu": 4.2,
+   "printed_kgco2_per_unit": 975,
+   "category": "biomass_solid"
+  },
+  "Peat": {
+   "unit": "short ton",
+   "hhv_mmbtu_per_unit": 8.0,
+   "kgco2_per_mmbtu": 111.84,
+   "gch4_per_mmbtu": 32,
+   "gn2o_per_mmbtu": 4.2,
+   "printed_kgco2_per_unit": 895,
+   "category": "biomass_solid"
+  },
+  "Solid Byproducts": {
+   "unit": "short ton",
+   "hhv_mmbtu_per_unit": 10.39,
+   "kgco2_per_mmbtu": 105.51,
+   "gch4_per_mmbtu": 32,
+   "gn2o_per_mmbtu": 4.2,
+   "printed_kgco2_per_unit": 1096,
+   "category": "biomass_solid"
+  },
+  "Wood and Wood Residuals": {
+   "unit": "short ton",
+   "hhv_mmbtu_per_unit": 17.48,
+   "kgco2_per_mmbtu": 93.8,
+   "gch4_per_mmbtu": 7.2,
+   "gn2o_per_mmbtu": 3.6,
+   "printed_kgco2_per_unit": 1640,
+   "category": "biomass_solid"
+  },
+  "Natural Gas": {
+   "unit": "scf",
+   "hhv_mmbtu_per_unit": 0.001026,
+   "kgco2_per_mmbtu": 53.06,
+   "gch4_per_mmbtu": 1.0,
+   "gn2o_per_mmbtu": 0.1,
+   "printed_kgco2_per_unit": 0.05444,
+   "category": "gas"
+  },
+  "Blast Furnace Gas": {
+   "unit": "scf",
+   "hhv_mmbtu_per_unit": 9.2e-05,
+   "kgco2_per_mmbtu": 274.32,
+   "gch4_per_mmbtu": 0.022,
+   "gn2o_per_mmbtu": 0.1,
+   "printed_kgco2_per_unit": 0.02524,
+   "category": "other_gas"
+  },
+  "Coke Oven Gas": {
+   "unit": "scf",
+   "hhv_mmbtu_per_unit": 0.000599,
+   "kgco2_per_mmbtu": 46.85,
+   "gch4_per_mmbtu": 0.48,
+   "gn2o_per_mmbtu": 0.1,
+   "printed_kgco2_per_unit": 0.02806,
+   "category": "other_gas"
+  },
+  "Fuel Gas": {
+   "unit": "scf",
+   "hhv_mmbtu_per_unit": 0.001388,
+   "kgco2_per_mmbtu": 59.0,
+   "gch4_per_mmbtu": 3.0,
+   "gn2o_per_mmbtu": 0.6,
+   "printed_kgco2_per_unit": 0.08189,
+   "category": "other_gas"
+  },
+  "Propane Gas": {
+   "unit": "scf",
+   "hhv_mmbtu_per_unit": 0.002516,
+   "kgco2_per_mmbtu": 61.46,
+   "gch4_per_mmbtu": 3.0,
+   "gn2o_per_mmbtu": 0.6,
+   "printed_kgco2_per_unit": 0.15463,
+   "category": "other_gas"
+  },
+  "Landfill Gas": {
+   "unit": "scf",
+   "hhv_mmbtu_per_unit": 0.000485,
+   "kgco2_per_mmbtu": 52.07,
+   "gch4_per_mmbtu": 3.2,
+   "gn2o_per_mmbtu": 0.63,
+   "printed_kgco2_per_unit": 0.025254,
+   "category": "biomass_gas"
+  },
+  "Other Biomass Gases": {
+   "unit": "scf",
+   "hhv_mmbtu_per_unit": 0.000655,
+   "kgco2_per_mmbtu": 52.07,
+   "gch4_per_mmbtu": 3.2,
+   "gn2o_per_mmbtu": 0.63,
+   "printed_kgco2_per_unit": 0.034106,
+   "category": "biomass_gas"
+  },
+  "Asphalt and Road Oil": {
+   "unit": "gallon",
+   "hhv_mmbtu_per_unit": 0.158,
+   "kgco2_per_mmbtu": 75.36,
+   "gch4_per_mmbtu": 3.0,
+   "gn2o_per_mmbtu": 0.6,
+   "printed_kgco2_per_unit": 11.91,
+   "category": "petroleum"
+  },
+  "Aviation Gasoline": {
+   "unit": "gallon",
+   "hhv_mmbtu_per_unit": 0.12,
+   "kgco2_per_mmbtu": 69.25,
+   "gch4_per_mmbtu": 3.0,
+   "gn2o_per_mmbtu": 0.6,
+   "printed_kgco2_per_unit": 8.31,
+   "category": "petroleum"
+  },
+  "Butane": {
+   "unit": "gallon",
+   "hhv_mmbtu_per_unit": 0.103,
+   "kgco2_per_mmbtu": 64.77,
+   "gch4_per_mmbtu": 3.0,
+   "gn2o_per_mmbtu": 0.6,
+   "printed_kgco2_per_unit": 6.67,
+   "category": "petroleum"
+  },
+  "Butylene": {
+   "unit": "gallon",
+   "hhv_mmbtu_per_unit": 0.105,
+   "kgco2_per_mmbtu": 68.72,
+   "gch4_per_mmbtu": 3.0,
+   "gn2o_per_mmbtu": 0.6,
+   "printed_kgco2_per_unit": 7.22,
+   "category": "petroleum"
+  },
+  "Crude Oil": {
+   "unit": "gallon",
+   "hhv_mmbtu_per_unit": 0.138,
+   "kgco2_per_mmbtu": 74.54,
+   "gch4_per_mmbtu": 3.0,
+   "gn2o_per_mmbtu": 0.6,
+   "printed_kgco2_per_unit": 10.29,
+   "category": "petroleum"
+  },
+  "Distillate Fuel Oil No. 1": {
+   "unit": "gallon",
+   "hhv_mmbtu_per_unit": 0.139,
+   "kgco2_per_mmbtu": 73.25,
+   "gch4_per_mmbtu": 3.0,
+   "gn2o_per_mmbtu": 0.6,
+   "printed_kgco2_per_unit": 10.18,
+   "category": "petroleum"
+  },
+  "Distillate Fuel Oil No. 2": {
+   "unit": "gallon",
+   "hhv_mmbtu_per_unit": 0.138,
+   "kgco2_per_mmbtu": 73.96,
+   "gch4_per_mmbtu": 3.0,
+   "gn2o_per_mmbtu": 0.6,
+   "printed_kgco2_per_unit": 10.21,
+   "category": "petroleum"
+  },
+  "Distillate Fuel Oil No. 4": {
+   "unit": "gallon",
+   "hhv_mmbtu_per_unit": 0.146,
+   "kgco2_per_mmbtu": 75.04,
+   "gch4_per_mmbtu": 3.0,
+   "gn2o_per_mmbtu": 0.6,
+   "printed_kgco2_per_unit": 10.96,
+   "category": "petroleum"
+  },
+  "Ethane": {
+   "unit": "gallon",
+   "hhv_mmbtu_per_unit": 0.068,
+   "kgco2_per_mmbtu": 59.6,
+   "gch4_per_mmbtu": 3.0,
+   "gn2o_per_mmbtu": 0.6,
+   "printed_kgco2_per_unit": 4.05,
+   "category": "petroleum"
+  },
+  "Ethylene": {
+   "unit": "gallon",
+   "hhv_mmbtu_per_unit": 0.058,
+   "kgco2_per_mmbtu": 65.96,
+   "gch4_per_mmbtu": 3.0,
+   "gn2o_per_mmbtu": 0.6,
+   "printed_kgco2_per_unit": 3.83,
+   "category": "petroleum"
+  },
+  "Heavy Gas Oils": {
+   "unit": "gallon",
+   "hhv_mmbtu_per_unit": 0.148,
+   "kgco2_per_mmbtu": 74.92,
+   "gch4_per_mmbtu": 3.0,
+   "gn2o_per_mmbtu": 0.6,
+   "printed_kgco2_per_unit": 11.09,
+   "category": "petroleum"
+  },
+  "Isobutane": {
+   "unit": "gallon",
+   "hhv_mmbtu_per_unit": 0.099,
+   "kgco2_per_mmbtu": 64.94,
+   "gch4_per_mmbtu": 3.0,
+   "gn2o_per_mmbtu": 0.6,
+   "printed_kgco2_per_unit": 6.43,
+   "category": "petroleum"
+  },
+  "Isobutylene": {
+   "unit": "gallon",
+   "hhv_mmbtu_per_unit": 0.103,
+   "kgco2_per_mmbtu": 68.86,
+   "gch4_per_mmbtu": 3.0,
+   "gn2o_per_mmbtu": 0.6,
+   "printed_kgco2_per_unit": 7.09,
+   "category": "petroleum"
+  },
+  "Kerosene": {
+   "unit": "gallon",
+   "hhv_mmbtu_per_unit": 0.135,
+   "kgco2_per_mmbtu": 75.2,
+   "gch4_per_mmbtu": 3.0,
+   "gn2o_per_mmbtu": 0.6,
+   "printed_kgco2_per_unit": 10.15,
+   "category": "petroleum"
+  },
+  "Kerosene-Type Jet Fuel": {
+   "unit": "gallon",
+   "hhv_mmbtu_per_unit": 0.135,
+   "kgco2_per_mmbtu": 72.22,
+   "gch4_per_mmbtu": 3.0,
+   "gn2o_per_mmbtu": 0.6,
+   "printed_kgco2_per_unit": 9.75,
+   "category": "petroleum"
+  },
+  "Liquefied Petroleum Gases (LPG)": {
+   "unit": "gallon",
+   "hhv_mmbtu_per_unit": 0.092,
+   "kgco2_per_mmbtu": 61.71,
+   "gch4_per_mmbtu": 3.0,
+   "gn2o_per_mmbtu": 0.6,
+   "printed_kgco2_per_unit": 5.68,
+   "category": "petroleum"
+  },
+  "Lubricants": {
+   "unit": "gallon",
+   "hhv_mmbtu_per_unit": 0.144,
+   "kgco2_per_mmbtu": 74.27,
+   "gch4_per_mmbtu": 3.0,
+   "gn2o_per_mmbtu": 0.6,
+   "printed_kgco2_per_unit": 10.69,
+   "category": "petroleum"
+  },
+  "Motor Gasoline": {
+   "unit": "gallon",
+   "hhv_mmbtu_per_unit": 0.125,
+   "kgco2_per_mmbtu": 70.22,
+   "gch4_per_mmbtu": 3.0,
+   "gn2o_per_mmbtu": 0.6,
+   "printed_kgco2_per_unit": 8.78,
+   "category": "petroleum"
+  },
+  "Naphtha (<401 deg F)": {
+   "unit": "gallon",
+   "hhv_mmbtu_per_unit": 0.125,
+   "kgco2_per_mmbtu": 68.02,
+   "gch4_per_mmbtu": 3.0,
+   "gn2o_per_mmbtu": 0.6,
+   "printed_kgco2_per_unit": 8.5,
+   "category": "petroleum"
+  },
+  "Natural Gasoline": {
+   "unit": "gallon",
+   "hhv_mmbtu_per_unit": 0.11,
+   "kgco2_per_mmbtu": 66.88,
+   "gch4_per_mmbtu": 3.0,
+   "gn2o_per_mmbtu": 0.6,
+   "printed_kgco2_per_unit": 7.36,
+   "category": "petroleum"
+  },
+  "Other Oil (>401 deg F)": {
+   "unit": "gallon",
+   "hhv_mmbtu_per_unit": 0.139,
+   "kgco2_per_mmbtu": 76.22,
+   "gch4_per_mmbtu": 3.0,
+   "gn2o_per_mmbtu": 0.6,
+   "printed_kgco2_per_unit": 10.59,
+   "category": "petroleum"
+  },
+  "Pentanes Plus": {
+   "unit": "gallon",
+   "hhv_mmbtu_per_unit": 0.11,
+   "kgco2_per_mmbtu": 70.02,
+   "gch4_per_mmbtu": 3.0,
+   "gn2o_per_mmbtu": 0.6,
+   "printed_kgco2_per_unit": 7.7,
+   "category": "petroleum"
+  },
+  "Petrochemical Feedstocks": {
+   "unit": "gallon",
+   "hhv_mmbtu_per_unit": 0.125,
+   "kgco2_per_mmbtu": 71.02,
+   "gch4_per_mmbtu": 3.0,
+   "gn2o_per_mmbtu": 0.6,
+   "printed_kgco2_per_unit": 8.88,
+   "category": "petroleum"
+  },
+  "Propane": {
+   "unit": "gallon",
+   "hhv_mmbtu_per_unit": 0.091,
+   "kgco2_per_mmbtu": 62.87,
+   "gch4_per_mmbtu": 3.0,
+   "gn2o_per_mmbtu": 0.6,
+   "printed_kgco2_per_unit": 5.72,
+   "category": "petroleum"
+  },
+  "Propylene": {
+   "unit": "gallon",
+   "hhv_mmbtu_per_unit": 0.091,
+   "kgco2_per_mmbtu": 67.77,
+   "gch4_per_mmbtu": 3.0,
+   "gn2o_per_mmbtu": 0.6,
+   "printed_kgco2_per_unit": 6.17,
+   "category": "petroleum"
+  },
+  "Residual Fuel Oil No. 5": {
+   "unit": "gallon",
+   "hhv_mmbtu_per_unit": 0.14,
+   "kgco2_per_mmbtu": 72.93,
+   "gch4_per_mmbtu": 3.0,
+   "gn2o_per_mmbtu": 0.6,
+   "printed_kgco2_per_unit": 10.21,
+   "category": "petroleum"
+  },
+  "Residual Fuel Oil No. 6": {
+   "unit": "gallon",
+   "hhv_mmbtu_per_unit": 0.15,
+   "kgco2_per_mmbtu": 75.1,
+   "gch4_per_mmbtu": 3.0,
+   "gn2o_per_mmbtu": 0.6,
+   "printed_kgco2_per_unit": 11.27,
+   "category": "petroleum"
+  },
+  "Special Naphtha": {
+   "unit": "gallon",
+   "hhv_mmbtu_per_unit": 0.125,
+   "kgco2_per_mmbtu": 72.34,
+   "gch4_per_mmbtu": 3.0,
+   "gn2o_per_mmbtu": 0.6,
+   "printed_kgco2_per_unit": 9.04,
+   "category": "petroleum"
+  },
+  "Unfinished Oils": {
+   "unit": "gallon",
+   "hhv_mmbtu_per_unit": 0.139,
+   "kgco2_per_mmbtu": 74.54,
+   "gch4_per_mmbtu": 3.0,
+   "gn2o_per_mmbtu": 0.6,
+   "printed_kgco2_per_unit": 10.36,
+   "category": "petroleum"
+  },
+  "Used Oil": {
+   "unit": "gallon",
+   "hhv_mmbtu_per_unit": 0.138,
+   "kgco2_per_mmbtu": 74.0,
+   "gch4_per_mmbtu": 3.0,
+   "gn2o_per_mmbtu": 0.6,
+   "printed_kgco2_per_unit": 10.21,
+   "category": "petroleum"
+  },
+  "Biodiesel (100%)": {
+   "unit": "gallon",
+   "hhv_mmbtu_per_unit": 0.128,
+   "kgco2_per_mmbtu": 73.84,
+   "gch4_per_mmbtu": 1.1,
+   "gn2o_per_mmbtu": 0.11,
+   "printed_kgco2_per_unit": 9.45,
+   "category": "biomass_liquid"
+  },
+  "Ethanol (100%)": {
+   "unit": "gallon",
+   "hhv_mmbtu_per_unit": 0.084,
+   "kgco2_per_mmbtu": 68.44,
+   "gch4_per_mmbtu": 1.1,
+   "gn2o_per_mmbtu": 0.11,
+   "printed_kgco2_per_unit": 5.75,
+   "category": "biomass_liquid"
+  },
+  "Rendered Animal Fat": {
+   "unit": "gallon",
+   "hhv_mmbtu_per_unit": 0.125,
+   "kgco2_per_mmbtu": 71.06,
+   "gch4_per_mmbtu": 1.1,
+   "gn2o_per_mmbtu": 0.11,
+   "printed_kgco2_per_unit": 8.88,
+   "category": "biomass_liquid"
+  },
+  "Vegetable Oil": {
+   "unit": "gallon",
+   "hhv_mmbtu_per_unit": 0.12,
+   "kgco2_per_mmbtu": 81.55,
+   "gch4_per_mmbtu": 1.1,
+   "gn2o_per_mmbtu": 0.11,
+   "printed_kgco2_per_unit": 9.79,
+   "category": "biomass_liquid"
+  }
+ },
+ "table2_mobile_co2": {
+  "Aviation Gasoline": {
+   "kgco2_per_unit": 8.31,
+   "unit": "gallon"
+  },
+  "Biodiesel (100%)": {
+   "kgco2_per_unit": 9.45,
+   "unit": "gallon"
+  },
+  "Compressed Natural Gas (CNG)": {
+   "kgco2_per_unit": 0.05444,
+   "unit": "scf"
+  },
+  "Diesel Fuel": {
+   "kgco2_per_unit": 10.21,
+   "unit": "gallon"
+  },
+  "Ethanol (100%)": {
+   "kgco2_per_unit": 5.75,
+   "unit": "gallon"
+  },
+  "Kerosene-Type Jet Fuel": {
+   "kgco2_per_unit": 9.75,
+   "unit": "gallon"
+  },
+  "Liquefied Natural Gas (LNG)": {
+   "kgco2_per_unit": 4.5,
+   "unit": "gallon"
+  },
+  "Liquefied Petroleum Gases (LPG)": {
+   "kgco2_per_unit": 5.68,
+   "unit": "gallon"
+  },
+  "Motor Gasoline": {
+   "kgco2_per_unit": 8.78,
+   "unit": "gallon"
+  },
+  "Residual Fuel Oil": {
+   "kgco2_per_unit": 11.27,
+   "unit": "gallon"
+  }
+ },
+ "table6_egrid_total_output": {
+  "AKGD": {
+   "name": "ASCC Alaska Grid",
+   "lb_co2_per_mwh": 899.0,
+   "lb_ch4_per_mwh": 0.086,
+   "lb_n2o_per_mwh": 0.012,
+   "grid_gross_loss_pct": 4.1
+  },
+  "AKMS": {
+   "name": "ASCC Miscellaneous",
+   "lb_co2_per_mwh": 519.4,
+   "lb_ch4_per_mwh": 0.026,
+   "lb_n2o_per_mwh": 0.004,
+   "grid_gross_loss_pct": 4.1
+  },
+  "AZNM": {
+   "name": "WECC Southwest",
+   "lb_co2_per_mwh": 740.8,
+   "lb_ch4_per_mwh": 0.041,
+   "lb_n2o_per_mwh": 0.006,
+   "grid_gross_loss_pct": 4.1
+  },
+  "CAMX": {
+   "name": "WECC California",
+   "lb_co2_per_mwh": 436.7,
+   "lb_ch4_per_mwh": 0.025,
+   "lb_n2o_per_mwh": 0.003,
+   "grid_gross_loss_pct": 4.1
+  },
+  "ERCT": {
+   "name": "ERCOT All",
+   "lb_co2_per_mwh": 738.0,
+   "lb_ch4_per_mwh": 0.043,
+   "lb_n2o_per_mwh": 0.006,
+   "grid_gross_loss_pct": 4.2
+  },
+  "FRCC": {
+   "name": "FRCC All",
+   "lb_co2_per_mwh": 801.9,
+   "lb_ch4_per_mwh": 0.042,
+   "lb_n2o_per_mwh": 0.005,
+   "grid_gross_loss_pct": 4.2
+  },
+  "HIMS": {
+   "name": "HICC Miscellaneous",
+   "lb_co2_per_mwh": 1122.1,
+   "lb_ch4_per_mwh": 0.146,
+   "lb_n2o_per_mwh": 0.022,
+   "grid_gross_loss_pct": 4.4
+  },
+  "HIOA": {
+   "name": "HICC Oahu",
+   "lb_co2_per_mwh": 1489.4,
+   "lb_ch4_per_mwh": 0.134,
+   "lb_n2o_per_mwh": 0.021,
+   "grid_gross_loss_pct": 4.4
+  },
+  "MROE": {
+   "name": "MRO East",
+   "lb_co2_per_mwh": 1402.0,
+   "lb_ch4_per_mwh": 0.116,
+   "lb_n2o_per_mwh": 0.017,
+   "grid_gross_loss_pct": 4.2
+  },
+  "MROW": {
+   "name": "MRO West",
+   "lb_co2_per_mwh": 920.0,
+   "lb_ch4_per_mwh": 0.097,
+   "lb_n2o_per_mwh": 0.014,
+   "grid_gross_loss_pct": 4.2
+  },
+  "NEWE": {
+   "name": "NPCC New England",
+   "lb_co2_per_mwh": 537.2,
+   "lb_ch4_per_mwh": 0.063,
+   "lb_n2o_per_mwh": 0.008,
+   "grid_gross_loss_pct": 4.2
+  },
+  "NWPP": {
+   "name": "WECC Northwest",
+   "lb_co2_per_mwh": 631.7,
+   "lb_ch4_per_mwh": 0.054,
+   "lb_n2o_per_mwh": 0.008,
+   "grid_gross_loss_pct": 4.1
+  },
+  "NYCW": {
+   "name": "NPCC NYC/Westchester",
+   "lb_co2_per_mwh": 974.7,
+   "lb_ch4_per_mwh": 0.025,
+   "lb_n2o_per_mwh": 0.003,
+   "grid_gross_loss_pct": 4.2
+  },
+  "NYLI": {
+   "name": "NPCC Long Island",
+   "lb_co2_per_mwh": 1180.7,
+   "lb_ch4_per_mwh": 0.14,
+   "lb_n2o_per_mwh": 0.018,
+   "grid_gross_loss_pct": 4.2
+  },
+  "NYUP": {
+   "name": "NPCC Upstate NY",
+   "lb_co2_per_mwh": 241.0,
+   "lb_ch4_per_mwh": 0.011,
+   "lb_n2o_per_mwh": 0.001,
+   "grid_gross_loss_pct": 4.2
+  },
+  "PRMS": {
+   "name": "Puerto Rico Miscellaneous",
+   "lb_co2_per_mwh": 1543.0,
+   "lb_ch4_per_mwh": 0.077,
+   "lb_n2o_per_mwh": 0.012,
+   "grid_gross_loss_pct": null
+  },
+  "RFCE": {
+   "name": "RFC East",
+   "lb_co2_per_mwh": 594.7,
+   "lb_ch4_per_mwh": 0.036,
+   "lb_n2o_per_mwh": 0.005,
+   "grid_gross_loss_pct": 4.2
+  },
+  "RFCM": {
+   "name": "RFC Michigan",
+   "lb_co2_per_mwh": 962.1,
+   "lb_ch4_per_mwh": 0.082,
+   "lb_n2o_per_mwh": 0.011,
+   "grid_gross_loss_pct": 4.2
+  },
+  "RFCW": {
+   "name": "RFC West",
+   "lb_co2_per_mwh": 911.3,
+   "lb_ch4_per_mwh": 0.071,
+   "lb_n2o_per_mwh": 0.01,
+   "grid_gross_loss_pct": 4.2
+  },
+  "RMPA": {
+   "name": "WECC Rockies",
+   "lb_co2_per_mwh": 1036.0,
+   "lb_ch4_per_mwh": 0.09,
+   "lb_n2o_per_mwh": 0.013,
+   "grid_gross_loss_pct": 4.1
+  },
+  "SPNO": {
+   "name": "SPP North",
+   "lb_co2_per_mwh": 861.9,
+   "lb_ch4_per_mwh": 0.087,
+   "lb_n2o_per_mwh": 0.012,
+   "grid_gross_loss_pct": 4.2
+  },
+  "SPSO": {
+   "name": "SPP South",
+   "lb_co2_per_mwh": 891.1,
+   "lb_ch4_per_mwh": 0.055,
+   "lb_n2o_per_mwh": 0.008,
+   "grid_gross_loss_pct": 4.2
+  },
+  "SRMV": {
+   "name": "SERC Mississippi Valley",
+   "lb_co2_per_mwh": 739.4,
+   "lb_ch4_per_mwh": 0.032,
+   "lb_n2o_per_mwh": 0.004,
+   "grid_gross_loss_pct": 4.2
+  },
+  "SRMW": {
+   "name": "SERC Midwest",
+   "lb_co2_per_mwh": 1238.3,
+   "lb_ch4_per_mwh": 0.132,
+   "lb_n2o_per_mwh": 0.019,
+   "grid_gross_loss_pct": 4.2
+  },
+  "SRSO": {
+   "name": "SERC South",
+   "lb_co2_per_mwh": 840.9,
+   "lb_ch4_per_mwh": 0.055,
+   "lb_n2o_per_mwh": 0.008,
+   "grid_gross_loss_pct": 4.2
+  },
+  "SRTV": {
+   "name": "SERC Tennessee Valley",
+   "lb_co2_per_mwh": 895.7,
+   "lb_ch4_per_mwh": 0.079,
+   "lb_n2o_per_mwh": 0.011,
+   "grid_gross_loss_pct": 4.2
+  },
+  "SRVC": {
+   "name": "SERC Virginia/Carolina",
+   "lb_co2_per_mwh": 590.2,
+   "lb_ch4_per_mwh": 0.045,
+   "lb_n2o_per_mwh": 0.006,
+   "grid_gross_loss_pct": 4.2
+  },
+  "US": {
+   "name": "US Average",
+   "lb_co2_per_mwh": 771.5,
+   "lb_ch4_per_mwh": 0.057,
+   "lb_n2o_per_mwh": 0.008,
+   "grid_gross_loss_pct": 4.2
+  }
+ },
+ "table7_steam_heat": {
+  "kgco2_per_mmbtu": 66.33,
+  "gch4_per_mmbtu": 1.25,
+  "gn2o_per_mmbtu": 0.125,
+  "note": "purchased steam/heat; natural gas at 80% thermal efficiency"
+ },
+ "table8_scope3_transport": {
+  "Medium- and Heavy-Duty Truck (vehicle-mile)": {
+   "kgco2_per_unit": 1.298,
+   "gch4_per_unit": 0.0115,
+   "gn2o_per_unit": 0.0376,
+   "unit": "vehicle-mile"
+  },
+  "Passenger Car (vehicle-mile)": {
+   "kgco2_per_unit": 0.297,
+   "gch4_per_unit": 0.0059,
+   "gn2o_per_unit": 0.0053,
+   "unit": "vehicle-mile"
+  },
+  "Light-Duty Truck (vehicle-mile)": {
+   "kgco2_per_unit": 0.394,
+   "gch4_per_unit": 0.0109,
+   "gn2o_per_unit": 0.0088,
+   "unit": "vehicle-mile"
+  },
+  "Medium- and Heavy-Duty Truck (short ton-mile)": {
+   "kgco2_per_unit": 0.186,
+   "gch4_per_unit": 0.0016,
+   "gn2o_per_unit": 0.0054,
+   "unit": "short ton-mile"
+  },
+  "Rail": {
+   "kgco2_per_unit": 0.021,
+   "gch4_per_unit": 0.0016,
+   "gn2o_per_unit": 0.0005,
+   "unit": "short ton-mile"
+  },
+  "Waterborne Craft": {
+   "kgco2_per_unit": 0.077,
+   "gch4_per_unit": 0.031,
+   "gn2o_per_unit": 0.002,
+   "unit": "short ton-mile"
+  },
+  "Aircraft": {
+   "kgco2_per_unit": 1.086,
+   "gch4_per_unit": 0.0,
+   "gn2o_per_unit": 0.0334,
+   "unit": "short ton-mile"
+  }
+ },
+ "table10_scope3_travel": {
+  "Passenger Car": {
+   "kgco2_per_unit": 0.297,
+   "gch4_per_unit": 0.0059,
+   "gn2o_per_unit": 0.0053,
+   "unit": "vehicle-mile"
+  },
+  "Light-Duty Truck": {
+   "kgco2_per_unit": 0.394,
+   "gch4_per_unit": 0.0109,
+   "gn2o_per_unit": 0.0088,
+   "unit": "vehicle-mile"
+  },
+  "Motorcycle": {
+   "kgco2_per_unit": 0.368,
+   "gch4_per_unit": 0.0888,
+   "gn2o_per_unit": 0.0188,
+   "unit": "vehicle-mile"
+  },
+  "Intercity Rail - Northeast Corridor": {
+   "kgco2_per_unit": 0.023,
+   "gch4_per_unit": 0.001,
+   "gn2o_per_unit": 0.0001,
+   "unit": "passenger-mile"
+  },
+  "Intercity Rail - Other Routes": {
+   "kgco2_per_unit": 0.149,
+   "gch4_per_unit": 0.012,
+   "gn2o_per_unit": 0.004,
+   "unit": "passenger-mile"
+  },
+  "Intercity Rail - National Average": {
+   "kgco2_per_unit": 0.096,
+   "gch4_per_unit": 0.008,
+   "gn2o_per_unit": 0.002,
+   "unit": "passenger-mile"
+  },
+  "Commuter Rail": {
+   "kgco2_per_unit": 0.133,
+   "gch4_per_unit": 0.0105,
+   "gn2o_per_unit": 0.0026,
+   "unit": "passenger-mile"
+  },
+  "Transit Rail (Subway, Tram)": {
+   "kgco2_per_unit": 0.093,
+   "gch4_per_unit": 0.0075,
+   "gn2o_per_unit": 0.001,
+   "unit": "passenger-mile"
+  },
+  "Bus": {
+   "kgco2_per_unit": 0.066,
+   "gch4_per_unit": 0.0046,
+   "gn2o_per_unit": 0.0019,
+   "unit": "passenger-mile"
+  },
+  "Air Travel - Short Haul (<300 mi)": {
+   "kgco2_per_unit": 0.207,
+   "gch4_per_unit": 0.0064,
+   "gn2o_per_unit": 0.0066,
+   "unit": "passenger-mile"
+  },
+  "Air Travel - Medium Haul (300-2300 mi)": {
+   "kgco2_per_unit": 0.129,
+   "gch4_per_unit": 0.0006,
+   "gn2o_per_unit": 0.0041,
+   "unit": "passenger-mile"
+  },
+  "Air Travel - Long Haul (>=2300 mi)": {
+   "kgco2_per_unit": 0.163,
+   "gch4_per_unit": 0.0006,
+   "gn2o_per_unit": 0.0052,
+   "unit": "passenger-mile"
+  }
+ }
+}

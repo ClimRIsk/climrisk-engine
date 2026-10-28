@@ -6991,6 +6991,66 @@ def carbon_markets_sync_registry(req: RegistrySyncRequest) -> dict:
         raise HTTPException(status_code=422, detail=str(exc))
 
 
+class MarineFuelRequest(BaseModel):
+    consumption: list = Field(..., min_length=1, max_length=200, description="[{fuel: key, tonnes, wtt_override?, cslip_override_pct?} | {custom: {wtt_gco2e_per_mj, lcv_mj_per_g, cf_co2_g_per_g, ...}, tonnes}]")
+    year: Optional[int] = Field(None, ge=2025, le=2100)
+
+
+@app.get("/lca/marine-fuels", dependencies=[_AUTH], tags=["LCA"])
+def lca_marine_fuels() -> dict:
+    """FuelEU Annex II fossil fuel defaults as transcribed from the Commission guidance, with each fuel's well-to-wake intensity."""
+    from ..lca import marine_fuels as MF
+    return {"source": MF.lib()["source"], "not_checked_against": MF.lib()["not_checked_against"], "known_discrepancies": MF.lib().get("known_discrepancies"),
+            "notes": MF.lib()["notes"], "fuels": {k: MF.wtw(k) for k in MF.fuels()}}
+
+
+@app.post("/lca/marine-fuels/ship-intensity", dependencies=[_AUTH], tags=["LCA"])
+def lca_marine_ship_intensity(req: MarineFuelRequest) -> dict:
+    """Well-to-wake emissions and FuelEU GHG intensity for a ship's fuel use; with a year, the limit and compliance balance. Regulatory calculation, not a measurement."""
+    from ..lca import marine_fuels as MF
+    try:
+        cons = [dict(c) for c in req.consumption]
+        return MF.ship_intensity(cons, req.year)
+    except (MF.MarineFuelError, KeyError, TypeError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+
+
+class EpaFactorRequest(BaseModel):
+    kind: str = Field(..., pattern="^(stationary|mobile_co2|electricity|steam_heat|transport|travel)$")
+    name: Optional[str] = Field(None, description="fuel, eGRID subregion, or transport/travel entry")
+    amount: float = Field(..., ge=0)
+    unit: Optional[str] = None
+    hhv_mmbtu_per_unit: Optional[float] = Field(None, gt=0, description="supplier heat content; overrides the Hub default")
+
+
+@app.get("/carbon/epa-factors", dependencies=[_AUTH], tags=["Carbon"])
+def carbon_epa_factors_list() -> dict:
+    """What the US EPA Hub library contains (names only), with source and what was not transcribed."""
+    from ..carbon import epa_factors as EF
+    L = EF.lib()
+    return {"source": L["source"], "url": L["url"], "retrieved": L["retrieved"], "not_checked": L["not_checked"], "not_transcribed": L["not_transcribed"],
+            "fuels": sorted(L["table1_stationary"]), "mobile_fuels": sorted(L["table2_mobile_co2"]), "egrid_subregions": sorted(L["table6_egrid_total_output"]),
+            "transport": sorted(L["table8_scope3_transport"]), "travel": sorted(L["table10_scope3_travel"])}
+
+
+@app.post("/carbon/epa-factors", dependencies=[_AUTH], tags=["Carbon"])
+def carbon_epa_factors(req: EpaFactorRequest) -> dict:
+    """Emissions for an activity from the US EPA GHG Emission Factors Hub (2025). Combustion only; the table and edition are in every result."""
+    from ..carbon import epa_factors as EF
+    try:
+        if req.kind == "stationary":
+            return EF.stationary(req.name or "", req.amount, req.unit, req.hhv_mmbtu_per_unit)
+        if req.kind == "mobile_co2":
+            return EF.mobile_co2(req.name or "", req.amount)
+        if req.kind == "electricity":
+            return EF.electricity(req.name or "", req.amount)
+        if req.kind == "steam_heat":
+            return EF.steam_heat(req.amount)
+        return EF.travel_or_transport(req.name or "", req.amount, "table8_scope3_transport" if req.kind == "transport" else "table10_scope3_travel")
+    except EF.EpaFactorError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+
+
 @app.get("/materiality/dashboard", tags=["CSRD"])
 def materiality_dashboard():
     from fastapi.responses import HTMLResponse

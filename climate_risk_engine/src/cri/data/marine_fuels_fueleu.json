@@ -1,0 +1,186 @@
+{
+ "source": "European Commission, Guidance on the FuelEU Maritime Regulation, Table 4.2 (reproduction of Annex II of Regulation (EU) 2023/1805, fossil pathways), citing ESSF WS1 report on calculation methodologies. Retrieved 28 Oct 2026 from transport.ec.europa.eu.",
+ "not_checked_against": "the Official Journal text (EUR-Lex was not retrievable here)",
+ "columns": {
+  "lcv_mj_per_g": "column 3",
+  "wtt_gco2e_per_mj": "column 4",
+  "cf_co2_g_per_g": "column 6",
+  "cf_ch4_g_per_g": "column 7",
+  "cf_n2o_g_per_g": "column 8",
+  "cslip_pct": "column 9"
+ },
+ "notes": [
+  "TBM or N/A cells in Annex II (LPG, H2, NH3, methanol CH4/N2O) were filled by the guidance with the highest default of the fuel class: 0.00005 gCH4/g and 0.00018 gN2O/g; the table above is as printed there.",
+  "Cslip is only defined by Annex II for LNG; for LPG, NH3 and others it is 'not available' and a certified value is required (Article 10(5)); here 0.0 means 'no default', and results say so.",
+  "WtT is a default for FOSSIL pathways only. Biofuels, bio-LNG, e-fuels and e-ammonia use the certified supplier value: this library gives no default for them."
+ ],
+ "gwp100_fueleu": {
+  "CO2": 1,
+  "CH4": 25,
+  "N2O": 298,
+  "source": "Directive (EU) 2018/2001 Annex V Part C para 4, as applied by FuelEU per the Commission guidance (IPCC AR4); the EU MRV/ETS uses AR5 values under Delegated Regulation 2020/1044 and may differ"
+ },
+ "ghg_intensity_limits_gco2e_per_mj": {
+  "reference": 91.16,
+  "2025": 89.34,
+  "2030": 85.69,
+  "2035": 77.94,
+  "2040": 62.9,
+  "2045": 34.34,
+  "2050": 18.23,
+  "reduction_pct": {
+   "2025": 2,
+   "2030": 6,
+   "2035": 14.5,
+   "2040": 31,
+   "2045": 62,
+   "2050": 80
+  }
+ },
+ "published_wtw_results_gco2e_per_mj": {
+  "hfo": 91.74,
+  "lfo": 91.39,
+  "mdo_mgo": 90.77,
+  "lng_otto_medium": 89.2,
+  "lng_otto_slow": 82.87,
+  "lng_diesel_slow": 76.08,
+  "lng_lbsi": 86.94,
+  "lpg_butane": 74.86,
+  "lpg_propane": 74.21,
+  "h2_ng_fuel_cell": 132.0,
+  "h2_ng_ice": 132.45,
+  "nh3_ng_ice": 123.95,
+  "methanol_ng": 103.15
+ },
+ "fuels": {
+  "hfo": {
+   "label": "HFO (ISO 8217 grades RME-RMK)",
+   "lcv_mj_per_g": 0.0405,
+   "wtt_gco2e_per_mj": 13.5,
+   "cf_co2_g_per_g": 3.114,
+   "cf_ch4_g_per_g": 5e-05,
+   "cf_n2o_g_per_g": 0.00018,
+   "cslip_pct": 0.0
+  },
+  "lfo": {
+   "label": "LFO (RMA-RMD)",
+   "lcv_mj_per_g": 0.041,
+   "wtt_gco2e_per_mj": 13.2,
+   "cf_co2_g_per_g": 3.151,
+   "cf_ch4_g_per_g": 5e-05,
+   "cf_n2o_g_per_g": 0.00018,
+   "cslip_pct": 0.0
+  },
+  "mdo_mgo": {
+   "label": "MDO/MGO (DMX-DMB)",
+   "lcv_mj_per_g": 0.0427,
+   "wtt_gco2e_per_mj": 14.4,
+   "cf_co2_g_per_g": 3.206,
+   "cf_ch4_g_per_g": 5e-05,
+   "cf_n2o_g_per_g": 0.00018,
+   "cslip_pct": 0.0
+  },
+  "lng_otto_medium": {
+   "label": "LNG, Otto dual-fuel medium speed",
+   "lcv_mj_per_g": 0.0491,
+   "wtt_gco2e_per_mj": 18.5,
+   "cf_co2_g_per_g": 2.75,
+   "cf_ch4_g_per_g": 0.0,
+   "cf_n2o_g_per_g": 0.00011,
+   "cslip_pct": 3.1
+  },
+  "lng_otto_slow": {
+   "label": "LNG, Otto dual-fuel slow speed",
+   "lcv_mj_per_g": 0.0491,
+   "wtt_gco2e_per_mj": 18.5,
+   "cf_co2_g_per_g": 2.75,
+   "cf_ch4_g_per_g": 0.0,
+   "cf_n2o_g_per_g": 0.00011,
+   "cslip_pct": 1.7
+  },
+  "lng_diesel_slow": {
+   "label": "LNG, Diesel dual-fuel slow speed",
+   "lcv_mj_per_g": 0.0491,
+   "wtt_gco2e_per_mj": 18.5,
+   "cf_co2_g_per_g": 2.75,
+   "cf_ch4_g_per_g": 0.0,
+   "cf_n2o_g_per_g": 0.00011,
+   "cslip_pct": 0.2
+  },
+  "lng_lbsi": {
+   "label": "LNG, lean-burn spark-ignited",
+   "lcv_mj_per_g": 0.0491,
+   "wtt_gco2e_per_mj": 18.5,
+   "cf_co2_g_per_g": 2.75,
+   "cf_ch4_g_per_g": 0.0,
+   "cf_n2o_g_per_g": 0.00011,
+   "cslip_pct": 2.6
+  },
+  "lpg_butane": {
+   "label": "LPG butane",
+   "lcv_mj_per_g": 0.046,
+   "wtt_gco2e_per_mj": 7.8,
+   "cf_co2_g_per_g": 3.03,
+   "cf_ch4_g_per_g": 5e-05,
+   "cf_n2o_g_per_g": 0.00018,
+   "cslip_pct": 0.0
+  },
+  "lpg_propane": {
+   "label": "LPG propane",
+   "lcv_mj_per_g": 0.046,
+   "wtt_gco2e_per_mj": 7.8,
+   "cf_co2_g_per_g": 3.0,
+   "cf_ch4_g_per_g": 5e-05,
+   "cf_n2o_g_per_g": 0.00018,
+   "cslip_pct": 0.0
+  },
+  "h2_ng_fuel_cell": {
+   "label": "Hydrogen (natural gas), fuel cells",
+   "lcv_mj_per_g": 0.12,
+   "wtt_gco2e_per_mj": 132.0,
+   "cf_co2_g_per_g": 0.0,
+   "cf_ch4_g_per_g": 0.0,
+   "cf_n2o_g_per_g": 0.0,
+   "cslip_pct": 0.0
+  },
+  "h2_ng_ice": {
+   "label": "Hydrogen (natural gas), ICE",
+   "lcv_mj_per_g": 0.12,
+   "wtt_gco2e_per_mj": 132.0,
+   "cf_co2_g_per_g": 0.0,
+   "cf_ch4_g_per_g": 0.0,
+   "cf_n2o_g_per_g": 0.00018,
+   "cslip_pct": 0.0
+  },
+  "nh3_ng_fuel_cell": {
+   "label": "Ammonia (natural gas), fuel cells",
+   "lcv_mj_per_g": 0.0186,
+   "wtt_gco2e_per_mj": 121.0,
+   "cf_co2_g_per_g": 0.0,
+   "cf_ch4_g_per_g": 5e-05,
+   "cf_n2o_g_per_g": 0.00018,
+   "cslip_pct": 0.0
+  },
+  "nh3_ng_ice": {
+   "label": "Ammonia (natural gas), ICE",
+   "lcv_mj_per_g": 0.018,
+   "wtt_gco2e_per_mj": 121.0,
+   "cf_co2_g_per_g": 0.0,
+   "cf_ch4_g_per_g": 5e-05,
+   "cf_n2o_g_per_g": 0.00018,
+   "cslip_pct": 0.0
+  },
+  "methanol_ng": {
+   "label": "Methanol (natural gas)",
+   "lcv_mj_per_g": 0.0199,
+   "wtt_gco2e_per_mj": 31.3,
+   "cf_co2_g_per_g": 1.375,
+   "cf_ch4_g_per_g": 5e-05,
+   "cf_n2o_g_per_g": 0.00018,
+   "cslip_pct": 0.0
+  }
+ },
+ "known_discrepancies": {
+  "nh3_ng_ice": "Computed 124.05 gCO2e/MJ from Table 4.2 values; the guidance's Table 4.8 prints 123.95 for ammonia (natural gas) without saying which engine or LCV it used. Unexplained difference 0.10; the Table 4.2 inputs are used as printed."
+ }
+}
