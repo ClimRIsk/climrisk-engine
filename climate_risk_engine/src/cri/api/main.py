@@ -3813,70 +3813,26 @@ def portfolio_risk(request: PortfolioRiskRequest) -> PortfolioRiskResponse:
     )
 
 
-@app.post("/portfolio/credit", response_model=PortfolioCreditResponse)
-def portfolio_credit(request: PortfolioCreditRequest) -> PortfolioCreditResponse:
-    """Climate-adjusted PD, LGD, ECL, and RWA for a bank loan book.
+@app.post("/portfolio/credit", dependencies=[_AUTH], tags=["Credit"])
+def portfolio_credit_withdrawn():
+    """Withdrawn 28 Oct 2026. The earlier PD/LGD/ECL/RWA model used coefficients and "ECB 2022" multipliers that could not be traced to a source and was never tested against defaults."""
+    raise HTTPException(status_code=410, detail="withdrawn: untraceable coefficients, never tested. Use POST /portfolio/credit-structural (Merton structural model; every number computed from your inputs).")
 
-    Implements the ECB Climate Stress Test 2022 methodology for PD uplift
-    combined with NGFS Phase 4 sector-level transition shock tables:
-    - Physical PD uplift from asset exposure to hazard events
-    - Transition PD uplift from stranded-asset risk under NGFS scenarios
-    - LGD uplift from collateral degradation (sector + collateral type)
-    - IFRS 9 Expected Credit Loss: PD × LGD × EAD
-    - Basel III RWA under Standardised Approach with climate PD migration
-    - CET1 incremental capital charge (8% + 4.5% conservation buffer)
-    """
-    from ..climate.credit_risk import compute_portfolio_credit_risk, CounterpartyInput
-    import dataclasses
 
-    if not request.obligors:
-        raise HTTPException(status_code=422, detail="At least one obligor required.")
+class StructuralCreditRequest(BaseModel):
+    obligors: list = Field(..., min_length=1, max_length=2000, description="Each: ead, baseline_pd, leverage (D/V) required. Optional: physical_value_loss_fraction, emissions_tco2e, carbon_price_usd_per_t, ebitda, "
+                           "carbon_cost_pass_through, lgd_unsecured, collateral_value, recovery_haircut, collateral_damage_fraction, risk_free_rate, maturity_years, irb_scaling, id/name.")
 
-    obligors = [
-        CounterpartyInput(
-            company_id=o.company_id,
-            company_name=o.company_name,
-            sector=o.sector,
-            ead_usd_m=o.ead_usd_m,
-            baseline_pd=o.baseline_pd,
-            baseline_lgd=o.baseline_lgd,
-            physical_score=o.physical_score,
-            transition_score=o.transition_score,
-            collateral_type=o.collateral_type,
-            scenario=o.scenario,
-            region=getattr(o, "region", "Global"),
-        )
-        for o in request.obligors
-    ]
 
-    result = compute_portfolio_credit_risk(obligors)
+@app.post("/portfolio/credit-structural", dependencies=[_AUTH], tags=["Credit"])
+def portfolio_credit_structural(req: StructuralCreditRequest) -> dict:
+    """Climate-adjusted PD, LGD, ECL and IRB capital from a Merton structural model. Anything not supplied is reported as not assessed, never zero. See climate/structural_credit.py."""
+    from ..climate import structural_credit as SC
+    try:
+        return SC.portfolio(req.obligors)
+    except (SC.CreditError, TypeError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
 
-    def _dc(obj):
-        if dataclasses.is_dataclass(obj) and not isinstance(obj, type):
-            return {k: _dc(v) for k, v in dataclasses.asdict(obj).items()}
-        if isinstance(obj, list):
-            return [_dc(x) for x in obj]
-        if isinstance(obj, dict):
-            return {k: _dc(v) for k, v in obj.items()}
-        return obj
-
-    return PortfolioCreditResponse(
-        n_obligors=result.n_obligors,
-        total_ead_usd_m=result.total_ead_usd_m,
-        scenario=result.scenario,
-        baseline_ecl_usd_m=result.baseline_ecl_usd_m,
-        climate_ecl_usd_m=result.climate_ecl_usd_m,
-        ecl_increment_usd_m=result.ecl_increment_usd_m,
-        ecl_uplift_pct=result.ecl_uplift_pct,
-        baseline_rwa_usd_m=result.baseline_rwa_usd_m,
-        climate_rwa_usd_m=result.climate_rwa_usd_m,
-        rwa_increment_usd_m=result.rwa_increment_usd_m,
-        incremental_capital_usd_m=result.incremental_capital_usd_m,
-        sector_breakdown=result.sector_breakdown,
-        obligors=[_dc(o) for o in result.obligors],
-        portfolio_term_structure=result.portfolio_term_structure,
-        calibration_method=result.calibration_method,
-    )
 
 
 # ── Task 54: Portfolio CVaR optimiser ────────────────────────────────────────

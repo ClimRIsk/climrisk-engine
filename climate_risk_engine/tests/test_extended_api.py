@@ -42,7 +42,7 @@ CASES = [
         {"counterparty_id": "b", "counterparty_name": "B", "sector_key": "utilities", "region": "US", "exposure_usd_m": 70,
          "ev_usd_m": 2000, "revenue_usd_m": 900}]}),
     ("post", "/portfolio/risk", {"positions": POS, "run_stress": False}),
-    ("post", "/portfolio/credit", {"obligors": CP}),
+    ("post", "/portfolio/credit-structural", {"obligors": [{"ead": 100.0, "baseline_pd": 0.02, "leverage": 0.5, "lgd_unsecured": 0.45, "physical_value_loss_fraction": 0.05}]}),
     ("post", "/portfolio/rules", {"positions": POS}),
     ("post", "/screen/triage", {"company_name": "Holcim", "sector_key": "cement", "country": "CH"}),
     ("post", "/compare/scenarios", {"company_id": "x", "company_name": "X", "sector_key": "cement", "asset_lat": 29.76,
@@ -100,3 +100,8 @@ MORE = [
 def test_more_endpoints_answer(method, path, body):
     r = c.get(path) if method == "get" else c.post(path, json=body)
     assert r.status_code in (200, 201), f"{path}: {r.status_code} {r.text[:400]}"
+
+
+def test_old_credit_endpoint_is_withdrawn():
+    r = c.post("/portfolio/credit", json={"obligors": CP})
+    assert r.status_code == 410 and "withdrawn" in r.text
