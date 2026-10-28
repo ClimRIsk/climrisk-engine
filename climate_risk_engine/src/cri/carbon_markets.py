@@ -111,6 +111,8 @@ def screen_credits(lots: list, current_year: int = 2026, max_vintage_age: int = 
         age = current_year - int(l["vintage"]) if l.get("vintage") else None
         use = (l.get("intended_use") or "bvcm").lower()
         flags, ok_uses = [], ["bvcm"]
+        if l.get("quantity_t") is None:
+            flags.append("quantity missing in the record: left out of the totals, not counted as zero")
         if not l.get("ccp_label"):
             flags.append("no ICVCM Core Carbon Principles label declared for this lot")
         if age is not None and age > max_vintage_age:
@@ -129,13 +131,18 @@ def screen_credits(lots: list, current_year: int = 2026, max_vintage_age: int = 
             flags.append("avoidance/reduction credit — cannot neutralise residual emissions under SBTi net-zero")
         if not l.get("retired"):
             flags.append("not yet retired — a claim requires retirement on the registry in the company's name")
+        cer = None
+        from .carbon_registry import assess_cer, is_cdm_cer
+        if is_cdm_cer(l):
+            cer = assess_cer(l)
+            flags.append("CDM CER: " + "; ".join(f"{p['pathway']}: {p['status'].replace('_', ' ')}" for p in cer["pathways"]) + " (see cer.pathways for the reasons)")
         tot["quantity_t"] += q
         tot["ccp"] += q if l.get("ccp_label") else 0
         tot["removals"] += q if removal else 0
         tot["durable_removals"] += q if durable else 0
-        out.append({**l, "removal": removal, "durable": durable, "vintage_age": age, "suitable_uses": ok_uses,
+        out.append({**l, "removal": removal, "durable": durable, "vintage_age": age, "suitable_uses": ok_uses, "cer": cer,
                     "flags": flags, "status": "ok" if not flags else ("caution" if all(
-                        f.startswith(("nature-based", "no ICVCM", "not yet retired")) for f in flags) else "issue")})
+                        f.startswith(("nature-based", "no ICVCM", "not yet retired", "CDM CER", "quantity missing")) for f in flags) else "issue")})
     Q = tot["quantity_t"] or 1
     return {"lots": out, "totals": {k: round(v, 1) for k, v in tot.items()},
             "shares": {"ccp_labelled": round(tot["ccp"] / Q, 3), "removals": round(tot["removals"] / Q, 3),
@@ -144,4 +151,5 @@ def screen_credits(lots: list, current_year: int = 2026, max_vintage_age: int = 
                           "separately from Scope 1–3 emissions and from progress towards GHG targets.",
             "rules": ["SBTi Corporate Net-Zero Standard: no credits towards targets; permanent removals only for "
                       "neutralising residual emissions", "EU Directive 2024/825 (ECGT) from 27 Sep 2026",
-                      "ICVCM Core Carbon Principles label as declared by the registry record"]}
+                      "ICVCM Core Carbon Principles label as declared by the registry record",
+                      "CDM CERs: Article 6.4 first-NDC conditions (decision 3/CMA.3 annex, para 75) and ICAO CORSIA Eligible Emissions Units (Oct 2025), see carbon_registry.py"]}

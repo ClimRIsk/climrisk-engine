@@ -67,3 +67,13 @@ Compared against Prometeia's public product sheet (full list: `docs/COMPETITIVE_
 | Transition engine with projected balance sheets | Partly. Transition plan, carbon and ESRS gap modules exist; no projected company financials. |
 | Portfolio optimisation, economic capital, climate-adjusted capital ratio | Not built. |
 | 200+ clients, regulator relationships | Not a code gap. |
+
+## Carbon market side (added 28 Oct 2026)
+
+| Item | Where we are |
+|---|---|
+| Registry records for the credit screen | **Export-based.** `carbon_registry.import_csv` and `POST /carbon-markets/import-registry` read a CSV export, report matched and ignored columns and keep blanks blank. Untested on real CDM, Verra or Gold Standard exports. **No live registry connection**; the CDM Registry data we could confirm is aggregate statistics, not a per-unit download. |
+| Legacy CDM CERs | **Built as a rules check** against UNFCCC PA/A6.4/TP/4 and ICAO's CORSIA list (Oct 2025). Transfer deadlines and procedures are not encoded and change; confirm with the UNFCCC. |
+| Credit price | Not built, on purpose. No price source we can cite. |
+| Validation | Carbon modules graded "rules" (fidelity to published text), not A-D skill. Rules in the older credit screen and ETS/CBAM factors were not re-verified in this pass. |
+

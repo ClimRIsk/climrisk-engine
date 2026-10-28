@@ -4125,6 +4125,7 @@ def portfolio_validate(request: ValidationRequest) -> ValidationResponse:
 
 from fastapi.responses import StreamingResponse as _StreamingResponse
 import asyncio as _asyncio
+import csv
 import json as _json
 
 @app.post("/portfolio/stream")
@@ -6985,6 +6986,27 @@ def carbon_markets_credits(req: CreditsRequest) -> dict:
     try:
         return screen_credits(req.lots, req.current_year, req.max_vintage_age)
     except (MarketError, KeyError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+
+
+class RegistryImportRequest(BaseModel):
+    csv_text: str = Field(..., min_length=1, max_length=2_000_000)
+    programme: Optional[str] = Field(None, description="e.g. CDM, Verra, Gold Standard")
+    current_year: int = Field(2026, ge=2015, le=2050)
+    screen: bool = True
+
+
+@app.post("/carbon-markets/import-registry", dependencies=[_AUTH], tags=["Carbon Markets"])
+def carbon_markets_import_registry(req: RegistryImportRequest) -> dict:
+    """Read a registry export (CSV text), report which columns were matched, and optionally screen the lots. Nothing is verified against the registry."""
+    from ..carbon_markets import MarketError, screen_credits
+    from ..carbon_registry import import_csv
+    try:
+        imp = import_csv(req.csv_text, req.programme)
+        if req.screen and imp["lots"]:
+            imp["screen"] = screen_credits(imp["lots"], req.current_year)
+        return imp
+    except (MarketError, KeyError, ValueError, csv.Error) as exc:
         raise HTTPException(status_code=422, detail=str(exc))
 
 

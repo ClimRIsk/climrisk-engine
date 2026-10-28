@@ -1,6 +1,6 @@
 # How sure are we? Validation ledger (19 Oct 2026)
 
-One row per hazard or model. "Tested against" means independent observations the engine did not use to fit. Grades: **A** = quantitative skill shown against observations in the region of use; **B** = skill shown but modest or only in some regions; **C** = built and sanity-checked, not tested against observations; **D** = known blind or wrong in a tested case. The grades are mine, not an expert's. Detail and reproduction commands are in `VALIDATION_DOSSIER.md`.
+One row per hazard or model. "Tested against" means independent observations the engine did not use to fit. Grades: **rules** = a deterministic rule or calculation checked against the published text it implements, not against observations (so no skill claim, and not legal advice); **A** = quantitative skill shown against observations in the region of use; **B** = skill shown but modest or only in some regions; **C** = built and sanity-checked, not tested against observations; **D** = known blind or wrong in a tested case. The grades are mine, not an expert's. Detail and reproduction commands are in `VALIDATION_DOSSIER.md`.
 
 | Model | Tested against | Result | Grade |
 |---|---|---|---|
@@ -31,6 +31,10 @@ One row per hazard or model. "Tested against" means independent observations the
 | Tornado (new) | Same hold-out | Rank correlation 0.77-0.83, AUC 0.90, median error 0.07-0.14 days a year. Band on EF1+; counts of past tornadoes, not a probability for a building | B |
 | Marine heatwave (new) | Published reference code on 8 cells; 9 documented events | Same events as the reference on 892 of 895; 7 of 9 events found against a 24 % chance rate in other years. Surface temperature on a 25 km cell; intensity not independently tested; report zone opt-in | B |
 | Climate-adjusted credit risk: PD, LGD, ECL, RWA (`climate/credit_risk.py`) | None. Coefficients are described as calibrated to the ECB 2022 stress-test outcomes; no test against observed defaults or losses | Illustrative uplift, not a validated credit model; do not present as a bank-grade PD or LGD | not validated |
+| Legacy CDM CER screen (`carbon_registry.py`, new) | Text only: UNFCCC technical paper PA/A6.4/TP/4 on decision 3/CMA.3 annex para 75, and ICAO CORSIA Eligible Emissions Units (Oct 2025) | 11 unit tests encode each published condition (registration on or after 2013, pre-2021 reductions, no tCER/lCER or A/R, CDM absent from open CORSIA phases) and the "cannot tell" cases. Not checked against registry records or reviewed by a lawyer or the UNFCCC. Transfer deadlines are not encoded | rules |
+| Registry export import (new) | Synthetic export only | Maps columns by alias, reports matched and ignored columns, keeps blanks blank. Not tested on real CDM, Verra or Gold Standard exports; no live registry connection | rules |
+| Carbon-credit quality screen (ICVCM label, removals, vintage, SBTi, EU 2024/825) | Unit tests of the rules as coded | Rules were written from the standards' text and not re-verified against them in this review; the ICVCM label is taken as declared | rules |
+| EU ETS compliance balance and CBAM free-allocation phase-out | Arithmetic unit tests | Balance arithmetic tested; the CBAM factors are from Regulation (EU) 2023/956 as coded and not re-checked in this review; the allowance price is an input | rules |
 | Lightning, blade icing, dust, subsidence, BI, supply chain, earthquake loss (damage) | None | Not modelled at site level (see `HAZARD_SOURCE_PROBE.md`; earthquake shaking hazard is in, damage is not) | not built |
 
 ## What this says
