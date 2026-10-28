@@ -78,3 +78,13 @@ One row per hazard or model. "Tested against" means independent observations the
 - What it is: when a ship has no record of its own, the IMO's median AER for its type and size bin gives CO2 per nautical mile; speed is the one the user gives. Output says "Class estimate".
 - What it is not: this ship's burn. The median spans laden and ballast legs and all speeds; fuel is expressed as HFO-equivalent; bins with no ships and the 2019-2021 tables are not transcribed. Ship types outside the Fourth IMO GHG Study list (offshore, tugs, fishing) have no class.
 - Not validated against reported per-ship fuel (no MRV file here). Grade: C.
+
+## EPA Hub additions: F-gases, blended refrigerants, waste (28 Oct 2026)
+- Evidence: `tests/test_epa_factors.py`. All 30 printed blend GWPs are re-derived from their composition and the Table 11 GWPs; 29 agree within 1. R-424A does not (printed 3,104; arithmetic 2,212): stored as printed, flagged in every result, recorded under `known_discrepancies`. Waste: 61 materials x 6 disposal methods from Table 9 (EPA WARM, AR4 GWPs, no avoided emissions); NA raises an error, never zero.
+- What it is not: leak rates or process-gas volumes (the Hub gives GWPs only; semiconductor fabs need their own measured/inventory mass). Grade: B for the transcription check, C for use as a sector model.
+
+## Aviation SAF blend arithmetic
+- `lca/aviation.py`, `tests/test_aviation.py`. Fossil baseline 89 gCO2e/MJ as used in ICAO's co-processing equation (June 2025 edition). SAF life-cycle value is the user's certified figure: ICAO's per-feedstock default tables were not transcribed (long, indexed, with applicability conditions; the retrieved text could not be parsed reliably). Energy-share basis; co-processing uses ICAO's volume equation. No non-CO2 effects.
+
+## Oil and gas methane (Subpart W Table W-1)
+- `carbon/oilgas_methane.py`, `tests/test_oilgas_methane.py`. 22 population factors transcribed from the e-CFR text; CH4 mass from the ideal gas law at 60 degF and 14.7 psia (0.0192 kg/scf); the CH4 mole fraction is a required user input (the Subpart W default fractions were not in the retrieved text). Reporting defaults, not measurements; super-emitters are not captured. Tables W-1A and W-2 to W-7 not transcribed. Grade: C.
