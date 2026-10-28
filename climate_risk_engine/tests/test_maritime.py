@@ -191,3 +191,68 @@ def test_agent_routes_a_ship_sentence_to_the_voyage_model(monkeypatch, tmp_path)
         time.sleep(0.2)
     assert st["status"] == "done", st
     assert "EU ETS" in st["reply"] and st["blocks"]
+
+
+# ── fleet baseline, options, scenarios ───────────────────────────────────────
+from cri.maritime import fleet as FL, options as OP, scenarios as SC   # noqa: E402
+
+
+def test_fleet_baseline_sums_only_reporting_ships():
+    csv = ("IMO Number,Name,Ship type,Deadweight tonnage,Total fuel consumption [m tonnes],Total CO2 emissions [m tonnes],Total distance travelled [n miles],Total time spent at sea [hours]\n"
+           "1,A,Bulk,50000,1000,3114,10000,800\n2,B,Bulk,60000,2000,6228,20000,1600\n3,C,Tanker,,,,,\n")
+    L = VS.load_fleet_csv(csv)
+    r = FL.baseline(L["ships"])
+    bulk = next(g for g in r["groups"] if g["ship_type"] == "Bulk")
+    tank = next(g for g in r["groups"] if g["ship_type"] == "Tanker")
+    assert bulk["fuel_t"] == 3000 and bulk["fuel_kg_per_nm"] == pytest.approx(100.0) and bulk["avg_speed_kn"] == pytest.approx(12.5)
+    assert bulk["aer_g_co2_per_dwt_nm"] == pytest.approx(9342 * 1e6 / (50000 * 10000 + 60000 * 20000))      # IMO AER definition, distance-weighted pool
+    assert tank["fuel_t"] is None and tank["co2_t"] is None and tank["aer_g_co2_per_dwt_nm"] is None        # n/a, not zero
+    assert r["total_fuel_t"] == 3000
+
+
+def test_option_economics_match_the_annuity_formulas():
+    A = OP.annuity(0.08, 10)
+    assert A == pytest.approx((1 - 1.08 ** -10) / 0.08) and OP.annuity(0, 10) == 10
+    o = OP.evaluate("retrofit", capex=1_000_000, life_years=10, discount_rate=0.08, co2_saved_t_per_year=500, fuel_saved_t_per_year=160, fuel_price_per_t=500,
+                    extra_opex_per_year=10_000, allowance_price_per_t=80, ets_scope_share=0.5)
+    savings = 160 * 500 + 500 * 0.5 * 80
+    assert o["annual_savings"] == pytest.approx(savings)
+    assert o["npv"] == pytest.approx(-1_000_000 + A * (savings - 10_000))
+    assert o["abatement_cost_per_tco2"] == pytest.approx((1_000_000 / A + 10_000 - savings) / 500)
+    assert o["simple_payback_years"] == pytest.approx(1_000_000 / (savings - 10_000))
+    assert not o["incomplete"]
+
+
+def test_option_without_prices_is_flagged_not_defaulted():
+    o = OP.evaluate("x", 100, 5, 0.05, 10, fuel_saved_t_per_year=5, ets_scope_share=1.0)
+    assert o["incomplete"] and len(o["missing_inputs"]) == 2 and o["annual_savings"] == 0
+    ranked = OP.rank([o, OP.evaluate("y", 100, 5, 0.05, 10)])
+    assert ranked[0]["option"] == "y" and ranked[-1]["option"] == "x"
+
+
+def test_option_input_validation():
+    with pytest.raises(OP.OptionError):
+        OP.evaluate("x", 100, 5, 0.05, 0)
+    with pytest.raises(OP.OptionError):
+        OP.annuity(0.05, 0)
+
+
+def test_scenario_grid_moves_with_year_and_price():
+    g = SC.grid(SHIP, 1000, 14, "hfo", SG, RT, [2025, 2026], [500, 700], [60, 100], "EUR")
+    assert len(g["rows"]) == 8
+    r25 = next(x for x in g["rows"] if x["year"] == 2025 and x["bunker_per_t"] == 500 and x["allowance_per_t"] == 60)
+    r26 = next(x for x in g["rows"] if x["year"] == 2026 and x["bunker_per_t"] == 500 and x["allowance_per_t"] == 60)
+    assert r26["ets_chargeable_t"] > r25["ets_chargeable_t"]                                  # phase-in and gas basis
+    assert r26["fuel_cost"] == pytest.approx(180 * 500) and r26["total_cost"] == pytest.approx(r26["fuel_cost"] + r26["ets_cost"])
+    with pytest.raises(V.VoyageInputError):
+        SC.grid(SHIP, 1000, 14, "hfo", SG, RT, [], [500], [60])
+
+
+def test_api_options_and_scenarios():
+    c = TestClient(app)
+    r = c.post("/maritime/options", json={"options": [{"name": "a", "capex": 1000, "life_years": 5, "discount_rate": 0.05, "co2_saved_t_per_year": 10, "extra_opex_per_year": 1}]})
+    assert r.status_code == 200 and r.json()["options"][0]["option"] == "a"
+    r = c.post("/maritime/scenarios", json={"origin": SG, "dest": RT, "distance_nm": 1000, "speed_kn": 14, "reference_speed_kn": 14, "daily_consumption_t": 60, "fuel": "hfo",
+                                            "years": [2026], "bunker_prices": [500], "allowance_prices": [80]})
+    assert r.status_code == 200 and len(r.json()["rows"]) == 1
+    assert c.post("/maritime/fleet-baseline", json={}).status_code in (200, 422)

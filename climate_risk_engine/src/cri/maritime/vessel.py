@@ -77,7 +77,7 @@ def vessel_from_row(row: dict, colmap: dict) -> dict:
         notes.append("fuel per nm is annual fuel / annual distance: includes laden and ballast legs and port fuel")
     if kgnm is None and daily and vref:
         kgnm = daily * 1000.0 / (24.0 * vref)
-    v.update({"reference_speed_kn": vref, "fuel_kg_per_nm_ref": kgnm, "co2_t_annual": _num(g("co2_t")), "notes": notes,
+    v.update({"reference_speed_kn": vref, "fuel_kg_per_nm_ref": kgnm, "co2_t_annual": _num(g("co2_t")), "fuel_t": fuel, "distance_nm": dist, "hours_at_sea": hours, "notes": notes,
               "missing": [k for k, x in (("reference_speed_kn", vref), ("fuel_kg_per_nm_ref", kgnm)) if x is None]})
     return v
 

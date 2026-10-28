@@ -7101,12 +7101,8 @@ def maritime_fleet() -> dict:
     return {"files": out, "how_to_add": "Place the EU MRV (THETIS-MRV) annual report or your own fleet CSV in data/vessels/. Columns are matched by name; see /maritime/fleet for what was understood."}
 
 
-@app.post("/maritime/voyage", dependencies=[_AUTH], tags=["Maritime"])
-def maritime_voyage(req: VoyageRequest) -> dict:
-    """One ship, one voyage: fuel, CO2e (tank-to-wake and well-to-wake), EU ETS and FuelEU exposure, costs from the figures you give, speed/delay/diversion cases and mitigation options.
-    Fuel burn comes from the ship's record (fleet file) or from your daily consumption; nothing is assumed."""
-    from ..maritime import vessel as VS, voyage as V
-    from ..lca import marine_fuels as MF
+def _maritime_vessel(req) -> dict:
+    from ..maritime import vessel as VS
     v = None
     if req.imo or req.ship_name:
         f = VS.find(req.imo or req.ship_name)
@@ -7123,6 +7119,16 @@ def maritime_voyage(req: VoyageRequest) -> dict:
     for k in ("gt", "design_speed_kn"):
         if getattr(req, k) is not None:
             v[k] = getattr(req, k)
+    return v
+
+
+@app.post("/maritime/voyage", dependencies=[_AUTH], tags=["Maritime"])
+def maritime_voyage(req: VoyageRequest) -> dict:
+    """One ship, one voyage: fuel, CO2e (tank-to-wake and well-to-wake), EU ETS and FuelEU exposure, costs from the figures you give, speed/delay/diversion cases and mitigation options.
+    Fuel burn comes from the ship's record (fleet file) or from your daily consumption; nothing is assumed."""
+    from ..maritime import voyage as V
+    from ..lca import marine_fuels as MF
+    v = _maritime_vessel(req)
     mk = {k: getattr(req, k) for k in ("bunker_usd_per_t", "charter_usd_per_day", "canal_usd", "port_usd", "other_usd") if getattr(req, k) is not None}
     if req.eua_price is not None:
         mk["eua_price"], mk["currency"] = req.eua_price, req.eua_currency
@@ -7132,6 +7138,71 @@ def maritime_voyage(req: VoyageRequest) -> dict:
     except V.VoyageInputError as exc:
         raise HTTPException(status_code=422, detail={"error": str(exc), "missing": exc.missing})
     except MF.MarineFuelError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+
+
+class MaritimeScenarioRequest(VoyageRequest):
+    years: list[int] = Field(..., min_length=1)
+    bunker_prices: list[float] = Field(..., min_length=1, description="your scenario values per tonne")
+    allowance_prices: list[float] = Field(..., min_length=1, description="your scenario EUA values per tonne")
+    currency: str = "EUR"
+
+
+@app.post("/maritime/scenarios", dependencies=[_AUTH], tags=["Maritime"])
+def maritime_scenarios(req: MaritimeScenarioRequest) -> dict:
+    """Years x bunker prices x allowance prices for one voyage. The regime (ETS phase-in, FuelEU limit) moves with the year; prices are your scenario values."""
+    from ..maritime import scenarios as SC, voyage as V
+    from ..lca import marine_fuels as MF
+    v = _maritime_vessel(req)
+    try:
+        return SC.grid(v, req.distance_nm, req.speed_kn, req.fuel, req.origin.model_dump(), req.dest.model_dump(), req.years, req.bunker_prices, req.allowance_prices, req.currency, req.charter_usd_per_day)
+    except V.VoyageInputError as exc:
+        raise HTTPException(status_code=422, detail={"error": str(exc), "missing": exc.missing})
+    except MF.MarineFuelError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+
+
+class AbatementOption(BaseModel):
+    name: str
+    capex: float = Field(..., ge=0)
+    life_years: float = Field(..., gt=0)
+    discount_rate: float = Field(..., ge=0, lt=1)
+    co2_saved_t_per_year: float
+    fuel_saved_t_per_year: float = 0.0
+    fuel_extra_t_per_year: float = 0.0
+    fuel_price_per_t: Optional[float] = Field(None, ge=0)
+    extra_opex_per_year: float = 0.0
+    other_savings_per_year: float = 0.0
+    allowance_price_per_t: Optional[float] = Field(None, ge=0)
+    ets_scope_share: float = Field(0.0, ge=0, le=1)
+
+
+class OptionsRequest(BaseModel):
+    options: list[AbatementOption] = Field(..., min_length=1)
+
+
+@app.post("/maritime/options", dependencies=[_AUTH], tags=["Maritime"])
+def maritime_options(req: OptionsRequest) -> dict:
+    """Techno-economics of abatement options from figures you supply (no cost database): NPV, levelised abatement cost, payback, and the cheapest-first ordering."""
+    from ..maritime import options as OP
+    try:
+        res = [OP.evaluate(**o.model_dump()) for o in req.options]
+    except OP.OptionError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    return {"options": OP.rank(res)}
+
+
+class FleetBaselineRequest(BaseModel):
+    by: str = Field("ship_type", pattern="^(ship_type|name)$")
+
+
+@app.post("/maritime/fleet-baseline", dependencies=[_AUTH], tags=["Maritime"])
+def maritime_fleet_baseline(req: FleetBaselineRequest) -> dict:
+    """Fleet totals and ratios from the fleet files in data/vessels (EU MRV or your own): fuel, CO2, distance, hours, AER. Sums of what ships report; missing is n/a, not zero."""
+    from ..maritime import fleet as FL
+    try:
+        return FL.baseline_from_files(by=req.by)
+    except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
 
 
