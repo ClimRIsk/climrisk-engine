@@ -71,14 +71,8 @@ _CMIP6_HAZARD_MULTIPLIER: Dict[str, Dict[str, Dict[int, float]]] = {
     },
 }
 
-# Model agreement rates (fraction of 34 CMIP6 GCMs agreeing on direction).
-# Used to compute ensemble confidence for audit trails.
-_MODEL_AGREEMENT: Dict[str, Dict[str, float]] = {
-    "flood":        {"ssp126": 0.82, "ssp245": 0.88, "ssp370": 0.92, "ssp585": 0.95},
-    "heat":         {"ssp126": 0.97, "ssp245": 0.98, "ssp370": 0.99, "ssp585": 0.99},
-    "water_stress": {"ssp126": 0.78, "ssp245": 0.84, "ssp370": 0.89, "ssp585": 0.93},
-    "cyclone":      {"ssp126": 0.62, "ssp245": 0.70, "ssp370": 0.76, "ssp585": 0.81},
-}
+# Model-agreement statistics and ensemble-spread bands were removed (28 Oct 2026): the values held here had no source, so any P10/P90 built from them
+# was an invented interval. They return only if computed from a named ensemble (e.g. NEX-GDDP-CMIP6 or the AR6 Atlas) with the run recorded.
 
 # ── Compound event co-occurrence matrix (Fix #2) ──────────────────────────────
 # Fraction of years where both hazards co-occur at the same asset location.
@@ -97,16 +91,8 @@ _COMPOUND_CO_OCCURRENCE: Dict[str, Dict[str, float]] = {
 # Value = fractional EAL uplift per co-occurring pair.
 _COMPOUND_SYNERGY_WEIGHT = 0.12   # 12% EAL uplift per active compound pair
 
-# ── Tipping point stress-test multipliers (Fix #9) ───────────────────────────
-# High-ECS CMIP6 tail (ECS > 4.5°C models). Applied as additional stress scenario.
-# Ratio of 95th-pct to median hazard intensity from CMIP6 full ensemble.
-# Source: Sherwood et al. 2020 (ECS likely range) + AR6 Atlas Fig. 4.3.
-_TIPPING_POINT_MULTIPLIER: Dict[str, float] = {
-    "ssp126": 1.20,   # Low scenario: tipping points less likely, modest tail
-    "ssp245": 1.40,
-    "ssp370": 1.65,   # SSP3-7.0: AMOC weakening / permafrost feedback plausible
-    "ssp585": 1.90,   # Hot House World: WAIS instability + AMOC collapse tail
-}
+# Tipping-point stress multipliers (1.20-1.90) were removed (28 Oct 2026): no source for the values and the 'ratio of 95th percentile to median' description
+# could not be reproduced. The result fields are None. A tail scenario needs a named ensemble or a user-supplied multiplier.
 
 # ── Sovereign adaptive capacity index (Fix — EM country risk) ─────────────────
 # Scaled 0-1 where 1 = high adaptive capacity (low damage amplification).
@@ -375,18 +361,24 @@ def _npv_annuity(wacc: float, n_years: int) -> float:
 # DATA CLASSES — RESULTS
 # ──────────────────────────────────────────────────────────────────────────────
 
+class PhysicalRiskInputError(ValueError):
+    """Raised when site inputs are missing and placeholders were not accepted."""
+
+    def __init__(self, missing):
+        self.missing = list(missing)
+        super().__init__("Physical risk needs site inputs, not country placeholders. Missing: " + ", ".join(self.missing) +
+                         ". Supply them (flood depth from a hazard map, heat days, Aqueduct score, rebuild cost, elevation) or pass allow_placeholders=True to run on unsourced defaults.")
+
+
 @dataclass
 class HazardExposure:
     """Quantified hazard intensity at the asset location."""
     flood_depth_baseline_m: float          # 100-yr return period depth today
     flood_depth_2050_m: float              # projected depth in 2050
-    flood_model_agreement: float           # fraction of GCMs agreeing
     heat_days_baseline: float              # days >35°C WB today
     heat_days_2050: float
-    heat_model_agreement: float
     water_stress_index_baseline: float     # WRI Aqueduct 0-5
     water_stress_index_2050: float
-    water_model_agreement: float
     natural_capital_offset: float          # total hazard reduction fraction from buffers
     scenario: str
     target_year: int
@@ -495,13 +487,13 @@ class PhysicalRiskResult:
     eal_by_hazard_baseline: Dict[str, float] = field(default_factory=dict)
     eal_by_hazard_2050: Dict[str, float] = field(default_factory=dict)
 
-    # ── Uncertainty bands (Fix #6: P10/P50/P90 from GCM agreement) ───────────
-    eal_p10_usd_m: float = 0.0
+    # ── Uncertainty bands: P10/P90 withheld (None) until computed from a named ensemble ──
+    eal_p10_usd_m: Optional[float] = None
     eal_p50_usd_m: float = 0.0
-    eal_p90_usd_m: float = 0.0
-    npv_p10_usd_m: float = 0.0
+    eal_p90_usd_m: Optional[float] = None
+    npv_p10_usd_m: Optional[float] = None
     npv_p50_usd_m: float = 0.0
-    npv_p90_usd_m: float = 0.0
+    npv_p90_usd_m: Optional[float] = None
 
     # ── Compound event uplift (Fix #2) ────────────────────────────────────────
     compound_event_uplift_pct: float = 0.0    # % EAL increase from co-occurring hazards
@@ -513,8 +505,8 @@ class PhysicalRiskResult:
     npv_at_adjusted_wacc_usd_m: float = 0.0  # NPV recomputed with climate WACC
 
     # ── Tipping point stress test (Fix #9) ───────────────────────────────────
-    eal_tipping_point_stress_usd_m: float = 0.0  # EAL under high-ECS tail (95th pct GCMs)
-    npv_tipping_point_stress_usd_m: float = 0.0
+    eal_tipping_point_stress_usd_m: Optional[float] = None  # not quantified (no sourced tail multiplier)
+    npv_tipping_point_stress_usd_m: Optional[float] = None
 
     # ── Insurance withdrawal risk (Fix #8) ───────────────────────────────────
     insured_fraction_baseline: float = 0.0
@@ -555,6 +547,7 @@ def assess_physical_risk(
     confidence_tier: str = "ESTIMATED",
     asset_lat: Optional[float] = None,
     asset_lon: Optional[float] = None,
+    allow_placeholders: bool = False,
 ) -> PhysicalRiskResult:
     """
     Execute the 4-stage physical risk engine.
@@ -578,6 +571,21 @@ def assess_physical_risk(
     natural_capital_buffers : list of keys from _NATURAL_CAPITAL_OFFSETS
     confidence_tier     : Provenance tier of input data
     """
+    # ── Input gate (28 Oct 2026) ──────────────────────────────────────────────
+    # The hazard baselines below (country flood depth, heat days, water stress) and the sector asset-value ratio are unsourced placeholders.
+    # A loss number built on them reads like an assessment and is not one. They are therefore refused unless the caller supplies the value or
+    # explicitly accepts placeholders; accepted placeholders are listed on the result and the tier becomes PLACEHOLDER.
+    _needed = {"flood_baseline_depth_m": flood_baseline_depth_m, "heat_baseline_days": heat_baseline_days, "water_stress_index": water_stress_index,
+               "asset_replacement_value_usd_m": asset_replacement_value_usd_m, "elevation_m": elevation_m}
+    _missing = [k for k, v in _needed.items() if v is None]
+    if _missing and not allow_placeholders:
+        raise PhysicalRiskInputError(_missing)
+    _placeholder_notes = ([f"PLACEHOLDER inputs used (unsourced country/sector defaults): {', '.join(_missing)}. Totals illustrate the model; they are not an assessment of this asset."]
+                          if _missing else []) + [
+        "Unsourced judgement parameters also act on this result: compound-event synergy weight, sovereign adaptive-capacity table, climate credit spread, insurance withdrawal schedule."]
+    if _missing:
+        confidence_tier = "PLACEHOLDER"
+
     # ── Normalize sector ──────────────────────────────────────────────────────
     sector_key = sector.lower().replace(" ", "_").replace("-", "_")
     defaults = _SECTOR_DEFAULTS.get(sector_key, _SECTOR_DEFAULTS["default"])
@@ -642,13 +650,10 @@ def assess_physical_risk(
     hazard = HazardExposure(
         flood_depth_baseline_m   = flood_baseline,
         flood_depth_2050_m       = flood_2050,
-        flood_model_agreement    = _MODEL_AGREEMENT["flood"].get(scenario, 0.85),
         heat_days_baseline       = heat_baseline,
         heat_days_2050           = heat_2050,
-        heat_model_agreement     = _MODEL_AGREEMENT["heat"].get(scenario, 0.95),
         water_stress_index_baseline = water_baseline,
         water_stress_index_2050  = water_2050,
-        water_model_agreement    = _MODEL_AGREEMENT["water_stress"].get(scenario, 0.85),
         natural_capital_offset   = nat_cap_offset,
         scenario                 = scenario,
         target_year              = target_year,
@@ -1068,43 +1073,11 @@ def assess_physical_risk(
         protection_gap_npv += uninsured_t * _npv_factor(wacc, t)
     insurance_withdrawal_risk_flag = (insured_frac_2050 < 0.5 * insured_frac_baseline)
 
-    # ── Stage 4e: Uncertainty bands P10/P50/P90 (Fix #6) ─────────────────────
-    # Log-normal model: CV = (1 - mean_model_agreement) × 1.2
-    # where mean_agreement is the unweighted average across hazards for this scenario
-    _agreements = [
-        _MODEL_AGREEMENT["flood"].get(scenario, 0.85),
-        _MODEL_AGREEMENT["heat"].get(scenario, 0.95),
-        _MODEL_AGREEMENT["water_stress"].get(scenario, 0.84),
-        0.70,   # wildfire proxy (conservative — fewer models agree on FWI extremes)
-    ]
-    _mean_agreement = sum(_agreements) / len(_agreements)
-    _cv = (1.0 - _mean_agreement) * 1.2
-    _sigma = math.sqrt(math.log(1.0 + _cv * _cv))
-
-    eal_p50 = total_eal_2050                             # central estimate
-    eal_p10 = total_eal_2050 * math.exp(-1.28 * _sigma)  # 10th percentile
-    eal_p90 = total_eal_2050 * math.exp(+1.28 * _sigma)  # 90th percentile
-
-    # NPV bands: scale the entire NPV by the same lognormal ratio
-    # (valid under the assumption that model uncertainty is correlated across hazards)
-    _p10_ratio = eal_p10 / max(total_eal_2050, 1e-9)
-    _p90_ratio = eal_p90 / max(total_eal_2050, 1e-9)
+    # ── Stage 4e/4f: uncertainty bands and tipping-point stress: NOT QUANTIFIED ───────────────────────
+    # Previously built from invented model-agreement fractions and invented multipliers. Withheld; see the notes at the top of the module.
+    eal_p50 = total_eal_2050
     npv_p50 = npv
-    npv_p10 = npv * _p10_ratio
-    npv_p90 = npv * _p90_ratio
-
-    # ── Stage 4f: Tipping point stress test (Fix #9) ─────────────────────────
-    # High-ECS tail: multiply hazard intensities by tipping-point multiplier
-    # (CMIP6 models with ECS > 4.5°C; 95th percentile of ensemble)
-    tp_mult = _TIPPING_POINT_MULTIPLIER.get(scenario, 1.65)
-    eal_tp_2050 = total_eal_2050 * tp_mult
-    npv_tp = 0.0
-    for t in range(1, horizon_years + 1):
-        year_val = 2025 + t
-        interp = min(1.0, (year_val - 2025) / max(1, target_year - 2025))
-        eal_t_tp = total_eal_baseline + (eal_tp_2050 - total_eal_baseline) * interp
-        npv_tp += eal_t_tp * _npv_factor(wacc, t)
-    npv_tp += wf_npv * tp_mult + slr_npv * tp_mult
+    eal_p10 = eal_p90 = npv_p10 = npv_p90 = eal_tp_2050 = npv_tp = None
 
     # EAL breakdown by hazard (for dashboard waterfall)
     eal_by_hazard_baseline: Dict[str, float] = {
@@ -1125,22 +1098,18 @@ def assess_physical_risk(
     # ── Audit trail ───────────────────────────────────────────────────────────
     data_sources = [
         "JRC Depth-Damage Functions (Huizinga et al. 2017)",
-        "NASA NEX-GDDP-CMIP6 ensemble (34 GCMs)",
-        f"NGFS Phase 4 / {scenario.upper()} scenario",
         "WRI Aqueduct Water Risk Atlas",
         "ILO 2019 WBGT heat stress curves",
         "Copernicus 30m DEM (elevation default)",
         "CRI Wildfire FWI Module (NGFS × FWI zone × sector vulnerability)",
         "IPCC AR6 WG1 Table 9.9 — Regional SLR projections (sea_level_rise module)",
     ]
+    if _missing:
+        data_sources = [f"PLACEHOLDER defaults (unsourced) for: {', '.join(_missing)}"] + [d for d in data_sources if not d.startswith(("Copernicus", "WRI Aqueduct"))]
     model_agreement_notes = [
-        f"Flood: {hazard.flood_model_agreement*100:.0f}% of 34 GCMs agree on direction",
-        f"Heat: {hazard.heat_model_agreement*100:.0f}% of 34 GCMs agree on direction",
-        f"Water: {hazard.water_model_agreement*100:.0f}% of 34 GCMs agree on direction",
-        f"Ensemble mean agreement: {_mean_agreement*100:.0f}% → "
-        f"CV={_cv:.3f}, sigma={_sigma:.3f} → "
-        f"EAL P10/P50/P90: ${eal_p10:.2f}M / ${eal_p50:.2f}M / ${eal_p90:.2f}M",
-    ] + _skipped_stages
+        "Ensemble agreement and P10/P90 bands are not quantified: no sourced ensemble statistic is held. EAL is one parametric value, not a distribution.",
+        "Tipping-point stress is not quantified for the same reason.",
+    ] + _placeholder_notes + _skipped_stages
 
     return PhysicalRiskResult(
         company_name        = company_name,
@@ -1189,12 +1158,12 @@ def assess_physical_risk(
         eal_by_hazard_baseline       = eal_by_hazard_baseline,
         eal_by_hazard_2050           = eal_by_hazard_2050,
         # Uncertainty bands (Fix #6)
-        eal_p10_usd_m = round(eal_p10, 3),
+        eal_p10_usd_m = (round(eal_p10, 3) if eal_p10 is not None else None),
         eal_p50_usd_m = round(eal_p50, 3),
-        eal_p90_usd_m = round(eal_p90, 3),
-        npv_p10_usd_m = round(npv_p10, 2),
+        eal_p90_usd_m = (round(eal_p90, 3) if eal_p90 is not None else None),
+        npv_p10_usd_m = (round(npv_p10, 2) if npv_p10 is not None else None),
         npv_p50_usd_m = round(npv_p50, 2),
-        npv_p90_usd_m = round(npv_p90, 2),
+        npv_p90_usd_m = (round(npv_p90, 2) if npv_p90 is not None else None),
         # Compound events (Fix #2)
         compound_event_uplift_pct = compound_event_uplift_pct,
         compound_event_pairs      = compound_pairs,
@@ -1203,8 +1172,8 @@ def assess_physical_risk(
         climate_adjusted_wacc         = round(climate_adj_wacc, 5),
         npv_at_adjusted_wacc_usd_m    = round(npv_at_adj_wacc, 2),
         # Tipping point stress test (Fix #9)
-        eal_tipping_point_stress_usd_m = round(eal_tp_2050, 2),
-        npv_tipping_point_stress_usd_m = round(npv_tp, 2),
+        eal_tipping_point_stress_usd_m = None,
+        npv_tipping_point_stress_usd_m = None,
         # Insurance withdrawal (Fix #8)
         insured_fraction_baseline     = round(insured_frac_baseline, 3),
         insured_fraction_2050         = round(insured_frac_2050, 3),

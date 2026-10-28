@@ -1,4 +1,13 @@
 """
+WITHDRAWN (28 Oct 2026). Do not use for outputs.
+
+This model is a GradientBoostingRegressor fitted to *synthetic* company-years whose "ground truth" is a hand-written analytical trajectory
+(`_analytical_trajectory`). It therefore learns to reproduce that function, not climate or loss data; the descriptions below that mention EM-DAT, CLIMADA and
+World Bank training data overstate what it was trained on, and the "80% bootstrap bands" measure how well it copies the formula, not uncertainty about the future.
+`RiskPredictor.predict` now raises `ModelWithdrawn`. It can return only if retrained on real, named, back-testable data.
+
+(Original description follows.)
+
 ML Predictive CRI Trajectory  —  2025–2050
 ──────────────────────────────────────────────────────────────────────────────
 A GradientBoostingRegressor trained on:
@@ -204,6 +213,10 @@ def _analytical_trajectory(
 
 
 # ── Main predictor class ──────────────────────────────────────────────────────
+
+class ModelWithdrawn(RuntimeError):
+    """The CRI trajectory model was trained on synthetic labels from a hand-written formula and is withdrawn."""
+
 
 class RiskPredictor:
     """
@@ -468,6 +481,7 @@ class RiskPredictor:
         Returns:
             TrajectoryResult with score curves, confidence bands, and key years
         """
+        raise ModelWithdrawn("The CRI trajectory model was trained on synthetic labels from a hand-written formula; it is withdrawn. See the module docstring.")
         self._fit()
 
         ei      = scope1_mt_co2e / max(revenue_usd_m / 1000.0, 0.1)

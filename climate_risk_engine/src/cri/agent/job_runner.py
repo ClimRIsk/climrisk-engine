@@ -248,7 +248,10 @@ async def _run_extended_analyses(job: AssessmentJob, profile, risk_result: dict)
 
     company_name = profile.resolved_name or profile.input_name
     sector       = profile.sector or "default"
-    revenue      = profile.revenue_usd_m.value if profile.revenue_usd_m else 1000.0
+    revenue      = profile.revenue_usd_m.value if profile.revenue_usd_m else None   # no invented default: without revenue the revenue-driven modules are not assessed
+    if revenue is None:
+        _no_rev = {"status": "not_assessed", "reason": "revenue_usd_m is not available for this company; nothing was assumed. Provide revenue to run this module."}
+        return {k: _no_rev for k in ("stranded_assets", "cbam", "water_stress", "litigation_risk", "impact_materiality", "paris_alignment", "wildfire_risk", "physical_risk")} | {"basis": {"all": "not assessed: no revenue"}}
     jurisdiction = profile.jurisdiction or "default"
 
     # Pull EV from engine output if available
@@ -257,7 +260,10 @@ async def _run_extended_analyses(job: AssessmentJob, profile, risk_result: dict)
         ev_usd_m = risk_result.get("scenarios", {}).get("nze", {}).get("enterprise_value_usd_m")
     except Exception:
         pass
-    ev_usd_m = ev_usd_m or revenue * 2.0
+    _assumptions: list = []
+    if not ev_usd_m:
+        ev_usd_m = revenue * 2.0
+        _assumptions.append("Enterprise value = 2.0 x revenue because the engine run gave none. A proxy, not a valuation; stranded-asset and water NPV impacts scale with it.")
 
     # Emissions data
     scope1_mt  = profile.scope1_mt_co2e.value  if profile.scope1_mt_co2e  else None
@@ -268,6 +274,7 @@ async def _run_extended_analyses(job: AssessmentJob, profile, risk_result: dict)
     _CAPEX_HEAVY = {"oil_gas", "coal", "utilities", "mining", "steel", "cement"}
     carry_multiplier = 2.0 if sector in _CAPEX_HEAVY else 1.0
     carrying_value   = revenue * carry_multiplier
+    _assumptions.append(f"Carrying value of assets = {carry_multiplier:g} x revenue (proxy, not a balance-sheet figure); stranded-asset impairment scales with it.")
 
     # SBTi and CDP for litigation / materiality
     sbti_status = getattr(profile, "sbti_status", None) or "unknown"
@@ -276,17 +283,23 @@ async def _run_extended_analyses(job: AssessmentJob, profile, risk_result: dict)
     has_net_zero = net_zero_yr is not None and str(net_zero_yr).isdigit() and int(net_zero_yr) <= 2050
     has_sbti_val = "validated" in str(sbti_status).lower()
 
-    # Water stress score: fall back to sector-based default if no geocoded score
-    # Real implementations should use the WRI Aqueduct API with profile.lat/lon
-    aqueduct_score: float = getattr(profile, "aqueduct_score", None) or 0.0
-    if aqueduct_score == 0.0:
-        # Sector-based conservative default for missing Aqueduct score
-        _SECTOR_DEFAULT_SCORE = {
-            "agriculture": 2.5, "mining": 2.0, "chemicals": 1.8,
-            "steel": 1.5, "beverages": 2.2, "utilities": 1.5,
-            "semiconductors": 2.0, "cement": 1.2, "oil_gas": 1.0,
-        }
-        aqueduct_score = _SECTOR_DEFAULT_SCORE.get(sector, 0.8)
+    # Water stress: WRI Aqueduct 4.0 at the company's coordinates (local dataset). No sector default: without a location the module is not assessed.
+    aqueduct_score: Optional[float] = getattr(profile, "aqueduct_score", None) or None
+    _lat = profile.lat.value if getattr(profile, "lat", None) else None
+    _lon = profile.lon.value if getattr(profile, "lon", None) else None
+    _aq_note = None
+    if aqueduct_score is None and _lat is not None and _lon is not None:
+        try:
+            from ..connectors import wri_aqueduct as _AQ
+            _pt = _AQ.point(_lat, _lon, sector)
+            if _pt.get("found"):
+                _ow = _pt["overall_water_risk"]
+                aqueduct_score = _ow.get("sector_score") if _ow.get("sector_score") is not None else _ow.get("score")
+                _aq_note = f"WRI Aqueduct 4.0 overall water risk {aqueduct_score} at {_lat:.2f},{_lon:.2f} (basin {_pt['basin_pfaf_id']}, {_pt['admin1']}, {_pt['country']})."
+        except Exception as _e:  # noqa: BLE001
+            logger.warning("Aqueduct lookup failed: %s", _e)
+    if aqueduct_score is None:
+        _aq_note = "Water stress not assessed: no coordinates (or no Aqueduct unit) for this company, and no sector default is assumed."
 
     # Run all 5 extended modules in a thread pool (all are synchronous functions)
     loop = asyncio.get_event_loop()
@@ -297,6 +310,9 @@ async def _run_extended_analyses(job: AssessmentJob, profile, risk_result: dict)
         except Exception as exc:
             logger.warning("Extended analysis '%s' failed: %s", fn.__name__, exc)
             return None
+
+    async def _async_value(v):
+        return v
 
     _EU_COUNTRIES = {"DE", "FR", "NL", "GB", "SE", "DK", "NO", "BE", "ES"}
     (
@@ -320,13 +336,13 @@ async def _run_extended_analyses(job: AssessmentJob, profile, risk_result: dict)
             company_name, sector, revenue,
             origin_country=jurisdiction,
         ),
-        _safe_run(
+        (_safe_run(
             assess_water_stress,
             company_name, sector, aqueduct_score, revenue,
             ev_usd_m=ev_usd_m,
             wacc=0.09,
             scenario="current_policies",
-        ),
+        ) if aqueduct_score is not None else _async_value({"status": "not_assessed", "reason": _aq_note})),
         _safe_run(
             assess_litigation_risk,
             company_name, sector,
@@ -365,16 +381,9 @@ async def _run_extended_analyses(job: AssessmentJob, profile, risk_result: dict)
             wacc=0.09,
             scenario="delayed",
         ),
-        _safe_run(
-            assess_physical_risk,
-            company_name, sector,
-            hq_country=jurisdiction,
-            annual_revenue_usd_m=revenue,
-            ebitda_usd_m=revenue * 0.18,  # fallback 18% margin
-            scenario="ssp370",
-            target_year=2050,
-            wacc=0.09,
-        ),
+        _async_value({"status": "not_assessed",
+                      "reason": "Company-level physical risk needs site inputs (100-year flood depth, heat days, Aqueduct score, rebuild cost, elevation) and none are held for this company. "
+                                "The old path used a country table and an assumed 18% margin; it is withdrawn. Run a site assessment with coordinates instead."}),
     )
 
     def _to_dict(obj):
@@ -405,7 +414,7 @@ async def _run_extended_analyses(job: AssessmentJob, profile, risk_result: dict)
             scope2_known   = scope2_mt if scope2_mt else None,
             employee_count = getattr(profile, "employee_count", None),
             company_name   = job.company_name,
-            ticker         = ticker,
+            ticker         = (getattr(getattr(profile, "ticker", None), "value", None) or getattr(profile, "ticker", None) or None),   # was an undefined name: the whole ML block raised NameError and never ran
         )
         # Back-fill profile scope values if they were missing
         _s1 = scope1_mt if scope1_mt else em_est.scope1_mt_co2e
@@ -431,44 +440,8 @@ async def _run_extended_analyses(job: AssessmentJob, profile, risk_result: dict)
             "notes":             em_est.notes,
         }
 
-        # 2. Risk Predictor — 2025–2050 trajectory
-        rp = RiskPredictor()
-        # Derive base CRI score from rating (A+=5, A=15, B+=30, B=42, etc.)
-        _RATING_TO_SCORE = {
-            "AAA": 5, "AA": 10, "A+": 15, "A": 20, "A-": 25,
-            "BBB": 32, "BB+": 38, "BB": 44, "BB-": 50,
-            "B+": 42, "B": 55, "B-": 62, "CCC": 72, "CC": 82, "C": 90, "D": 98,
-        }
-        rating_str = risk_result.get("rating", {}).get("rating", "B+")
-        base_cri   = _RATING_TO_SCORE.get(rating_str, 45)
-        eal_p50    = (phys_r.eal_p50_usd_m if phys_r else None) or (revenue * 0.01)
-
-        traj = rp.predict(
-            base_cri_score  = float(base_cri),
-            sector          = sector,
-            jurisdiction    = jurisdiction,
-            revenue_usd_m   = revenue,
-            scope1_mt_co2e  = _s1 or 1.0,
-            eal_p50_usd_m   = eal_p50,
-            wacc_adjusted   = (phys_r.climate_adjusted_wacc if phys_r else None) or 0.09,
-            coastal_flag    = jurisdiction in {"NL", "BD", "VN", "PH", "ID", "MV"},
-        )
-        ml_intel["risk_trajectory"] = {
-            "years":               traj.years,
-            "nze_scores":          traj.nze_scores,
-            "delayed_scores":      traj.delayed_scores,
-            "cp_scores":           traj.cp_scores,
-            "nze_lo":              traj.nze_lo,
-            "nze_hi":              traj.nze_hi,
-            "delayed_lo":          traj.delayed_lo,
-            "delayed_hi":          traj.delayed_hi,
-            "cp_lo":               traj.cp_lo,
-            "cp_hi":               traj.cp_hi,
-            "peak_risk_year":      traj.peak_risk_year,
-            "inflection_year":     traj.inflection_year,
-            "feature_importance":  traj.feature_importance,
-            "model_version":       traj.model_version,
-        }
+        # 2. Risk trajectory: withdrawn. The model was fitted to synthetic labels from a hand-written formula (see ml/risk_predictor.py).
+        ml_intel["risk_trajectory"] = {"status": "withdrawn", "reason": "The CRI trajectory model was trained on synthetic data generated from a hand-written formula, so its curves and bands carry no information about future losses."}
 
         # 3. Disclosure Scanner — analyse any news/disclosure text in profile
         disc_text = getattr(profile, "disclosure_text", None) or ""
@@ -511,6 +484,8 @@ async def _run_extended_analyses(job: AssessmentJob, profile, risk_result: dict)
         "paris_alignment":      _to_dict(paris_r),
         "wildfire_risk":        _to_dict(wildfire_r),
         "physical_risk":        _to_dict(phys_r),
+        "assumptions":          _assumptions,
+        "water_basis":          _aq_note,
         "ml_intelligence":      ml_intel or None,
     }
 

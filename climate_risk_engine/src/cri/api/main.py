@@ -691,24 +691,8 @@ def agent_assess(request: AssessRequest) -> dict:
     except Exception as exc:
         logging.getLogger(__name__).warning("emissions estimate failed: %s", exc)
 
-    # ── ML trajectory ─────────────────────────────────────────────────────────
+    # ── ML trajectory: withdrawn (synthetic-label model, see ml/risk_predictor.py). Left None so consumers show "not available". ──
     traj_nze = traj_delayed = traj_cp = None
-    try:
-        from ..ml.risk_predictor import RiskPredictor
-        traj = RiskPredictor().predict(
-            base_cri_score=rr.composite_score,
-            sector=company.sector,
-            jurisdiction=getattr(company, "hq_region", "US"),
-            revenue_usd_m=company.financials.revenue,
-            scope1_mt_co2e=(s1["value"] if s1 else 1.0),
-            eal_p50_usd_m=50.0,
-            wacc_adjusted=company.financials.wacc_base,
-        )
-        traj_nze     = {"scores": traj.nze_scores,     "lo": traj.nze_lo,     "hi": traj.nze_hi}
-        traj_delayed = {"scores": traj.delayed_scores, "lo": traj.delayed_lo, "hi": traj.delayed_hi}
-        traj_cp      = {"scores": traj.cp_scores,      "lo": traj.cp_lo,      "hi": traj.cp_hi}
-    except Exception:
-        pass
 
     # ── Build AssessmentData shape ─────────────────────────────────────────────
     def _score(x): return round(x, 1) if x is not None else None
@@ -833,7 +817,6 @@ def assess_parametric(request: ParametricAssessRequest) -> dict:
         get_sector_transition_params,
         get_sector_physical_sensitivity,
     )
-    from ..ml.risk_predictor import RiskPredictor
 
     canonical_sector = normalise_sector(request.sector)
     climate_zone     = country_to_climate_zone(request.jurisdiction)
@@ -854,23 +837,8 @@ def assess_parametric(request: ParametricAssessRequest) -> dict:
 
     composite_now = scores["delayed"]["composite_score"]   # use delayed as baseline
 
-    # 2025–2050 trajectory from ML predictor
+    # 2025-2050 trajectory: withdrawn (synthetic-label model; see ml/risk_predictor.py). Fields stay None.
     traj_nze = traj_delayed = traj_cp = None
-    try:
-        traj = RiskPredictor().predict(
-            base_cri_score  = composite_now,
-            sector          = canonical_sector,
-            jurisdiction    = request.jurisdiction,
-            revenue_usd_m   = request.revenue_usd_m,
-            scope1_mt_co2e  = trans_p["carbon_intensity_t_per_m_rev"] * request.revenue_usd_m * 0.6 / 1_000_000,
-            eal_p50_usd_m   = request.revenue_usd_m * 0.025,
-            wacc_adjusted   = 0.09,
-        )
-        traj_nze     = {"scores": traj.nze_scores,     "lo": traj.nze_lo,     "hi": traj.nze_hi}
-        traj_delayed = {"scores": traj.delayed_scores, "lo": traj.delayed_lo, "hi": traj.delayed_hi}
-        traj_cp      = {"scores": traj.cp_scores,      "lo": traj.cp_lo,      "hi": traj.cp_hi}
-    except Exception:
-        pass
 
     # ── HF Enrichment 1: CarbonLens + ND-GAIN country scores ─────────────────
     hf_enrichment: dict = {}
@@ -2166,26 +2134,8 @@ def download_client_report(
         weight_profile=wp,
     )
 
-    # ML trajectory (best-effort — falls back gracefully)
+    # ML trajectory: withdrawn (synthetic-label model; see ml/risk_predictor.py). Fields stay None.
     nze_scores = delayed_scores = cp_scores = None
-    try:
-        from ..ml.risk_predictor import RiskPredictor
-        predictor = RiskPredictor()
-        traj = predictor.predict(
-            base_cri_score=rating_result.composite_score,
-            sector=company.sector,
-            jurisdiction=getattr(company, "hq_region", "US"),
-            revenue_usd_m=company.financials.revenue,
-            scope1_mt_co2e=company.assets[0].emissions.scope1_intensity * company.financials.revenue / 1_000_000
-            if company.assets else 1.0,
-            eal_p50_usd_m=50.0,
-            wacc_adjusted=company.financials.wacc_base,
-        )
-        nze_scores     = traj.nze_scores
-        delayed_scores = traj.delayed_scores
-        cp_scores      = traj.cp_scores
-    except Exception:
-        pass
 
     # Emissions estimate (best-effort)
     scope1_mt = scope2_mt = scope3_mt = None

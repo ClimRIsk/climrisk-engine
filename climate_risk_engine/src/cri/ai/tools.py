@@ -84,7 +84,6 @@ def _exec_assess_company(args: dict) -> dict:
             compute_composite_score,
             get_sector_transition_params,
         )
-        from ..ml.risk_predictor import RiskPredictor
 
         company_name   = args["company_name"]
         sector         = normalise_sector(args.get("sector", "default"))
@@ -133,25 +132,8 @@ def _exec_assess_company(args: dict) -> dict:
         except Exception:
             pass
 
-        # ML trajectory
-        traj = {}
-        try:
-            t = RiskPredictor().predict(
-                base_cri_score=composite_now, sector=sector, jurisdiction=jurisdiction,
-                revenue_usd_m=revenue_usd_m,
-                scope1_mt_co2e=trans_p["carbon_intensity_t_per_m_rev"] * revenue_usd_m * 0.6 / 1e6,
-                eal_p50_usd_m=revenue_usd_m * 0.025, wacc_adjusted=0.09,
-            )
-            traj = {
-                "years": list(range(2025, 2051)),
-                "nze": t.nze_scores,
-                "delayed": t.delayed_scores,
-                "cp": t.cp_scores,
-                "peak_risk_year": t.peak_risk_year,
-                "inflection_year": t.inflection_year,
-            }
-        except Exception:
-            pass
+        # ML trajectory: withdrawn (trained on synthetic labels from a hand-written formula).
+        traj = {"status": "withdrawn", "reason": "trajectory model trained on synthetic data; not shown"}
 
         return {
             "company": company_name,
