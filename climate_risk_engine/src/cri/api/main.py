@@ -7010,6 +7010,31 @@ def carbon_markets_import_registry(req: RegistryImportRequest) -> dict:
         raise HTTPException(status_code=422, detail=str(exc))
 
 
+class RegistrySyncRequest(BaseModel):
+    kind: str = Field(..., pattern="^(file_drop|http_json)$")
+    source: str = Field(..., description="file_drop: folder, file or https URL. http_json: https API URL.")
+    programme: Optional[str] = None
+    token_env: Optional[str] = Field(None, description="Name of the environment variable holding the bearer token; the token itself is never sent to this API.")
+    records_path: str = ""
+    field_map: Dict[str, str] = Field(default_factory=dict)
+    current_year: int = Field(2026, ge=2015, le=2050)
+    screen: bool = True
+
+
+@app.post("/carbon-markets/sync-registry", dependencies=[_AUTH], tags=["Carbon Markets"])
+def carbon_markets_sync_registry(req: RegistrySyncRequest) -> dict:
+    """Pull registry data from a source the operator is entitled to use (a delivery folder/URL or a licensed JSON API) and screen it.
+    The result carries source, fetch time and a hash. This is not a scrape of any registry website."""
+    from ..carbon_connectors import FileDrop, HttpJson, sync
+    from ..carbon_markets import MarketError
+    try:
+        c = (FileDrop(req.source, req.programme, req.token_env) if req.kind == "file_drop"
+             else HttpJson(req.source, req.programme, req.token_env, req.records_path, req.field_map))
+        return sync(c, req.current_year, req.screen)
+    except (MarketError, KeyError, ValueError, OSError, csv.Error) as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+
+
 @app.get("/materiality/dashboard", tags=["CSRD"])
 def materiality_dashboard():
     from fastapi.responses import HTMLResponse
