@@ -200,6 +200,24 @@ def answer(text: str, geocode: Callable, params: Optional[dict] = None, data_dir
     return out
 
 
+def _sources(r) -> dict:
+    """Which shipped data files fed this answer, with edition and age, so no number is undated."""
+    from .. import provenance as PV
+    used = ["marine_fuels_fueleu.json", "ibtracs_since1980.npz"]
+    if r["vessel"].get("class_proxy"):
+        used.append("imo_dcs_class_aer_2022.json")
+    if "engine default" in str((r.get("ets") or {}).get("price_basis") or ""):
+        used.append("carbon_pricing_wb.json")
+    stamps = PV.stamp(*used)
+    rows = []
+    for x in stamps:
+        age = x.get("age_days")
+        rows.append([x["publisher"], x.get("vintage") or "not recorded", (f"{age/365.25:.1f} y" if age is not None else "unknown"),
+                     {"review_due": "older than review interval", "ok": "within interval", "unknown": "age unknown"}.get(x.get("freshness"), "")])
+    return {"stamps": stamps, "block": {"type": "table", "head": ["Data used", "Edition", "Age", "Freshness"], "rows": rows,
+                                        "caption": "Shipped data and its edition. Full registry: /provenance."}}
+
+
 def _render_full(r, rv, o, d) -> dict:
     vy, E, ets, fe, c = r["voyage"], r["emissions"], r["ets"], r["fueleu"], r["cost"]
     nm = r["vessel"].get("name") or r["vessel"].get("imo") or "The ship"
@@ -238,6 +256,9 @@ def _render_full(r, rv, o, d) -> dict:
         blocks.append({"type": "table", "head": ["Alternative fuel (same energy)", "WtW gCO2e/MJ", "vs now", "Meets FuelEU limit"], "rows": [[a["fuel"], f"{a['wtw_gco2e_per_mj']:.1f}", f"{a['wtw_vs_current_pct']:+.0f}%", "yes" if a["meets_fueleu_limit"] else "no"] for a in r["alternative_fuels"]],
                        "caption": "Fossil-pathway defaults only; bio and e-fuels need certified values. Same-energy comparison ignores engine efficiency and price."})
     blocks.append({"type": "note", "text": " ".join(r["flags"] + r["limits"])})
+    srcs = _sources(r)
+    blocks.append(srcs["block"])
+    r["data_sources"] = srcs["stamps"]
     best = sc["speed"][-1] if sc["speed"] else None
     reply = ((f"Class estimate: I have no record for {nm}, so this uses the IMO's 2022 median for its type and size, not this ship's own fuel burn. " if r["vessel"].get("class_proxy") else "") +
              f"{nm}, {vy['origin']} to {vy['destination']}: {_fmt(vy['distance_nm'])} nm at {vy['speed_kn']:.1f} kn is {vy['days']:.1f} days and about {_fmt(r['fuel']['t'])} t of fuel, "

@@ -7241,6 +7241,13 @@ class OilGasMethaneRequest(BaseModel):
     gwp_ch4: Optional[float] = Field(None, gt=0)
 
 
+@app.get("/provenance", tags=["Data"])
+def provenance_registry(file: Optional[str] = None) -> dict:
+    """Source, edition, licence, age and review status of every data file the engine ships. Pass ``file`` for one entry."""
+    from .. import provenance as PV
+    return PV.entry(file) if file else PV.audit()
+
+
 @app.get("/carbon/oilgas-methane", dependencies=[_AUTH], tags=["Carbon"])
 def carbon_oilgas_methane_list() -> dict:
     from ..carbon import oilgas_methane as OG
