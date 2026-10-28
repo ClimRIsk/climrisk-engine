@@ -92,7 +92,7 @@ def ets_position(installations: list, compliance_year: int, eua_price: Optional[
                        "cost_to_cover": round(max(0.0, bal) * price) if price else None},
             "installations": rows,
             "notes": ["Excess-emissions penalty: €100/t CO2 (inflation-indexed) and the allowances must still be surrendered.",
-                      "CBAM sectors' free allocation is multiplied by the CBAM factor from 2026 (2.5 % cut) to 2034 (100 %).",
+                      "CBAM sectors' free allocation is multiplied by the CBAM factor from 2026 (2.5 % cut) to 2034 (100 %), as in force. On 17 July 2026 the Commission proposed a revision that would phase it out between 2026 and 2038 instead; it is a proposal, not law, and is not modelled.",
                       "Allocation also changes with benchmark updates and the cross-sectoral correction — set "
                       "allocation_decline_pct_per_year if known."]}
 
@@ -124,11 +124,11 @@ def screen_credits(lots: list, current_year: int = 2026, max_vintage_age: int = 
         if l.get("corresponding_adjustment"):
             ok_uses.append("compliance (Article 6 / CORSIA, subject to scheme rules)")
         if use == "target":
-            flags.append("credits cannot count towards SBTi near- or long-term targets (report as BVCM instead)")
+            flags.append("credits cannot count towards SBTi near- or long-term targets (report as BVCM instead) [SBTi Corporate Net-Zero Standard v1.x rule; v2.0 was published 11 Jun 2026 and is not encoded here, so check its text]")
         if use == "product_claim":
             flags.append("EU Directive 2024/825: offset-based product neutrality claims banned in the EU from 27 Sep 2026")
         if use == "neutralisation" and not removal:
-            flags.append("avoidance/reduction credit — cannot neutralise residual emissions under SBTi net-zero")
+            flags.append("avoidance/reduction credit — cannot neutralise residual emissions under SBTi net-zero [v1.x rule; v2.0 not encoded]")
         if not l.get("retired"):
             flags.append("not yet retired — a claim requires retirement on the registry in the company's name")
         cer = None
@@ -149,7 +149,7 @@ def screen_credits(lots: list, current_year: int = 2026, max_vintage_age: int = 
                        "durable_removals": round(tot["durable_removals"] / Q, 3)},
             "disclosure": "ESRS E1-7: report credits cancelled in the year and planned, by type and standard, "
                           "separately from Scope 1–3 emissions and from progress towards GHG targets.",
-            "rules": ["SBTi Corporate Net-Zero Standard: no credits towards targets; permanent removals only for "
-                      "neutralising residual emissions", "EU Directive 2024/825 (ECGT) from 27 Sep 2026",
+            "rules": ["SBTi Corporate Net-Zero Standard v1.x: no credits towards targets; permanent removals only for "
+                      "neutralising residual emissions (v2.0, final 11 Jun 2026, mandatory for new submissions from 1 Feb 2028, is NOT encoded: read it before relying on this rule)", "EU Directive 2024/825 (ECGT) from 27 Sep 2026",
                       "ICVCM Core Carbon Principles label as declared by the registry record",
                       "CDM CERs: Article 6.4 first-NDC conditions (decision 3/CMA.3 annex, para 75) and ICAO CORSIA Eligible Emissions Units (Oct 2025), see carbon_registry.py"]}

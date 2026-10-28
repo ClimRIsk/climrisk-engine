@@ -42,3 +42,12 @@ Not accurate today: "one stop shop" if it implies a validated loss number, a ban
 This week, cheap and credibility-raising: (a) relabel credit risk as illustrative everywhere, (b) re-verify carbon constants against primary text, (c) finish the website claims review, (d) remove Wikipedia from site analysis, (e) run the full test suite and record the result.
 Next 4-6 weeks: wire sector curves (gap 1), BI first-party layer (3), licensed hazard source (5), then one regulator template (7) for the first design partner.
 Needs a partner, not code: claims data for loss validation (2), registry licence (8), external reviewer (3.1).
+
+## 5. Status after the 28 Oct 2026 fixes
+
+| Item | Status |
+|---|---|
+| Gap 1, sector vulnerability (flood) | **Closed for flood.** JRC tables for six asset classes by continent, stored as data (`data/jrc_flood_curves.json`), used per site; class and curve are stated in each result; missing continent tables use the published mean and say so. Transcribed from the CLIMADA-petals implementation, **not yet compared with the JRC report itself**. Wind is still one curve per cyclone basin. The untraceable `damage_curves.py` parameters are gone. |
+| Gap 4 / scrutiny 4, credit risk | **Rebuilt.** The untraceable model is withdrawn (`POST /portfolio/credit` returns 410). `climate/structural_credit.py` is a Merton structural model: no fitted coefficients, asset volatility implied from the bank's own PD and leverage, climate as a loss of asset value from our hazard outputs and a carbon cost over EBITDA, LGD from collateral after damage, IRB capital from the Basel formula. Anything not supplied is "not assessed". **Not tested against observed climate-related defaults.** The dashboards still contain their own hand-coded IFRS 9 logic (open). |
+| Scrutiny 2-3, carbon constants | **Checked against secondary sources, not primary text.** CBAM factors match several guides; the EUR-Lex text could not be retrieved. Found: a 17 Jul 2026 Commission proposal to extend the CBAM-sector phase-out to 2038 (not law, noted in output); SBTi Corporate Net-Zero Standard v2.0 (final 11 Jun 2026) is not encoded, so the SBTi rules are labelled v1.x in every result. |
+| Everything else in section 2 | **Not done.** Loss validation (needs claims), business interruption, hazard-data licence, multi-tenancy, regulator templates, registry feed, remaining perils, geography, portfolio layer, operations. Each needs data we do not have, a decision, or a larger build. |
