@@ -208,6 +208,8 @@ def entities(text: str) -> dict:
         lat, lon = float(a), float(b)
         if ns and ns.lower() == "s": lat = -abs(lat)
         if ew and ew.lower() == "w": lon = -abs(lon)
+        if not ("." in a or "." in b or ns or ew):
+            continue                      # two whole numbers with no hemisphere letter are far more often "5,000 m2" or "20,000 sq ft" than a coordinate
         if -90 <= lat <= 90 and -180 <= lon <= 180 and ("." in a or "." in b or ns or ew or "," in m.group(0)):
             out["lat"], out["lon"] = lat, lon
             break

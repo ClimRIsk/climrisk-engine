@@ -17,7 +17,7 @@ from . import vessel as VS
 from . import voyage as V
 from ..lca import marine_fuels as MF
 
-_SHIP = re.compile(r"\b(ship|vessel|tanker|bulker|bulk carrier|container ?ship|boxship|ro-?ro|carrier|MV|M/V|MT|M/T)\b", re.I)
+_SHIP = re.compile(r"\b(ships?|vessels?|tankers?|bulkers?|bulk carriers?|container ?ships?|containerships?|boxships?|feeders?|ro-?ro|ro-?pax|ferr(?:y|ies)|cruise (?:ship|liner)s?|car carriers?|reefers?|lng carriers?|lpg carriers?|carriers?|vlcc|suezmax|aframax|panamax|capesize|handysize|supramax|MV|M/V|MT|M/T)\b", re.I)
 _VOY = re.compile(r"\b(\d[\d,\.]*\s*(nm|nautical)|docked|berthed|moored|sailing|voyage|moving to|heading to|bound for|steam(?:ing)? to|port of)\b", re.I)
 _NAME_STOP = {"is", "was", "has", "will", "which", "that", "moves", "moving", "sails", "sailing", "docked", "berthed", "moored", "currently", "now", "at", "in", "and", "from", "to", "with", "of", "the", "a", "an", "carrying", "loaded", "ballast", "heading", "bound", "going", "if", "how", "what"}
 FUEL_WORDS = [(r"\b(vlsfo|hsfo|ifo|hfo|heavy fuel|fuel oil|residual)\b", "hfo"), (r"\b(lfo|light fuel)\b", "lfo"), (r"\b(mgo|mdo|marine gas ?oil|marine diesel|diesel)\b", "mdo_mgo"),
@@ -26,82 +26,56 @@ FUEL_WORDS = [(r"\b(vlsfo|hsfo|ifo|hfo|heavy fuel|fuel oil|residual)\b", "hfo"),
 
 def matches(text: str) -> bool:
     t = text or ""
-    return bool(_SHIP.search(t) and _VOY.search(t) and re.search(r"\bto\b|bound for|towards?", t, re.I)) or bool(re.search(r"\bIMO\s*\d{7}\b", t, re.I) and _VOY.search(t))
+    imo = bool(re.search(r"\bIMO\s*\d{7}\b", t, re.I))
+    ship = bool(_SHIP.search(t)) or imo
+    if not ship:
+        return False
+    route = bool(re.search(r"\bfrom\s+(?:the\s+)?(?:[Pp]ort\s+of\s+)?[A-Z]", t) or re.search(r"[A-Z][\w'\-]+(?:\s+[A-Z][\w'\-]+){0,2}\s*(?:\bto\b|->|→|–|—|\s-\s)\s*[A-Z]", t) or _VOY.search(t) or re.search(r"\b(?:bound for|towards?|going to|heading to|sail\w* to|reach)\b", t, re.I) or re.search(r"\bbetween\s+[A-Z][\w'\-]+(?:\s+[A-Z][\w'\-]+){0,2}\s+and\s+[A-Z]", t))
+    return route and not re.search(r"\b(storey|story|floor)s?\b", t, re.I)
 
 
-def _num(s):
-    return float(s.replace(",", "")) if s else None
+_VOYAGE_TOPIC = re.compile(r"\b(emission\w*|carbon|co2e?|fuel|bunker\w*|ets|fueleu|voyage|route|knots?|kn|nm|nautical|slow[\s-]steam\w*|eua|charter|hire)\b", re.I)
+
+
+def needs_route(text: str) -> bool:
+    """A ship question about fuel/carbon/cost that names no route: ask for the ports instead of letting a general classifier guess."""
+    t = text or ""
+    if matches(t) or not (_SHIP.search(t) or re.search(r"\bIMO\s*\d{7}\b", t, re.I)) or not _VOYAGE_TOPIC.search(t):
+        return False
+    return not re.search(r"\b(storey|story|floor)s?\b|\b(what is|what are|define|explain)\b", t, re.I)
+
+
+_FOLLOW = re.compile(r"\b(what if|how about|and if|what about|instead|same (?:ship|vessel|voyage|route)|slow\w*(?:\s+down)?\s+to|delay\w*|bunker|eua|ets price|diver\w*|reroute\w*|red sea|via the cape|\d+(?:\.\d+)?\s*(?:kn|kts?|knots?)|\d[\d,\.]*\s*(?:nm|nautical)|in 20[2-4]\d|\$\s*\d|per tonne|t/day)\b", re.I)
+
+
+def is_followup(text: str) -> bool:
+    """A what-if on the voyage just discussed ('what if she slows to 12 knots', 'and with a 5 day delay', 'bunker at $700/t'). The caller checks that a voyage is in memory."""
+    t = text or ""
+    return bool(_FOLLOW.search(t)) and not matches(t) and not re.search(r"\b(storey|story|floor|build|building)s?\b", t, re.I)
+
+
+def merge(old: dict, new: dict) -> dict:
+    """New figures replace old ones; everything not mentioned is kept. A new market figure replaces only that figure."""
+    out = {k: v for k, v in old.items() if k != "flags"}
+    for k, v in new.items():
+        if k == "flags":
+            continue
+        if k == "market":
+            out["market"] = {**(out.get("market") or {}), **v}
+        else:
+            out[k] = v
+    out["flags"] = list(new.get("flags", []))
+    return out
+
+
+ASK_ROUTE = ("I can work out fuel, CO2e, EU ETS and FuelEU exposure, costs, slow-steaming, delay and Red Sea diversion cases for a ship, but I need the route: where it is now and "
+             "where it is going (for example 'MV Aurora, docked at Singapore, moving to Rotterdam, 8,300 nm, 14 knots'). If I have no record of the ship, add its type and size "
+             "('container ship 8,000 TEU', 'bulk carrier 75,000 dwt') or its daily fuel burn at a speed ('45 t/day at 14 knots').")
 
 
 def parse(text: str) -> dict:
-    t = text
-    out = {"flags": []}
-    m = re.search(r"\bIMO\s*(\d{7})\b", t, re.I)
-    if m:
-        out["imo"] = m.group(1)
-    nm = re.search(r"\b(?i:ship|vessel|tanker|bulker|carrier|container ?ship)\s+(?i:called|named)?\s*[\"“']?([A-Z0-9][\w\-']*(?:\s+[A-Z0-9][\w\-']*){0,3})", t) or re.search(r"\b(?:MV|M/V|MT|M/T)\s+([A-Z0-9][\w\-']*(?:\s+[A-Z0-9][\w\-']*){0,3})", t)
-    if nm:
-        words = []
-        for w in nm.group(1).split():
-            if w.lower() in _NAME_STOP:
-                break
-            words.append(w)
-        while words and words[0] in ("MV", "M/V", "MT", "M/T"):
-            words = words[1:]
-        if words and not re.fullmatch(r"(?i)imo", words[0]):
-            out["name"] = " ".join(words)
-    m = re.search(r"\b(?:docked|berthed|moored|alongside|lying|located|sitting|currently)\b[^.]*?\b(?:in|at)\s+(?:the\s+)?(?:[Pp]ort\s+of\s+)?([A-Z][\w\-']+(?:\s+[A-Z][\w\-']+){0,2})", t) or re.search(r"\bfrom\s+(?:the\s+)?(?:[Pp]ort\s+of\s+)?([A-Z][\w\-']+(?:\s+[A-Z][\w\-']+){0,2})", t)
-    if m:
-        out["origin"] = re.sub(r"\s+Port$", "", m.group(1)).strip()
-    m = re.search(r"\b(?:moving|moves|move|sail(?:s|ing)?|head(?:s|ing)?|going|go|bound|steam(?:s|ing)?|voyage|travel(?:s|ling)?|transit(?:s|ing)?|proceed(?:s|ing)?)\b[^.]*?\b(?:to|for|towards?)\s+(?:the\s+)?(?:[Pp]ort\s+of\s+)?([A-Z][\w\-']+(?:\s+[A-Z][\w\-']+){0,2})", t) or re.search(r"\bto\s+(?:the\s+)?(?:[Pp]ort\s+of\s+)?([A-Z][\w\-']+(?:\s+[A-Z][\w\-']+){0,2})", t)
-    if m:
-        out["dest"] = re.sub(r"\s+Port$", "", m.group(1)).strip()
-    for key, nm_ in (("origin_country", out.get("origin")), ("dest_country", out.get("dest"))):
-        if nm_:
-            m = re.search(re.escape(nm_) + r"(?:\s+[Pp]ort)?\s*(?:,\s*|\s*\()([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+)?)\)?", t)
-            if m and m.group(1).lower() not in ("and", "the", "port", "moving", "heading", "then", "to"):
-                out[key] = m.group(1)
-    m = re.search(r"(\d[\d,\.]*)\s*(?:nm|n\.?m\.?|nautical\s+miles?)\b", t, re.I)
-    if m:
-        out["distance_nm"] = _num(m.group(1))
-    m = re.search(r"(?:at|speed(?: of)?|steaming at|\bwith)\s*(\d+(?:\.\d+)?)\s*(?:kn|kts?|knots?)\b", t, re.I)
-    if m:
-        out["speed_kn"] = _num(m.group(1))
-    for rx, k in FUEL_WORDS:
-        if re.search(rx, t, re.I):
-            out["fuel"] = k
-            if k == "lng_otto_medium":
-                out["flags"].append("LNG engine type not given: a medium-speed Otto engine (methane slip default) is used. Give the engine type for a firm number.")
-            if re.search(r"vlsfo|hsfo|ifo", t, re.I):
-                out["flags"].append("VLSFO/HSFO/IFO grades are treated as the FuelEU 'HFO' class (RME-RMK); confirm for your grade.")
-            break
-    m = re.search(r"(\d+(?:\.\d+)?)\s*(?:t|tonnes?|tons?|mt)\s*(?:/|per|a)\s*day(?:[^.]*?\bat\s+(\d+(?:\.\d+)?)\s*(?:kn|kts?|knots?))?", t, re.I)
-    if m:
-        out["daily_t"] = _num(m.group(1))
-        if m.group(2):
-            out["daily_speed_kn"] = _num(m.group(2))
-    for key, rx in (("dwt", r"(\d[\d,\.]*)\s*(k?)\s*(?:dwt|deadweight)"), ("teu", r"(\d[\d,\.]*)\s*(k?)\s*teu"), ("gt", r"(\d[\d,\.]*)\s*(k?)\s*(?:gt|gross\s+ton)"), ("cbm", r"(\d[\d,\.]*)\s*(k?)\s*(?:cbm|m3|m³)")):
-        m = re.search(rx, t, re.I)
-        if m:
-            out[key] = _num(m.group(1)) * (1000.0 if m.group(2) else 1.0)
-    st = CL.classify(t)
-    if st:
-        out["ship_type"] = st
-    mk = {}
-    m = re.search(r"(?:bunker|fuel)[^.\d$€]{0,25}(?:price|cost|at)?[^.\d$€]{0,8}[$€]?\s*(\d[\d,\.]*)\s*(?:usd)?\s*(?:/|per)\s*(?:t|tonne|ton|mt)", t, re.I) or re.search(r"[$]\s*(\d[\d,\.]*)\s*(?:/|per)\s*(?:t|tonne|ton|mt)\b", t, re.I)
-    if m:
-        mk["bunker_usd_per_t"] = _num(m.group(1))
-    m = re.search(r"(?:charter|hire|opex|day rate)[^.\d$]{0,25}[$]?\s*(\d[\d,\.]*)\s*(?:usd)?\s*(?:/|per)\s*day", t, re.I) or re.search(r"[$]\s*(\d[\d,\.]*)\s*(?:/|per)\s*day\b", t, re.I)
-    if m:
-        mk["charter_usd_per_day"] = _num(m.group(1))
-    m = re.search(r"(?:eua|ets|allowance|carbon)[^.\d$€]{0,20}[€$]?\s*(\d+(?:\.\d+)?)\s*(?:eur|€|usd|\$)?\s*(?:/|per)\s*t", t, re.I)
-    if m:
-        mk["eua_price"] = _num(m.group(1)); mk["currency"] = "EUR" if re.search(r"€|eur", t, re.I) else "USD"
-    out["market"] = mk
-    m = re.search(r"\b(20[2-4]\d)\b", t)
-    if m:
-        out["year"] = int(m.group(1))
-    return out
+    from . import nlparse
+    return nlparse.parse(text)
 
 
 def _search_from(geocode: Callable, search: Optional[Callable]) -> Callable:
@@ -187,8 +161,8 @@ def answer(text: str, geocode: Callable, params: Optional[dict] = None, data_dir
     market = p.get("market") or {}
     if rv["vessel"] and not rv["missing"]:
         try:
-            r = V.assess_voyage(rv["vessel"], p.get("distance_nm"), p.get("speed_kn"), p.get("fuel"), o, d, p.get("year"), market, diversion_pct=p.get("diversion_pct"),
-                                fueleu_penalty_eur_per_t_vlsfoe=p.get("fueleu_penalty"))
+            r = V.assess_voyage(rv["vessel"], p.get("distance_nm"), p.get("speed_kn"), p.get("fuel"), o, d, p.get("year"), market, diversion_pct=p.get("diversion_pct"), delay_days=([p["delay_days"]] if p.get("delay_days") else None),
+                                speed_options_kn=([p["speed_option_kn"]] if p.get("speed_option_kn") else None), fueleu_penalty_eur_per_t_vlsfoe=p.get("fueleu_penalty"))
         except V.VoyageInputError as e:
             return {"reply": f"The voyage cannot be computed yet: {e}. Missing: {'; '.join(e.missing)}.", "blocks": [], "actions": [], "result": None}
         r["flags"] = flags + r["flags"]

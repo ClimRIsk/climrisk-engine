@@ -195,6 +195,38 @@ def test_agent_routes_a_ship_sentence_to_the_voyage_model(monkeypatch, tmp_path)
     assert "EU ETS" in st["reply"] and st["blocks"]
 
 
+def _run_agent(AG, sid, text):
+    import time
+    out = AG.Agent().handle(sid, text)
+    if not out.get("job"):
+        return out, None
+    for _ in range(100):
+        st = AG.job_status(out["job"])
+        if st["status"] != "running":
+            break
+        time.sleep(0.2)
+    return out, st
+
+
+def test_agent_follow_up_reuses_the_last_voyage(monkeypatch, tmp_path):
+    from cri.resident import agent as AG
+    monkeypatch.setattr(AG, "geocode", _geo)
+    monkeypatch.setattr(AG, "geocode_many", lambda q, limit=8: [{**g, "name": q, "country": "x", "class": "place", "type": "city", "importance": 1.0} for g in [_geo(q)] if g])
+    monkeypatch.setattr(AG, "port_evidence", lambda lat, lon, radius_m=15000: True)
+    monkeypatch.setattr(VS, "DATA_DIR", tmp_path)
+    out, st = _run_agent(AG, "t-fu", "The ship Aurora is docked at Singapore and moving to Rotterdam, 16000 NM at 14 knots, burns 45 t/day at 14 knots")
+    assert st["status"] == "done"
+    out2, st2 = _run_agent(AG, "t-fu", "what if she slows to 10 knots and there is a 4 day delay?")
+    assert out2["intent"] == "voyage" and "Same ship and route" in st2["reply"] or st2["status"] == "done"
+    assert st2["status"] == "done" and "Singapore" in str([b for b in st2["blocks"]]) and "10" in str(st2["blocks"])
+
+
+def test_agent_asks_for_the_route_when_a_ship_question_has_none():
+    from cri.resident import agent as AG
+    out, st = _run_agent(AG, "t-nr", "How much carbon does my container ship emit?")
+    assert out["intent"] == "voyage" and "where it is going" in out["reply"] and st is None
+
+
 # ── fleet baseline, options, scenarios ───────────────────────────────────────
 from cri.maritime import fleet as FL, options as OP, scenarios as SC   # noqa: E402
 

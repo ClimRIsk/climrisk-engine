@@ -280,16 +280,24 @@ class Agent:
         """A ship at one port, bound for another: fuel, CO2e, EU ETS/FuelEU exposure, costs, disruption cases and mitigation. See maritime/answer.py.
         The ship's fuel burn comes from its record (fleet file) or from numbers the user gives; it is never guessed."""
         from ..maritime import answer as MA
-        if not MA.matches(text):
+        lv = M.get_state("last_voyage")
+        follow = bool(lv and (time.time() - lv.get("ts", 0)) < 3600 and MA.is_followup(text))
+        if not follow and MA.needs_route(text):
+            M.add_message(session, "user", text, "voyage", {"needs": "route"})
+            return {"reply": MA.ASK_ROUTE, "blocks": [], "actions": [], "intent": "voyage", "confidence": 1.0}
+        if not follow and not MA.matches(text):
             return None
-        M.add_message(session, "user", text, "voyage", {})
+        M.add_message(session, "user", text, "voyage", {"follow_up": follow})
+        used = MA.merge(lv["params"], MA.parse(text)) if follow else MA.parse(text)
 
         def work():
-            r = MA.answer(text, geocode, search=geocode_many, evidence=port_evidence)
-            M.add_run("voyage", {"text": text[:200]}, [], True, r["reply"][:200])
-            return {"reply": r["reply"], "blocks": r["blocks"], "actions": r["actions"]}
+            r = MA.answer(text, geocode, params=used if follow else None, search=geocode_many, evidence=port_evidence)
+            M.add_run("voyage", {"text": text[:200], "follow_up": follow}, [], True, r["reply"][:200])
+            if r.get("result"):
+                M.set_state("last_voyage", {"params": used, "ts": time.time()})
+            return {"reply": ("(Same ship and route as before, with your change.) " if follow else "") + r["reply"], "blocks": r["blocks"], "actions": r["actions"]}
         j = _job(work, "assessing voyage")
-        out = {"reply": "Reading the ship and the two ports, then working out fuel, emissions, EU rules, costs and the disruption cases. About half a minute.", "blocks": [], "actions": [], "job": j["id"], "intent": "voyage", "confidence": 1.0}
+        out = {"reply": ("Re-running the voyage you just gave me with that change. " if follow else "Reading the ship and the two ports, then working out fuel, emissions, EU rules, costs and the disruption cases. ") + "About half a minute.", "blocks": [], "actions": [], "job": j["id"], "intent": "voyage", "confidence": 1.0}
         M.add_message(session, "agent", out["reply"], "voyage", {"job": j["id"]})
         return out
 
@@ -303,15 +311,16 @@ class Agent:
         if not pl:
             return {"reply": "Which site? Give coordinates or a place and I will screen it for a building of that height.", "blocks": [], "actions": [], "intent": "feasibility"}
         M.set_state("last_place", pl)
-        n = FE.storeys(text)
-        M.add_message(session, "user", text, "feasibility", {"entities": ent})
+        spec = FE.parse(text)
+        n = spec.get("storeys")
+        M.add_message(session, "user", text, "feasibility", {"entities": ent, "spec": spec})
 
         def work():
             from .. import physical_report as PR
             rep = PR.build_asset_report(pl["lat"], pl["lon"], name=pl.get("name"), include_image=False)
-            a = FE.analyse(rep, n)
-            M.add_run("feasibility", {"lat": pl["lat"], "lon": pl["lon"], "storeys": n}, [f'{len(a["drivers"])} hazard-driven items'], True, FE.reply_text(a, pl["name"])[:200])
-            M.set_state("last_result", {"summary": f"{n or 'tall'}-storey feasibility screen", "explain": "Hazard-driven design and cost items from the physical screening; no prices."})
+            a = FE.analyse(rep, n, spec)
+            M.add_run("feasibility", {"lat": pl["lat"], "lon": pl["lon"], "storeys": n, "spec": spec}, [f'{len(a["drivers"])} hazard-driven items'], True, FE.reply_text(a, pl["name"])[:200])
+            M.set_state("last_result", {"summary": f"{n or spec.get('use') or 'tall'}{'-storey' if n else ''} feasibility screen", "explain": "Hazard-driven design and cost items from the physical screening; no prices."})
             blocks = [_blk("table", head=["Hazard", "Rating here", "What it changes in the design", "Effect on cost"],
                            rows=[[r["hazard"], r["rating"].title(), r["design"], r["cost"]] for r in a["rows"]],
                            caption="Ratings come from the engine's physical screening for this exact point. A hazard missing from the table was not assessed, not safe.")]
@@ -319,12 +328,14 @@ class Agent:
                 blocks.append(_blk("note", text="Not assessed here (treat as unknown, not as low): " + ", ".join(a["not_assessed"]) + "."))
             for c in a["cautions"][:2]:
                 blocks.append(_blk("note", text=c))
+            if a["use_notes"]:
+                blocks.append(_blk("list", items=a["use_notes"]))
             blocks.append(_blk("list", items=FE.ALWAYS))
             blocks.append(_blk("note", text=FE.PRICE_ROUTE))
             return {"reply": FE.reply_text(a, pl["name"]), "blocks": blocks,
                     "actions": [{"type": "say", "label": "Write the full physical risk report", "text": f'physical risk report for {pl["lat"]:.4f}, {pl["lon"]:.4f}'}]}
         j = _job(work, "building feasibility screen")
-        out = {"reply": f"Screening {pl['name']} ({pl['source']}) for a {n or 'tall'}-storey building: reading the site's hazards, then what each one does to design and cost. About a minute.",
+        out = {"reply": f"Screening {pl['name']} ({pl['source']}) for {('a ' + str(n) + '-storey building') if n else ('a ' + (spec.get('use') or 'building'))}: reading the site's hazards, then what each one does to design and cost. About a minute.",
                "blocks": [], "actions": [], "job": j["id"], "intent": "feasibility", "confidence": 1.0}
         M.add_message(session, "agent", out["reply"], "feasibility", {"job": j["id"]})
         return out

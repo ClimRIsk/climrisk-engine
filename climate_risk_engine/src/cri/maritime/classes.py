@@ -19,8 +19,7 @@ from ..lca import marine_fuels as MF
 
 _P = Path(__file__).resolve().parents[1] / "data" / "imo_dcs_class_aer_2022.json"
 
-TYPE_WORDS = [("container_ship", r"container|boxship|feeder"), ("bulk_carrier", r"bulk|bulker|capesize|panamax|supramax|handymax|handysize|ultramax"), ("oil_tanker", r"oil tanker|crude|vlcc|suezmax|aframax|product tanker|tanker"),
-              ("chemical_tanker", r"chemical"), ("gas_carrier", r"lng|lpg|gas carrier|gas tanker|liquefied"), ("cruise", r"cruise"), ("ferry_ropax", r"ropax|ro-pax|ferry"),
+TYPE_WORDS = [("container_ship", r"container|boxship|feeder"), ("bulk_carrier", r"bulk|bulker|capesize|panamax|supramax|handymax|handysize|ultramax"), ("chemical_tanker", r"chemical"), ("oil_tanker", r"oil tanker|crude|vlcc|suezmax|aframax|product tanker|tanker"), ("gas_carrier", r"lng carrier|lpg carrier|gas carrier|gas tanker|liquefied"), ("cruise", r"cruise"), ("ferry_ropax", r"ropax|ro-pax|ferry"),
               ("vehicle_carrier", r"vehicle|car carrier|pctc|pure car"), ("ro_ro", r"ro-?ro"), ("reefer", r"reefer|refrigerated"), ("general_cargo", r"general cargo|multipurpose|multi-purpose")]
 UNIT_OF = {"bulk_carrier": "dwt", "chemical_tanker": "dwt", "container_ship": "teu", "cruise": "gt", "ferry_pax_only": "gt", "ferry_ropax": "gt", "general_cargo": "dwt", "gas_carrier": "cbm",
            "oil_tanker": "dwt", "other_liquids": "dwt", "reefer": "dwt", "ro_ro": "dwt", "vehicle_carrier": "gt"}
