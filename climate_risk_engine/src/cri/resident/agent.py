@@ -474,8 +474,16 @@ class Agent:
 
     def _dispatch(self, session, text, pred, ent, comp) -> dict:
         it = pred["intent"]
+        if it == "unknown" and pred.get("offtopic") and pred.get("confidence", 0) >= 0.5 and not comp and "lat" not in ent:
+            return {"reply": "That is outside what I do. I work on climate and physical risk, carbon, shipping voyages and building-site screening for assets, companies and portfolios. Ask me what I can do, or give me a site, a company or a voyage.", "blocks": [], "actions": [{"type": "say", "label": "What can you do?", "text": "what can you do"}]}
         if it == "unknown" and self._Q.search(text):                   # a real question the router has no tool for: answer it from what has been learned
             return self._ask(text)
+        if it == "voyage":                                              # the rules did not find a route; ask for it rather than guess
+            from ..maritime import answer as MA
+            return {"reply": MA.ASK_ROUTE, "blocks": [], "actions": []}
+        if it == "feasibility":
+            return {"reply": "I can screen a site for a building: which hazards bite, how each changes the design and cost, and what the screening could not assess. Tell me where (a place or coordinates) and what, for example "
+                             "'can I build a 12-storey hotel at 25.77, -80.19, what would it cost?' or 'a 5,000 m2 warehouse in Rotterdam'. I do not price it: the engine holds no construction-cost, land or soil data.", "blocks": [], "actions": []}
         if it == "unknown":
             top = [t for t in pred["top"][:3] if t["p"] > 0.08]
             return {"reply": "I'm not sure what you want. Did you mean one of these? (Your choice teaches me.)", "blocks": [],

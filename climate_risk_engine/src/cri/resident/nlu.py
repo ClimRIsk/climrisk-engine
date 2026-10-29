@@ -20,7 +20,7 @@ from typing import Optional
 import numpy as np
 
 NF = 1 << 14
-CONF_FLOOR = 0.35
+CONF_FLOOR = 0.30      # lowered from 0.35 on 29 Oct 2026: on 306 independent utterances 0.30 gave the same number of wrong picks as 0.35 and 3 more correct ones; below it the agent asks
 FIT = dict(lr=0.5, epochs=300, l2=1e-5)
 
 _WORD = re.compile(r"[a-z0-9\.\-']+")
@@ -121,7 +121,11 @@ class Model:
             P = P * np.array([1.0 + CUES_W * _cue(text).get(c, 0.0) for c in self.classes]); P = P / P.sum()
         o = np.argsort(-P)
         top = [{"intent": self.classes[i], "p": round(float(P[i]), 3)} for i in o[:3]]
-        return {"intent": top[0]["intent"] if top[0]["p"] >= CONF_FLOOR else "unknown", "confidence": top[0]["p"], "top": top}
+        off = top[0]["intent"] == "offtopic"
+        out = {"intent": "unknown" if (off or top[0]["p"] < CONF_FLOOR) else top[0]["intent"], "confidence": top[0]["p"], "top": [t for t in top if t["intent"] != "offtopic"] or top}
+        if off and top[0]["p"] >= 0.5:
+            out["offtopic"] = True                                       # the model is fairly sure this is outside what the agent does; never offer climate tools as guesses
+        return out
 
     # persistence (JSON, sparse): only non-zero weight rows are stored
     def to_json(self) -> dict:
@@ -177,6 +181,8 @@ _CUES = [
     (r"research|scan|this week|live (hazard|event)|gdacs|news|happening", "research"), (r"\bwhy\b|explain|how (reliable|accurate|was)|assumption|limits|mean", "explain"),
     (r"\b(history|previous|so far|recent (runs|activity|work)|did you do)\b", "history"), (r"what can you|\bhelp\b|capabilit|how (do i use|can you help)", "help"),
     (r"^\s*(hi|hey|hello|thanks|thank you|ok|cool|nice|bye|goodbye|great|awesome|perfect)\b", "smalltalk"),
+    (r"\b(ship|vessel|tanker|bulker|container ship|voyage|bunkers?|knots?|nautical)\b", "voyage"),
+    (r"\b(build|construct\w*|erect|put up|develop)\b.*\b(storey|stories|floors?|tower|warehouse|factory|hotel|apartments?|hospital|school|data ?cent\w+|mall|car ?park)\b", "feasibility"),
     (r"\b(publish|post it|go ahead and post|approve)\b", "publish_post"), (r"risk analy|assess\b|climate risk for|how risky|run the numbers", "risk_analysis"),
 ]
 

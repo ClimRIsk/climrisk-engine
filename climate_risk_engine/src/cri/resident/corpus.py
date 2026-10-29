@@ -164,8 +164,14 @@ T_MORE = {
 for _k, _v in T_MORE.items():
     T[_k].extend(_v)
 
+from . import corpus_more as _CM                                   # noqa: E402  (added 29 Oct 2026: voyage, feasibility, offtopic, extra phrasings, typing noise)
+SLOTS.update(_CM.SLOTS_MORE)
+SLOTS["offt"] = _CM._OFFT
+for _k, _v in list(_CM.T_NEW.items()) + list(_CM.T_NEW2.items()):
+    T.setdefault(_k, []).extend(_v)
 
-def utterances(seed: int = 7, per_template: int = 3) -> list:
+
+def utterances(seed: int = 7, per_template: int = 3, noise: bool = True) -> list:
     """[(text, intent, template_index)] — deterministic."""
     rng = random.Random(seed)
     out = []
@@ -181,6 +187,10 @@ def utterances(seed: int = 7, per_template: int = 3) -> list:
                     seen.add(u); out.append((u, intent, ti))
                 if len(seen) >= n_variants:
                     break
+            if noise:                                                  # a hurried copy of the first variant, same template group (so the split stays leak-free)
+                first = next(iter(seen), None)
+                if first:
+                    out.append((_CM.noisy(first, rng), intent, ti))
     return out
 
 

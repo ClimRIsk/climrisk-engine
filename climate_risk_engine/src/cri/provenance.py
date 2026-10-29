@@ -132,8 +132,8 @@ REGISTRY: dict[str, dict[str, Any]] = {
         publisher="Obu et al. 2019 permafrost probability map, resampled to 10 km", licence="CC BY 4.0 (check)", vintage="2019", status="derived",
         use="Permafrost probability at a site", review_days=STATIC, note="Published product; not tested here."),
     "resident_nlu.json": dict(
-        publisher="Our intent classifier for the resident agent (756 training examples, 21 classes)", licence="n/a", vintage="2026-10-07", status="fitted",
-        use="Routing of free-text questions to tools", review_days=ANNUAL, note="Held-out accuracy stored in the file meta. Routing only; carries no climate data."),
+        publisher="Our intent classifier for the resident agent (see file meta for the example count)", licence="n/a", vintage="2026-10-29", status="fitted",
+        use="Routing of free-text questions to tools", review_days=ANNUAL, note="Intent classifier, 24 classes, trained on the template corpus in resident/corpus.py + corpus_more.py. Measured on two independent utterance sets (docs/RESIDENT_TRAINING.md). Routing only; carries no climate data."),
     "slr_ar6.npz": dict(
         publisher="IPCC AR6 relative sea-level projections, FACTS framework (Fox-Kemper 2021; Garner 2021; Kopp 2023), Zenodo 10.5281/zenodo.6382554", licence="CC BY 4.0",
         vintage="2021-2023", status="derived", use="Sea-level rise by site, SSP, quantile, decade", review_days=STATIC,

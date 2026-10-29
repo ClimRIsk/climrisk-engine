@@ -208,7 +208,7 @@ def test_draft_without_material_refuses(ag):
 def test_unknown_asks_and_feedback_retrains(ag):
     q = "write me a poem about cheese"
     o = ag.handle("s", q)
-    assert o["intent"] == "unknown" and o["actions"][0]["type"] == "intent"
+    assert o["intent"] == "unknown" and "outside what I do" in o["reply"]          # off-topic is recognised; climate tools are not offered as guesses
     M.add_feedback("cheese poem", "unknown", "smalltalk")
     rep = N.train(extra=[(r["text"], r["intent"]) for r in M.feedback_rows()], save=False)
     assert rep["n_feedback"] == 1 and rep["heldout_templates"] >= 0.5

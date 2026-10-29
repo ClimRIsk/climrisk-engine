@@ -1,0 +1,28 @@
+"""Second, untouched utterance set for the resident intent model. Written before the final retrain and never used to add training templates; it is the clean check.
+Set A (nlu_battery.py) guided which templates were added; set B did not."""
+BATTERY = {
+    "twin": ["could you load the Meghna plant in 3D and flood it", "I'd like a 3d picture of what a storm surge does to Tokyo Bay", "twin for 23.20 90.65 please", "make a digital model of our Miami site and drop a hurricane on it"],
+    "protect": ["which flood defences would you advise for the Gulf Coast site", "what's the best retrofit against typhoon wind at Manila", "how can we keep water out of the control room", "any quick wins to reduce surge damage"],
+    "scenario": ["what's the outlook for Mumbai in 2050 if emissions stay high", "show me the spread between optimistic and pessimistic climate paths for our assets", "test a 40% stronger hurricane at Houston", "run a few what-ifs on sea level for Chattogram"],
+    "report_physical": ["compile a physical risk report on the Rotterdam terminal", "I want a document on how flood and wind affect site A", "physical hazard write-up for Manila", "produce a report of physical climate hazards for the board"],
+    "report_transition": ["transition risk report for ExxonMobil", "write about how policy and carbon costs affect Adani Power in a report", "stranded asset assessment write-up for coal", "report on energy transition risk for our steel client"],
+    "report_financial": ["climate financial impact report for Tata Steel", "write the loss and EBITDA report for Reliance", "produce a financial risk write-up for credit committee", "report on value at risk from climate for Heidelberg Materials"],
+    "report_lca": ["LCA write up for a tonne of cement", "make a life cycle report of our aluminium product", "cradle-to-gate emissions report for steel", "environmental footprint report for the product"],
+    "report_iso14067": ["ISO 14067 study for our chemical product", "produce the product carbon footprint report that meets 14067", "14067 write-up please", "CFP report for a steel coil"],
+    "report_carbon": ["greenhouse gas audit write up for Shell", "carbon accounting report for the year", "scopes 1 2 3 inventory document", "assurance-ready emissions report for Holcim"],
+    "report_cbam": ["CBAM cost report for our exports", "write up the EU carbon border charge for cement", "border carbon liability document for steel", "CBAM exposure write-up for Tata"],
+    "risk_analysis": ["how exposed is Cemex to climate", "analyse Heidelberg Materials", "what would climate cost NTPC", "risk numbers for ExxonMobil"],
+    "assets": ["where are Duke Energy's power plants", "list the facilities Tata Steel runs", "map Reliance sites", "which refineries does Shell have"],
+    "research": ["what is going on with storms this week", "any floods affecting factories right now", "find me a current hazard event", "scan for disasters near our register"],
+    "draft_post": ["write a LinkedIn post on this event", "draft a post about the cyclone for our page", "make a LinkedIn update from these findings", "post copy about Houston flooding please"],
+    "publish_post": ["go ahead, publish", "yes, post it to LinkedIn", "approved - put it live", "publish the draft now"],
+    "explain": ["why is the result so high", "what does return period mean", "how did you calculate the depth", "what does that rating mean"],
+    "remember": ["remember that Kiln 3 is 25 m tall", "note that the plant has a 2 m flood wall", "keep in mind Cemex is a client", "save this: site B was flooded in 2020"],
+    "recall": ["what do you remember about Kiln 3", "what do we know about the Houston plant", "recall my notes on Cemex", "what have I told you about site B"],
+    "history": ["what have we done lately", "show my recent work", "list the reports you made", "what did you run before"],
+    "help": ["what are you able to do", "give me a list of things I can ask", "how does this work", "help me get started"],
+    "smalltalk": ["hello", "thanks a lot", "good evening", "nice one"],
+    "voyage": ["emissions for a bulk carrier going Port Hedland to Qingdao", "how much fuel and CO2 would a tanker use from Ras Tanura to Rotterdam", "MV Atlas Hamburg to Santos, cost of ETS and fuel", "what would slowing a container ship from Busan to LA save in fuel"],
+    "feasibility": ["can we put up a 9 storey hotel in Lagos, cost and risks", "is a warehouse buildable at 29.7, -95.0 and what would it cost", "what would it take to build an office tower in Jakarta", "viable to construct a hospital in Manila?"],
+    "unknown": ["what's the tallest mountain in Africa", "write a haiku about coffee", "how do I make pancakes", "who directed Jaws", "what is 12 squared", "suggest a name for my cat"],
+}
