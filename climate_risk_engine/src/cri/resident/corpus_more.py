@@ -71,6 +71,27 @@ T_NEW2 = {
     "history": ["what was the last thing you did", "which job did you finish most recently", "last run please"],
 }
 
+# Added 29 Oct 2026 with the real out-of-scope data (real_oos_clinc150): everyday-assistant phrasing ("show me", "check", "find", "look up", "give me")
+# is the register those real questions use, so the climate intents need the same register or the model learns "assistant verb = not climate".
+T_NEW3 = {
+    "research": ["check the weather news for anything hitting our assets", "look up which disasters are unfolding right now", "find me this week's extreme weather events", "is anything big brewing in the Pacific this season",
+                 "give me the latest on storms and floods near our sites", "scan the hazard feeds again", "run the weekly hazard check", "what extreme events happened in the last few days",
+                 "look for new climate disasters I could comment on", "is a strong El Nino or La Nina developing", "any heatwave or flood news worth a post"],
+    "report_carbon": ["give me the GHG protocol report for {company}", "carbon footprint report for the whole group", "find my scope 1 2 3 totals and put them in a report", "yearly greenhouse gas report for {company}",
+                      "prepare the corporate emissions inventory document", "show me the annual carbon accounting report"],
+    "report_physical": ["report on how {hazard} exposes {place}", "write me a document on {hazard} and wind exposure at {place}", "give me a hazard report for {place}", "put the flood and wind findings for {place} in a report"],
+    "report_transition": ["write about how carbon costs and regulation hit {company} as a report", "report on the policy and carbon price risk to {company}", "give me a document on how the transition affects {company}"],
+    "report_iso14067": ["14067 report for {sector} please", "give me the ISO 14067 write up", "I need the product carbon footprint study document"],
+    "scenario": ["how bad could {hazard} get by {year} at {place}", "show me the spread between mild and severe futures at {place}", "what is the outlook for {place} in {year} if emissions stay high",
+                 "compare the optimistic and pessimistic climate paths for {company}", "how could things look in {year} for our sites"],
+    "assets": ["which of {company}'s sites are exposed to {hazard}", "show me the {sector} sites {company} has that {hazard} could hit", "list where {company} operates plants"],
+    "protect": ["how can we keep water out of the {sector} control room", "what are the quick wins to cut {hazard} damage at {place}", "show me cheap ways to reduce {hazard} losses", "what can we do about {hazard} at {place}"],
+    "help": ["which questions can I put to you", "how should I start using you", "help me find my way around", "what are the things you can be asked", "which kinds of questions do you handle", "walk me through where to begin", "how do I use you", "list the tasks you support", "show me your abilities", "what can you do for me"],
+    "explain": ["what does the twin actually model", "how is the 3D twin built", "what exactly does a twin show me", "what is a return period", "what is a loss exceedance curve"],
+    "history": ["history", "history log", "show history", "earlier work please"],
+    "publish_post": ["fine, push it live", "put it on our company page", "go ahead and send the post", "release that draft"],
+}
+
 _OFFT = ["Peru", "Canada", "Kenya", "Norway", "Japan", "Chile", "Egypt", "Vietnam"]
 
 

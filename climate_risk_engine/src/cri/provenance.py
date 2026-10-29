@@ -131,9 +131,14 @@ REGISTRY: dict[str, dict[str, Any]] = {
     "permafrost_obu2019_10km.npz": dict(
         publisher="Obu et al. 2019 permafrost probability map, resampled to 10 km", licence="CC BY 4.0 (check)", vintage="2019", status="derived",
         use="Permafrost probability at a site", review_days=STATIC, note="Published product; not tested here."),
+    "real_oos_clinc150.txt": dict(
+        publisher="CLINC150 out-of-scope queries, Larson et al., 'An Evaluation Dataset for Intent Classification and Out-of-Scope Prediction', EMNLP 2019; via Hugging Face clinc/clinc_oos (config plus, train rows 15000-15249 and validation rows 3000-3099)",
+        licence="CC BY 3.0 (attribution: Larson et al. 2019, https://github.com/clinc/oos-eval)", vintage="2019", retrieved="2026-10-29", status="third_party",
+        use="Real people's out-of-domain questions, label offtopic, for training the resident agent's intent model", review_days=STATIC,
+        note="350 queries about banking, cars, trivia, sport, TV, health and so on; none about climate or shipping. Everyday-assistant register, US English, mostly 2019. The test rows are NOT in this file; 185 of them are in tests/data/clinc_oos_heldout.txt for measurement only."),
     "resident_nlu.json": dict(
         publisher="Our intent classifier for the resident agent (see file meta for the example count)", licence="n/a", vintage="2026-10-29", status="fitted",
-        use="Routing of free-text questions to tools", review_days=ANNUAL, note="Intent classifier, 24 classes, trained on the template corpus in resident/corpus.py + corpus_more.py. Measured on two independent utterance sets (docs/RESIDENT_TRAINING.md). Routing only; carries no climate data."),
+        use="Routing of free-text questions to tools", review_days=ANNUAL, note="Intent classifier, 24 classes, trained on the template corpus in resident/corpus.py + corpus_more.py plus 350 real out-of-scope queries (real_oos_clinc150.txt). Measured on two independent utterance sets (docs/RESIDENT_TRAINING.md). Routing only; carries no climate data."),
     "slr_ar6.npz": dict(
         publisher="IPCC AR6 relative sea-level projections, FACTS framework (Fox-Kemper 2021; Garner 2021; Kopp 2023), Zenodo 10.5281/zenodo.6382554", licence="CC BY 4.0",
         vintage="2021-2023", status="derived", use="Sea-level rise by site, SSP, quantile, decade", review_days=STATIC,
@@ -232,7 +237,7 @@ def entry(name: str, today: Optional[date] = None) -> dict:
 def audit(today: Optional[date] = None) -> dict:
     """Full registry. ``unregistered`` lists any data file in cri/data without an entry (a failure)."""
     today = today or date.today()
-    files = sorted(p.name for p in DATA_DIR.iterdir() if p.is_file() and p.suffix in (".json", ".npz", ".gz", ".csv", ".pem"))
+    files = sorted(p.name for p in DATA_DIR.iterdir() if p.is_file() and p.suffix in (".json", ".npz", ".gz", ".csv", ".pem", ".txt"))
     rows = [entry(n, today) for n in files]
     unreg = [r["file"] for r in rows if r["documentation"] == "undocumented"]
     stale_lst = [r["file"] for r in rows if r["freshness"] == "review_due"]

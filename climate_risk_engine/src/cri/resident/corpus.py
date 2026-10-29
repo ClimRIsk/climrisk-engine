@@ -167,7 +167,7 @@ for _k, _v in T_MORE.items():
 from . import corpus_more as _CM                                   # noqa: E402  (added 29 Oct 2026: voyage, feasibility, offtopic, extra phrasings, typing noise)
 SLOTS.update(_CM.SLOTS_MORE)
 SLOTS["offt"] = _CM._OFFT
-for _k, _v in list(_CM.T_NEW.items()) + list(_CM.T_NEW2.items()):
+for _k, _v in list(_CM.T_NEW.items()) + list(_CM.T_NEW2.items()) + list(_CM.T_NEW3.items()):
     T.setdefault(_k, []).extend(_v)
 
 
@@ -200,3 +200,14 @@ def split_by_template(rows: list, test_every: int = 5) -> tuple:
     for u, i, ti in rows:
         (te if ti % test_every == test_every - 1 else tr).append((u, i))
     return tr, te
+
+
+def real_rows() -> list:
+    """[(text, "offtopic")] — REAL out-of-scope queries written by people (CLINC150 train + validation out-of-scope rows, CC BY 3.0,
+    Larson et al., EMNLP 2019; retrieved 29 Oct 2026; see data/provenance.py entry real_oos_clinc150). Never includes the test rows used by
+    tools/measure_real_oos.py. Returns [] if the file is absent so the engine still imports."""
+    from pathlib import Path
+    f = Path(__file__).resolve().parent.parent / "data" / "real_oos_clinc150.txt"
+    if not f.exists():
+        return []
+    return [(l.strip(), "offtopic") for l in f.read_text(encoding="utf-8").splitlines() if l.strip()]

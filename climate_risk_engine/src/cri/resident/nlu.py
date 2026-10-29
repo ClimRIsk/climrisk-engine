@@ -119,6 +119,10 @@ class Model:
         P = self.proba(text)
         if hybrid:
             P = P * np.array([1.0 + CUES_W * _cue(text).get(c, 0.0) for c in self.classes]); P = P / P.sum()
+        if "offtopic" in self.classes and DOMAIN_WORDS.search(text):
+            # Climate, hazard, emissions, asset or shipping vocabulary is present: never refuse as "outside what I do" (a wrong refusal of real work is worse than a question).
+            # The off-topic class is removed and the rest renormalised, so the best remaining intent still has to clear the confidence floor.
+            P = P.copy(); P[self.classes.index("offtopic")] = 0.0; P = P / P.sum()
         o = np.argsort(-P)
         top = [{"intent": self.classes[i], "p": round(float(P[i]), 3)} for i in o[:3]]
         off = top[0]["intent"] == "offtopic"
@@ -279,6 +283,11 @@ can you i we please about with from into over under report post twin scenario sc
 assets asset carbon audit tell about summarise summarize turn find check scan lca cbam company portfolio linkedin explain remember recall help hello thanks thank research scan model protect""".split())
 
 
+# Vocabulary of the agent's own domain (plus a few meta phrases about the agent itself). Used only as a veto on the off-topic verdict, never to choose an intent.
+DOMAIN_WORDS = re.compile(r"\b(flood\w*|cyclone\w*|hurricane\w*|typhoon\w*|storm\w*|surge|sea[- ]level|climate\w*|carbon|emission\w*|ghg|greenhouse|scopes? ?[123]|cbam|lca|life[- ]cycle|14067|"
+                          r"hazard\w*|wildfire\w*|drought\w*|heat ?wave\w*|el nino|la nina|disaster\w*|transformer\w*|substation\w*|refiner\w*|factor(?:y|ies)|warehouse\w*|"
+                          r"assets?|twin|3-?d|ngfs|physical risk|transition risk|stranded|voyage|vessel|bunker\w*|cement|steel|exposure|resilien\w*|mitigat\w*|get(?:ting)? started|can i ask|what can you do|what you can do|how (?:do|does) (?:this|it) work|net ?zero|mild|severe|optimistic|pessimistic|tcfd|issb|csrd)\b", re.I)
+
 # ── persistence + singleton ─────────────────────────────────────────────────
 MODEL_PATH = Path(__file__).resolve().parent.parent / "data" / "resident_nlu.json"
 _M: Optional[Model] = None
@@ -286,21 +295,22 @@ _M: Optional[Model] = None
 
 def train(extra: Optional[list] = None, save: bool = True) -> dict:
     """Train on the corpus (+ logged feedback rows `extra`), report held-out and grouped-CV accuracy, save the model."""
-    from .corpus import utterances, split_by_template
+    from .corpus import utterances, split_by_template, real_rows
     rows = utterances()
+    real = real_rows()                                                # real people's out-of-scope questions (CLINC150, CC BY 3.0)
     tr, te = split_by_template(rows)
-    ev = evaluate(tr, te)
+    ev = evaluate(tr + real, te)
     cv = grouped_cv(rows)
-    allrows = [(u, i) for u, i, _ in rows] + list(extra or [])
+    allrows = [(u, i) for u, i, _ in rows] + real + list(extra or [])
     m = Model().fit(allrows)
-    m.meta.update({"heldout_model_only": ev["accuracy"], "grouped_cv_mean": cv["mean"], "n_feedback": len(extra or [])})
+    m.meta.update({"heldout_model_only": ev["accuracy"], "grouped_cv_mean": cv["mean"], "n_feedback": len(extra or []), "n_real_oos": len(real)})
     if save:
         MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
         MODEL_PATH.write_text(json.dumps(m.to_json()))
     global _M
     _M = m
     hy = sum(m.predict(u)["intent"] == i for u, i in te) / max(len(te), 1)
-    return {"n_train": len(allrows), "heldout_templates": ev["accuracy"], "grouped_cv": cv, "n_feedback": len(extra or []),
+    return {"n_train": len(allrows), "heldout_templates": ev["accuracy"], "grouped_cv": cv, "n_feedback": len(extra or []), "n_real_oos": len(real),
             "note": "held-out = phrasings never seen in training; the in-sample figure after adding feedback is not a held-out score",
             "errors_sample": ev["errors"][:6], "hybrid_in_sample": round(hy, 3)}
 
