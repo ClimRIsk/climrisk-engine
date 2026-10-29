@@ -126,7 +126,7 @@ def analyse(report: dict, n: Optional[int], spec: Optional[dict] = None) -> dict
     rows.sort(key=lambda x: -x["level"])
     drivers = [x for x in rows if x["level"] >= 2]
     spec = spec or {}
-    height = f"about {round(n * STOREY_M)} m (at {STOREY_M} m per floor, a rule of thumb)" if n else (f"{spec['height_m']:g} m" if spec.get("height_m") else None)
+    height = f"about {round(n * STOREY_M)} m at {STOREY_M} m per floor, a rule of thumb" if n else (f"{spec['height_m']:g} m" if spec.get("height_m") else None)
     return {"spec": spec, "use_notes": USE_NOTES.get(spec.get("use"), []), "storeys": n, "height": height, "rows": rows, "drivers": drivers, "not_assessed": notrated,
             "overall": report.get("overall_rating"), "cautions": report.get("cautions") or []}
 
