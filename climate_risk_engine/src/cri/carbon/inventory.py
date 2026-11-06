@@ -117,6 +117,8 @@ def _calc(rec: dict, ent: Entity, gwp: str) -> dict:
         if scope == 1:
             w = F.wtt_for(rec["factor_id"])
             if w:
+                if gwp != "AR5":
+                    out["warnings"].append(f"well-to-tank factor (DESNZ) has no per-gas split, so it stays on AR5 while the line is on {gwp}")
                 out["derived"].append({"category": "s3_c3", "kgco2e": q * w["kgco2e_per_unit"],
                                        "working": f"WTT {q:g} {f['unit']} × {w['kgco2e_per_unit']:.6g}",
                                        "factor": {"id": w["id"], "source": w["source"], "gwp": w["gwp"]}})
@@ -165,7 +167,7 @@ def _calc(rec: dict, ent: Entity, gwp: str) -> dict:
             loc = {"g_per_kwh": float(rec["location_g_per_kwh"]), "source": rec.get("location_source", "user-supplied"),
                    "dq": 2}
         else:
-            loc = F.electricity_location(country, rec.get("us_state"), rec.get("egrid_subregion"))
+            loc = F.electricity_location(country, rec.get("us_state"), rec.get("egrid_subregion"), rec.get("grid_fy"))
         sub = rec.get("egrid_subregion") or loc.get("subregion")
         loc_kg = kwh * loc["g_per_kwh"] / 1000
         # market-based hierarchy
@@ -204,8 +206,11 @@ def _calc(rec: dict, ent: Entity, gwp: str) -> dict:
                            "unit": "g CO2e/kWh"})
         if loc.get("note"):
             out["warnings"].append(loc["note"])
-        if gwp != "AR6":
-            out["warnings"].append(f"grid factor is on its published basis (Ember lifecycle; DESNZ and eGRID restated to AR6), not restated to {gwp}; CO2 dominates so the difference is small")
+        gb = loc.get("gwp_basis")
+        if gb == "AR6" and gwp != "AR6":
+            out["warnings"].append(f"grid factor is on its published AR6 basis, not restated to {gwp}; CO2 dominates so the difference is small")
+        elif gb and gb.startswith("AR5"):
+            out["warnings"].append(f"grid factor is a derived national value on {gb}; it is not restated to {gwp}. CO2 dominates, but supply a national factor on {gwp} if you need a strict {gwp} figure")
         if cat == "s2_electricity":
             iso = F._iso3(country)
             if iso == "GBR":

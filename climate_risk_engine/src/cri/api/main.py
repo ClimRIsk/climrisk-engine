@@ -110,6 +110,11 @@ async def _lifespan(app: FastAPI):
         _ap.start()
     except Exception as exc:                        # noqa: BLE001
         logging.getLogger(__name__).warning("autopilot not started: %s", exc)
+    try:                                            # while the app is live it keeps watching CEA's CO2 Baseline Database listing for new versions
+        from ..connectors import cea_baseline as _cea
+        _cea.start_background()
+    except Exception as exc:                        # noqa: BLE001
+        logging.getLogger(__name__).warning("CEA monitor not started: %s", exc)
     # Preload in-memory datasets in the background so the first request has no lag
     try:
         from ..data.asset_register import warm_up_async
@@ -6599,11 +6604,11 @@ def carbon_factors(q: str = "", scope: Optional[str] = None, limit: int = 50) ->
 
 
 @app.get("/carbon/grid-factor", tags=["Carbon Accounting"])
-def carbon_grid_factor(country: str, us_state: Optional[str] = None, egrid_subregion: Optional[str] = None) -> dict:
-    """Location-based and residual-mix grid factors for a country / US state / eGRID subregion."""
+def carbon_grid_factor(country: str, us_state: Optional[str] = None, egrid_subregion: Optional[str] = None, fy: Optional[str] = None) -> dict:
+    """Location-based and residual-mix grid factors for a country / US state / eGRID subregion. India: CEA CO2 Baseline Database, ``fy`` like 2024-25."""
     from ..carbon import factors as F
     try:
-        loc = F.electricity_location(country, us_state, egrid_subregion)
+        loc = F.electricity_location(country, us_state, egrid_subregion, fy)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc).strip("'\""))
     return {"location": loc, "residual_mix": F.electricity_residual(country, egrid_subregion or loc.get("subregion")),
@@ -7196,6 +7201,24 @@ def provenance_registry(file: Optional[str] = None) -> dict:
     """Source, edition, licence, age and review status of every data file the engine ships. Pass ``file`` for one entry."""
     from .. import provenance as PV
     return PV.entry(file) if file else PV.audit()
+
+
+@app.get("/data/cea", tags=["Data"])
+def cea_baseline_status(fy: Optional[str] = None, kind: str = "weighted_average") -> dict:
+    """CEA CO2 Baseline Database for the Indian power sector: version in use, whether a newer one is listed, and the all-India grid factor for a fiscal year."""
+    from ..connectors import cea_baseline as CEA
+    try:
+        f = CEA.factor(fy, kind)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc).strip("'\""))
+    return {"status": CEA.status(), "factor": f}
+
+
+@app.post("/data/cea/refresh", dependencies=[_AUTH], tags=["Data"])
+def cea_baseline_refresh() -> dict:
+    """Read the CEA listing now (instead of waiting for the daily check) and ingest a newer user guide if one is listed and passes every check."""
+    from ..connectors import cea_baseline as CEA
+    return CEA.sync(force=True)
 
 
 @app.get("/carbon/oilgas-methane", dependencies=[_AUTH], tags=["Carbon"])

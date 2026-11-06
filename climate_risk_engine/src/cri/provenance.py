@@ -48,6 +48,14 @@ REGISTRY: dict[str, dict[str, Any]] = {
         publisher="Same as asset_register.npz (owner names normalised by our build script)", licence="see asset_register.npz", vintage="2023", built="2026-09-29",
         status="derived", use="Company name/alias -> asset indices", review_days=ANNUAL, build="scripts/build_asset_register.py",
         note="Name matching is by normalised string; a wrong match is possible and is not scored."),
+    "cea_baseline.json": dict(
+        publisher="Central Electricity Authority (Ministry of Power, Government of India), CO2 Baseline Database for the Indian Power Sector, User Guide Version 22.0 (August 2026)",
+        licence="Official publication of the Government of India for CDM baselines; reproduced with attribution (check CEA terms before redistributing)",
+        vintage="2026-08 (v22.0)", retrieved="2026-11-06", status="published", url="https://cea.nic.in/cdm-co2-baseline-view?mappingId=234&lang=en",
+        use="All-India grid emission factor (weighted average, OM, BM, CM) for Scope 2 location-based in India; answers to CEA questions", review_days=LIVE,
+        build="scripts/build_cea_baseline.py",
+        note="Seed values transcribed from the published PDF and cross-checked arithmetically. The live monitor (connectors/cea_baseline.py) watches the CEA listing and ingests a newer user guide only if every check passes; "
+             "see GET /data/cea. CO2 only; CEA publishes no state-wise factors. Fuel-level factors and station data (in the CEA XLSX) are not held."),
     "carbon_factors.json": dict(
         publisher="Compiled carbon factor library (per-entry source fields inside the file)", licence="per entry", vintage="2026-09-30", status="derived",
         use="Scope 1/2/3 emission factors", review_days=ANNUAL, build="scripts/build_carbon_factors.py", note="Each factor carries its own source; audit per entry with /carbon/factors."),
@@ -231,6 +239,15 @@ def entry(name: str, today: Optional[date] = None) -> dict:
         drift.append(f"version: registry {e['vintage']} vs file {emb['version']}")
     if drift:
         out["drift"] = drift
+    if name == "cea_baseline.json":                       # the one live-monitored file: say what the monitor knows
+        try:
+            from .connectors import cea_baseline as _cea
+            st = _cea.status()
+            out["monitor"] = {k: st.get(k) for k in ("version", "freshness", "checked_at", "latest_listed", "last_error")}
+            if st["freshness"] == "newer_available":
+                out["newer_edition"] = st["message"]
+        except Exception:                                  # noqa: BLE001
+            pass
     return out
 
 

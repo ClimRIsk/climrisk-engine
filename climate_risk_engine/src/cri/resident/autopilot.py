@@ -284,6 +284,19 @@ def run_cycle(reason: str = "scheduled") -> dict:
                           " ".join(f'{r["name"]}: {r["fix"]}' for r in bad)[:600], key=f"selfcheck-{dt.date.today()}")      # one alert a day: a flaky link must not post a new, nearly identical alert each time a different source times out
         except Exception as e:                                   # noqa: BLE001
             log.append(f"selfcheck failed: {type(e).__name__}")
+        try:                                                     # CEA's CO2 Baseline Database: watch for a new version and keep the agent's copy of it current
+            from ..connectors import cea_baseline as CEA
+            was = CEA.status()["version"]
+            CEA.learn()
+            now_ = CEA.status()
+            if now_["freshness"] == "newer_available":
+                inbox_add("alert", f"CEA has published Version {now_['latest_listed']} of its CO2 Baseline Database", now_["message"][:600], key=f"cea-newer-{now_['latest_listed']}")
+                log.append(f"CEA: newer version {now_['latest_listed']} listed, not yet loaded")
+            elif now_["version"] != was:
+                inbox_add("learned", f"CEA CO2 Baseline Database updated to Version {now_['version']}", f"Loaded and verified from the published user guide ({now_['published']}). Grid factors in new inventories use it from now on.", key=f"cea-loaded-{now_['version']}")
+                log.append(f"CEA: loaded version {now_['version']}")
+        except Exception as e:                                   # noqa: BLE001
+            log.append(f"CEA monitor failed: {type(e).__name__}")
         try:                                                     # keep learning: refresh and extend what the agent knows (does nothing when everything is fresh)
             from . import knowledge as K
             lr = K.learn_seed()

@@ -38,6 +38,7 @@ api = [
     "matplotlib>=3.8",      # story-report figures, research-desk charts, LinkedIn cards
     "supabase>=2.4",
     "cryptography>=42",     # evaluation-licence signature check (cri.licence)
+    "pypdf>=4.0",           # reads a newer CEA user guide (connectors/cea_baseline.py); pdftotext is used first if installed
     "fastembed>=0.4",       # offline dense retrieval (bge-small ONNX); the app falls back to keyword search if it is absent
     # Data acquisition layer — autonomous agent
     "httpx>=0.27",          # async HTTP client for GLEIF, EDGAR, CDP, SBTi, Nominatim

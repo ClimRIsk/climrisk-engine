@@ -114,15 +114,15 @@ def _iso3(country: Optional[str]) -> Optional[str]:
     return c
 
 
-def electricity_location(country: str, us_state: Optional[str] = None, egrid_subregion: Optional[str] = None) -> dict:
-    """Location-based grid factor (g CO2e/kWh, direct generation) with provenance."""
+def electricity_location(country: str, us_state: Optional[str] = None, egrid_subregion: Optional[str] = None, fy: Optional[str] = None) -> dict:
+    """Location-based grid factor (g CO2e/kWh, direct generation) with provenance. India uses the CEA CO2 Baseline Database (fy like '2024-25'; default the latest published)."""
     E = lib()["electricity"]
     iso = _iso3(country)
     if iso == "GBR":
         f = E["GBR"]["desnz_generation"][0]
         g = (f["co2"] + f["ch4"] / AR5["CH4"] * AR6["CH4_fossil"] + f["n2o"] / AR5["N2O"] * AR6["N2O"]) * 1000
         return {"g_per_kwh": g, "source": "UK DESNZ 2026 UK electricity (generation), CH4/N2O restated to AR6",
-                "basis": "national", "dq": 2, "gases": "CO2+CH4+N2O (AR6)"}
+                "basis": "national", "dq": 2, "gases": "CO2+CH4+N2O (AR6)", "gwp_basis": "AR6"}
     if iso == "USA":
         eg = E["us_egrid"]
         sub = (egrid_subregion or "").upper() or None
@@ -136,17 +136,25 @@ def electricity_location(country: str, us_state: Optional[str] = None, egrid_sub
         if sub and sub in eg["subregions"]:
             return {"g_per_kwh": eg["subregions"][sub]["g_per_kwh_ar6"], "source": f"US EPA eGRID2023 subregion {sub}",
                     "basis": "eGRID subregion", "subregion": sub, "dq": 2 if not note else 3, "note": note,
-                    "gases": "CO2+CH4+N2O (AR6)"}
+                    "gases": "CO2+CH4+N2O (AR6)", "gwp_basis": "AR6"}
         return {"g_per_kwh": eg["us_average_g_per_kwh_ar6"], "source": "US EPA eGRID2023 US average", "basis": "national",
-                "dq": 3, "note": "No state/subregion given — US average used", "gases": "CO2+CH4+N2O (AR6)"}
+                "dq": 3, "note": "No state/subregion given — US average used", "gases": "CO2+CH4+N2O (AR6)", "gwp_basis": "AR6"}
+    if iso == "IND":
+        from ..connectors import cea_baseline as CEA
+        c = CEA.factor(fy)
+        note = None if fy else f"CEA FY{c['fy']} (latest published) used; give grid_fy such as '2024-25' to match your reporting period"
+        if c["notes"]:
+            note = "; ".join(filter(None, [note, *c["notes"]]))
+        return {"g_per_kwh": c["g_per_kwh"], "source": f"{c['source']}, all-India weighted average incl. renewables, FY{c['fy']}", "basis": "national (CEA)",
+                "dq": 2, "gases": "CO2 only", "gwp_basis": "CO2 only", "fy": c["fy"], "note": note, "cea_version": c["version"]}
     aib = E["europe_aib"]["countries"].get(iso or "")
     if aib and aib.get("production_g_co2_per_kwh") is not None:
         return {"g_per_kwh": aib["production_g_co2_per_kwh"], "source": "AIB European production mix 2025 (direct CO2)",
-                "basis": "national", "dq": 2, "gases": "CO2 only"}
+                "basis": "national", "dq": 2, "gases": "CO2 only", "gwp_basis": "CO2 only"}
     em = E["ember_derived"]["countries"].get(iso or "")
     if em:
         return {"g_per_kwh": em["direct_g_per_kwh"], "source": f"Ember {em['year']} (direct share derived from IPCC AR5)",
-                "basis": "national (derived)", "dq": 3, "gases": "CO2e (derived)",
+                "basis": "national (derived)", "dq": 3, "gases": "CO2e (derived)", "gwp_basis": "AR5 (IPCC AR5 lifecycle medians; CH4/N2O share not restated)",
                 "note": "No official national factor in the library — supply the national/utility factor if available"}
     raise KeyError(f"no grid factor for country '{country}' — supply a location-based factor")
 

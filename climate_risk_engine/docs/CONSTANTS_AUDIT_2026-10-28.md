@@ -24,3 +24,10 @@ Tool: `tools/audit_constants.py` (AST scan of `src/cri`). First run: 126 module-
 
 ## Reading this audit
 "Fixed" means the invented number no longer reaches an output. "Not changed" means it still does, usually labelled parametric. None of the unchanged items has been validated against data.
+
+## Addendum 6 Nov 2026: AR6 basis check
+- AR6 GWP100 values in `carbon/factors.py` and `lca_factors.json` (CH4 fossil 29.8, non-fossil 27.0, N2O 273) match IPCC AR6 WG1 Table 7.15. The non-fossil CH4 value is never applied in the DESNZ path, because DESNZ gives bioenergy factors as a single CO2e number (flagged as AR5, not restated).
+- Fixed: grid factors from Ember (AR5-era lifecycle medians) were not flagged for AR6 inventories; they now are, per factor basis. UK DESNZ and US eGRID values are restated to AR6; AIB and CEA are CO2 only.
+- Fixed: DESNZ well-to-tank factors have no per-gas split and stay on AR5; the inventory now says so on every line that adds them when the basis is not AR5.
+- Fixed: the product footprint claimed "IPCC AR6 GWP100 applied to every flow". Combustion CH4/N2O and process gases are AR6; well-to-tank (DESNZ 2025) and grid lifecycle (Ember) factors are used as published and are not restated. The result now carries `gwp_note`.
+- Unchanged and labelled elsewhere: shipping FuelEU tank-to-wake uses AR4 by regulation; EPA Hub factors and oil-and-gas methane use AR5.

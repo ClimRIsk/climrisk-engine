@@ -227,7 +227,7 @@ class Agent:
         text = (text or "").strip()
         if not text:
             return {"reply": "Ask me something — for example \"build a 3D twin of 22.2645, 91.805\".", "blocks": [], "actions": [], "intent": "empty"}
-        quick = self._voyage_commands(session, text) or self._feasibility_commands(session, text) or self._event_commands(session, text) or self._userdoc_commands(session, text) or self._autopilot_commands(session, text) or self._knowledge_commands(session, text) or self._stress_commands(session, text) or self._scenario_commands(session, text) or self._source_commands(session, text) or self._profile_commands(session, text) or self._lab_commands(session, text) or self._case_commands(session, text) or self._extension_commands(session, text)
+        quick = self._voyage_commands(session, text) or self._feasibility_commands(session, text) or self._event_commands(session, text) or self._userdoc_commands(session, text) or self._autopilot_commands(session, text) or self._cea_commands(session, text) or self._knowledge_commands(session, text) or self._stress_commands(session, text) or self._scenario_commands(session, text) or self._source_commands(session, text) or self._profile_commands(session, text) or self._lab_commands(session, text) or self._case_commands(session, text) or self._extension_commands(session, text)
         if quick:
             if quick.get("intent") in (None, "knowledge", "learn"):      # autopilot commands log themselves
                 quick.setdefault("intent", "knowledge")
@@ -824,6 +824,24 @@ class Agent:
             j = _job(work2, "searching your documents")
             return {"reply": "Searching your documents …", "blocks": [], "actions": [], "job": j["id"], "intent": "docs"}
         return None
+
+    _CEA_REFRESH = re.compile(r"\b(check|refresh|look for|any|is there|has cea|did cea|what.?s)\b.{0,40}\b(new|newer|latest|updated?|published|release|version)\b|\bcheck (?:cea|now)\b|\brefresh\b", re.I)
+
+    def _cea_commands(self, session, text) -> Optional[dict]:
+        """Questions about CEA's CO2 Baseline Database (India's grid emission factor): answered from the engine's copy, with its version and whether CEA has published a newer one.
+        'Is there a new version / check now' reads the CEA listing immediately. See connectors/cea_baseline.py."""
+        from ..connectors import cea_baseline as CEA
+        if not CEA.matches(text):
+            return None
+        blocks = [_blk("sources", items=[{"n": 1, "title": "CEA CO2 Baseline Database for the Indian Power Sector", "url": CEA.LISTING_URL, "learned": ""}])]
+        if self._CEA_REFRESH.search(text) and not re.search(r"factor|emission|margin|\b(?:om|bm|cm)\b|tco2|g/kwh", text, re.I):
+            def work():
+                st = CEA.sync(force=True)
+                err = f" The listing could not be read just now ({st['last_error']})." if st.get("last_error") else ""
+                return {"reply": st["message"] + err, "blocks": blocks, "actions": []}
+            j = _job(work, "checking the CEA listing")
+            return {"reply": "Reading CEA's listing of CO2 Baseline Database versions now …", "blocks": [], "actions": [], "job": j["id"], "intent": "knowledge"}
+        return {"reply": CEA.answer(text), "blocks": blocks, "actions": [], "intent": "knowledge"}
 
     def _knowledge_commands(self, session, text) -> Optional[dict]:
         """learn from <url> / learn about <topic> / what do you know / forget <url> — keyword-routed."""

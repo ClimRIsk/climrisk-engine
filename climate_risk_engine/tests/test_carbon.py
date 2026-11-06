@@ -46,7 +46,8 @@ def test_grid_factors_by_region():
     assert tx["subregion"] == "ERCT" and 250 < tx["g_per_kwh"] < 450
     assert F.electricity_location("FRA")["g_per_kwh"] < 60
     assert F.electricity_location("DEU")["g_per_kwh"] > 200
-    assert "Ember" in F.electricity_location("IND")["source"]
+    assert "CEA" in F.electricity_location("IND")["source"]
+    assert "Ember" in F.electricity_location("BGD")["source"]
     assert F.electricity_residual("DEU")["g_per_kwh"] > F.electricity_location("DEU")["g_per_kwh"]
     assert F.electricity_residual("USA", "ERCT") is not None
     assert F.electricity_residual("IND") is None
@@ -203,7 +204,7 @@ def test_ar4_is_restated_from_the_per_gas_split():
 def test_ar4_inventory_is_labelled_and_flags_single_number_factors():
     from cri.carbon import inventory as I
     d = "desnz26:fuels-liquid-fuels-diesel-100-mineral-diesel-litres"
-    inv = I.from_dict({"organisation": "x", "reporting_year": 2022, "gwp": "AR4", "entities": [{"id": "E1", "name": "w", "country": "IND"}],
+    inv = I.from_dict({"organisation": "x", "reporting_year": 2022, "gwp": "AR4", "entities": [{"id": "E1", "name": "w", "country": "GBR"}],
                        "records": [{"id": "r1", "entity": "E1", "category": "s1_mobile", "method": "factor", "factor_id": d, "quantity": 1000, "unit": "litres", "evidence": "x"},
                                    {"id": "r2", "entity": "E1", "category": "s2_electricity", "method": "electricity", "kwh": 1000, "evidence": "x"}]})
     r = I.calculate(inv)
@@ -250,3 +251,37 @@ def test_elimination_never_removes_tonnes_that_are_reported_nowhere_else():
     inv2 = _thermax("equity_share", 26, False, from_entity="NOPE")
     with pytest.raises(I.InventoryError, match="not an entity"):
         I.calculate(inv2)
+
+
+def test_ar6_values_and_restatement_are_the_published_ones():
+    assert F.AR6 == {"CH4_fossil": 29.8, "CH4_nonfossil": 27.0, "N2O": 273.0}          # IPCC AR6 WG1 Table 7.15
+    d = "desnz26:fuels-liquid-fuels-diesel-100-mineral-diesel-litres"
+    f = F._desnz_index()[d]
+    a6 = F.desnz(d, "AR6")
+    assert a6["gases"]["CH4"] == pytest.approx(f["ch4"] / 28 * 29.8) and a6["gases"]["N2O"] == pytest.approx(f["n2o"] / 265 * 273)
+    bio = F.desnz("desnz26:bioenergy-biofuel-bioethanol-litres", "AR6")           # DESNZ gives bioenergy factors as one CO2e number, so the non-fossil CH4 value (27.0) has nothing to act on
+    assert bio["gwp_flag"] and bio["gwp"].startswith("AR5") and "no per-gas split" in bio["gwp"]
+
+
+def test_ar6_inventory_flags_every_factor_that_is_not_on_ar6():
+    from cri.carbon import inventory as I
+
+    def run(country, **rec):
+        return I.calculate(I.from_dict({"organisation": "x", "reporting_year": 2025, "gwp": "AR6", "entities": [{"id": "E", "name": "w", "country": country}],
+                                        "records": [dict({"id": "r", "entity": "E", "evidence": "x"}, **rec)]}))
+    gas = dict(category="s1_stationary", method="factor", factor_id="desnz26:fuels-gaseous-fuels-natural-gas-tonnes-tonnes", quantity=10, unit="tonnes")
+    diesel = dict(gas, factor_id="desnz26:fuels-liquid-fuels-diesel-100-mineral-diesel-litres", unit="litres", quantity=1000)
+    msgs = [c["message"] for c in run("GBR", **diesel)["checks"]]
+    assert any("well-to-tank" in m and "stays on AR5" in m for m in msgs)               # WTT has no per-gas split: disclosed, not silently mixed
+    elec = dict(category="s2_electricity", method="electricity", kwh=1e6)
+    assert not any("not restated" in c["message"] for c in run("GBR", **elec)["checks"])      # UK and US grid factors are restated to AR6
+    assert not any("not restated" in c["message"] for c in run("IND", **elec)["checks"])      # CEA is CO2 only
+    bgd = [c["message"] for c in run("BGD", **elec)["checks"]]
+    assert any("AR5" in m and "not restated to AR6" in m for m in bgd)                    # Ember-derived value is AR5-era and is said to be
+
+
+def test_product_footprint_states_which_flows_are_ar6():
+    from cri.lca import cfp
+    import inspect
+    src = inspect.getsource(cfp)
+    assert "not restated" in src and "one factor library, IPCC AR6 GWP100 and one boundary rule applied to every flow" not in src
