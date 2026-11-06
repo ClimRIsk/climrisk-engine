@@ -227,7 +227,7 @@ class Agent:
         text = (text or "").strip()
         if not text:
             return {"reply": "Ask me something — for example \"build a 3D twin of 22.2645, 91.805\".", "blocks": [], "actions": [], "intent": "empty"}
-        quick = self._voyage_commands(session, text) or self._feasibility_commands(session, text) or self._event_commands(session, text) or self._userdoc_commands(session, text) or self._autopilot_commands(session, text) or self._cea_commands(session, text) or self._knowledge_commands(session, text) or self._stress_commands(session, text) or self._scenario_commands(session, text) or self._source_commands(session, text) or self._profile_commands(session, text) or self._lab_commands(session, text) or self._case_commands(session, text) or self._extension_commands(session, text)
+        quick = self._voyage_commands(session, text) or self._feasibility_commands(session, text) or self._event_commands(session, text) or self._userdoc_commands(session, text) or self._autopilot_commands(session, text) or self._cea_commands(session, text) or self._sources_commands(session, text) or self._knowledge_commands(session, text) or self._stress_commands(session, text) or self._scenario_commands(session, text) or self._source_commands(session, text) or self._profile_commands(session, text) or self._lab_commands(session, text) or self._case_commands(session, text) or self._extension_commands(session, text)
         if quick:
             if quick.get("intent") in (None, "knowledge", "learn"):      # autopilot commands log themselves
                 quick.setdefault("intent", "knowledge")
@@ -842,6 +842,21 @@ class Agent:
             j = _job(work, "checking the CEA listing")
             return {"reply": "Reading CEA's listing of CO2 Baseline Database versions now …", "blocks": [], "actions": [], "job": j["id"], "intent": "knowledge"}
         return {"reply": CEA.answer(text), "blocks": blocks, "actions": [], "intent": "knowledge"}
+
+    def _sources_commands(self, session, text) -> Optional[dict]:
+        """Which editions of DESNZ, eGRID, AIB, Ember and CEA the engine holds, and whether the publisher has released something newer. See connectors/source_monitor.py.
+        'check now / is there a new ...' reads the publishers' release pages immediately."""
+        from ..connectors import source_monitor as SM
+        if not SM.matches(text):
+            return None
+        blocks = [_blk("sources", items=[{"n": i + 1, "title": s.name, "url": s.url, "learned": ""} for i, s in enumerate(SM.SOURCES)])]
+        if re.search(r"\b(check|refresh|look for|any|is there|has \w+ (?:published|released)|did \w+ (?:publish|release)|new(?:er)?|latest)\b", text, re.I):
+            def work():
+                SM.sync(force=True)
+                return {"reply": SM.answer(text), "blocks": blocks, "actions": []}
+            j = _job(work, "checking publishers' release pages")
+            return {"reply": "Reading the publishers' release pages now …", "blocks": [], "actions": [], "job": j["id"], "intent": "knowledge"}
+        return {"reply": SM.answer(text), "blocks": blocks, "actions": [], "intent": "knowledge"}
 
     def _knowledge_commands(self, session, text) -> Optional[dict]:
         """learn from <url> / learn about <topic> / what do you know / forget <url> — keyword-routed."""

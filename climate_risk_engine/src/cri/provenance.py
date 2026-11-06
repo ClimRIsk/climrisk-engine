@@ -239,15 +239,16 @@ def entry(name: str, today: Optional[date] = None) -> dict:
         drift.append(f"version: registry {e['vintage']} vs file {emb['version']}")
     if drift:
         out["drift"] = drift
-    if name == "cea_baseline.json":                       # the one live-monitored file: say what the monitor knows
-        try:
-            from .connectors import cea_baseline as _cea
-            st = _cea.status()
-            out["monitor"] = {k: st.get(k) for k in ("version", "freshness", "checked_at", "latest_listed", "last_error")}
-            if st["freshness"] == "newer_available":
-                out["newer_edition"] = st["message"]
-        except Exception:                                  # noqa: BLE001
-            pass
+    try:                                                   # sources whose release pages the monitor watches: say what it knows
+        from .connectors import source_monitor as _sm
+        mons = _sm.for_file(name)
+        if mons:
+            out["monitors"] = [{k: m.get(k) for k in ("id", "name", "freshness", "checked_at", "last_error", "message")} for m in mons]
+            newer = " ".join(m["message"] for m in mons if m["freshness"] == "newer_available")
+            if newer:
+                out["newer_edition"] = (out["newer_edition"] + " | " if out.get("newer_edition") else "") + newer
+    except Exception:                                      # noqa: BLE001
+        pass
     return out
 
 

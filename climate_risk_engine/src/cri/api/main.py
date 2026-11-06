@@ -111,10 +111,10 @@ async def _lifespan(app: FastAPI):
     except Exception as exc:                        # noqa: BLE001
         logging.getLogger(__name__).warning("autopilot not started: %s", exc)
     try:                                            # while the app is live it keeps watching CEA's CO2 Baseline Database listing for new versions
-        from ..connectors import cea_baseline as _cea
-        _cea.start_background()
+        from ..connectors import source_monitor as _sm
+        _sm.start_background()
     except Exception as exc:                        # noqa: BLE001
-        logging.getLogger(__name__).warning("CEA monitor not started: %s", exc)
+        logging.getLogger(__name__).warning("source monitor not started: %s", exc)
     # Preload in-memory datasets in the background so the first request has no lag
     try:
         from ..data.asset_register import warm_up_async
@@ -7201,6 +7201,22 @@ def provenance_registry(file: Optional[str] = None) -> dict:
     """Source, edition, licence, age and review status of every data file the engine ships. Pass ``file`` for one entry."""
     from .. import provenance as PV
     return PV.entry(file) if file else PV.audit()
+
+
+@app.get("/data/sources", tags=["Data"])
+def data_sources_status(source: Optional[str] = None) -> dict:
+    """Edition held vs newest published, for every external source behind the emission factors (UK DESNZ, US eGRID, AIB, Ember, CEA)."""
+    from ..connectors import source_monitor as SM
+    if source and source not in SM.BY_ID:
+        raise HTTPException(status_code=404, detail=f"unknown source '{source}'; known: {', '.join(SM.BY_ID)}")
+    return SM.status(source)
+
+
+@app.post("/data/sources/refresh", dependencies=[_AUTH], tags=["Data"])
+def data_sources_refresh(source: Optional[str] = None) -> dict:
+    """Read the publishers' release pages now instead of waiting for the daily check."""
+    from ..connectors import source_monitor as SM
+    return SM.sync(force=True, only=source)
 
 
 @app.get("/data/cea", tags=["Data"])

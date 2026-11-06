@@ -308,6 +308,9 @@ def status() -> dict:
         msg = (f"CEA has published Version {listed}; the engine's numbers are from Version {d['version']} ({d['published']}). "
                + ("The new user guide was fetched but not accepted: " + "; ".join(ir.get("problems", []))[:240] if ir and not ir.get("ok") else
                   "The new tables have not been loaded yet."))
+    elif st.get("last_error") and checked is not None:
+        fresh, msg = "unverified", (f"Using Version {d['version']} ({d['published']}). The latest attempt to read the CEA listing failed ({st['last_error']}); "
+                                    f"the last good read was {st['checked_at'][:10]}, so I cannot confirm it is still the newest.")
     elif checked is None:
         fresh, msg = "unverified", f"Using Version {d['version']} ({d['published']}). The CEA listing has not been read from this machine yet, so I cannot say it is the newest."
     elif age is not None and age > UNVERIFIED_AFTER_DAYS:
