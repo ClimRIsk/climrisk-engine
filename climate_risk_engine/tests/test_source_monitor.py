@@ -28,8 +28,21 @@ _MOE = "https://policies.env.go.jp/earth/ghg-santeikohyo/files/calc/"
 MOE = "".join(f'<a href="{_MOE}{f}">x</a>' for f in ("r08_denki_coefficient_rev4.pdf", "r07_denki_coefficient_rev4.pdf", "r06_denki_coefficient_rev10.pdf", "r05_coefficient_rev4.pdf", "r08_gas_coefficient.pdf"))
 MOE_NEW = MOE + f'<a href="{_MOE}r09_denki_coefficient.pdf">x</a>'
 MOE_REV = MOE + f'<a href="{_MOE}r08_denki_coefficient_rev5.pdf">x</a>'
-PAGES = {"desnz": DESNZ, "egrid": EGRID, "aib": AIB, "ember": EMBER, "nga": NGA, "eccc": ECCC, "uba": UBA, "moe": MOE}
-N_SRC = 10                                         # desnz, egrid, aib, ember, cea, nga, eccc, uba, mee, moe
+GHGP = '<a href="/sites/default/files/2026-07/Consolidated-StandardDevelopmentPlan%28SDP%29-2026.07.29.pdf">Consolidated Corporate Standard - Standard Development Plan</a>'
+ISO = "<h1>ISO 14067:2018</h1><p>Published (Edition 1, 2018)</p><p>This publication was last reviewed and confirmed in 2024. Therefore this version remains current.</p><p>International Standard to be revised [90.92]</p>"
+IFRS = ("<h2>Final stage</h2><p>In December 2025, the International Sustainability Standards Board (ISSB) issued <em>Amendments to Greenhouse Gas Emissions Disclosures</em>, which amended IFRS S2.</p>"
+        "<p>The amendments are effective for annual reporting periods beginning on or after 1 January 2027, with early application permitted.</p>")
+CBAM_PRICE = ('<table><tr><td>Q1 2026</td><td>7 April 2026</td><td>75.36</td></tr><tr><td>Q2 2026</td><td>6 July 2026</td><td>75.28</td></tr>'
+              '<tr><td>Q3 2026</td><td>5 October 2026</td><td>82.32</td></tr><tr><td>Q4 2026</td><td>4 January 2027</td><td></td></tr></table>')
+_ACTS = ["2023/1773", "2025/2210", "2025/2546", "2025/2547", "2025/2548", "2025/2619", "2025/2620", "2025/486", "2025/2549", "2024/3210", "2025/2550", "2025/2621", "2026/1740"]
+CBAM_LAW = ("<h2>Default values and benchmarks</h2><div>Default values definitive period (Excel format)</div><div>10 August 2026</div>" +
+            "".join(f"<a>Commission Implementing Regulation (EU) {a}</a>" for a in _ACTS) + "<a>Commission Delegated Regulation (EU) 2025/2551</a><a>Regulation (EU) 2023/956</a>")
+PCAF_HELD = "<a>Previous: Part A – Financed emissions 2nd edition (2022)</a><a>Part A – Financed emissions 1st edition (2019)</a>"      # what the engine implements
+PCAF = "<a>Download Part A - Financed Emissions 3rd edition (2025)</a>" + PCAF_HELD + "<a>Download Part C - Insurance-Associated Emissions 2nd Edition (2025)</a>"
+PAGES = {"desnz": DESNZ, "egrid": EGRID, "aib": AIB, "ember": EMBER, "nga": NGA, "eccc": ECCC, "uba": UBA, "moe": MOE,
+         "ghgp": GHGP, "iso14067": ISO, "ifrs_s2": IFRS, "cbam_price": CBAM_PRICE, "cbam_law": CBAM_LAW, "pcaf": PCAF_HELD}
+MANUAL = {"mee", "esrs"}                           # no page the monitor can read
+N_SRC = 17                                         # desnz, egrid, aib, ember, cea, nga, eccc, uba, mee, moe, ghgp, iso14067, ifrs_s2, esrs, cbam_price, cbam_law, pcaf
 
 
 @pytest.fixture(autouse=True)
@@ -95,7 +108,7 @@ def test_unverified_until_read_then_current_when_nothing_newer():
     rep = SM.status()
     assert rep["summary"]["unverified"] == N_SRC and all("cannot say" in r["message"] for r in rep["sources"])
     rep = SM.sync(fetch=_fetcher(PAGES))
-    assert {r["id"]: r["freshness"] for r in rep["sources"]} == {**{i: "current" for i in SM.BY_ID}, "mee": "unverified"}, [(r["id"], r["message"]) for r in rep["sources"]]
+    assert {r["id"]: r["freshness"] for r in rep["sources"]} == {**{i: "current" for i in SM.BY_ID}, "mee": "unverified", "esrs": "unverified"}, [(r["id"], r["message"]) for r in rep["sources"]]
     assert "rolling release" in _row(rep, "ember")["message"] and "newest listed" in _row(rep, "desnz")["message"]
     mee = _row(rep, "mee")
     assert mee["manual"] and "by hand" in mee["message"] and "2023" in mee["message"] and mee["checked_at"] is None     # a source with no readable page is never "current"
@@ -118,7 +131,7 @@ def test_newer_edition_is_flagged_with_what_to_do(src, page, expect):
     rep = SM.sync(fetch=_fetcher({**PAGES, src: page}))
     r = _row(rep, src)
     assert r["freshness"] == "newer_available" and expect in r["message"] and "not loaded yet" in r["message"] and "rebuild with scripts/build_" in r["message"]
-    assert all(x["freshness"] == "current" for x in rep["sources"] if x["id"] not in (src, "mee"))
+    assert all(x["freshness"] == "current" for x in rep["sources"] if x["id"] not in (src, *MANUAL))
 
 
 def test_each_source_fails_alone_and_says_why():
@@ -224,6 +237,6 @@ def test_api_endpoint():
     from cri.api.main import app
     c = TestClient(app)
     r = c.get("/data/sources").json()
-    assert {s["id"] for s in r["sources"]} == {"desnz", "egrid", "aib", "ember", "cea", "nga", "eccc", "uba", "mee", "moe"} and r["summary"]["unverified"] == N_SRC
+    assert {s["id"] for s in r["sources"]} == {"desnz", "egrid", "aib", "ember", "cea", "nga", "eccc", "uba", "mee", "moe", "ghgp", "iso14067", "ifrs_s2", "esrs", "cbam_price", "cbam_law", "pcaf"} and r["summary"]["unverified"] == N_SRC
     assert c.get("/data/sources", params={"source": "egrid"}).json()["sources"][0]["held"]["label"] == "eGRID2023 rev2"
     assert c.get("/data/sources", params={"source": "nope"}).status_code == 404

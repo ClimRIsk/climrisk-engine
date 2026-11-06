@@ -844,7 +844,8 @@ class Agent:
         return {"reply": CEA.answer(text), "blocks": blocks, "actions": [], "intent": "knowledge"}
 
     def _sources_commands(self, session, text) -> Optional[dict]:
-        """Which editions of DESNZ, eGRID, AIB, Ember and CEA the engine holds, and whether the publisher has released something newer. See connectors/source_monitor.py.
+        """Which editions of DESNZ, eGRID, AIB, Ember, CEA and the national grids the engine holds, the status of the standards it follows (GHG Protocol, ISO 14067, IFRS S2, ESRS, CBAM, PCAF),
+        and whether the publisher has released something newer. See connectors/source_monitor.py and connectors/standards_watch.py.
         'check now / is there a new ...' reads the publishers' release pages immediately."""
         from ..connectors import source_monitor as SM
         if not SM.matches(text):

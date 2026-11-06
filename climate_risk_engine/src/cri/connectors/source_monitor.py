@@ -231,6 +231,88 @@ def detect_moe(html: str) -> dict:
             "link": "https://policies.env.go.jp/earth/ghg-santeikohyo/calc.html"}
 
 
+# Standards and regulations (data/standards_watch.json). These pages are not editions of a dataset: a page that now reads differently means
+# "re-read it and update the watch", so they use compare="changed" (any difference from the recorded fingerprint), except PCAF and the
+# CBAM price page, whose fingerprints only grow.
+
+def _held_standard(monitor_id: str) -> Callable[[], dict]:
+    def held() -> dict:
+        from . import standards_watch as SW
+        f = SW.monitor_fingerprint(monitor_id)
+        return {"edition": list(f["edition"]), "label": f["label"], "date": f.get("date")}
+    return held
+
+
+def detect_ghgp(html: str) -> dict:
+    """GHG Protocol update-process page: links the Consolidated Standard Development Plan, named with its date (...SDP%29-2026.07.29.pdf)."""
+    found = re.findall(r"Consolidated-StandardDevelopmentPlan(?:%28|\()SDP(?:%29|\))-(\d{4})\.(\d{2})\.(\d{2})\.pdf", html or "")
+    if not found:
+        raise ValueError("layout changed: no Consolidated Standard Development Plan link")
+    y, m, d = max(found)
+    iso = f"{y}-{m}-{d}"
+    return {"edition": [iso], "label": f"Consolidated GHG Protocol-ISO Standard Development Plan of {iso}", "published": iso,
+            "link": "https://ghgprotocol.org/ghg-protocol-corporate-suite-standards-and-guidance-update-process"}
+
+
+def detect_iso14067(html: str) -> dict:
+    """ISO catalogue page of ISO 14067:2018: edition year, lifecycle stage code (e.g. [90.92] 'to be revised') and the year it was last confirmed."""
+    t = _text(html)
+    ed, stage = re.search(r"ISO 14067:(\d{4})", t), re.search(r"\[(\d{2}\.\d{2})\]", t)
+    if not ed or not stage:
+        raise ValueError("layout changed: no ISO 14067 edition / stage code on the page")
+    conf = re.search(r"reviewed and confirmed in (\d{4})", t)
+    c = conf.group(1) if conf else ""
+    return {"edition": [ed.group(1), stage.group(1), c], "label": f"ISO 14067:{ed.group(1)}, stage {stage.group(1)}" + (f", last confirmed {c}" if c else ""),
+            "published": None, "link": "https://www.iso.org/standard/71206.html"}
+
+
+def detect_ifrs_s2(html: str) -> dict:
+    """IFRS project page for the S2 GHG amendments: month issued and the effective date."""
+    t = _text(html)
+    iss = re.search(r"In (" + "|".join(MONTHS) + r") (\d{4}),? the International Sustainability Standards Board \(ISSB\) issued\s+Amendments to Greenhouse Gas Emissions Disclosures", t)
+    eff = re.search(r"effective for annual reporting periods beginning on or after (\d{1,2} (?:" + "|".join(MONTHS) + r") \d{4})", t)
+    if not iss or not eff:
+        raise ValueError("layout changed: no issue month / effective date for the S2 amendments")
+    issued = f"{iss.group(2)}-{MONTHS.index(iss.group(1)) + 1:02d}"
+    effective = _iso(eff.group(1))
+    return {"edition": [issued, effective], "label": f"IFRS S2 GHG amendments issued {issued}, effective {effective}", "published": issued,
+            "link": "https://www.ifrs.org/projects/completed-projects/2025/amendments-to-disclosure-of-greenhouse-gas-emissions-s2/"}
+
+
+def detect_pcaf(html: str) -> dict:
+    """PCAF standard page: download links name Part A's edition and year ('Part A - Financed Emissions 3rd edition (2025)'); the newest is current."""
+    found = [(int(a), int(y)) for a, y in re.findall(r"Part A\s*[-–]\s*Financed [Ee]missions\s*(\d)(?:st|nd|rd|th) [Ee]dition\s*\((\d{4})\)", _text(html))]
+    if not found:
+        raise ValueError("layout changed: no Part A edition listed")
+    ed, yr = max(found)
+    return {"edition": [ed, yr], "label": f"PCAF Part A edition {ed} ({yr})", "published": str(yr), "link": "https://carbonaccountingfinancials.com/en/standard"}
+
+
+def detect_cbam_price(html: str) -> dict:
+    """Commission page 'Price of CBAM certificates': one table row per 2026 quarter, with the price once published."""
+    rows = re.findall(r"Q([1-4]) 2026\s+(\d{1,2} [A-Za-z]+ \d{4})\s+(\d{2,3}\.\d{2})", _text(html))
+    if "Q1 2026" not in _text(html):
+        raise ValueError("layout changed: no 2026 quarterly price table")
+    if not rows:
+        return {"edition": [0], "label": "no 2026 quarterly CBAM certificate price published", "published": None,
+                "link": "https://taxation-customs.ec.europa.eu/carbon-border-adjustment-mechanism/price-cbam-certificates_en"}
+    q, date, price = max(rows)
+    return {"edition": [len(rows)], "label": f"{len(rows)} of 4 quarterly CBAM certificate prices published for 2026 (latest Q{q}: EUR {price})", "published": _iso(date),
+            "link": "https://taxation-customs.ec.europa.eu/carbon-border-adjustment-mechanism/price-cbam-certificates_en"}
+
+
+def detect_cbam_law(html: str) -> dict:
+    """Commission page 'CBAM legislation and guidance': the date of the default-values workbook and how many implementing/delegated acts are listed."""
+    t = _text(html)
+    dv = re.search(r"Default values definitive period \(Excel format\)\s*(\d{1,2} [A-Za-z]+ \d{4})", t)
+    acts = set(re.findall(r"(?:Implementing|Delegated) Regulation \(EU\) (\d{4}/\d+)", t))
+    if not dv or not acts:
+        raise ValueError("layout changed: no default-values date / list of implementing acts")
+    d = _iso(dv.group(1))
+    return {"edition": [d, len(acts)], "label": f"CBAM legislation page: default values of {d}, {len(acts)} implementing/delegated acts listed", "published": d,
+            "link": "https://taxation-customs.ec.europa.eu/carbon-border-adjustment-mechanism/cbam-legislation-and-guidance_en"}
+
+
 # ── registry ─────────────────────────────────────────────────────────────────
 
 @dataclass
@@ -247,6 +329,7 @@ class Source:
     custom: bool = False                          # delegated to its own connector (CEA)
     note: str = ""
     manual: str = ""                              # non-empty: no page the monitor can read; the text says why and the status stays "unverified"
+    compare: str = "newer"                        # "changed": any difference from the recorded fingerprint counts (status pages of standards)
 
 
 def _cea_held() -> dict:
@@ -285,6 +368,28 @@ SOURCES: list = [
     Source("moe", "Japan SHK electricity supplier emission factors", "Ministry of the Environment and METI, Japan", "https://policies.env.go.jp/earth/ghg-santeikohyo/calc.html",
            _held_national("JPN"), detect_moe, files=("national_grids.json",), rebuild="scripts/build_national_grids.py",
            note="Annual (January) with revisions through the summer. Supplier-specific; the engine holds only the substitute value."),
+    Source("ghgp", "GHG Protocol corporate standards (Scope 2 revision)", "GHG Protocol (WRI and WBCSD)", "https://ghgprotocol.org/ghg-protocol-corporate-suite-standards-and-guidance-update-process",
+           _held_standard("ghgp"), detect_ghgp, files=("standards_watch.json",), compare="changed", rebuild="scripts/build_standards_watch.py",
+           note="Watches the Standard Development Plan link on the update-process page; a new plan means a new timeline or scope. The engine follows the 2015 Scope 2 Guidance."),
+    Source("iso14067", "ISO 14067 carbon footprint of products", "ISO", "https://www.iso.org/standard/71206.html",
+           _held_standard("iso14067"), detect_iso14067, files=("standards_watch.json",), compare="changed", rebuild="scripts/build_standards_watch.py",
+           note="Edition, lifecycle stage and last-confirmed year only; the standard is paywalled."),
+    Source("ifrs_s2", "IFRS S2 Climate-related Disclosures (GHG amendments)", "IFRS Foundation (ISSB)", "https://www.ifrs.org/projects/completed-projects/2025/amendments-to-disclosure-of-greenhouse-gas-emissions-s2/",
+           _held_standard("ifrs_s2"), detect_ifrs_s2, files=("standards_watch.json",), compare="changed", rebuild="scripts/build_standards_watch.py",
+           note="Issue month and effective date of the December 2025 amendments."),
+    Source("esrs", "ESRS simplified delegated act (CSRD)", "European Commission and EFRAG", "https://www.efrag.org/en/news-and-calendar/news/european-commission-publishes-delegated-act-on-revised-esrs-and-voluntary-sustainability-reporting",
+           _held_standard("esrs"), None, files=("standards_watch.json",), compare="changed", rebuild="scripts/build_standards_watch.py",
+           manual="Whether the delegated act has entered into force depends on its publication in the Official Journal after Parliament and Council scrutiny, and EFRAG's news item is a fixed page that will not change when that happens",
+           note="Adopted 3 Jul 2026; entry into force not checked."),
+    Source("cbam_price", "CBAM certificate prices", "European Commission (DG TAXUD)", "https://taxation-customs.ec.europa.eu/carbon-border-adjustment-mechanism/price-cbam-certificates_en",
+           _held_standard("cbam_price"), detect_cbam_price, files=("standards_watch.json",), rebuild="scripts/build_standards_watch.py and climate/cbam.py (CBAM_PRICE_2026_PUBLISHED)",
+           note="Quarterly in 2026 (Q4 due 4 Jan 2027), weekly from 2027; the detector counts the 2026 quarters only."),
+    Source("cbam_law", "CBAM legislation, default values and guidance", "European Commission (DG TAXUD)", "https://taxation-customs.ec.europa.eu/carbon-border-adjustment-mechanism/cbam-legislation-and-guidance_en",
+           _held_standard("cbam_law"), detect_cbam_law, files=("standards_watch.json",), compare="changed", rebuild="scripts/build_standards_watch.py",
+           note="Date of the default-values workbook and the number of implementing/delegated acts listed. A change means new rules or values to read."),
+    Source("pcaf", "PCAF Global GHG Standard, Part A", "Partnership for Carbon Accounting Financials", "https://carbonaccountingfinancials.com/en/standard",
+           _held_standard("pcaf"), detect_pcaf, files=("standards_watch.json",), rebuild="regulatory/pcaf.py and scripts/build_standards_watch.py",
+           note="Part A edition. The engine implements the 2nd edition (2022); the 3rd edition (2025) is out."),
 ]
 BY_ID = {s.id: s for s in SOURCES}
 
@@ -312,6 +417,8 @@ def _is_newer(src: Source, latest: dict, held: dict) -> bool:
     if src.rolling_days is not None:
         a, b = latest.get("published"), held.get("date")
         return bool(a and b and _days_between(a, b) > src.rolling_days)
+    if src.compare == "changed":
+        return list(latest["edition"]) != list(held["edition"])
     return list(latest["edition"]) > list(held["edition"])
 
 
@@ -367,7 +474,11 @@ def _one(s: Source, st: dict) -> dict:
     age = None if checked is None else round((time.time() - checked) / 86400, 1)
     latest = e.get("latest")
     newer = bool(latest and _is_newer(s, latest, held))
-    if newer:
+    if newer and s.compare == "changed":
+        fresh = "newer_available"
+        msg = (f"{s.publisher}'s page now reads differently from what the engine recorded: it shows {latest['label']}; the record says {held['label']}. "
+               f"Re-read {s.url}, then update the watch ({s.rebuild}) before relying on the recorded status.")
+    elif newer:
         fresh = "newer_available"
         msg = (f"{s.publisher} has published {latest['label']}" + (f" ({latest['published']})" if latest.get("published") else "") +
                f"; the engine holds {held['label']}. The new numbers are not loaded yet" + (f": rebuild with {s.rebuild} and check the result." if s.rebuild else "."))
@@ -393,7 +504,8 @@ def status(source_id: Optional[str] = None) -> dict:
     return {"as_of": _now(), "sources": rows,
             "summary": {k: sum(r["freshness"] == k for r in rows) for k in ("current", "newer_available", "unverified")},
             "note": "'current' only after a successful read of the publisher's release page within 7 days. DESNZ, eGRID, AIB, Ember and the national grid tables (Australia, Canada, Germany, China, Japan) are detected, not auto-loaded; "
-                    "CEA is loaded when it passes every check. China's publisher has no page I can read automatically, so it stays 'unverified' by design."}
+                    "CEA is loaded when it passes every check. China's publisher and the ESRS entry into force have no page I can read automatically, so they stay 'unverified' by design. "
+                    "For the standards (GHG Protocol, ISO 14067, IFRS S2, CBAM, PCAF) 'newer_available' means the publisher's page reads differently from the recorded status: re-read it and update data/standards_watch.json."}
 
 
 def for_file(name: str) -> list:
@@ -431,6 +543,8 @@ def knowledge_text() -> str:
              " ".join(f"{r['name']}: {r['message']}" for r in rows)]
     for r in rows:
         parts.append(f"== {r['name']} ==\n{r['publisher']}. {r['note']} Held: {r['held']['label']}. {r['message']} Release page: {r['url']}")
+    from . import standards_watch as SW
+    parts.append(SW.knowledge_text())
     return "\n\n".join(parts)
 
 
@@ -455,7 +569,10 @@ _Q = re.compile(r"\b(desnz|defra|conversion factors?|egrid|residual mix|\baib\b|
                 r"(?:up to date|newer|latest|current|edition|version).{0,40}emission factors?|which (?:data|factors|sources|editions))\b", re.I)
 _ALIASES = {"desnz": ("desnz", "defra", "uk conversion", "uk government conversion", "uk factors"), "egrid": ("egrid", "epa"), "aib": ("residual mix", "aib"), "ember": ("ember",), "cea": ("cea", "india"),
             "nga": ("nga factors", "nga ", "australia", "dcceew"), "eccc": ("eccc", "canada", "canadian"), "uba": ("umweltbundesamt", "germany", "german "),
-            "mee": ("china", "chinese", "ministry of ecology"), "moe": ("japan", "shk")}
+            "mee": ("china", "chinese", "ministry of ecology"), "moe": ("japan", "shk"),
+            "ghgp": ("ghg protocol", "ghgp", "scope 2 guidance", "scope 2 revision", "scope 2 consultation", "corporate standard"), "iso14067": ("14067", "iso carbon footprint", "product carbon footprint"),
+            "ifrs_s2": ("ifrs s2", "issb", "s2 amendment"), "esrs": ("esrs", "csrd", "sustainability reporting standards"), "cbam_price": ("certificate price", "cbam price", "price of cbam"),
+            "cbam_law": ("cbam",), "pcaf": ("pcaf",)}
 
 
 # a country source is asked about only when the question joins a country, a grid/emission-factor word and a currency word ("is the Australian grid factor up to date")
@@ -464,8 +581,14 @@ _Q2 = re.compile(_COUNTRY + r".{0,60}(?:grid|electricity|emission factors?).{0,7
                  r"\b(?:up to date|newer|latest|current|edition|version|published|release)\b.{0,70}(?:grid|electricity|emission factors?).{0,60}" + _COUNTRY, re.I)
 
 
+# a standard is asked about when the question names it next to a status word ("is ISO 14067 being revised", "when does the simplified ESRS apply", "latest CBAM certificate price")
+_STD = r"(?:ghg protocol|ghgp|scope 2 (?:guidance|revision|consultation)|iso 14067|14067|ifrs s2|issb|esrs|csrd|cbam|pcaf)"
+_CUR = r"(?:up to date|newer|latest|current|status|editions?|version|revis\w+|in force|effective|timeline|when|updated?|published|released?|certificate prices?|deadline)"
+_Q3 = re.compile(r"\b" + _STD + r"\b.{0,80}\b" + _CUR + r"\b|\b" + _CUR + r"\b.{0,80}\b" + _STD + r"\b", re.I)
+
+
 def matches(text: str) -> bool:
-    return bool(_Q.search(text or "") or _Q2.search(text or ""))
+    return bool(_Q.search(text or "") or _Q2.search(text or "") or _Q3.search(text or ""))
 
 
 def answer(text: str) -> Optional[str]:
@@ -477,4 +600,11 @@ def answer(text: str) -> Optional[str]:
     rows = [r for r in st["sources"] if r["id"] in want] or st["sources"]
     head = "" if want else (f"The engine's factors come from {len(rows)} monitored sources. Now: " + ", ".join(f"{k.replace('_', ' ')} {v}" for k, v in st["summary"].items() if v) + ". ")
     body = " ".join(f"{r['name']}: {r['message']}" for r in rows)
-    return head + body + " " + (rows[0]["url"] if len(rows) == 1 else "")
+    from . import standards_watch as SW
+    seen, extra = set(), []
+    for r in rows:
+        it = SW.item_for_monitor(r["id"]) if want else None
+        if it and it["id"] not in seen:
+            seen.add(it["id"])
+            extra.append(SW.summary(it["id"]))
+    return head + body + (" " + " ".join(extra) if extra else "") + " " + (rows[0]["url"] if len(rows) == 1 else "")

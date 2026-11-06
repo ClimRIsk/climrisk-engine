@@ -25,8 +25,14 @@ Methodological notes
 --------------------
 - CBAM applies only to direct (Scope 1-equivalent) embedded emissions
 - Carbon price already paid in the country of origin is deductible
-- Phase-in schedule: 100% from 2026 (transitional period ended 2025-12-31)
-- Certificate price tracks EU ETS price (proxied by NGFS EU ETS estimate)
+- Phase-in: certificates are due on the share of embedded emissions that is NOT covered by free allocation. The CBAM
+  factor that cuts free allocation is 97.5% in 2026, 95% 2027, 90% 2028, 77.5% 2029, 51.5% 2030, 39% 2031, 26.5% 2032,
+  14% 2033 and none from 2034 (Directive 2003/87/EC Art. 10a(1a), read on 6 Nov 2026). So the certificate share is
+  2.5% in 2026 rising to 100% in 2034 (same schedule as finance/policy.py EU_CBAM_FREE_SHARE). This is a share of the
+  embedded emissions; the engine holds no product benchmarks, so emissions above the benchmark (charged in full) are
+  not separated out and the share is a lower bound for an installation above benchmark.
+- 2026 certificate price: the Commission's published quarterly prices (Q1 75.36, Q2 75.28, Q3 82.32 EUR/t; Q4 due
+  4 Jan 2027). From 2027 the path below is a scenario assumption, not a published price.
 - Revenue exposure fraction (EU sales as % of total) must be provided
   or estimated from company disclosures / country mix.
 
@@ -41,6 +47,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Optional
+
+from ..finance.policy import EU_CBAM_FREE_SHARE
 
 
 # ── CBAM-covered sectors and their CN code groups ────────────────────────────
@@ -79,11 +87,18 @@ _EMBEDDED_CARBON_INTENSITY: dict[str, float] = {
     "electricity": 0.45,    # tCO2e/MWh (coal-heavy grid proxy for CBAM coverage)
 }
 
-# ── EU ETS price trajectory (EUR/tCO2, proxying CBAM certificate price) ─────
-# Source: NGFS Phase 4 (2023), EU ETS futures strip, EMBER monthly
-# Note: CBAM price tracks EU ETS spot under Regulation Article 21.
+# ── CBAM certificate prices published by the Commission for 2026 (EUR/tCO2) ──
+# Source: taxation-customs.ec.europa.eu "Price of CBAM certificates", read 6 Nov 2026
+# (Implementing Regulation (EU) 2025/2548). Q4 2026 is due 4 January 2027 and is not included.
+CBAM_PRICE_2026_PUBLISHED = {"Q1": 75.36, "Q2": 75.28, "Q3": 82.32}
+_PUBLISHED_2026_MEAN = round(sum(CBAM_PRICE_2026_PUBLISHED.values()) / len(CBAM_PRICE_2026_PUBLISHED), 2)
+
+# ── EU ETS price trajectory, 2027 onward: SCENARIO ASSUMPTION (EUR/tCO2) ────
+# Not a published price and not traced to a dataset: the earlier "NGFS Phase 4 / EMBER" label could not be
+# confirmed, so treat 2027-2035 as an illustrative path and override it with your own view.
+# From 2027 the Commission publishes weekly prices.
 _EU_ETS_PRICE: dict[int, float] = {
-    2026: 60,   # EUR/tCO2 (post-Phase 3 reform)
+    2026: _PUBLISHED_2026_MEAN,   # mean of the three published quarters so far (Q1-Q3)
     2027: 72,
     2028: 85,
     2029: 95,
@@ -222,13 +237,13 @@ def assess_cbam_exposure(
     for year in range(2026, 2035):
         ets_price_eur  = _interp(_EU_ETS_PRICE, year)
         net_price_eur  = max(0.0, ets_price_eur - origin_cp)
-        annual_cost_eur_m = eu_embedded_co2e * net_price_eur / 1_000_000
+
+        # Phase-in: share of embedded emissions not covered by free allocation (Directive 2003/87/EC Art. 10a(1a))
+        phase_in = 1.0 - EU_CBAM_FREE_SHARE.get(year, 0.0 if year > 2034 else 1.0)
+
+        annual_cost_eur_m = eu_embedded_co2e * phase_in * net_price_eur / 1_000_000
         annual_cost_usd_m = annual_cost_eur_m * eur_usd_rate
-
-        # Phase-in: full implementation from 2026
-        phase_in = 1.0  # 100% from 2026
-
-        effective_cost_usd_m = annual_cost_usd_m * phase_in
+        effective_cost_usd_m = annual_cost_usd_m
         cost_pct_revenue     = (effective_cost_usd_m / revenue_usd_m * 100) if revenue_usd_m > 0 else 0
 
         entry = {
@@ -240,11 +255,17 @@ def assess_cbam_exposure(
             "cbam_cost_eur_m":            round(annual_cost_eur_m, 2),
             "cbam_cost_usd_m":            round(effective_cost_usd_m, 2),
             "cbam_cost_pct_revenue":      round(cost_pct_revenue, 3),
-            "phase_in_pct":               round(phase_in * 100, 0),
+            "phase_in_pct":               round(phase_in * 100, 1),
         }
         yearly.append(entry)
         peak_cost = max(peak_cost, effective_cost_usd_m)
 
+    result.data_gaps.append(
+        "2027 onward certificate prices are a scenario assumption (the Commission publishes weekly prices from 2027); "
+        "embedded intensities and revenue-per-tonne are screening proxies, not the Commission's default values "
+        "(Implementing Regulation (EU) 2025/2621, corrected by 2026/1740) and not installation data; "
+        "free-allocation benchmarks (2025/2620) are not applied, so cost is the share of embedded emissions not covered by free allocation"
+    )
     result.scenarios["cbam_trajectory"] = {"years": yearly}
     result.peak_annual_cost_usd_m = round(peak_cost, 2)
 
@@ -254,6 +275,7 @@ def assess_cbam_exposure(
         f"(IEA WEO 2023 / EC CBAM Technical Guidance). "
         f"EU-bound exports: {eu_revenue_fraction*100:.0f}% of revenue (~{eu_embedded_co2e:,.0f} tCO2e/yr). "
         f"Origin carbon price deduction: EUR {origin_cp:.0f}/tCO2 ({origin_country.upper()}). "
-        "Certificate price tracks EU ETS (NGFS Phase 4 / EMBER)."
+        f"2026 price: Commission-published quarterly mean EUR {_PUBLISHED_2026_MEAN:.2f}/t (Q1-Q3); later years are a scenario path. "
+        "Certificates are due on the share of emissions not covered by free allocation (2.5% in 2026, 100% from 2034)."
     )
     return result

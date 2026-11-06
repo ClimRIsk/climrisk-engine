@@ -65,6 +65,15 @@ REGISTRY: dict[str, dict[str, Any]] = {
         review_days=LIVE, build="scripts/build_national_grids.py",
         note="Read from the publishers' own documents and cross-checked arithmetically (see the build script). New editions are detected by the source monitor (GET /data/sources) but not loaded automatically: "
              "rebuild with scripts/build_national_grids.py. GWP bases differ (AU, DE, CA on AR5; CN, JP CO2 only) and are reported with every factor. Japan has no national factor, only a substitute value."),
+    "standards_watch.json": dict(
+        publisher="GHG Protocol; ISO; IFRS Foundation (ISSB); European Commission and EFRAG; PCAF (each item cites its own pages)",
+        licence="Facts and dates about the standards, recorded from the publishers' public pages; no text of any standard is reproduced (ISO 14067 is tracked by edition, stage and dates only)",
+        vintage="status as read 2026-11-06", retrieved="2026-11-06", status="published",
+        url="https://ghgprotocol.org/ghg-protocol-corporate-suite-standards-and-guidance-update-process",
+        use="Status of GHG Protocol corporate standards, ISO 14067, IFRS S2, ESRS, CBAM and PCAF, with what the engine implements; CBAM factor schedule and published 2026 certificate prices",
+        review_days=LIVE, build="scripts/build_standards_watch.py",
+        note="Statuses change by announcement, not on a calendar. The source monitor re-reads the publishers' pages (GET /data/sources, GET /data/standards) and flags any that now read differently; "
+             "it does not rewrite this file. ESRS entry into force has no readable page and is checked by hand. Items under not_assessed were not read from a primary page."),
     "carbon_factors.json": dict(
         publisher="Compiled carbon factor library (per-entry source fields inside the file)", licence="per entry", vintage="2026-09-30", status="derived",
         use="Scope 1/2/3 emission factors", review_days=ANNUAL, build="scripts/build_carbon_factors.py", note="Each factor carries its own source; audit per entry with /carbon/factors."),

@@ -7206,11 +7206,23 @@ def provenance_registry(file: Optional[str] = None) -> dict:
 
 @app.get("/data/sources", tags=["Data"])
 def data_sources_status(source: Optional[str] = None) -> dict:
-    """Edition held vs newest published, for every external source behind the emission factors (UK DESNZ, US eGRID, AIB, Ember, CEA)."""
+    """Edition held vs newest published, for every external source behind the emission factors (UK DESNZ, US eGRID, AIB, Ember, CEA, national grids) and the status pages of the standards the engine follows."""
     from ..connectors import source_monitor as SM
     if source and source not in SM.BY_ID:
         raise HTTPException(status_code=404, detail=f"unknown source '{source}'; known: {', '.join(SM.BY_ID)}")
     return SM.status(source)
+
+
+@app.get("/data/standards", tags=["Data"])
+def data_standards_watch(item: Optional[str] = None) -> dict:
+    """Status of the standards and rules the engine follows (GHG Protocol, ISO 14067, IFRS S2, ESRS, CBAM, PCAF): what the publisher says, what the engine implements, and whether the publisher's page has moved since."""
+    from ..connectors import standards_watch as SW
+    out = SW.overview()
+    if item:
+        out["items"] = [i for i in out["items"] if i["id"] == item]
+        if not out["items"]:
+            raise HTTPException(status_code=404, detail=f"unknown item '{item}'; known: {', '.join(SW.ids())}")
+    return out
 
 
 @app.post("/data/sources/refresh", dependencies=[_AUTH], tags=["Data"])

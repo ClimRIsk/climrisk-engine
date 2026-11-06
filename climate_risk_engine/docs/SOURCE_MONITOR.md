@@ -14,6 +14,15 @@
 | Germany UBA electricity-mix factors | UBA topic page (publication "1990 - <year>") | 1990-2025 (March 2026) | same |
 | China MEE/NBS electricity CO2 factors | none readable: **manual**, always `unverified` | data year 2023 (31 Dec 2025) | not checked automatically |
 | Japan SHK electricity supplier list | MOE calc page (r<yy>_denki_coefficient[_rev<n>].pdf) | R8 rev4 | R8 rev4 |
+| GHG Protocol corporate standards | update-process page (Standard Development Plan link) | plan of 2026-07-29 | same |
+| ISO 14067 | iso.org catalogue page (edition, stage, last confirmed) | 2018, stage 90.92, confirmed 2024 | same |
+| IFRS S2 GHG amendments | ifrs.org project page (issue month, effective date) | Dec 2025, effective 1 Jan 2027 | same |
+| ESRS simplified delegated act | **manual**: entry into force is an Official Journal event | adopted 3 Jul 2026, pending scrutiny | not checked automatically |
+| CBAM certificate prices | Commission price page (quarters published) | 3 of 4 for 2026 | same |
+| CBAM legislation and default values | Commission legislation page (default-values date, acts listed) | 10 Aug 2026, 14 acts | same |
+| PCAF Part A | carbonaccountingfinancials.com/standard (edition links) | 2nd edition (2022) | **3rd edition (2025)** |
+
+The last seven are the standards watch (docs/STANDARDS_WATCH.md). For them `newer_available` means the publisher's page now reads differently from the recorded status (`compare="changed"`), not that a dataset can be rebuilt.
 
 The last five feed `national_grids.json` (docs/NATIONAL_GRIDS.md). The Australian page was read in Chrome; my fetch tool returned nothing for it, so the first live run on a machine confirms the detector over plain HTTP. China's MEE publishes each year's factors as a separate announcement and the announcement index could not be read as a list, so the monitor says so (`manual`) instead of guessing.
 
