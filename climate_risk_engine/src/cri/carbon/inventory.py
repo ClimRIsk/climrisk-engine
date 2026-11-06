@@ -110,7 +110,7 @@ def _calc(rec: dict, ent: Entity, gwp: str) -> dict:
                    working=f"{q:g} {f['unit']} × {f['kgco2e_per_unit']:.6g} kg CO2e/{f['unit']}",
                    factor={k: f[k] for k in ("id", "label", "source", "gwp", "unit")} | {"value": f["kgco2e_per_unit"]})
         if f.get("gwp_flag"):
-            out["warnings"].append("factor has no AR6 restatement — AR5 value used")
+            out["warnings"].append(f"factor has no {gwp} restatement — AR5 value used")
         want = {1: "Scope 1", 2: "Scope 2", 3: "Scope 3"}[scope]
         if f["desnz_scope"] != want and not (scope == 3 and f["desnz_scope"] in ("Scope 1", "Scope 2")):
             out["warnings"].append(f"factor is a DESNZ {f['desnz_scope']} factor used in {want}")
@@ -204,6 +204,8 @@ def _calc(rec: dict, ent: Entity, gwp: str) -> dict:
                            "unit": "g CO2e/kWh"})
         if loc.get("note"):
             out["warnings"].append(loc["note"])
+        if gwp != "AR6":
+            out["warnings"].append(f"grid factor is on its published basis (Ember lifecycle; DESNZ and eGRID restated to AR6), not restated to {gwp}; CO2 dominates so the difference is small")
         if cat == "s2_electricity":
             iso = F._iso3(country)
             if iso == "GBR":
@@ -247,14 +249,13 @@ def _calc(rec: dict, ent: Entity, gwp: str) -> dict:
     return out
 
 
-GWP_BASES = ("AR5", "AR6")
+GWP_BASES = ("AR4", "AR5", "AR6")
 
 
 def calculate(inv: Inventory) -> dict:
     if inv.gwp not in GWP_BASES:
         # Until 6 Nov 2026 any other value (e.g. "AR4") was accepted, computed with AR5 numbers and printed under the label the caller typed.
-        raise InventoryError(f"gwp must be one of {GWP_BASES}; '{inv.gwp}' is not supported (the factor library holds AR5 per-gas splits and AR6 restatements, no AR4/SAR set). "
-                             "To report on an AR4 basis, supply per-gas kg and restate them yourself, or request AR4 support.")
+        raise InventoryError(f"gwp must be one of {GWP_BASES}; '{inv.gwp}' is not supported (no SAR/AR3 set; AR4 and AR6 are restated from the DESNZ AR5 per-gas split).")
     ents = {e.id: e for e in inv.entities}
     if not ents:
         raise InventoryError("add at least one entity (the organisational boundary)")
@@ -282,7 +283,7 @@ def calculate(inv: Inventory) -> dict:
         dq = int(rec.get("dq", DEFAULT_DQ[rec["method"]]))
         base = {"record": rec["id"], "entity": ent.id, "entity_name": ent.name, "share": share, "dq": dq,
                 "evidence": rec.get("evidence"), "notes": rec.get("notes"), "method": rec["method"],
-                "description": rec.get("description", "")}
+                "description": rec.get("description", ""), "from_entity": rec.get("from_entity")}
         lines.append(base | {"scope": r["scope"], "category": r["category"], "kgco2e_gross": r["kgco2e"],
                              "t_co2e": r["kgco2e"] * share / 1000,
                              "t_co2e_market": (r["kgco2e_market"] * share / 1000) if "kgco2e_market" in r else None,
@@ -293,6 +294,33 @@ def calculate(inv: Inventory) -> dict:
                                  "t_co2e": d["kgco2e"] * share / 1000, "t_co2e_market": None,
                                  "gases_t": {"CO2e": d["kgco2e"] * share / 1000}, "working": d["working"],
                                  "factor": d["factor"], "warnings": [], "derived_from": rec["id"], "dq": max(dq, 3)})
+    # Intra-group elimination. Electricity bought from a generator that is itself inside the boundary (`from_entity`) is already counted as that
+    # generator's Scope 1 to the extent the generator is consolidated (100 % under control, the equity % under equity share). Without this step the same
+    # tonnes are in Scope 1 and again in Scope 2. Only the consolidated fraction is removed, and only if the generator has Scope 1 emissions in the inventory.
+    elim_notes = []
+    for l in lines:
+        fe = l.get("from_entity")
+        if not fe or l["scope"] != 2:
+            continue
+        if fe not in ents:
+            errors.append(f"record {l['record']}: from_entity '{fe}' is not an entity in the boundary")
+            continue
+        f = _share(ents[fe], inv.consolidation)
+        has_s1 = any(x["entity"] == fe and x["scope"] == 1 and x["t_co2e"] > 0 for x in lines)
+        if f <= 0:
+            elim_notes.append(f"record {l['record']}: supplied by {ents[fe].name}, which is outside the {inv.consolidation.replace('_', ' ')} boundary — stays in Scope 2")
+        elif not has_s1:
+            elim_notes.append(f"record {l['record']}: supplied by {ents[fe].name}, but that entity has no Scope 1 emissions in this inventory — nothing eliminated (Scope 2 kept so the tonnes are not lost)")
+        else:
+            cut = l["t_co2e"] * f
+            l["eliminated_t"] = round(cut, 3)
+            l["t_co2e"] -= cut
+            if l.get("t_co2e_market") is not None:
+                l["t_co2e_market"] -= l["t_co2e_market"] * f
+            l["gases_t"] = {g: v * (1 - f) for g, v in l["gases_t"].items()}
+            l["working"] += f"; {f:.0%} eliminated: electricity from consolidated entity {ents[fe].name}, already in its Scope 1 ({inv.consolidation.replace('_', ' ')})"
+            elim_notes.append(f"record {l['record']}: {f:.0%} of this Scope 2 line ({cut:,.1f} t) eliminated against {ents[fe].name}'s Scope 1; "
+                              "derived Scope 3 category 3 (upstream and T&D) for this line is not eliminated")
     if errors:
         raise InventoryError("; ".join(errors))
 
@@ -323,6 +351,7 @@ def calculate(inv: Inventory) -> dict:
                              "status": "reported" if present else st.get("status", "missing" if sc == 3 else "none"),
                              "reason": st.get("reason")})
     checks = [{"level": "warning", "check": "intake", "message": n} for n in inv.intake_notes]
+    checks += [{"level": "info", "check": "intra-group", "message": n} for n in elim_notes]
     if other_year:
         checks.append({"level": "warning", "check": "period",
                        "message": f"{len(other_year)} record(s) dated outside {inv.reporting_year} were not counted: "

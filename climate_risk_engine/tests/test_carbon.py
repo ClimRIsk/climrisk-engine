@@ -178,11 +178,75 @@ def _filled_template() -> bytes:
 
 
 def test_unsupported_gwp_basis_is_refused_not_relabelled():
-    """gwp='AR4' used to be accepted and computed on AR5 numbers under an AR4 label."""
+    """gwp='AR4' used to be accepted and computed on AR5 numbers under an AR4 label; an unknown basis such as 'SAR' must now be refused."""
     import pytest
     from cri.carbon import inventory as I
     d = "desnz26:fuels-liquid-fuels-diesel-100-mineral-diesel-litres"
-    inv = I.from_dict({"organisation": "x", "reporting_year": 2022, "gwp": "AR4", "entities": [{"id": "E1", "name": "w", "country": "IND"}],
+    inv = I.from_dict({"organisation": "x", "reporting_year": 2022, "gwp": "SAR", "entities": [{"id": "E1", "name": "w", "country": "IND"}],
                        "records": [{"id": "r1", "entity": "E1", "category": "s1_mobile", "method": "factor", "factor_id": d, "quantity": 1000, "unit": "litres"}]})
     with pytest.raises(I.InventoryError, match="not supported"):
         I.calculate(inv)
+
+
+def test_ar4_is_restated_from_the_per_gas_split():
+    from cri.carbon import factors as F
+    d = "desnz26:fuels-liquid-fuels-diesel-100-mineral-diesel-litres"
+    a5, a4, a6 = F.desnz(d, "AR5"), F.desnz(d, "AR4"), F.desnz(d, "AR6")
+    f = F._desnz_index()[d]
+    assert a4["gwp"].startswith("AR4") and a6["gwp"].startswith("AR6")
+    assert a4["gases"]["CO2"] == pytest.approx(f["co2"]) == pytest.approx(a6["gases"]["CO2"])
+    assert a4["gases"]["CH4"] == pytest.approx(f["ch4"] / 28 * 25) and a4["gases"]["N2O"] == pytest.approx(f["n2o"] / 265 * 298)
+    assert a5["kgco2e_per_unit"] == pytest.approx(f["kgco2e"])
+    assert a4["kgco2e_per_unit"] != a6["kgco2e_per_unit"]
+
+
+def test_ar4_inventory_is_labelled_and_flags_single_number_factors():
+    from cri.carbon import inventory as I
+    d = "desnz26:fuels-liquid-fuels-diesel-100-mineral-diesel-litres"
+    inv = I.from_dict({"organisation": "x", "reporting_year": 2022, "gwp": "AR4", "entities": [{"id": "E1", "name": "w", "country": "IND"}],
+                       "records": [{"id": "r1", "entity": "E1", "category": "s1_mobile", "method": "factor", "factor_id": d, "quantity": 1000, "unit": "litres", "evidence": "x"},
+                                   {"id": "r2", "entity": "E1", "category": "s2_electricity", "method": "electricity", "kwh": 1000, "evidence": "x"}]})
+    r = I.calculate(inv)
+    assert r["gwp"] == "AR4" and r["lines"][0]["factor"]["gwp"].startswith("AR4")
+    assert any("not restated to AR4" in c["message"] for c in r["checks"])
+
+
+def _thermax(consolidation, equity, ctrl, from_entity="E2"):
+    from cri.carbon import inventory as I
+    return I.from_dict({"organisation": "Cement Co", "reporting_year": 2022, "consolidation": consolidation, "gwp": "AR6",
+        "entities": [{"id": "E1", "name": "Works", "country": "IND"},
+                     {"id": "E2", "name": "Captive plant", "country": "IND", "equity_pct": equity, "operational_control": ctrl, "financial_control": ctrl}],
+        "records": [{"id": "r2", "entity": "E1", "category": "s1_process", "method": "direct", "kgco2e": 210e6, "factor_source": "calcination"},
+                    {"id": "r3", "entity": "E1", "category": "s2_electricity", "method": "electricity", "kwh": 60_500_000,
+                     "location_g_per_kwh": 820, "location_source": "CEA", **({"from_entity": from_entity} if from_entity else {})},
+                    {"id": "r4", "entity": "E2", "category": "s1_stationary", "method": "direct", "kgco2e": 500e6, "factor_source": "plant fuel records"}]})
+
+
+def test_equity_share_does_not_count_captive_electricity_twice():
+    from cri.carbon import inventory as I
+    with_flag = I.calculate(_thermax("equity_share", 26, False))["totals_t"]
+    without = I.calculate(_thermax("equity_share", 26, False, from_entity=None))["totals_t"]
+    s2_full = 60_500_000 * 820 / 1e6          # 49,610 t
+    assert without["scope2_location"] == pytest.approx(s2_full, rel=1e-6)
+    assert with_flag["scope2_location"] == pytest.approx(s2_full * 0.74, rel=1e-6)       # 26 % already in Scope 1 through the equity share
+    assert with_flag["scope1"] == without["scope1"] == pytest.approx(210_000 + 130_000, rel=1e-6)
+
+
+def test_unconsolidated_generator_stays_in_scope_2_and_full_control_eliminates_all():
+    from cri.carbon import inventory as I
+    ocon = I.calculate(_thermax("operational_control", 26, False))               # Thermax not controlled: a purchase, Scope 2
+    assert ocon["totals_t"]["scope2_location"] == pytest.approx(49_610, rel=1e-6)
+    assert ocon["totals_t"]["scope1"] == pytest.approx(210_000, rel=1e-6)
+    full = I.calculate(_thermax("operational_control", 100, True))               # controlled: intra-group, no Scope 2 left
+    assert full["totals_t"]["scope2_location"] == pytest.approx(0.0, abs=1e-6)
+    assert full["totals_t"]["scope1"] == pytest.approx(710_000, rel=1e-6)
+
+
+def test_elimination_never_removes_tonnes_that_are_reported_nowhere_else():
+    from cri.carbon import inventory as I
+    inv = _thermax("equity_share", 26, False)
+    inv.records = [r for r in inv.records if r["id"] != "r4"]                    # the generator reports no Scope 1
+    assert I.calculate(inv)["totals_t"]["scope2_location"] == pytest.approx(49_610, rel=1e-6)
+    inv2 = _thermax("equity_share", 26, False, from_entity="NOPE")
+    with pytest.raises(I.InventoryError, match="not an entity"):
+        I.calculate(inv2)

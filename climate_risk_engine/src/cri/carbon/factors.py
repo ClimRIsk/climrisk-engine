@@ -14,6 +14,7 @@ from typing import Optional
 
 _PATH = Path(__file__).resolve().parents[1] / "data" / "carbon_factors.json"
 AR5 = {"CH4": 28.0, "N2O": 265.0}
+AR4 = {"CH4": 25.0, "N2O": 298.0}                       # IPCC AR4 WG1 Table 2.14 (100-year); same value for fossil and biogenic methane
 AR6 = {"CH4_fossil": 29.8, "CH4_nonfossil": 27.0, "N2O": 273.0}
 
 
@@ -36,7 +37,7 @@ def _norm_gas(name: str) -> str:
 
 
 def desnz(factor_id: str, gwp: str = "AR6") -> dict:
-    """A DESNZ 2026 factor, optionally restated from AR5 to AR6 GWPs."""
+    """A DESNZ 2026 factor, optionally restated from AR5 to AR6 or AR4 GWPs (per-gas split only; refrigerants and other single-number factors stay on AR5 and are flagged)."""
     f = _desnz_index().get(factor_id)
     if f is None:
         raise KeyError(f"unknown factor id '{factor_id}' — search with GET /carbon/factors?q=")
@@ -45,7 +46,12 @@ def desnz(factor_id: str, gwp: str = "AR6") -> dict:
     ar5 = f["kgco2e"]
     split = {k: f.get(k) for k in ("co2", "ch4", "n2o")}
     biogenic = f["path"][0] in ("Bioenergy", "WTT- bioenergy")
-    if gwp == "AR6" and all(v is not None for v in split.values()):
+    if gwp == "AR4" and all(v is not None for v in split.values()):
+        ch4 = split["ch4"] / AR5["CH4"] * AR4["CH4"]
+        n2o = split["n2o"] / AR5["N2O"] * AR4["N2O"]
+        out.update(kgco2e_per_unit=split["co2"] + ch4 + n2o, gases={"CO2": split["co2"], "CH4": ch4, "N2O": n2o},
+                   gwp="AR4 (restated from DESNZ AR5 per-gas split)")
+    elif gwp == "AR6" and all(v is not None for v in split.values()):
         ch4 = split["ch4"] / AR5["CH4"] * (AR6["CH4_nonfossil"] if biogenic else AR6["CH4_fossil"])
         n2o = split["n2o"] / AR5["N2O"] * AR6["N2O"]
         out.update(kgco2e_per_unit=split["co2"] + ch4 + n2o, gases={"CO2": split["co2"], "CH4": ch4, "N2O": n2o},
@@ -60,8 +66,8 @@ def desnz(factor_id: str, gwp: str = "AR6") -> dict:
                        gwp_flag=True)
     else:
         out.update(kgco2e_per_unit=ar5, gases={"CO2e": ar5},
-                   gwp="AR5 (DESNZ)" + ("" if gwp == "AR5" else " — no per-gas split to restate"),
-                   gwp_flag=gwp == "AR6" and f["path"][0] not in ("Material use", "Waste disposal", "Water supply",
+                   gwp="AR5 (DESNZ)" + ("" if gwp == "AR5" else " — no per-gas split to restate" if gwp != "AR4" else " — no AR4 value in library, AR5 used"),
+                   gwp_flag=gwp in ("AR4", "AR6") and f["path"][0] not in ("Material use", "Waste disposal", "Water supply",
                                                                    "Water treatment", "Hotel stay", "Homeworking"))
     return out
 
