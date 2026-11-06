@@ -175,3 +175,14 @@ def _filled_template() -> bytes:
     b = _io.BytesIO()
     wb.save(b)
     return b.getvalue()
+
+
+def test_unsupported_gwp_basis_is_refused_not_relabelled():
+    """gwp='AR4' used to be accepted and computed on AR5 numbers under an AR4 label."""
+    import pytest
+    from cri.carbon import inventory as I
+    d = "desnz26:fuels-liquid-fuels-diesel-100-mineral-diesel-litres"
+    inv = I.from_dict({"organisation": "x", "reporting_year": 2022, "gwp": "AR4", "entities": [{"id": "E1", "name": "w", "country": "IND"}],
+                       "records": [{"id": "r1", "entity": "E1", "category": "s1_mobile", "method": "factor", "factor_id": d, "quantity": 1000, "unit": "litres"}]})
+    with pytest.raises(I.InventoryError, match="not supported"):
+        I.calculate(inv)

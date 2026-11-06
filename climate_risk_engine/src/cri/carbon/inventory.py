@@ -247,7 +247,14 @@ def _calc(rec: dict, ent: Entity, gwp: str) -> dict:
     return out
 
 
+GWP_BASES = ("AR5", "AR6")
+
+
 def calculate(inv: Inventory) -> dict:
+    if inv.gwp not in GWP_BASES:
+        # Until 6 Nov 2026 any other value (e.g. "AR4") was accepted, computed with AR5 numbers and printed under the label the caller typed.
+        raise InventoryError(f"gwp must be one of {GWP_BASES}; '{inv.gwp}' is not supported (the factor library holds AR5 per-gas splits and AR6 restatements, no AR4/SAR set). "
+                             "To report on an AR4 basis, supply per-gas kg and restate them yourself, or request AR4 support.")
     ents = {e.id: e for e in inv.entities}
     if not ents:
         raise InventoryError("add at least one entity (the organisational boundary)")
