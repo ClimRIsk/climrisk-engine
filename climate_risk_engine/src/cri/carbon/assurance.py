@@ -160,8 +160,8 @@ TEMPLATE = {
                    ["a1", "UK1", "s1_stationary", "desnz26:fuels-gaseous-fuels-natural-gas-kwh-gross-cv", 1200000,
                     "kWh (Gross CV)", "Head office boilers", "Gas invoices 2025", 1]),
     "Electricity": (["id", "entity", "kwh", "country", "us_state", "egrid_subregion", "instrument_type", "instrument_mwh",
-                     "instrument_g_per_kwh", "certificate", "supplier_g_per_kwh", "evidence", "dq (1-5)"],
-                    ["e1", "UK1", 850000, "GB", "", "", "REGO", 400, 0, "REGO-2025-001", "", "Meter readings", 1]),
+                     "instrument_g_per_kwh", "certificate", "supplier_g_per_kwh", "evidence", "dq (1-5)", "grid_region"],
+                    ["e1", "UK1", 850000, "GB", "", "", "REGO", 400, 0, "REGO-2025-001", "", "Meter readings", 1, ""]),
     "Spend": (["id", "entity", "category", "naics", "amount", "currency", "fx_to_usd", "spend_year", "description",
                "evidence"],
               ["s1", "UK1", "s3_c1", "541511", 250000, "GBP", 1.27, 2025, "Software services", "AP ledger 2025"]),
@@ -255,7 +255,7 @@ def parse_workbook(data: bytes, organisation: str, reporting_year: int, consolid
         rec = elec.setdefault(rid, {"id": rid, "entity": str(r["entity"]), "year": reporting_year,
                                     "category": "s2_electricity", "method": "electricity", "kwh": float(r["kwh"]),
                                     "country": r.get("country"), "us_state": r.get("us_state") or None,
-                                    "egrid_subregion": r.get("egrid_subregion") or None, "instruments": [],
+                                    "egrid_subregion": r.get("egrid_subregion") or None, "grid_region": r.get("grid_region") or None, "instruments": [],
                                     "evidence": r.get("evidence"), "dq": int(r.get("dq") or 2)})
         if r.get("supplier_g_per_kwh") not in (None, ""):
             rec["supplier_g_per_kwh"] = float(r["supplier_g_per_kwh"])

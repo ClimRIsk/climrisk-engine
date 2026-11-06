@@ -6604,11 +6604,12 @@ def carbon_factors(q: str = "", scope: Optional[str] = None, limit: int = 50) ->
 
 
 @app.get("/carbon/grid-factor", tags=["Carbon Accounting"])
-def carbon_grid_factor(country: str, us_state: Optional[str] = None, egrid_subregion: Optional[str] = None, fy: Optional[str] = None) -> dict:
-    """Location-based and residual-mix grid factors for a country / US state / eGRID subregion. India: CEA CO2 Baseline Database, ``fy`` like 2024-25."""
+def carbon_grid_factor(country: str, us_state: Optional[str] = None, egrid_subregion: Optional[str] = None, fy: Optional[str] = None, region: Optional[str] = None) -> dict:
+    """Location-based and residual-mix grid factors for a country / US state / eGRID subregion. India: CEA CO2 Baseline Database, ``fy`` like 2024-25.
+    Australia (state or grid), Canada (province), Germany, China (province or region) and Japan use their national publishers' tables: ``region`` picks the state/province/grid, ``fy`` the data year."""
     from ..carbon import factors as F
     try:
-        loc = F.electricity_location(country, us_state, egrid_subregion, fy)
+        loc = F.electricity_location(country, us_state, egrid_subregion, fy, region)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc).strip("'\""))
     return {"location": loc, "residual_mix": F.electricity_residual(country, egrid_subregion or loc.get("subregion")),

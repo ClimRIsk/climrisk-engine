@@ -56,6 +56,15 @@ REGISTRY: dict[str, dict[str, Any]] = {
         build="scripts/build_cea_baseline.py",
         note="Seed values transcribed from the published PDF and cross-checked arithmetically. The live monitor (connectors/cea_baseline.py) watches the CEA listing and ingests a newer user guide only if every check passes; "
              "see GET /data/cea. CO2 only; CEA publishes no state-wise factors. Fuel-level factors and station data (in the CEA XLSX) are not held."),
+    "national_grids.json": dict(
+        publisher="Australia DCCEEW (NGA Factors 2026); Canada ECCC (NIR 2026, Annex 7); Germany UBA (CLIMATE CHANGE 16/2026); China MEE + NBS (Announcement 2025 No. 47); Japan MOE/METI (SHK electricity supplier list, R8 rev4)",
+        licence="Official government publications, reproduced as published data with attribution (Canada: Open Government Licence - Canada); check each publisher's terms before redistributing",
+        vintage="AU 2026 / CA data to 2024 / DE data to 2025 / CN data year 2023 / JP R6 results", retrieved="2026-11-06", status="published",
+        url="https://www.dcceew.gov.au/climate-change/publications/national-greenhouse-accounts-factors",
+        use="Location-based Scope 2 grid factors for Australia (state), Canada (province), Germany, China (province, region) and Japan; China's market-based residual factor; Australia's residual mix",
+        review_days=LIVE, build="scripts/build_national_grids.py",
+        note="Read from the publishers' own documents and cross-checked arithmetically (see the build script). New editions are detected by the source monitor (GET /data/sources) but not loaded automatically: "
+             "rebuild with scripts/build_national_grids.py. GWP bases differ (AU, DE, CA on AR5; CN, JP CO2 only) and are reported with every factor. Japan has no national factor, only a substitute value."),
     "carbon_factors.json": dict(
         publisher="Compiled carbon factor library (per-entry source fields inside the file)", licence="per entry", vintage="2026-09-30", status="derived",
         use="Scope 1/2/3 emission factors", review_days=ANNUAL, build="scripts/build_carbon_factors.py", note="Each factor carries its own source; audit per entry with /carbon/factors."),

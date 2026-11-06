@@ -9,6 +9,13 @@
 | AIB European Residual Mix | aib-net.org residual-mix page | 2025 (26 May 2026) | 2025 (published 28 May 2026) |
 | Ember yearly electricity data | ember-energy.org data page | built 30 Sep 2026 | page updated 3 Nov 2026 (rolling; within the 90-day window) |
 | CEA CO2 Baseline Database (India) | cea.nic.in listing | Version 22.0 | Version 22.0 |
+| Australia NGA Factors | DCCEEW publication index (one page per edition) | 2026 | 2026 |
+| Canada National Inventory Report, Annex 7 | open.canada.ca record (Date Published, Temporal Coverage) | data to 2024, published 14 Apr 2026 | same |
+| Germany UBA electricity-mix factors | UBA topic page (publication "1990 - <year>") | 1990-2025 (March 2026) | same |
+| China MEE/NBS electricity CO2 factors | none readable: **manual**, always `unverified` | data year 2023 (31 Dec 2025) | not checked automatically |
+| Japan SHK electricity supplier list | MOE calc page (r<yy>_denki_coefficient[_rev<n>].pdf) | R8 rev4 | R8 rev4 |
+
+The last five feed `national_grids.json` (docs/NATIONAL_GRIDS.md). The Australian page was read in Chrome; my fetch tool returned nothing for it, so the first live run on a machine confirms the detector over plain HTTP. China's MEE publishes each year's factors as a separate announcement and the announcement index could not be read as a list, so the monitor says so (`manual`) instead of guessing.
 
 ## Rules
 - A source is `current` only after a successful read of its release page in the last 7 days. A read that fails, or a page whose layout is not recognised ("layout changed"), makes it `unverified` and shows the error. It never stays `current` on a stale or failed read.

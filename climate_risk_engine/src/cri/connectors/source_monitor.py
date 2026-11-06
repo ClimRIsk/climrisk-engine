@@ -7,6 +7,8 @@ CEA's database (connectors/cea_baseline.py) is also loaded from here, with its o
 What this does and does not do:
   * It tells the engine, the agent and the user when a publisher has released something newer than the engine holds. It does NOT load the
     numbers of UK DESNZ, US eGRID, AIB or Ember by itself: those are large workbooks rebuilt by scripts/build_carbon_factors.py and checked by a person.
+    The same holds for the national grid tables (Australia, Canada, Germany, China, Japan), rebuilt by scripts/build_national_grids.py.
+  * A source with no page to read (China's MEE) carries a `manual` reason and is reported "unverified" rather than guessed.
   * A source is "current" only after a successful read of its release page within the last 7 days. Otherwise "unverified". A page whose layout
     is not recognised is an error ("layout changed"), never a silent "current".
   * Real pages were read on 6 Nov 2026 to write the detectors; the first live run on each machine confirms them (status shows the error if not).
@@ -130,6 +132,14 @@ def held_ember() -> dict:
     return {"edition": [_iso(d["version"]) or ""], "label": f"Ember yearly electricity data as built {d['version']}", "date": _iso(d["version"])}
 
 
+def _held_national(iso: str) -> Callable[[], dict]:
+    def held() -> dict:
+        from ..carbon import national_grids as NG
+        c = NG.data()["countries"][iso]
+        return {"edition": list(c["edition"]), "label": f"{c['name']}: {c['label']}", "date": _iso(c.get("published", ""))}
+    return held
+
+
 # ── detectors: publisher page -> newest edition ──────────────────────────────
 
 def detect_desnz(html: str) -> dict:
@@ -179,6 +189,48 @@ def detect_ember(html: str) -> dict:
             "link": "https://ember-energy.org/data/yearly-electricity-data/"}
 
 
+def detect_nga(html: str) -> dict:
+    """Australia: the DCCEEW publication index links one page per edition, .../national-greenhouse-accounts-factors-<year>."""
+    years = [int(y) for y in re.findall(r"/publications/national-greenhouse-accounts-factors-(20\d\d)\b", html or "")]
+    if not years:
+        raise ValueError("layout changed: no NGA Factors editions listed")
+    y = max(years)
+    return {"edition": [y], "label": f"NGA Factors {y}", "published": None,
+            "link": f"https://www.dcceew.gov.au/climate-change/publications/national-greenhouse-accounts-factors-{y}"}
+
+
+def detect_eccc(html: str) -> dict:
+    """Canada: the open.canada.ca record of the inventory carries 'Date Published' and 'Temporal Coverage' (last year covered)."""
+    t = _text(html)
+    pub = re.search(r"Date Published:\s*(\d{4}-\d{2}-\d{2})", t)
+    cov = re.search(r"Temporal Coverage:\s*\d{4}-\d{2}-\d{2} to (\d{4})-\d{2}-\d{2}", t)
+    if not pub or not cov:
+        raise ValueError("layout changed: no 'Date Published' / 'Temporal Coverage' on the record")
+    y = int(cov.group(1))
+    return {"edition": [y, pub.group(1)], "label": f"NIR (data to {y})", "published": pub.group(1),
+            "link": "https://open.canada.ca/data/en/dataset/779c7bcf-4982-47eb-af1b-a33618a05e5b"}
+
+
+def detect_uba(html: str) -> dict:
+    """Germany: the UBA topic page lists the publication 'Entwicklung der spezifischen Treibhausgas-Emissionen des deutschen Strommix in den Jahren 1990 - <year>'."""
+    years = [int(y) for y in re.findall(r"Strommix in den Jahren 1990\s*[-–]\s*(20\d\d)", _text(html))]
+    if not years:
+        raise ValueError("layout changed: no 'Strommix in den Jahren 1990 - <year>' publication listed")
+    y = max(years)
+    return {"edition": [y], "label": f"UBA electricity-mix emission factors 1990-{y}", "published": None,
+            "link": "https://www.umweltbundesamt.de/themen/luft/emissionen-von-luftschadstoffen/spezifische-emissionsfaktoren-fuer-den-deutschen"}
+
+
+def detect_moe(html: str) -> dict:
+    """Japan: the SHK page links r<Reiwa year>_denki_coefficient[_rev<n>].pdf; the newest (year, revision) is the current electricity supplier list."""
+    found = [(int(a), int(b or 0)) for a, b in re.findall(r"/calc/r(\d{2})_denki_coefficient(?:_rev(\d+))?\.pdf", html or "")]
+    if not found:
+        raise ValueError("layout changed: no electricity supplier coefficient files listed")
+    r, rev = max(found)
+    return {"edition": [r, rev], "label": f"SHK electricity supplier list R{r}" + (f" rev{rev}" if rev else ""), "published": None,
+            "link": "https://policies.env.go.jp/earth/ghg-santeikohyo/calc.html"}
+
+
 # ── registry ─────────────────────────────────────────────────────────────────
 
 @dataclass
@@ -194,6 +246,7 @@ class Source:
     rebuild: str = ""
     custom: bool = False                          # delegated to its own connector (CEA)
     note: str = ""
+    manual: str = ""                              # non-empty: no page the monitor can read; the text says why and the status stays "unverified"
 
 
 def _cea_held() -> dict:
@@ -216,6 +269,22 @@ SOURCES: list = [
            note="Rolling, updated twice a month. Fallback grid factor and lifecycle grid factors for product footprints. CSV layout changed in July 2026; rebuild scripts must be checked against it."),
     Source("cea", "CEA CO2 Baseline Database (India)", "Central Electricity Authority, India", CEA.LISTING_URL, _cea_held, None, files=("cea_baseline.json",),
            custom=True, note="Annual. Loaded automatically when a newer user guide passes every check (connectors/cea_baseline.py)."),
+    Source("nga", "Australia NGA Factors", "DCCEEW, Australian Government", "https://www.dcceew.gov.au/climate-change/publications/national-greenhouse-accounts-factors",
+           _held_national("AUS"), detect_nga, files=("national_grids.json",), rebuild="scripts/build_national_grids.py",
+           note="Annual, mid-year. State and grid Scope 2/3 electricity factors and the national residual mix (AR5)."),
+    Source("eccc", "Canada National Inventory Report, electricity intensity", "Environment and Climate Change Canada", "https://open.canada.ca/data/en/dataset/779c7bcf-4982-47eb-af1b-a33618a05e5b",
+           _held_national("CAN"), detect_eccc, files=("national_grids.json",), rebuild="scripts/build_national_grids.py",
+           note="Annual, April. Provincial and territorial generation and consumption intensity (Annex 7). The latest year is preliminary."),
+    Source("uba", "Germany UBA electricity-mix emission factors", "Umweltbundesamt (German Environment Agency)", "https://www.umweltbundesamt.de/themen/luft/emissionen-von-luftschadstoffen/spezifische-emissionsfaktoren-fuer-den-deutschen",
+           _held_national("DEU"), detect_uba, files=("national_grids.json",), rebuild="scripts/build_national_grids.py",
+           note="Annual, March. CO2 and GHG factors of the German mix, with and without upstream; the newest year is an estimate."),
+    Source("mee", "China electricity CO2 emission factors", "Ministry of Ecology and Environment with the National Bureau of Statistics", "https://www.mee.gov.cn/xxgk2018/xxgk/xxgk01/202512/t20251231_1139517.html",
+           _held_national("CHN"), None, files=("national_grids.json",), rebuild="scripts/build_national_grids.py",
+           manual="MEE posts each year's factors as a separate announcement on a page I could not read as a list (the announcement index is built by script). New data years appear about two years late (2023 data came out on 31 Dec 2025)",
+           note="Irregular, roughly annual. National, regional and provincial average CO2 factors plus a market-based variant."),
+    Source("moe", "Japan SHK electricity supplier emission factors", "Ministry of the Environment and METI, Japan", "https://policies.env.go.jp/earth/ghg-santeikohyo/calc.html",
+           _held_national("JPN"), detect_moe, files=("national_grids.json",), rebuild="scripts/build_national_grids.py",
+           note="Annual (January) with revisions through the summer. Supplier-specific; the engine holds only the substitute value."),
 ]
 BY_ID = {s.id: s for s in SOURCES}
 
@@ -254,6 +323,8 @@ def sync(force: bool = False, fetch: Optional[Callable[[str], str]] = None, only
         if only and s.id != only:
             continue
         try:
+            if s.manual:
+                continue
             if s.custom:
                 if s.id == "cea":
                     CEA.sync(force=force, **({"fetch": (lambda: fetch(s.url))} if fetch else {}))
@@ -287,6 +358,10 @@ def _one(s: Source, st: dict) -> dict:
         return {"id": s.id, "name": s.name, "publisher": s.publisher, "url": s.url, "held": held, "latest": {"label": f"Version {c['latest_listed']}"} if c.get("latest_listed") else None,
                 "freshness": c["freshness"], "message": c["message"], "checked_at": c["checked_at"], "age_days": c["age_days"], "last_error": c["last_error"],
                 "files": list(s.files), "note": s.note, "rebuild": s.rebuild}
+    if s.manual:
+        return {"id": s.id, "name": s.name, "publisher": s.publisher, "url": s.url, "held": held, "latest": None, "freshness": "unverified",
+                "message": f"The engine holds {held['label']}. {s.manual}, so I cannot say automatically whether it is the newest; check {s.url} (or {s.publisher}'s announcements) by hand.",
+                "checked_at": None, "age_days": None, "last_error": None, "files": list(s.files), "note": s.note, "rebuild": s.rebuild, "manual": True}
     e = st.get(s.id, {})
     checked = _ts(e.get("checked_at"))
     age = None if checked is None else round((time.time() - checked) / 86400, 1)
@@ -317,7 +392,8 @@ def status(source_id: Optional[str] = None) -> dict:
     rows = [_one(s, st) for s in SOURCES if not source_id or s.id == source_id]
     return {"as_of": _now(), "sources": rows,
             "summary": {k: sum(r["freshness"] == k for r in rows) for k in ("current", "newer_available", "unverified")},
-            "note": "'current' only after a successful read of the publisher's release page within 7 days. DESNZ, eGRID, AIB and Ember are detected, not auto-loaded; CEA is loaded when it passes every check."}
+            "note": "'current' only after a successful read of the publisher's release page within 7 days. DESNZ, eGRID, AIB, Ember and the national grid tables (Australia, Canada, Germany, China, Japan) are detected, not auto-loaded; "
+                    "CEA is loaded when it passes every check. China's publisher has no page I can read automatically, so it stays 'unverified' by design."}
 
 
 def for_file(name: str) -> list:
@@ -377,11 +453,19 @@ def learn() -> dict:
 
 _Q = re.compile(r"\b(desnz|defra|conversion factors?|egrid|residual mix|\baib\b|ember|data sources?|emission factors?.{0,40}(?:up to date|newer|latest|current|edition|version|source|from where)|"
                 r"(?:up to date|newer|latest|current|edition|version).{0,40}emission factors?|which (?:data|factors|sources|editions))\b", re.I)
-_ALIASES = {"desnz": ("desnz", "defra", "uk conversion", "uk government conversion", "uk factors"), "egrid": ("egrid", "epa"), "aib": ("residual mix", "aib"), "ember": ("ember",), "cea": ("cea", "india")}
+_ALIASES = {"desnz": ("desnz", "defra", "uk conversion", "uk government conversion", "uk factors"), "egrid": ("egrid", "epa"), "aib": ("residual mix", "aib"), "ember": ("ember",), "cea": ("cea", "india"),
+            "nga": ("nga factors", "nga ", "australia", "dcceew"), "eccc": ("eccc", "canada", "canadian"), "uba": ("umweltbundesamt", "germany", "german "),
+            "mee": ("china", "chinese", "ministry of ecology"), "moe": ("japan", "shk")}
+
+
+# a country source is asked about only when the question joins a country, a grid/emission-factor word and a currency word ("is the Australian grid factor up to date")
+_COUNTRY = r"(?:australia\w*|nga factors?|dcceew|canad\w*|eccc|german\w*|umweltbundesamt|china|chinese|japan\w*|shk)"
+_Q2 = re.compile(_COUNTRY + r".{0,60}(?:grid|electricity|emission factors?).{0,70}\b(?:up to date|newer|latest|current|edition|version|published|release)\b|"
+                 r"\b(?:up to date|newer|latest|current|edition|version|published|release)\b.{0,70}(?:grid|electricity|emission factors?).{0,60}" + _COUNTRY, re.I)
 
 
 def matches(text: str) -> bool:
-    return bool(_Q.search(text or ""))
+    return bool(_Q.search(text or "") or _Q2.search(text or ""))
 
 
 def answer(text: str) -> Optional[str]:

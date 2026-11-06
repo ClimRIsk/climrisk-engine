@@ -114,8 +114,9 @@ def _iso3(country: Optional[str]) -> Optional[str]:
     return c
 
 
-def electricity_location(country: str, us_state: Optional[str] = None, egrid_subregion: Optional[str] = None, fy: Optional[str] = None) -> dict:
-    """Location-based grid factor (g CO2e/kWh, direct generation) with provenance. India uses the CEA CO2 Baseline Database (fy like '2024-25'; default the latest published)."""
+def electricity_location(country: str, us_state: Optional[str] = None, egrid_subregion: Optional[str] = None, fy: Optional[str] = None, region: Optional[str] = None) -> dict:
+    """Location-based grid factor (g CO2e/kWh, direct generation) with provenance. India uses the CEA CO2 Baseline Database (fy like '2024-25'; default the latest published).
+    Australia, Canada, Germany, China and Japan use their national publishers' tables (carbon/national_grids.py): region= is the state/province/grid, fy= the data year."""
     E = lib()["electricity"]
     iso = _iso3(country)
     if iso == "GBR":
@@ -147,6 +148,9 @@ def electricity_location(country: str, us_state: Optional[str] = None, egrid_sub
             note = "; ".join(filter(None, [note, *c["notes"]]))
         return {"g_per_kwh": c["g_per_kwh"], "source": f"{c['source']}, all-India weighted average incl. renewables, FY{c['fy']}", "basis": "national (CEA)",
                 "dq": 2, "gases": "CO2 only", "gwp_basis": "CO2 only", "fy": c["fy"], "note": note, "cea_version": c["version"]}
+    from . import national_grids as NG
+    if NG.has(iso):
+        return NG.resolve(iso, region or us_state, fy)
     aib = E["europe_aib"]["countries"].get(iso or "")
     if aib and aib.get("production_g_co2_per_kwh") is not None:
         return {"g_per_kwh": aib["production_g_co2_per_kwh"], "source": "AIB European production mix 2025 (direct CO2)",
@@ -167,6 +171,10 @@ def electricity_residual(country: str, egrid_subregion: Optional[str] = None) ->
         if v is not None:
             return {"g_per_kwh": v, "source": E["us_egrid"]["residual_mix"]["source"] + f", {egrid_subregion.upper()}",
                     "gases": "CO2 only"}
+    from . import national_grids as NG
+    ng = NG.residual(iso) if iso else None
+    if ng:
+        return ng
     aib = E["europe_aib"]["countries"].get(iso or "")
     if aib and aib.get("residual_g_co2_per_kwh") is not None:
         return {"g_per_kwh": aib["residual_g_co2_per_kwh"], "source": "AIB European residual mix 2025 (direct CO2)",

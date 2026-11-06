@@ -1,0 +1,771 @@
+{
+ "_comment": "Official national grid emission factors, read from the publishers' own documents on 6 Nov 2026 and cross-checked by scripts/build_national_grids.py.",
+ "retrieved": "2026-11-06",
+ "countries": {
+  "AUS": {
+   "name": "Australia",
+   "publisher": "Department of Climate Change, Energy, the Environment and Water (DCCEEW), Australian Government",
+   "title": "Australian National Greenhouse Accounts Factors 2026",
+   "edition": [
+    2026
+   ],
+   "label": "NGA Factors 2026",
+   "published": "2026 edition (the document refers to a decision of 24 July 2026, so it was issued after that date)",
+   "url": "https://www.dcceew.gov.au/climate-change/publications/national-greenhouse-accounts-factors",
+   "document_url": "https://www.dcceew.gov.au/sites/default/files/documents/national-greenhouse-accounts-factors-2026.pdf",
+   "period": "financial years ending June (July to June)",
+   "unit": "kg CO2-e/kWh in the source; stored as g CO2e/kWh",
+   "gwp_basis": "AR5",
+   "gases": "CO2+CH4+N2O (AR5, including methane from hydro dams)",
+   "kind": "state or grid",
+   "scope_statement": "Scope 2 factors are location-based, for electricity purchased from the grid of a state or interconnected system. Scope 3 factors cover upstream fuel supply and transmission/distribution losses. Self-consumption of small-scale rooftop solar is deducted from the estimate (Table 1 notes).",
+   "default_region": "NATIONAL",
+   "regions": {
+    "NSW": {
+     "name": "New South Wales and Australian Capital Territory",
+     "g_per_kwh": 600,
+     "scope3_g_per_kwh": 70
+    },
+    "VIC": {
+     "name": "Victoria",
+     "g_per_kwh": 740,
+     "scope3_g_per_kwh": 110
+    },
+    "QLD": {
+     "name": "Queensland",
+     "g_per_kwh": 650,
+     "scope3_g_per_kwh": 110
+    },
+    "SA": {
+     "name": "South Australia",
+     "g_per_kwh": 210,
+     "scope3_g_per_kwh": 30
+    },
+    "WA-SWIS": {
+     "name": "Western Australia - South West Interconnected System (SWIS)",
+     "g_per_kwh": 450,
+     "scope3_g_per_kwh": 100
+    },
+    "WA-NWIS": {
+     "name": "Western Australia - North Western Interconnected System (NWIS)",
+     "g_per_kwh": 560,
+     "scope3_g_per_kwh": 90
+    },
+    "TAS": {
+     "name": "Tasmania",
+     "g_per_kwh": 210,
+     "scope3_g_per_kwh": 30
+    },
+    "NT": {
+     "name": "Northern Territory - Darwin Katherine Interconnected System (DKIS)",
+     "g_per_kwh": 550,
+     "scope3_g_per_kwh": 130
+    },
+    "NATIONAL": {
+     "name": "National",
+     "g_per_kwh": 590,
+     "scope3_g_per_kwh": 100
+    }
+   },
+   "aliases": {
+    "ACT": "NSW",
+    "NSW/ACT": "NSW",
+    "NEW SOUTH WALES": "NSW",
+    "VICTORIA": "VIC",
+    "QUEENSLAND": "QLD",
+    "SOUTH AUSTRALIA": "SA",
+    "TASMANIA": "TAS",
+    "NORTHERN TERRITORY": "NT",
+    "SWIS": "WA-SWIS",
+    "NWIS": "WA-NWIS",
+    "WA": "WA-SWIS",
+    "WESTERN AUSTRALIA": "WA-SWIS",
+    "AUSTRALIA": "NATIONAL"
+   },
+   "region_notes": {
+    "WA-SWIS": "'WA' without a grid is taken as the South West Interconnected System (Perth area); the Pilbara/North West grid is 'WA-NWIS'."
+   },
+   "residual_mix": {
+    "g_per_kwh": 790,
+    "scope3_g_per_kwh": 110,
+    "source": "NGA Factors 2026 Table 2, national residual mix factor for the market-based method"
+   },
+   "notes": [
+    "The same table is republished every year, usually mid-year; check the edition (GET /data/sources).",
+    "The NGA workbook also holds fuel factors; only the electricity tables are held here."
+   ]
+  },
+  "CAN": {
+   "name": "Canada",
+   "publisher": "Environment and Climate Change Canada (ECCC)",
+   "title": "National Inventory Report 1990-2024, Annex 7: Electricity in Canada - summary and intensity tables",
+   "edition": [
+    2024,
+    "2026-04-14"
+   ],
+   "label": "NIR 2026 (data to 2024)",
+   "published": "2026-04-14",
+   "url": "https://open.canada.ca/data/en/dataset/779c7bcf-4982-47eb-af1b-a33618a05e5b",
+   "document_url": "https://data-donnees.ec.gc.ca/data/substances/monitor/canada-s-official-greenhouse-gas-inventory/C-Tables-Electricity-Canada-Provinces-Territories/EN_Annex7_Electricity_Intensity.xlsx",
+   "period": "calendar year; 2024 is preliminary (table footnote a)",
+   "unit": "g CO2 eq / kWh",
+   "gwp_basis": "AR5",
+   "gwp_note": "The Annex 7 workbook says 'CO2 eq' but does not name the GWP set; Canada's inventory uses IPCC AR5 100-year values (stated in the NIR's methodology chapters, not re-read for this file). Treat as AR5 until confirmed.",
+   "gases": "CO2+CH4+N2O (CO2 eq)",
+   "kind": "province or territory",
+   "default_region": "CA",
+   "default_year": 2024,
+   "scope_statement": "Generation intensity is GHG emitted per kWh generated in the jurisdiction (NAICS 22111). Consumption intensity adds unallocated energy (transmission losses, metering differences) and SF6 from electrical equipment, and is on electricity consumed, so it reflects imports. Emissions from flooding of land for hydro dams are not included (footnote e).",
+   "regions": {
+    "CA": {
+     "name": "Canada",
+     "g_per_kwh": {
+      "2024": 102.17,
+      "2023": 105.27
+     },
+     "consumption_g_per_kwh": {
+      "2024": 110.55,
+      "2023": 112.86
+     }
+    },
+    "NL": {
+     "name": "Newfoundland and Labrador",
+     "g_per_kwh": {
+      "2024": 16.04,
+      "2023": 15.66
+     },
+     "consumption_g_per_kwh": {
+      "2024": 17.04,
+      "2023": 16.7
+     }
+    },
+    "PE": {
+     "name": "Prince Edward Island",
+     "g_per_kwh": {
+      "2024": 3.19,
+      "2023": 7.19
+     },
+     "consumption_g_per_kwh": {
+      "2024": 264.55,
+      "2023": 176.02
+     }
+    },
+    "NS": {
+     "name": "Nova Scotia",
+     "g_per_kwh": {
+      "2024": 585.93,
+      "2023": 574.59
+     },
+     "consumption_g_per_kwh": {
+      "2024": 628.35,
+      "2023": 613.85
+     }
+    },
+    "NB": {
+     "name": "New Brunswick",
+     "g_per_kwh": {
+      "2024": 361.7,
+      "2023": 225.58
+     },
+     "consumption_g_per_kwh": {
+      "2024": 375.48,
+      "2023": 233.99
+     }
+    },
+    "QC": {
+     "name": "Quebec",
+     "g_per_kwh": {
+      "2024": 2.1,
+      "2023": 1.48
+     },
+     "consumption_g_per_kwh": {
+      "2024": 2.56,
+      "2023": 1.87
+     }
+    },
+    "ON": {
+     "name": "Ontario",
+     "g_per_kwh": {
+      "2024": 64.91,
+      "2023": 53.94
+     },
+     "consumption_g_per_kwh": {
+      "2024": 73.31,
+      "2023": 58.86
+     }
+    },
+    "MB": {
+     "name": "Manitoba",
+     "g_per_kwh": {
+      "2024": 2.7,
+      "2023": 2.23
+     },
+     "consumption_g_per_kwh": {
+      "2024": 3.04,
+      "2023": 2.5
+     }
+    },
+    "SK": {
+     "name": "Saskatchewan",
+     "g_per_kwh": {
+      "2024": 541.83,
+      "2023": 595.26
+     },
+     "consumption_g_per_kwh": {
+      "2024": 580.72,
+      "2023": 631.74
+     }
+    },
+    "AB": {
+     "name": "Alberta",
+     "g_per_kwh": {
+      "2024": 334.76,
+      "2023": 420.3
+     },
+     "consumption_g_per_kwh": {
+      "2024": 346.1,
+      "2023": 433.87
+     }
+    },
+    "BC": {
+     "name": "British Columbia",
+     "g_per_kwh": {
+      "2024": 16.71,
+      "2023": 16.58
+     },
+     "consumption_g_per_kwh": {
+      "2024": 18.06,
+      "2023": 17.96
+     }
+    },
+    "YT": {
+     "name": "Yukon",
+     "g_per_kwh": {
+      "2024": 120.66,
+      "2023": 66.55
+     },
+     "consumption_g_per_kwh": {
+      "2024": 133.57,
+      "2023": 74.0
+     }
+    },
+    "NT": {
+     "name": "Northwest Territories",
+     "g_per_kwh": {
+      "2024": 460.0,
+      "2023": 390.0
+     },
+     "consumption_g_per_kwh": {
+      "2024": 490.0,
+      "2023": 420.0
+     }
+    },
+    "NU": {
+     "name": "Nunavut",
+     "g_per_kwh": {
+      "2024": 740.0,
+      "2023": 780.0
+     },
+     "consumption_g_per_kwh": {
+      "2024": 760.0,
+      "2023": 800.0
+     }
+    }
+   },
+   "aliases": {
+    "CANADA": "CA",
+    "NEWFOUNDLAND": "NL",
+    "NEWFOUNDLAND AND LABRADOR": "NL",
+    "PEI": "PE",
+    "PRINCE EDWARD ISLAND": "PE",
+    "NOVA SCOTIA": "NS",
+    "NEW BRUNSWICK": "NB",
+    "QUEBEC": "QC",
+    "QUÉBEC": "QC",
+    "ONTARIO": "ON",
+    "MANITOBA": "MB",
+    "SASKATCHEWAN": "SK",
+    "ALBERTA": "AB",
+    "BRITISH COLUMBIA": "BC",
+    "YUKON": "YT",
+    "NORTHWEST TERRITORIES": "NT",
+    "NUNAVUT": "NU"
+   },
+   "notes": [
+    "Intensity values are rounded to reflect their accuracy (footnote n); the Northwest Territories and Nunavut are rounded to the nearest 10 g.",
+    "Prince Edward Island generates little but imports most of its electricity: generation intensity 3 g vs consumption intensity 265 g in 2024. For consumers there, use the consumption figure (returned alongside).",
+    "The provincial figures can move a lot year to year (Alberta 420 g in 2023, 335 g in 2024); say which year you report."
+   ]
+  },
+  "DEU": {
+   "name": "Germany",
+   "publisher": "Umweltbundesamt (UBA), German Environment Agency",
+   "title": "Entwicklung der spezifischen Treibhausgas-Emissionen des deutschen Strommix in den Jahren 1990 - 2025 (CLIMATE CHANGE 16/2026)",
+   "edition": [
+    2025
+   ],
+   "label": "UBA CLIMATE CHANGE 16/2026 (years 1990-2025)",
+   "published": "2026-03",
+   "url": "https://www.umweltbundesamt.de/themen/luft/emissionen-von-luftschadstoffen/spezifische-emissionsfaktoren-fuer-den-deutschen",
+   "document_url": "https://www.umweltbundesamt.de/system/files/medien/11850/publikationen/2026-03/16_2026_CC.pdf",
+   "period": "calendar year; 2024 provisional, 2025 estimated",
+   "unit": "g CO2 / kWh and g CO2 eq / kWh",
+   "gwp_basis": "AR5",
+   "gwp_note": "UBA converts CH4 and N2O with IPCC Fifth Assessment Report potentials (section 2.8).",
+   "gases": "CO2+CH4+N2O (AR5), direct emissions of electricity consumed",
+   "kind": "national",
+   "default_region": "DE",
+   "default_year": 2025,
+   "scope_statement": "Direct emissions per kWh of the German electricity mix (power-station combustion, no upstream chain unless stated). Emissions of exports are counted in Germany, so the factor follows IPCC rules; an inland-consumption variant that nets the trade balance is also given.",
+   "regions": {
+    "DE": {
+     "name": "Germany",
+     "series": {
+      "2020": {
+       "co2_mt": 187,
+       "consumption_twh": 513,
+       "co2_g_per_kwh": 365,
+       "inland_consumption_co2_g_per_kwh": 379,
+       "ghg_g_per_kwh": 373,
+       "ghg_with_upstream_g_per_kwh": 435,
+       "upstream_g_per_kwh": 62,
+       "status": "inventory"
+      },
+      "2021": {
+       "co2_mt": 215,
+       "consumption_twh": 530,
+       "co2_g_per_kwh": 406,
+       "inland_consumption_co2_g_per_kwh": 421,
+       "ghg_g_per_kwh": 414,
+       "ghg_with_upstream_g_per_kwh": 477,
+       "upstream_g_per_kwh": 63,
+       "status": "inventory"
+      },
+      "2022": {
+       "co2_mt": 223,
+       "consumption_twh": 516,
+       "co2_g_per_kwh": 433,
+       "inland_consumption_co2_g_per_kwh": 457,
+       "ghg_g_per_kwh": 441,
+       "ghg_with_upstream_g_per_kwh": 503,
+       "upstream_g_per_kwh": 62,
+       "status": "inventory"
+      },
+      "2023": {
+       "co2_mt": 172,
+       "consumption_twh": 455,
+       "co2_g_per_kwh": 379,
+       "inland_consumption_co2_g_per_kwh": 371,
+       "ghg_g_per_kwh": 387,
+       "ghg_with_upstream_g_per_kwh": 442,
+       "upstream_g_per_kwh": 56,
+       "status": "inventory"
+      },
+      "2024": {
+       "co2_mt": 158,
+       "consumption_twh": 447,
+       "co2_g_per_kwh": 353,
+       "inland_consumption_co2_g_per_kwh": 334,
+       "ghg_g_per_kwh": 361,
+       "ghg_with_upstream_g_per_kwh": 414,
+       "upstream_g_per_kwh": 53,
+       "status": "provisional"
+      },
+      "2025": {
+       "co2_mt": 154,
+       "consumption_twh": 449,
+       "co2_g_per_kwh": 344,
+       "inland_consumption_co2_g_per_kwh": 330,
+       "ghg_g_per_kwh": 352,
+       "ghg_with_upstream_g_per_kwh": 406,
+       "upstream_g_per_kwh": 54,
+       "status": "estimate"
+      }
+     }
+    }
+   },
+   "aliases": {
+    "GERMANY": "DE",
+    "DEUTSCHLAND": "DE"
+   },
+   "notes": [
+    "The headline UBA 'Emissionsfaktor Strommix' is the CO2-only value (344 g in 2025). The engine returns the GHG (CO2e) value without upstream as g_per_kwh and keeps CO2 only and with-upstream alongside.",
+    "UBA's own text calls the 2023 to 2025 decline not necessarily lasting (net electricity imports, weak demand).",
+    "The 2025 value is an estimate; for a finished reporting year prefer 2023 (inventory-based) or 2024 (provisional) and say which."
+   ]
+  },
+  "CHN": {
+   "name": "China",
+   "publisher": "Ministry of Ecology and Environment (MEE) with the National Bureau of Statistics (NBS)",
+   "title": "Announcement 2025 No. 47: 2023 electricity CO2 emission factors (关于发布2023年电力二氧化碳排放因子的公告)",
+   "edition": [
+    2023
+   ],
+   "label": "MEE/NBS electricity CO2 emission factors, data year 2023",
+   "published": "2025-12-31",
+   "url": "https://www.mee.gov.cn/xxgk2018/xxgk/xxgk01/202512/t20251231_1139517.html",
+   "document_url": "https://www.mee.gov.cn/xxgk2018/xxgk/xxgk01/202512/W020251231726284332528.pdf",
+   "qa_url": "https://www.mee.gov.cn/ywdt/zbft/202601/t20260105_1139911.shtml",
+   "period": "calendar year 2023 (published about two years later)",
+   "unit": "kg CO2/kWh in the source; stored as g CO2/kWh",
+   "gwp_basis": "CO2 only",
+   "gases": "CO2 only",
+   "kind": "national, region or province",
+   "default_region": "CN",
+   "scope_statement": "Average CO2 per kWh of all electricity generated (thermal, hydro, wind, nuclear, solar), at national, regional and provincial level, for the location-based method. A second national value excludes non-fossil electricity traded on the market (including green-power trading) and is meant for the market-based method; a third covers fossil-fuel electricity only. Same method and data sources as the 2021 and 2022 releases.",
+   "regions": {
+    "NORTH": {
+     "name": "North China",
+     "name_zh": "华北",
+     "g_per_kwh": 636.1,
+     "level": "region"
+    },
+    "NORTHEAST": {
+     "name": "Northeast China",
+     "name_zh": "东北",
+     "g_per_kwh": 512.2,
+     "level": "region"
+    },
+    "EAST": {
+     "name": "East China",
+     "name_zh": "华东",
+     "g_per_kwh": 550.0,
+     "level": "region"
+    },
+    "CENTRAL": {
+     "name": "Central China",
+     "name_zh": "华中",
+     "g_per_kwh": 527.1,
+     "level": "region"
+    },
+    "NORTHWEST": {
+     "name": "Northwest China",
+     "name_zh": "西北",
+     "g_per_kwh": 554.3,
+     "level": "region"
+    },
+    "SOUTH": {
+     "name": "South China (China Southern Power Grid area)",
+     "name_zh": "南方",
+     "g_per_kwh": 404.2,
+     "level": "region"
+    },
+    "SOUTHWEST": {
+     "name": "Southwest China",
+     "name_zh": "西南",
+     "g_per_kwh": 247.2,
+     "level": "region"
+    },
+    "BJ": {
+     "name": "Beijing",
+     "name_zh": "北京",
+     "g_per_kwh": 555.4,
+     "level": "province"
+    },
+    "TJ": {
+     "name": "Tianjin",
+     "name_zh": "天津",
+     "g_per_kwh": 679.6,
+     "level": "province"
+    },
+    "HE": {
+     "name": "Hebei",
+     "name_zh": "河北",
+     "g_per_kwh": 651.6,
+     "level": "province"
+    },
+    "SX": {
+     "name": "Shanxi",
+     "name_zh": "山西",
+     "g_per_kwh": 663.4,
+     "level": "province"
+    },
+    "NM": {
+     "name": "Inner Mongolia",
+     "name_zh": "内蒙古",
+     "g_per_kwh": 647.9,
+     "level": "province"
+    },
+    "LN": {
+     "name": "Liaoning",
+     "name_zh": "辽宁",
+     "g_per_kwh": 487.8,
+     "level": "province"
+    },
+    "JL": {
+     "name": "Jilin",
+     "name_zh": "吉林",
+     "g_per_kwh": 467.1,
+     "level": "province"
+    },
+    "HL": {
+     "name": "Heilongjiang",
+     "name_zh": "黑龙江",
+     "g_per_kwh": 522.9,
+     "level": "province"
+    },
+    "SH": {
+     "name": "Shanghai",
+     "name_zh": "上海",
+     "g_per_kwh": 573.7,
+     "level": "province"
+    },
+    "JS": {
+     "name": "Jiangsu",
+     "name_zh": "江苏",
+     "g_per_kwh": 582.7,
+     "level": "province"
+    },
+    "ZJ": {
+     "name": "Zhejiang",
+     "name_zh": "浙江",
+     "g_per_kwh": 497.4,
+     "level": "province"
+    },
+    "AH": {
+     "name": "Anhui",
+     "name_zh": "安徽",
+     "g_per_kwh": 655.3,
+     "level": "province"
+    },
+    "FJ": {
+     "name": "Fujian",
+     "name_zh": "福建",
+     "g_per_kwh": 421.1,
+     "level": "province"
+    },
+    "JX": {
+     "name": "Jiangxi",
+     "name_zh": "江西",
+     "g_per_kwh": 583.6,
+     "level": "province"
+    },
+    "SD": {
+     "name": "Shandong",
+     "name_zh": "山东",
+     "g_per_kwh": 619.1,
+     "level": "province"
+    },
+    "HA": {
+     "name": "Henan",
+     "name_zh": "河南",
+     "g_per_kwh": 589.7,
+     "level": "province"
+    },
+    "HB": {
+     "name": "Hubei",
+     "name_zh": "湖北",
+     "g_per_kwh": 404.4,
+     "level": "province"
+    },
+    "HN": {
+     "name": "Hunan",
+     "name_zh": "湖南",
+     "g_per_kwh": 497.6,
+     "level": "province"
+    },
+    "GD": {
+     "name": "Guangdong",
+     "name_zh": "广东",
+     "g_per_kwh": 441.9,
+     "level": "province"
+    },
+    "GX": {
+     "name": "Guangxi",
+     "name_zh": "广西",
+     "g_per_kwh": 447.6,
+     "level": "province"
+    },
+    "HI": {
+     "name": "Hainan",
+     "name_zh": "海南",
+     "g_per_kwh": 364.8,
+     "level": "province"
+    },
+    "CQ": {
+     "name": "Chongqing",
+     "name_zh": "重庆",
+     "g_per_kwh": 558.1,
+     "level": "province"
+    },
+    "SC": {
+     "name": "Sichuan",
+     "name_zh": "四川",
+     "g_per_kwh": 156.4,
+     "level": "province"
+    },
+    "GZ": {
+     "name": "Guizhou",
+     "name_zh": "贵州",
+     "g_per_kwh": 568.3,
+     "level": "province"
+    },
+    "YN": {
+     "name": "Yunnan",
+     "name_zh": "云南",
+     "g_per_kwh": 133.3,
+     "level": "province"
+    },
+    "SN": {
+     "name": "Shaanxi",
+     "name_zh": "陕西",
+     "g_per_kwh": 633.5,
+     "level": "province"
+    },
+    "GS": {
+     "name": "Gansu",
+     "name_zh": "甘肃",
+     "g_per_kwh": 447.1,
+     "level": "province"
+    },
+    "QH": {
+     "name": "Qinghai",
+     "name_zh": "青海",
+     "g_per_kwh": 179.6,
+     "level": "province"
+    },
+    "NX": {
+     "name": "Ningxia",
+     "name_zh": "宁夏",
+     "g_per_kwh": 618.7,
+     "level": "province"
+    },
+    "XJ": {
+     "name": "Xinjiang",
+     "name_zh": "新疆",
+     "g_per_kwh": 602.1,
+     "level": "province"
+    },
+    "CN": {
+     "name": "China (national)",
+     "name_zh": "全国",
+     "g_per_kwh": 530.6,
+     "level": "national"
+    }
+   },
+   "aliases": {
+    "CHINA": "CN",
+    "华北": "NORTH",
+    "东北": "NORTHEAST",
+    "华东": "EAST",
+    "华中": "CENTRAL",
+    "西北": "NORTHWEST",
+    "南方": "SOUTH",
+    "西南": "SOUTHWEST",
+    "北京": "BJ",
+    "天津": "TJ",
+    "河北": "HE",
+    "山西": "SX",
+    "内蒙古": "NM",
+    "辽宁": "LN",
+    "吉林": "JL",
+    "黑龙江": "HL",
+    "上海": "SH",
+    "江苏": "JS",
+    "浙江": "ZJ",
+    "安徽": "AH",
+    "福建": "FJ",
+    "江西": "JX",
+    "山东": "SD",
+    "河南": "HA",
+    "湖北": "HB",
+    "湖南": "HN",
+    "广东": "GD",
+    "广西": "GX",
+    "海南": "HI",
+    "重庆": "CQ",
+    "四川": "SC",
+    "贵州": "GZ",
+    "云南": "YN",
+    "陕西": "SN",
+    "甘肃": "GS",
+    "青海": "QH",
+    "宁夏": "NX",
+    "新疆": "XJ",
+    "BEIJING": "BJ",
+    "TIANJIN": "TJ",
+    "HEBEI": "HE",
+    "SHANXI": "SX",
+    "INNER MONGOLIA": "NM",
+    "LIAONING": "LN",
+    "JILIN": "JL",
+    "HEILONGJIANG": "HL",
+    "SHANGHAI": "SH",
+    "JIANGSU": "JS",
+    "ZHEJIANG": "ZJ",
+    "ANHUI": "AH",
+    "FUJIAN": "FJ",
+    "JIANGXI": "JX",
+    "SHANDONG": "SD",
+    "HENAN": "HA",
+    "HUBEI": "HB",
+    "HUNAN": "HN",
+    "GUANGDONG": "GD",
+    "GUANGXI": "GX",
+    "HAINAN": "HI",
+    "CHONGQING": "CQ",
+    "SICHUAN": "SC",
+    "GUIZHOU": "GZ",
+    "YUNNAN": "YN",
+    "SHAANXI": "SN",
+    "GANSU": "GS",
+    "QINGHAI": "QH",
+    "NINGXIA": "NX",
+    "XINJIANG": "XJ"
+   },
+   "residual_mix": {
+    "g_per_kwh": 609.6,
+    "source": "MEE/NBS 2023, national electricity average excluding market-traded non-fossil electricity (Table 4), for the market-based method"
+   },
+   "extra": {
+    "fossil_electricity_g_per_kwh": 827.3,
+    "prior_year_2022": {
+     "national": 536.6,
+     "national_excl_market_nonfossil": 585.6,
+     "fossil": 832.5
+    }
+   },
+   "notes": [
+    "Tibet, Hong Kong, Macau and Taiwan are not in the provincial table.",
+    "A buyer of traceable green electricity may count that quantity as zero; the rest uses the excluding-market-traded factor (MEE Q&A).",
+    "MEE also publishes a separate carbon-footprint factor (kgCO2e/kWh, 2024 data); it is not held here.",
+    "Province codes are ISO 3166-2:CN (HB is Hubei, HE is Hebei, HA is Henan, HN is Hunan)."
+   ]
+  },
+  "JPN": {
+   "name": "Japan",
+   "publisher": "Ministry of the Environment and Ministry of Economy, Trade and Industry (SHK system)",
+   "title": "Emission factors by electricity supplier for the GHG Emissions Calculation, Reporting and Publication System (R6 results, for use in FY2025 calculations)",
+   "edition": [
+    8,
+    4
+   ],
+   "label": "SHK electricity supplier list, R8 submission (rev4)",
+   "published": "2026-01-09 (revised to rev4, last on 2026-08-03)",
+   "url": "https://policies.env.go.jp/earth/ghg-santeikohyo/calc.html",
+   "document_url": "https://policies.env.go.jp/earth/ghg-santeikohyo/files/calc/r08_denki_coefficient_rev4.pdf",
+   "period": "fiscal year R6 (April 2024 to March 2025) results",
+   "unit": "t-CO2/kWh in the source; stored as g CO2/kWh",
+   "gwp_basis": "CO2 only",
+   "gases": "CO2 only (energy-origin CO2)",
+   "kind": "supplier-specific",
+   "default_region": "JP",
+   "scope_statement": "Japan has no single official national grid factor. Factors are published per electricity retailer (basic and adjusted emission factors, some per menu). The only country-wide number in the list is the substitute value (the table's asterisk), applied where a retailer's factor is abnormal or unavailable.",
+   "regions": {
+    "JP": {
+     "name": "Japan (SHK substitute value)",
+     "g_per_kwh": 422
+    }
+   },
+   "aliases": {
+    "JAPAN": "JP"
+   },
+   "notes": [
+    "Use your retailer's published factor (basic or adjusted, by menu) when you know the supplier: enter it as supplier_g_per_kwh or location_g_per_kwh.",
+    "From the FY2025 reporting year the basic factor is published by menu, not only per company (list header).",
+    "Retailers that started supplying in R6 carry their R5 factor until the July 2026 update.",
+    "The ten general transmission and distribution operators carry a separate loss-compensation factor (0.000423 t-CO2/kWh in the list); that is not a consumption factor and is not used here."
+   ]
+  }
+ }
+}

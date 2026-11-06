@@ -167,7 +167,7 @@ def _calc(rec: dict, ent: Entity, gwp: str) -> dict:
             loc = {"g_per_kwh": float(rec["location_g_per_kwh"]), "source": rec.get("location_source", "user-supplied"),
                    "dq": 2}
         else:
-            loc = F.electricity_location(country, rec.get("us_state"), rec.get("egrid_subregion"), rec.get("grid_fy"))
+            loc = F.electricity_location(country, rec.get("us_state"), rec.get("egrid_subregion"), rec.get("grid_fy"), rec.get("grid_region"))
         sub = rec.get("egrid_subregion") or loc.get("subregion")
         loc_kg = kwh * loc["g_per_kwh"] / 1000
         # market-based hierarchy
@@ -209,8 +209,8 @@ def _calc(rec: dict, ent: Entity, gwp: str) -> dict:
         gb = loc.get("gwp_basis")
         if gb == "AR6" and gwp != "AR6":
             out["warnings"].append(f"grid factor is on its published AR6 basis, not restated to {gwp}; CO2 dominates so the difference is small")
-        elif gb and gb.startswith("AR5"):
-            out["warnings"].append(f"grid factor is a derived national value on {gb}; it is not restated to {gwp}. CO2 dominates, but supply a national factor on {gwp} if you need a strict {gwp} figure")
+        elif gb and gb.startswith("AR5") and (gwp != "AR5" or "not restated" in gb):
+            out["warnings"].append(f"grid factor is on {gb}; it is not restated to {gwp}. CO2 dominates, but supply a national factor on {gwp} if you need a strict {gwp} figure")
         if cat == "s2_electricity":
             iso = F._iso3(country)
             if iso == "GBR":

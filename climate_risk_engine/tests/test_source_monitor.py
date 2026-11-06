@@ -18,7 +18,18 @@ AIB_NEW = AIB.replace("</ul>", '<li><a href="/facts/european-residual-mix/2026">
 AIB_REVISED = AIB.replace("Version 1.0, 2026-05-26", "Version 1.1, 2026-08-14")
 EMBER = '<html><head><meta property="article:modified_time" content="2026-11-03T19:06:58+00:00" /></head><body>Yearly Electricity Data</body></html>'
 EMBER_NEW = EMBER.replace("2026-11-03", "2027-01-15")
-PAGES = {"desnz": DESNZ, "egrid": EGRID, "aib": AIB, "ember": EMBER}
+NGA = '<ul><li><a href="/climate-change/publications/national-greenhouse-accounts-factors-2026">National Greenhouse Accounts Factors 2026</a></li><li><a href="/climate-change/publications/national-greenhouse-accounts-factors-2025">2025</a></li></ul>'
+NGA_NEW = NGA.replace("<ul>", '<ul><li><a href="/climate-change/publications/national-greenhouse-accounts-factors-2027">2027</a></li>', 1)
+ECCC = "<main><h1>Canada's Official Greenhouse Gas Inventory</h1><ul><li><strong>Date Published:</strong> 2026-04-14</li><li><strong>Temporal Coverage:</strong> 1990-01-01 to 2024-12-31</li></ul></main>"
+ECCC_NEW = ECCC.replace("2026-04-14", "2027-04-13").replace("to 2024-12-31", "to 2025-12-31")
+UBA = '<h3>Publikationen</h3><ul><li><a href="/publikationen/entwicklung-der-spezifischen-treibhausgas-0">Entwicklung der spezifischen Treibhausgas-Emissionen des deutschen Strommix in den Jahren 1990 - 2025</a></li></ul>'
+UBA_NEW = UBA.replace("1990 - 2025", "1990 - 2026")
+_MOE = "https://policies.env.go.jp/earth/ghg-santeikohyo/files/calc/"
+MOE = "".join(f'<a href="{_MOE}{f}">x</a>' for f in ("r08_denki_coefficient_rev4.pdf", "r07_denki_coefficient_rev4.pdf", "r06_denki_coefficient_rev10.pdf", "r05_coefficient_rev4.pdf", "r08_gas_coefficient.pdf"))
+MOE_NEW = MOE + f'<a href="{_MOE}r09_denki_coefficient.pdf">x</a>'
+MOE_REV = MOE + f'<a href="{_MOE}r08_denki_coefficient_rev5.pdf">x</a>'
+PAGES = {"desnz": DESNZ, "egrid": EGRID, "aib": AIB, "ember": EMBER, "nga": NGA, "eccc": ECCC, "uba": UBA, "moe": MOE}
+N_SRC = 10                                         # desnz, egrid, aib, ember, cea, nga, eccc, uba, mee, moe
 
 
 @pytest.fixture(autouse=True)
@@ -48,6 +59,9 @@ def test_held_editions_are_read_from_the_engine_data():
     assert SM.held_desnz()["edition"] == [2026] and SM.held_egrid()["edition"] == [2023, 2]
     assert SM.held_aib()["edition"] == [2025, "2026-05-26"] and SM.held_ember()["date"] == "2026-09-30"
     assert SM.BY_ID["cea"].held()["edition"] == [22, 0]
+    assert SM.BY_ID["nga"].held()["edition"] == [2026] and SM.BY_ID["eccc"].held()["edition"] == [2024, "2026-04-14"]
+    assert SM.BY_ID["uba"].held()["edition"] == [2025] and SM.BY_ID["mee"].held()["edition"] == [2023] and SM.BY_ID["moe"].held()["edition"] == [8, 4]
+    assert len(SM.SOURCES) == N_SRC
 
 
 # ── detectors ────────────────────────────────────────────────────────────────
@@ -61,10 +75,15 @@ def test_detectors_read_the_newest_edition_and_its_date():
     assert a["edition"] == [2025, "2026-05-26"] and a["published"] == "2026-05-26"
     m = SM.detect_ember(EMBER)
     assert m["edition"] == ["2026-11-03"] and m["published"] == "2026-11-03"
+    assert SM.detect_nga(NGA)["edition"] == [2026] and SM.detect_nga(NGA)["link"].endswith("factors-2026")
+    assert SM.detect_eccc(ECCC)["edition"] == [2024, "2026-04-14"] and SM.detect_eccc(ECCC)["label"] == "NIR (data to 2024)"
+    assert SM.detect_uba(UBA)["edition"] == [2025]
+    mo = SM.detect_moe(MOE)
+    assert mo["edition"] == [8, 4] and mo["label"] == "SHK electricity supplier list R8 rev4"          # the gas list and the r05 file are not electricity supplier lists for a later year
     assert SM.detect_ember(EMBER.replace('property="article:modified_time" content="2026-11-03T19:06:58+00:00"', 'content="2026-11-03T19:06:58+00:00" property="article:modified_time"'))["published"] == "2026-11-03"
 
 
-@pytest.mark.parametrize("fn", [SM.detect_desnz, SM.detect_egrid, SM.detect_aib, SM.detect_ember])
+@pytest.mark.parametrize("fn", [SM.detect_desnz, SM.detect_egrid, SM.detect_aib, SM.detect_ember, SM.detect_nga, SM.detect_eccc, SM.detect_uba, SM.detect_moe])
 def test_unrecognised_layout_is_an_error_not_a_guess(fn):
     with pytest.raises(ValueError, match="layout changed"):
         fn("<html><body>Page not found</body></html>")
@@ -74,10 +93,12 @@ def test_unrecognised_layout_is_an_error_not_a_guess(fn):
 
 def test_unverified_until_read_then_current_when_nothing_newer():
     rep = SM.status()
-    assert rep["summary"]["unverified"] == 5 and all("cannot say it is the newest" in r["message"] for r in rep["sources"])
+    assert rep["summary"]["unverified"] == N_SRC and all("cannot say" in r["message"] for r in rep["sources"])
     rep = SM.sync(fetch=_fetcher(PAGES))
-    assert [r["freshness"] for r in rep["sources"]] == ["current"] * 5, [(r["id"], r["message"]) for r in rep["sources"]]
+    assert {r["id"]: r["freshness"] for r in rep["sources"]} == {**{i: "current" for i in SM.BY_ID}, "mee": "unverified"}, [(r["id"], r["message"]) for r in rep["sources"]]
     assert "rolling release" in _row(rep, "ember")["message"] and "newest listed" in _row(rep, "desnz")["message"]
+    mee = _row(rep, "mee")
+    assert mee["manual"] and "by hand" in mee["message"] and "2023" in mee["message"] and mee["checked_at"] is None     # a source with no readable page is never "current"
 
 
 @pytest.mark.parametrize("src, page, expect", [
@@ -87,12 +108,17 @@ def test_unverified_until_read_then_current_when_nothing_newer():
     ("aib", AIB_NEW, "Residual Mix 2026"),
     ("aib", AIB_REVISED, "Residual Mix 2025"),                 # same year, revised after the held copy's date
     ("ember", EMBER_NEW, "page updated 2027-01-15"),
+    ("nga", NGA_NEW, "NGA Factors 2027"),
+    ("eccc", ECCC_NEW, "NIR (data to 2025)"),
+    ("uba", UBA_NEW, "1990-2026"),
+    ("moe", MOE_NEW, "R9"),
+    ("moe", MOE_REV, "R8 rev5"),
 ])
 def test_newer_edition_is_flagged_with_what_to_do(src, page, expect):
     rep = SM.sync(fetch=_fetcher({**PAGES, src: page}))
     r = _row(rep, src)
-    assert r["freshness"] == "newer_available" and expect in r["message"] and "not loaded yet" in r["message"] and "rebuild with scripts/build_carbon_factors.py" in r["message"]
-    assert all(x["freshness"] == "current" for x in rep["sources"] if x["id"] != src)
+    assert r["freshness"] == "newer_available" and expect in r["message"] and "not loaded yet" in r["message"] and "rebuild with scripts/build_" in r["message"]
+    assert all(x["freshness"] == "current" for x in rep["sources"] if x["id"] not in (src, "mee"))
 
 
 def test_each_source_fails_alone_and_says_why():
@@ -132,7 +158,7 @@ def test_stale_check_goes_back_to_unverified(monkeypatch):
 def test_offline_mode_does_not_touch_the_network(monkeypatch):
     monkeypatch.setenv("CRI_STORY_OFFLINE", "1")
     monkeypatch.setattr(SM, "_fetch", lambda u: (_ for _ in ()).throw(AssertionError("network used")))
-    assert SM.sync()["summary"]["unverified"] == 5
+    assert SM.sync()["summary"]["unverified"] == N_SRC
 
 
 def test_a_new_source_can_be_registered():
@@ -164,8 +190,13 @@ def test_answers_state_editions_and_caveats():
     assert "eGRID2023 rev2 is the newest listed by US Environmental Protection Agency" in a and "epa.gov/egrid" in a
     assert "AIB" in SM.answer("which residual mix edition do you use") and "2025" in SM.answer("which residual mix edition do you use")
     allr = SM.answer("which data sources are my emission factors from and are they current")
-    assert "5 monitored sources" in allr and "UK DESNZ" in allr and "Ember" in allr
+    assert f"{N_SRC} monitored sources" in allr and "UK DESNZ" in allr and "Ember" in allr
     assert SM.answer("what is the capital of France") is None and SM.answer("flood risk for Houston") is None
+    # country sources are asked about only when the question joins a country, a grid word and a currency word
+    au = SM.answer("is the Australian grid emission factor up to date?")
+    assert "Australia NGA Factors" in au and "NGA Factors 2026 is the newest" in au and "Canada" not in au
+    assert "China electricity CO2 emission factors" in SM.answer("what is the latest edition of China's electricity emission factors") and "by hand" in SM.answer("is the china grid factor current")
+    assert SM.answer("flood risk for a plant in Canada") is None and SM.answer("what is the carbon price in China") is None and SM.answer("Germany GDP growth latest") is None
 
 
 def test_agent_routes_source_questions(monkeypatch):
@@ -193,6 +224,6 @@ def test_api_endpoint():
     from cri.api.main import app
     c = TestClient(app)
     r = c.get("/data/sources").json()
-    assert {s["id"] for s in r["sources"]} == {"desnz", "egrid", "aib", "ember", "cea"} and r["summary"]["unverified"] == 5
+    assert {s["id"] for s in r["sources"]} == {"desnz", "egrid", "aib", "ember", "cea", "nga", "eccc", "uba", "mee", "moe"} and r["summary"]["unverified"] == N_SRC
     assert c.get("/data/sources", params={"source": "egrid"}).json()["sources"][0]["held"]["label"] == "eGRID2023 rev2"
     assert c.get("/data/sources", params={"source": "nope"}).status_code == 404
