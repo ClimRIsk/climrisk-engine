@@ -167,7 +167,7 @@ for _k, _v in T_MORE.items():
 from . import corpus_more as _CM                                   # noqa: E402  (added 29 Oct 2026: voyage, feasibility, offtopic, extra phrasings, typing noise)
 SLOTS.update(_CM.SLOTS_MORE)
 SLOTS["offt"] = _CM._OFFT
-for _k, _v in list(_CM.T_NEW.items()) + list(_CM.T_NEW2.items()) + list(_CM.T_NEW3.items()):
+for _k, _v in list(_CM.T_NEW.items()) + list(_CM.T_NEW2.items()) + list(_CM.T_NEW3.items()) + list(_CM.T_NEW4.items()):
     T.setdefault(_k, []).extend(_v)
 
 
@@ -179,18 +179,21 @@ def utterances(seed: int = 7, per_template: int = 3, noise: bool = True) -> list
         for ti, t in enumerate(temps):
             names = [n for n in SLOTS if "{" + n + "}" in t]
             n_variants = per_template if names else 1
-            seen = set()
+            seen = []                                                  # a list, not a set: set order changes between runs (string hashing), which made "the first variant" and so the trained model differ run to run (found 11 Nov 2026)
             for _ in range(n_variants * 3):
                 vals = {n: rng.choice(SLOTS[n]) for n in names}
                 u = t.format(**vals)
                 if u not in seen:
-                    seen.add(u); out.append((u, intent, ti))
+                    seen.append(u); out.append((u, intent, ti))
                 if len(seen) >= n_variants:
                     break
             if noise:                                                  # a hurried copy of the first variant, same template group (so the split stays leak-free)
-                first = next(iter(seen), None)
+                first = seen[0] if seen else None
                 if first:
                     out.append((_CM.noisy(first, rng), intent, ti))
+                    if intent != "smalltalk":                          # added 10 Nov 2026: chat openers and closers, and a two-slip copy (same template group)
+                        out.append((_CM.wrapped(first, rng), intent, ti))
+                        out.append((_CM.noisy2(first, rng), intent, ti))
     return out
 
 

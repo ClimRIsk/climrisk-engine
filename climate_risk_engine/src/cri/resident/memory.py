@@ -7,6 +7,7 @@ retrain the intent model), runs (every tool chain the agent executed), posts (Li
 """
 from __future__ import annotations
 
+import contextvars
 import json
 import os
 import sqlite3
@@ -139,10 +140,31 @@ def posts(limit: int = 30) -> list:
 
 
 # state
+# Conversation state (the site, result, voyage or question "we were just talking about") belongs to one chat session. Until 10 Nov 2026 it was
+# stored under a bare key, so a second session (another browser, another user of a hosted engine) inherited the first one's site.
+# Installation-wide state (inbox, watched sites, autopilot, last scan, pending post) stays global on purpose.
+SESSION_KEYS = {"last_place", "last_result", "last_voyage", "last_question", "last_twin_story"}
+_SESSION: contextvars.ContextVar = contextvars.ContextVar("cri_resident_session", default=None)
+
+
+def use_session(session: Optional[str]):
+    """Bind the chat session for this call (and for jobs started from it via contextvars.copy_context). Returns the token for reset."""
+    return _SESSION.set(session or None)
+
+
+def reset_session(token) -> None:
+    _SESSION.reset(token)
+
+
+def _key(k: str) -> str:
+    s = _SESSION.get()
+    return f"{s}::{k}" if (s and k in SESSION_KEYS) else k
+
+
 def set_state(k: str, v: Any) -> None:
-    _exec("INSERT INTO state(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v", (k, json.dumps(v, default=str)[:200000]))
+    _exec("INSERT INTO state(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v", (_key(k), json.dumps(v, default=str)[:200000]))
 
 
 def get_state(k: str, default: Any = None) -> Any:
-    r = _rows("SELECT v FROM state WHERE k=?", (k,))
+    r = _rows("SELECT v FROM state WHERE k=?", (_key(k),))
     return json.loads(r[0]["v"]) if r else default

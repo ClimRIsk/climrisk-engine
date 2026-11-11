@@ -7,6 +7,7 @@ research, risk analysis) run in background threads; the dock polls the job.
 """
 from __future__ import annotations
 
+import contextvars
 import datetime as dt
 import re
 import threading
@@ -106,7 +107,7 @@ def _job(fn: Callable, label: str) -> dict:
             JOBS[jid]["status"] = "done"
         except Exception as e:                                       # noqa: BLE001
             JOBS[jid]["status"] = "failed"; JOBS[jid]["error"] = f"{type(e).__name__}: {str(e)[:300]}"
-    _POOL.submit(run)
+    _POOL.submit(contextvars.copy_context().run, run)              # the job keeps the chat session it was started from (session-scoped state)
     return JOBS[jid]
 
 
@@ -181,27 +182,73 @@ def port_evidence(lat: float, lon: float, radius_m: int = 15000) -> Optional[boo
     return v
 
 
+class PlaceProblem(Exception):
+    """The message names a site the agent cannot use as written. The agent must say so and ask; it must never carry on with a different site."""
+    def __init__(self, msg: str, actions: Optional[list] = None):
+        super().__init__(msg); self.msg = msg; self.actions = actions or []
+
+
+_NOT_PLACE = set("""my our your the a an this that it its each every all any some one same there here site sites plant plants asset assets facility facilities factory warehouse
+flood floods flooding wind winds cyclone cyclones storm storms surge heat fire wildfire drought rain rainfall hazard hazards risk risks climate carbon emissions scope
+physical transition financial report reports scenario scenarios twin model analysis example instance now today tomorrow later me us you them him her
+steel cement power oil gas chemical chemicals mining aluminium aluminum pulp paper port logistics real estate building agriculture food sector company
+future case cases year years decade century worst best high low medium mild severe protection defence defense adaptation sale review audit approval""".split())
+
+
 def _place_words(text: str, ent: dict) -> Optional[str]:
     m = re.search(r"\b(?:at|in|of|for|on|near|around)\s+(?:the\s+)?([A-Z][\w\-']+(?:\s+[A-Z][\w\-']+){0,3})", text)
     return m.group(1) if m else None
 
 
+def _place_words_lower(text: str) -> Optional[str]:
+    """A place typed without a capital ('same for mumbai', 'twin of chennai port'). Only a candidate: it counts as a place if it resolves."""
+    for m in re.finditer(r"\b(?:at|in|near|around|for|of)\s+(?:the\s+)?([a-z][a-z\-']{2,}(?:\s+[a-z][a-z\-']{2,}){0,2})", text):
+        ws = []
+        for w in m.group(1).split():
+            if w in _NOT_PLACE or w in N._STOP:
+                break
+            ws.append(w)
+        if ws:
+            return " ".join(ws)
+    return None
+
+
+def _swap_text(text: str, ent: dict, coords: str) -> str:
+    a, b = ent.get("coord_span") or (len(text), len(text))
+    return (text[:a] + coords + text[b:]).strip()
+
+
 def resolve_place(text: str, ent: dict, session: str) -> Optional[dict]:
+    if ent.get("coord_issue"):
+        acts = [{"type": "say", "label": "Use " + ent["coord_swapped"], "text": _swap_text(text, ent, ent["coord_swapped"])}] if ent.get("coord_swapped") else []
+        raise PlaceProblem(ent["coord_issue"] + " Nothing was started.", acts)
     if "lat" in ent:
+        if ent.get("coord_check") == "swap":
+            keep = N._fmt(ent["lat"], ent["lon"])
+            raise PlaceProblem(f'I read that as latitude {ent["lat"]:g}, longitude {ent["lon"]:g}, which is inside the polar circle. Coordinates are often written longitude first; '
+                               f'if so the site is {ent["coord_swapped"]}. Which one? Nothing was started.',
+                               [{"type": "say", "label": "Use " + ent["coord_swapped"], "text": _swap_text(text, ent, ent["coord_swapped"])},
+                                {"type": "say", "label": "Keep " + keep, "text": _swap_text(text, ent, keep)}])
         return {"lat": ent["lat"], "lon": ent["lon"], "name": f'{ent["lat"]:.4f}, {ent["lon"]:.4f}', "source": "coordinates in the message"}
     w = _place_words(text, ent)
-    if w:
-        for f in M.facts(w, 5):
+    lw = None if w else _place_words_lower(text)
+    for cand in (w, lw):
+        if not cand:
+            continue
+        for f in M.facts(cand, 5):
             kv = f.get("kv") or {}
             if "lat" in kv:
-                return {"lat": kv["lat"], "lon": kv["lon"], "name": w, "source": "your saved note"}
-        g = geocode(w)
+                return {"lat": kv["lat"], "lon": kv["lon"], "name": cand, "source": "your saved note"}
+        g = geocode(cand)
         if g:
-            return {**g, "name": w, "source": "OpenStreetMap geocoder"}
+            return {**g, "name": cand.title() if cand == lw else cand, "source": "OpenStreetMap geocoder"}
     last = M.get_state("last_place")
-    if last and re.search(r"\b(it|this|there|here|that site|the site|my plant|the plant)\b", text.lower()):
+    refers = bool(re.search(r"\b(it|this|there|here|that site|the site|my plant|the plant|same site|same place)\b", text.lower()))
+    if last and refers:
         return {**last, "source": "the site we just discussed"}
-    if last and not w:
+    if (w or lw) and not refers:
+        return None                                                    # a place was named and could not be found: ask, do not quietly use another site
+    if last:
         return {**last, "source": "the last site we worked on"}
     return None
 
@@ -223,13 +270,97 @@ class Agent:
         self.lab = lab or SC.lab
 
     # entry
+    MAX_CHARS = 2000
+    _NEG = re.compile(r"^\s*(?:please\s+|ok(?:ay)?[, ]+|no[, ]+)?(?:do\s*n[o']?t|dont|don’t|never|no need (?:for|to)|i do not want|i don'?t want|not now|skip|without)\b", re.I)
+    _SPLIT_NEG = re.compile(r"\s*(?:[,;.]|\bbut\b|\binstead\b|\bjust\b|\bonly\b)\s*", re.I)
+    _SPLIT_SEQ = re.compile(r"\s*(?:;|\band then\b|\bthen\b|\band also\b|\bafter that\b|\bafterwards\b|,?\s+and\s+(?=(?:please\s+)?(?:build|run|create|make|write|generate|open|scan|draft|publish|list|show me|assess|analy[sz]e|simulate|compare)\b))\s*", re.I)
+    _FOLLOW = re.compile(r"^\s*(?:and|same|what about|how about|now|also|ok(?:ay)?(?: and)?|then)\b[\s,]*(?:the same\s+|again\s+)?(?:for|at|in|with|under|about)?\s*(.{1,60}?)\s*\??\s*$", re.I)
+    _FOLLOWABLE = {"twin", "protect", "scenario", "risk_analysis", "assets", "report_physical", "report_transition", "report_financial", "report_lca", "report_iso14067", "report_carbon", "report_cbam"}
+    _FOREIGN = re.compile(r"\b(für|unser\w*|und|der|die|das|ist|nicht|wie|hochwasser\w*|risiko|werk|para|mi|nuestra?|el|los|las|del|riesgo|inundaci[oó]n|planta|pour|notre|nos|les|des|une?|est|risque|inondation|usine|"
+                          r"ka|ki|ke|hai|hain|kya|batao|mere|mera|hamara|kaise|kitna|enna|irukura|irukku|ku|la|epdi|per|il|nostro|rischio|alluvione|voor|onze|overstroming|risico)\b", re.I)
+
     def handle(self, session: str, text: str, intent: Optional[str] = None) -> dict:
-        text = (text or "").strip()
+        tok = M.use_session(session)                                   # conversation state (last site, last result) belongs to this session only
+        try:
+            return self._handle(session, text, intent)
+        except PlaceProblem as e:                                      # a site was written that cannot be used: say so, start nothing, never substitute another site
+            out = {"reply": e.msg, "blocks": [], "actions": e.actions, "intent": "place_problem", "confidence": 1.0, "top": [], "entities": {}}
+            M.add_message(session, "agent", out["reply"], "place_problem", {})
+            return out
+        finally:
+            M.reset_session(tok)
+
+    def _guard(self, session: str, text: str, intent: Optional[str]) -> Optional[dict]:
+        """Checks that run before any routing. Each one either answers (and starts nothing) or returns None."""
+        def say(reply, kind, actions=None):
+            M.add_message(session, "user", text[:500], kind, {}); M.add_message(session, "agent", reply, kind, {})
+            return {"reply": reply, "blocks": [], "actions": actions or [], "intent": kind, "confidence": 1.0, "top": [], "entities": {}}
+        if len(text) > self.MAX_CHARS:
+            return say(f"That message is {len(text):,} characters; I read up to {self.MAX_CHARS:,}. Send the request in a sentence or two (upload long documents with \"add document\"). Nothing was started.", "too_long")
+        words = re.findall(r"\w+", text.lower())
+        if not words:
+            return say("I could not read any words in that. Say what you want to assess, or ask what I can do.", "unreadable", [{"type": "say", "label": "What can you do?", "text": "what can you do"}])
+        if len(words) >= 8 and len(set(words)) <= max(2, len(words) // 8):
+            return say("That looks like one word repeated. Say what you want to assess, or ask what I can do. Nothing was started.", "unreadable")
+        if intent:
+            return None
+        if re.search(r"\b(api[\s_-]?keys?|licen[cs]e keys?|passwords?|access tokens?|secrets?|credentials)\b", text, re.I) and re.search(r"\b(give|show|tell|send|print|reveal|what(?:'s| is| are)|share|list|dump)\b", text, re.I):
+            return say("I do not show keys, tokens or passwords, and I have no tool that reads them. Licence and API keys are managed in the app's settings by whoever installed it.", "refused")
+        letters = [c for c in text if c.isalpha()]
+        if letters and sum(ord(c) > 0x024F for c in letters) / len(letters) > 0.3:
+            return say("I can only read English at the moment, so I have not acted on that. Please ask in English, or give coordinates (for example 31.23, 121.47) and what you want: a twin, a hazard profile or a report.", "language")
+        # refusals: "do not publish the post", "don't build a twin, just tell me what a twin is"
+        parts = [p for p in self._SPLIT_NEG.split(text) if p and p.strip()]
+        neg = [p for p in parts if self._NEG.search(p)]
+        if neg:
+            keep = [p for p in parts if not self._NEG.search(p)]
+            rest = " ".join(keep).strip()
+            if len(re.findall(r"\w+", rest)) < 2:
+                return say("Understood: I will not do that. Nothing was started or published.", "declined")
+            out = self._handle(session, rest, None)
+            out["reply"] = f"(Left out, as you asked: \"{'; '.join(n.strip() for n in neg)[:160]}\".) " + out["reply"]
+            return out
+        # several requests in one message: do the first, queue the rest as buttons, and say so
+        seq = [p.strip() for p in self._SPLIT_SEQ.split(text) if p and p.strip()]
+        if len(seq) >= 2 and sum(bool(self._ACT.search(p)) for p in seq) >= 2 and not re.search(r"\b(ship|vessel|voyage|tanker|bulker|knots?)\b", text, re.I):
+            out = self._handle(session, seq[0], None)
+            out["reply"] += f" (You asked for {len(seq)} things. I take them one at a time: this is the first; the rest are the buttons below.)"
+            out["actions"] = list(out.get("actions") or []) + [{"type": "say", "label": "Next: " + p[:60], "text": p} for p in seq[1:4]]
+            return out
+        return None
+
+    def _followup(self, session: str, text: str) -> Optional[tuple]:
+        """'same for Mumbai', 'and for 2050?': repeat the last tool request in this session with the new place or year. Returns (intent, text) or None."""
+        m = self._FOLLOW.match(text)
+        if not m or len(text.split()) > 8 or self._ACT.search(text):
+            return None
+        for r in M.recent_messages(session, 8):
+            if r["role"] == "user" and r.get("intent") in self._FOLLOWABLE:
+                arg = m.group(1).strip()
+                if not arg:
+                    return None
+                if not re.search(r"\d", arg) and not re.search(r"\b(it|this|that|there)\b", arg, re.I):
+                    arg = "at " + arg.title()                           # a bare place name: let the place resolver see it
+                return r["intent"], arg
+            if r["role"] == "user":
+                break
+        return None
+
+    def _handle(self, session: str, text: str, intent: Optional[str] = None) -> dict:
+        text = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", " ", text or "").strip()
         if not text:
             return {"reply": "Ask me something — for example \"build a 3D twin of 22.2645, 91.805\".", "blocks": [], "actions": [], "intent": "empty"}
-        quick = self._voyage_commands(session, text) or self._feasibility_commands(session, text) or self._event_commands(session, text) or self._userdoc_commands(session, text) or self._autopilot_commands(session, text) or self._cea_commands(session, text) or self._sources_commands(session, text) or self._knowledge_commands(session, text) or self._stress_commands(session, text) or self._scenario_commands(session, text) or self._source_commands(session, text) or self._profile_commands(session, text) or self._lab_commands(session, text) or self._case_commands(session, text) or self._extension_commands(session, text)
+        g = self._guard(session, text, intent)
+        if g:
+            return g
+        fu = None if intent else self._followup(session, text)
+        if fu:
+            intent_fu, text = fu
+        quick = self._voyage_commands(session, text) or self._feasibility_commands(session, text) or self._event_commands(session, text) or self._userdoc_commands(session, text) or self._autopilot_commands(session, text) or self._cea_commands(session, text) or self._sources_commands(session, text) or self._knowledge_commands(session, text) or self._stress_commands(session, text) or self._scenario_commands(session, text) or self._source_commands(session, text) or self._profile_commands(session, text) or self._lab_commands(session, text) or self._case_commands(session, text) or self._extension_commands(session, text) or self._module_commands(session, text)
+        if fu:
+            quick = None                                               # a follow-up repeats the last tool; the rules above are for fresh requests
         if quick:
-            if quick.get("intent") in (None, "knowledge", "learn"):      # autopilot commands log themselves
+            if quick.get("intent") in (None, "knowledge", "learn", "module"):      # autopilot commands log themselves
                 quick.setdefault("intent", "knowledge")
                 M.add_message(session, "user", text, quick["intent"], {}); M.add_message(session, "agent", quick["reply"], quick["intent"], {"job": quick.get("job")})
             quick.setdefault("confidence", 1.0); quick.setdefault("top", []); quick.setdefault("entities", {})
@@ -238,14 +369,18 @@ class Agent:
         pred = model.predict(text)
         ent = N.entities(text)
         comp = N.find_company(text)
-        if intent:                                                     # user confirmed an intent from the clarification buttons
+        if fu:                                                         # not a correction, so it is not stored as training feedback
+            pred = {"intent": intent_fu, "confidence": 1.0, "top": pred["top"]}
+        elif intent:                                                   # user confirmed an intent from the clarification buttons
             M.add_feedback(text, pred["intent"], intent)
             pred = {"intent": intent, "confidence": 1.0, "top": pred["top"]}
-        elif self._is_info_question(text, ent, comp) and pred["intent"] in self._TOOLISH:
+        elif self._is_info_question(text, ent, comp) and pred["intent"] in self._TOOLISH and not (self._OWN.search(text) and pred["intent"] not in ("unknown", "explain") and pred["confidence"] >= 0.45):
             pred = {"intent": "explain", "confidence": max(pred["confidence"], 0.6), "top": pred["top"]}   # a question about the world, not a request for a tool
         M.add_message(session, "user", text, pred["intent"], {"entities": ent, "company": comp, "top": pred["top"]})
         try:
             out = self._converse(session, text, pred, ent, comp) or self._dispatch(session, text, pred, ent, comp)
+        except PlaceProblem:
+            raise
         except Exception as e:                                         # noqa: BLE001
             out = {"reply": f"That failed inside the engine: {type(e).__name__}: {str(e)[:200]}. Nothing was changed.", "blocks": [], "actions": []}
         out["intent"] = pred["intent"]; out["confidence"] = pred["confidence"]; out["top"] = pred["top"]; out["entities"] = ent
@@ -416,6 +551,42 @@ class Agent:
         note = (f"Your message names no place, so I used {pl.get('name') or 'the last site'} ({pl.get('source')}); give coordinates or a city to change it. ") if carried else ""
         return {"reply": f"{note}Composing the {ssp.upper().replace('SSP', 'SSP')} scenario for {year} at {pl.get('name') or 'the site'} from the climate-model ensemble and sea-level projections …", "blocks": [], "actions": [], "job": j["id"], "intent": "scenario"}
 
+    # Engine modules that need a table of inputs (a fund, a loan book, a schedule of insured sites). The chat cannot run them from a sentence,
+    # so it says what the module does, what it needs and where it is, instead of refusing or sending the message to an unrelated tool.
+    _MODULES = [
+        (r"\bsfdr\b|\bpai\b|principal adverse", "SFDR principal adverse impact indicators",
+         "The engine computes the 18 PAI indicators for a fund from its holdings (per holding: value, enterprise value, Scope 1-3 emissions, revenue and the social fields). "
+         "It needs your holdings table; nothing is estimated for a field you leave out. Send the table to POST /regulatory/sfdr-pai (export: /regulatory/sfdr-pai/export).", "/docs#/Regulatory%20%E2%80%94%20SFDR%20%2F%20PCAF%20%2F%20EU%20Taxonomy"),
+        (r"\bpcaf\b|financed emissions?", "PCAF financed emissions",
+         "The engine attributes financed emissions per exposure and for a portfolio (outstanding amount, enterprise value or property value, the counterparty's emissions, with a data-quality score). "
+         "It implements Part A 2nd edition (2022); PCAF has since published a 3rd edition that the engine has not been updated to. Send exposures to POST /regulatory/pcaf or /regulatory/pcaf/portfolio.", "/docs#/Regulatory%20%E2%80%94%20SFDR%20%2F%20PCAF%20%2F%20EU%20Taxonomy"),
+        (r"\beu taxonomy\b|taxonomy[- ]align", "EU Taxonomy alignment",
+         "The engine checks alignment across the six environmental objectives from the activity data you supply. Send it to POST /regulatory/eu-taxonomy.", "/docs#/Regulatory%20%E2%80%94%20SFDR%20%2F%20PCAF%20%2F%20EU%20Taxonomy"),
+        (r"\b(esrs|csrd)\b.*\b(gap|check|checklist|readiness|e1)\b|\be1 gap\b|double materiality|\bmateriality assessment\b", "CSRD: ESRS E1 gap check and materiality",
+         "The engine holds an ESRS E1 checklist (from Delegated Regulation 2023/2772; the simplified ESRS adopted in July 2026 are not reflected) and a double-materiality screen. "
+         "They work from what your company discloses: the materiality screen opens as a form, and the gap check is POST /reports/csrd/gap.", "/materiality/dashboard"),
+        (r"\b(insurance|insurer|reinsur\w+|underwrit\w+)\b|\bpremiums?\b|\bdeductibles?\b|\btiv\b", "Insurance: loss distribution and technical premium",
+         "The engine prices a schedule of sites (name, coordinates, insured value, deductible, limit, covers) from the wind and flood hazard at each one. It covers property damage only, not business interruption, "
+         "and where a hazard could not be read the site is marked not assessed, never zero. Enter the sites in the insurance page.", "/insurance/dashboard"),
+        (r"\b(pd|lgd|ecl)\b|probability of default|expected credit loss|credit risk|loan book|\birb\b", "Climate-adjusted credit risk",
+         "The engine has a Merton structural model: per obligor it needs your exposure, baseline PD and leverage, and optionally the physical loss and carbon cost; it returns PD, LGD, ECL and capital. "
+         "It has no fitted sector coefficients and has not been tested against observed defaults. Send obligors to POST /portfolio/credit-structural.", "/docs#/Credit"),
+        (r"\bsbti\b|science[- ]based target", "SBTi target check",
+         "The engine checks a target against the SBTi absolute-contraction minimum and flags deviation from reported emissions. Send the target and emissions to POST /sbti/alignment.", "/docs#/Transition%20Risk"),
+        (r"\bbiodiversity\b|\btnfd\b|nature[- ]related", "Nature-related risk (TNFD LEAP)",
+         "The engine has a nature-risk screen that follows the TNFD LEAP steps for a site and sector. Send the site to POST /physical/biodiversity.", "/docs#/Physical%20Risk%20%E2%80%94%20Extended"),
+        (r"\btransition plan\b", "Transition plan", "The engine builds and checks a transition plan from your targets, levers and capex. It opens as a form.", "/transition-plan/dashboard"),
+    ]
+
+    def _module_commands(self, session, text) -> Optional[dict]:
+        low = text.lower()
+        if re.search(r"\b(report|story|write|twin|voyage|ship|vessel)\b|carbon credits?|offsets?\b", low) and not re.search(r"\b(sfdr|pcaf|pai)\b", low):
+            return None                                                # report and twin requests keep their own routes
+        for pat, title, body, url in self._MODULES:
+            if re.search(pat, low):
+                return {"reply": f"**{title}.** {body}", "blocks": [], "actions": [{"type": "open", "label": "Open " + title.split(":")[0].split(" (")[0], "url": url}], "intent": "module"}
+        return None
+
     def _extension_commands(self, session, text) -> Optional[dict]:
         """Chat commands from private extensions (modules listed in CRI_EXTENSIONS or ~/.climrisk/extensions); none are loaded in a normal or commercial install."""
         from .. import extensions as X
@@ -474,6 +645,8 @@ class Agent:
 
     def _dispatch(self, session, text, pred, ent, comp) -> dict:
         it = pred["intent"]
+        if (it == "unknown" or pred.get("confidence", 1.0) < 0.5) and "lat" not in ent and len(set(m.lower() for m in self._FOREIGN.findall(text))) >= 2:
+            return {"reply": "That does not look like English, which is the only language I read at the moment, so I have not acted on it. Please ask in English, or give coordinates and what you want: a twin, a hazard profile or a report.", "blocks": [], "actions": [{"type": "say", "label": "What can you do?", "text": "what can you do"}]}
         if it == "unknown" and pred.get("offtopic") and pred.get("confidence", 0) >= 0.5 and not comp and "lat" not in ent:
             return {"reply": "That is outside what I do. I work on climate and physical risk, carbon, shipping voyages and building-site screening for assets, companies and portfolios. Ask me what I can do, or give me a site, a company or a voyage.", "blocks": [], "actions": [{"type": "say", "label": "What can you do?", "text": "what can you do"}]}
         if it == "unknown" and self._Q.search(text):                   # a real question the router has no tool for: answer it from what has been learned
@@ -560,6 +733,8 @@ class Agent:
     _TOOLISH = {"twin", "protect", "scenario", "risk_analysis", "research", "assets", "explain", "unknown", "draft_post", "report_physical", "report_transition", "report_financial",
                 "report_lca", "report_iso14067", "report_carbon", "report_cbam"}
     _ACT = re.compile(r"\b(build|run|create|make|write|generate|open|scan|draft|publish|post|protect|model|simulate|assess|analy[sz]e|list|show me|remember|watch|monitor|learn|forget|replay|retrain|find)\b", re.I)
+
+    _OWN = re.compile(r"\b(our|my|we|us)\b", re.I)                    # "will OUR jetty flood by 2050" is about the user's site (a tool), not a general question (11 Nov 2026)
 
     def _is_info_question(self, text: str, ent: dict, comp) -> bool:
         """'What is a storm surge?' is a question to answer from what has been learned, not a request to open a tool."""

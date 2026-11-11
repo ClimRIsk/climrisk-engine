@@ -22,6 +22,7 @@ import numpy as np
 NF = 1 << 14
 CONF_FLOOR = 0.30      # lowered from 0.35 on 29 Oct 2026: on 306 independent utterances 0.30 gave the same number of wrong picks as 0.35 and 3 more correct ones; below it the agent asks
 FIT = dict(lr=0.5, epochs=300, l2=1e-5)
+REAL_WEIGHT = 2
 
 _WORD = re.compile(r"[a-z0-9\.\-']+")
 
@@ -119,7 +120,7 @@ class Model:
         P = self.proba(text)
         if hybrid:
             P = P * np.array([1.0 + CUES_W * _cue(text).get(c, 0.0) for c in self.classes]); P = P / P.sum()
-        if "offtopic" in self.classes and DOMAIN_WORDS.search(text):
+        if "offtopic" in self.classes and _domain_veto(text, float(P[self.classes.index("offtopic")])):
             # Climate, hazard, emissions, asset or shipping vocabulary is present: never refuse as "outside what I do" (a wrong refusal of real work is worse than a question).
             # The off-topic class is removed and the rest renormalised, so the best remaining intent still has to clear the confidence floor.
             P = P.copy(); P[self.classes.index("offtopic")] = 0.0; P = P / P.sum()
@@ -210,9 +211,56 @@ _SECT = {"cement": "cement", "steel": "iron-and-steel", "power": "electricity-ge
          "agriculture": "agriculture", "food": "agriculture"}
 
 
-def entities(text: str) -> dict:
-    out: dict = {}
-    t = text
+_DMS1 = r"(\d{1,3})\s*°\s*(?:(\d{1,2}(?:\.\d+)?)\s*['′’]\s*)?(?:(\d{1,2}(?:\.\d+)?)\s*(?:\"|″|'')\s*)?"
+_DMS = re.compile(_DMS1 + r"([NSns])[\s,;/]*" + _DMS1 + r"([EWew])")
+_LAB_LAT = r"lat(?:itude)?\s*[:=]?\s*(-?\d{1,3}(?:\.\d+)?)\s*°?\s*([NSns])?"
+_LAB_LON = r"(?:lon|lng|long)(?:gitude)?\s*[:=]?\s*(-?\d{1,3}(?:\.\d+)?)\s*°?\s*([EWew])?"
+_LATLON = re.compile(r"\b" + _LAB_LAT + r"\s*[,;/ ]*\s*(?:and\s+)?" + _LAB_LON, re.I)
+_LONLAT = re.compile(r"\b" + _LAB_LON + r"\s*[,;/ ]*\s*(?:and\s+)?" + _LAB_LAT, re.I)
+_INT_PAIR = re.compile(r"\b(?:at|coordinates?|coords?|location|position|point|twin of|site at|risk at)\s+(-?\d{1,3})\s*[,;/ ]\s*(-?\d{1,3})\b(?!\s*(?:[.,]?\d|m2|m²|sq|ft|feet|k\b|%|percent|m\b|km|years?|yrs?|storey|stories|floors?|knots?|kn\b|kts?|dwt|teu|tonnes?|t\b|usd|eur|\$|€|days?|mw|gw))", re.I)
+
+
+def _fmt(lat: float, lon: float) -> str:
+    """A coordinate pair written so that it cannot be misread (hemisphere letters)."""
+    return f"{abs(lat):g}{'N' if lat >= 0 else 'S'}, {abs(lon):g}{'E' if lon >= 0 else 'W'}"
+
+
+def _coords(t: str, out: dict) -> None:
+    """Find a coordinate pair. Sets lat/lon, or `coord_issue` (a pair was written but cannot be used; the agent must ask, never fall back to another site),
+    or `coord_check` (usable, but it may be longitude-first; the agent confirms). `coord_span` is where the pair sits in the text."""
+    def dms(d, mi, se):
+        return float(d) + float(mi or 0) / 60.0 + float(se or 0) / 3600.0
+
+    def bad(lat, lon, span):
+        out["coord_span"] = span
+        if -90 <= lon <= 90 and -180 <= lat <= 180:
+            out["coord_issue"] = (f"{lat:g} is not a valid latitude (it must be between -90 and 90). If you wrote longitude first, the site is {_fmt(lon, lat)}.")
+            out["coord_swapped"] = _fmt(lon, lat)
+        else:
+            out["coord_issue"] = f"{lat:g}, {lon:g} is not a valid coordinate pair: latitude must be between -90 and 90 and longitude between -180 and 180."
+
+    m = _DMS.search(t)
+    if m:
+        lat, lon = dms(*m.group(1, 2, 3)), dms(*m.group(5, 6, 7))
+        if m.group(4).lower() == "s": lat = -lat
+        if m.group(8).lower() == "w": lon = -lon
+        if -90 <= lat <= 90 and -180 <= lon <= 180:
+            out["lat"], out["lon"], out["coord_span"] = round(lat, 5), round(lon, 5), m.span()
+        else:
+            bad(lat, lon, m.span())
+        return
+    for rx, order in ((_LATLON, (1, 2, 3, 4)), (_LONLAT, (3, 4, 1, 2))):
+        m = rx.search(t)
+        if m:
+            a, ns, b, ew = (m.group(i) for i in order)
+            lat, lon = float(a), float(b)
+            if ns and ns.lower() == "s": lat = -abs(lat)
+            if ew and ew.lower() == "w": lon = -abs(lon)
+            if -90 <= lat <= 90 and -180 <= lon <= 180:
+                out["lat"], out["lon"], out["coord_span"] = lat, lon, m.span()
+            else:
+                bad(lat, lon, m.span())
+            return
     for m in _COORD.finditer(t):
         a, ns, b, ew = m.groups()
         lat, lon = float(a), float(b)
@@ -220,9 +268,29 @@ def entities(text: str) -> dict:
         if ew and ew.lower() == "w": lon = -abs(lon)
         if not ("." in a or "." in b or ns or ew):
             continue                      # two whole numbers with no hemisphere letter are far more often "5,000 m2" or "20,000 sq ft" than a coordinate
-        if -90 <= lat <= 90 and -180 <= lon <= 180 and ("." in a or "." in b or ns or ew or "," in m.group(0)):
-            out["lat"], out["lon"] = lat, lon
-            break
+        if re.match(r"\s*(?:m2|m²|sq|ft|feet|%|percent|km|knots?|kn\b|kts?|dwt|teu|usd|eur|years?|storey|stories|floors?|m/s|mw|gw)", t[m.end():], re.I):
+            continue                      # "12.5, 3.2 m" style quantities
+        if -90 <= lat <= 90 and -180 <= lon <= 180:
+            out["lat"], out["lon"], out["coord_span"] = lat, lon, m.span()
+            if not (ns or ew) and abs(lat) > 66.0 and abs(lon) <= 90.0:
+                out["coord_check"] = "swap"                              # polar latitude with a longitude that would also be a valid latitude: very often lon,lat
+                out["coord_swapped"] = _fmt(lon, lat)
+        elif ("." in a and "." in b) or ns or ew:
+            bad(lat, lon, m.span())
+        else:
+            continue
+        return
+    m = _INT_PAIR.search(t)
+    if m:
+        out["coord_span"] = m.span(1)[0], m.span(2)[1]
+        out["coord_issue"] = (f"I cannot tell whether \"{m.group(1)}, {m.group(2)}\" is a coordinate. Write it with decimals or hemisphere letters, "
+                              f"for example {abs(int(m.group(1)))}.0{'S' if int(m.group(1)) < 0 else 'N'}, {abs(int(m.group(2)))}.0{'W' if int(m.group(2)) < 0 else 'E'}.")
+
+
+def entities(text: str) -> dict:
+    out: dict = {}
+    t = text
+    _coords(t, out)
     m = re.search(r"\b1[\s\-]*in[\s\-]*(\d{2,4})\b|\b(\d{2,4})[\s\-]*(?:year|yr)\b", t.lower())
     if m:
         out["rp"] = int(m.group(1) or m.group(2))
@@ -251,7 +319,7 @@ def find_company(text: str) -> Optional[dict]:
         return None
     words = re.findall(r"[A-Za-z][A-Za-z&\.\-']+", text)
     cands = []
-    for n in (3, 2, 1):
+    for n in (5, 4, 3, 2, 1):
         for i in range(len(words) - n + 1):
             q = " ".join(words[i:i + n])
             if len(q) >= 3 and q.lower() not in _STOP:
@@ -267,6 +335,12 @@ def find_company(text: str) -> Optional[dict]:
             continue
         if not r:
             continue
+        multi = len(q.split()) >= 2
+        if not multi and q.lower() in _GENERIC:
+            continue                                               # "steel", "power", "cement" alone name a sector, not a company ("tata steel" had matched US STEEL CORP)
+        exact = next((x for x in r if x.get("match") == "exact"), None)
+        if multi and exact:                                        # a full name typed in any case beats the group of its first word
+            return {"query": q, "key": exact["key"], "name": exact.get("name") or exact["key"], "match": "exact"}
         top = r[0]
         if top.get("match") == "exact" or (top.get("match") == "group" and q[0].isupper()):
             pass
@@ -283,10 +357,28 @@ can you i we please about with from into over under report post twin scenario sc
 assets asset carbon audit tell about summarise summarize turn find check scan lca cbam company portfolio linkedin explain remember recall help hello thanks thank research scan model protect""".split())
 
 
+_GENERIC = set(_SECT) | set("steel cement power oil gas energy mining chemical chemicals paper pulp food port ports logistics shipping cargo marine coal solar wind water green global national first general united american india china europe asia".split())
+
 # Vocabulary of the agent's own domain (plus a few meta phrases about the agent itself). Used only as a veto on the off-topic verdict, never to choose an intent.
 DOMAIN_WORDS = re.compile(r"\b(flood\w*|cyclone\w*|hurricane\w*|typhoon\w*|storm\w*|surge|sea[- ]level|climate\w*|carbon|emission\w*|ghg|greenhouse|scopes? ?[123]|cbam|lca|life[- ]cycle|14067|"
                           r"hazard\w*|wildfire\w*|drought\w*|heat ?wave\w*|el nino|la nina|disaster\w*|transformer\w*|substation\w*|refiner\w*|factor(?:y|ies)|warehouse\w*|"
                           r"assets?|twin|3-?d|ngfs|physical risk|transition risk|stranded|voyage|vessel|bunker\w*|cement|steel|exposure|resilien\w*|mitigat\w*|get(?:ting)? started|can i ask|what can you do|what you can do|how (?:do|does) (?:this|it) work|net ?zero|mild|severe|optimistic|pessimistic|tcfd|issb|csrd)\b", re.I)
+
+# Words that are domain vocabulary but also everyday English ("steel guitar", "storm in a teacup", "factory reset", "asset allocation").
+# One of these alone no longer overrides a confident off-topic verdict (10 Nov 2026); two different ones, or any unambiguous domain word, still do.
+WEAK_DOMAIN = re.compile(r"\b(storm\w*|hurricane\w*|steel|cement|factor(?:y|ies)|warehouse\w*|assets?|twin|carbon|climate\w*|exposure|mild|severe|heat ?wave\w*|disaster\w*|vessel|surge|mitigat\w*|resilien\w*)\b", re.I)
+WEAK_CONFIDENT_OFFTOPIC = 0.60
+
+
+def _domain_veto(text: str, p_off: float) -> bool:
+    hits = {m.group(0).lower() for m in DOMAIN_WORDS.finditer(text)}
+    if not hits:
+        return False
+    weak = {m.group(0).lower() for m in WEAK_DOMAIN.finditer(text)}
+    if hits - weak or len(weak) >= 2:
+        return True                                                   # an unambiguous domain word, or two ambiguous ones together
+    return p_off < WEAK_CONFIDENT_OFFTOPIC                            # a single ambiguous word: only veto when the model is not confident it is off-topic
+
 
 # ── persistence + singleton ─────────────────────────────────────────────────
 MODEL_PATH = Path(__file__).resolve().parent.parent / "data" / "resident_nlu.json"
@@ -297,20 +389,20 @@ def train(extra: Optional[list] = None, save: bool = True) -> dict:
     """Train on the corpus (+ logged feedback rows `extra`), report held-out and grouped-CV accuracy, save the model."""
     from .corpus import utterances, split_by_template, real_rows
     rows = utterances()
-    real = real_rows()                                                # real people's out-of-scope questions (CLINC150, CC BY 3.0)
+    real = real_rows() * REAL_WEIGHT                                  # real people's out-of-scope questions (CLINC150, CC BY 3.0); repeated so they keep their share after the corpus grew on 10 Nov 2026
     tr, te = split_by_template(rows)
     ev = evaluate(tr + real, te)
     cv = grouped_cv(rows)
     allrows = [(u, i) for u, i, _ in rows] + real + list(extra or [])
     m = Model().fit(allrows)
-    m.meta.update({"heldout_model_only": ev["accuracy"], "grouped_cv_mean": cv["mean"], "n_feedback": len(extra or []), "n_real_oos": len(real)})
+    m.meta.update({"heldout_model_only": ev["accuracy"], "grouped_cv_mean": cv["mean"], "n_feedback": len(extra or []), "n_real_oos": len(real) // REAL_WEIGHT})
     if save:
         MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
         MODEL_PATH.write_text(json.dumps(m.to_json()))
     global _M
     _M = m
     hy = sum(m.predict(u)["intent"] == i for u, i in te) / max(len(te), 1)
-    return {"n_train": len(allrows), "heldout_templates": ev["accuracy"], "grouped_cv": cv, "n_feedback": len(extra or []), "n_real_oos": len(real),
+    return {"n_train": len(allrows), "heldout_templates": ev["accuracy"], "grouped_cv": cv, "n_feedback": len(extra or []), "n_real_oos": len(real) // REAL_WEIGHT,
             "note": "held-out = phrasings never seen in training; the in-sample figure after adding feedback is not a held-out score",
             "errors_sample": ev["errors"][:6], "hybrid_in_sample": round(hy, 3)}
 

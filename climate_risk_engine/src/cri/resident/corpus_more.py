@@ -92,6 +92,65 @@ T_NEW3 = {
     "publish_post": ["fine, push it live", "put it on our company page", "go ahead and send the post", "release that draft"],
 }
 
+# Added 10 Nov 2026 after the stress audit (docs/AGENT_STRESS_AUDIT_2026-11-10.md). Patterns, not the probe sentences: tools/stress_agent.py stays a measurement.
+T_NEW4 = {
+    "scenario": ["what would a {rp} {hazard} cost us at {place}", "how much damage from a {rp} flood at our {city} site", "cost of a {rp} event at {place}", "what does a {rp} {hazard} do to the {city} plant in money terms",
+                 "will the {city} site be under water by {year}", "is our {sector} site going to flood by {year}", "how much worse does {hazard} get at {place} by {year}", "loss from a {rp} storm at {place} now versus {year}"],
+    "report_carbon": ["scope 2 for my {city} factory", "what are our scope 1 and 2 numbers", "the auditor wants our ghg figures", "work out scope 2 for the {sector} plant", "emissions inventory for the {city} site please",
+                      "need scope 1 2 3 for {company} quick", "ghg numbers for the assurance people", "tcfd metrics: our scope 1, 2 and 3", "csrd emissions figures for {company}"],
+    "report_iso14067": ["pcf for our {sector} product", "what is the product carbon footprint of a tonne of {sector}", "need a pcf number for a customer", "customer is asking for the carbon footprint per unit",
+                        "footprint per kg for our product, 14067 style", "cradle to gate pcf for one unit"],
+    "report_lca": ["life cycle study of our product", "lca for one tonne of {sector}", "cradle to grave assessment please", "full life cycle impact of the product", "do an lca on our {sector} line", "environmental life cycle write up"],
+    "report_cbam": ["what do we owe under cbam for {sector} exports", "cbam cost for shipping {sector} into the EU", "border carbon charge on our exports to europe", "cbam certificates needed for {company}",
+                    "how much cbam will {company} pay", "eu border tax on our {sector}"],
+    "report_transition": ["how exposed are we to carbon pricing", "the board wants to know our carbon price exposure", "what does a rising carbon price do to {company}", "policy risk write up for {company}",
+                          "how hard would a carbon tax hit {company}", "which of our assets could be stranded", "tcfd transition risk section for {company}"],
+    "report_physical": ["need a physical risk report fast", "physical risk write up for {place} asap", "tcfd physical risk section for {place}", "hazard exposure document for the {city} site",
+                        "which hazards threaten {place}, as a report", "physical climate risk summary for {place}"],
+    "report_financial": ["what does climate risk do to {company} earnings", "put a dollar figure on climate risk for {company}", "climate value at risk for {company}", "ebitda hit from climate for {company}"],
+    "risk_analysis": ["which of {company}'s sites should worry about {hazard}", "how risky is {company} overall", "full climate risk run for {company}", "where is {company} most exposed", "assess {company} end to end"],
+    "protect": ["what should we do about {hazard} at the {city} site", "how do we stop the {sector} plant flooding", "ways to cut {hazard} losses at {place}"],
+    "explain": ["what is a 3d twin", "what does a twin mean here", "tell me what a digital twin is", "what is storm surge", "how do you get your numbers", "what is cbam in plain words"],
+    "offtopic": ["best steel guitar strings", "steel drum band near me", "carbon copy an email", "carbon fibre tennis racket review", "asset management career advice", "how to split assets in a divorce",
+                 "storm chasers tv show schedule", "who plays storm in x-men", "hurricane cocktail recipe", "miami hurricanes football score", "factory outlet opening hours", "factory reset my laptop",
+                 "twin brother birthday gift ideas", "twin size mattress dimensions", "cement mixer rental price", "climate of fear book summary", "severe headache what to take", "mild salsa recipe",
+                 "warehouse club membership cost", "exposure settings for night photos", "heat wave band songs", "disaster movie recommendations", "vessel sink for my bathroom"],
+}
+
+_WRAP_PRE = ["please can you ", "hey, ", "quick one: ", "hi, could you ", "ok so ", "morning, ", "sorry, ", "one more thing, "]
+_WRAP_POST = [" thanks", " please", " asap", " when you can", " thx", " cheers"]
+
+
+def wrapped(u: str, rng: random.Random) -> str:
+    """The same request the way people open and close a chat message ('hey, ... thanks'). Added after wrappers cost up to 13 points on the batteries."""
+    s = u[0].lower() + u[1:] if u else u
+    r = rng.random()
+    if r < 0.45:
+        return rng.choice(_WRAP_PRE) + s
+    if r < 0.8:
+        return s.rstrip("?.! ") + rng.choice(_WRAP_POST)
+    return rng.choice(_WRAP_PRE) + s.rstrip("?.! ") + rng.choice(_WRAP_POST)
+
+
+def noisy2(u: str, rng: random.Random) -> str:
+    """Two typing slips (drop, swap or wrong letter), lower case: measured accuracy fell from 96% to 78% with two slips."""
+    s = list(u.lower().rstrip("?.! "))
+    for _ in range(2):
+        if len(s) < 8:
+            break
+        i = rng.randrange(1, len(s) - 2)
+        if not s[i].isalpha():
+            continue
+        op = rng.random()
+        if op < 0.4:
+            del s[i]
+        elif op < 0.75:
+            s[i], s[i + 1] = s[i + 1], s[i]
+        else:
+            s[i] = rng.choice("abcdefghijklmnopqrstuvwxyz")
+    return "".join(s).strip()
+
+
 _OFFT = ["Peru", "Canada", "Kenya", "Norway", "Japan", "Chile", "Egypt", "Vietnam"]
 
 
