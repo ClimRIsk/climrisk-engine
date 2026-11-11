@@ -31,7 +31,7 @@ ENGINE = {
     "tornado": {"status": "none", "keys": [], "note": "no tornado hazard", "validated": None},
     "lightning": {"status": "none", "keys": [], "note": "no lightning flash-density hazard", "validated": None},
     "river_flood": {"status": "loss_model", "keys": ["river_flood", "river", "flood_terrain_radar"], "note": "flood maps plus depth-damage; null where no map exists", "validated": "NFIP claims and flood events (US)"},
-    "pluvial_flash_flood": {"status": "hazard_only", "keys": ["rain", "flood", "flood_terrain_radar"], "note": "rainfall return levels and terrain screen; no flash-flood loss path", "validated": "ERA5 hindcast only"},
+    "pluvial_flash_flood": {"status": "hazard_only", "keys": ["surface_water", "rain", "flood", "flood_terrain_radar"], "note": "gauge-anchored 24 h design rain run over the catchment (depth range, drains working to overwhelmed), rainfall return levels and terrain screen; no flash-flood loss path", "validated": "case checks only (Chennai Dec 2015); the earlier 600 m configuration scored AUC 0.64-0.71 on English outlines"},
     "coastal_flood_surge": {"status": "loss_model", "keys": ["coastal_flood", "surge"], "note": "surge and extreme sea level with depth-damage where coastal maps exist", "validated": "US tide gauges only"},
     "tsunami": {"status": "none", "keys": [], "note": "no tsunami hazard", "validated": None},
     "sea_level_rise": {"status": "hazard_only", "keys": ["sealevel"], "note": "IPCC AR6 scenarios and Bruun retreat", "validated": "US tide gauges only"},

@@ -405,6 +405,33 @@ def flood_scenarios(flood: dict) -> list:
     return out
 
 
+_RAIN: dict = {}
+
+
+def rain_scenario(lat: float, lon: float, ground: "Ground", rp: int = 100) -> Optional[dict]:
+    """Rain-driven flood scenario from the catchment-scale surface-water run, downscaled to the twin's ground (see hydraulics.rain_field). None when it cannot be run."""
+    from . import hydraulics as H
+    fld = H.rain_field(lat, lon, ground, rp=rp)
+    if fld is None:
+        return None
+    _RAIN.clear()
+    _RAIN[(round(lat, 4), round(lon, 4), rp)] = fld
+    g = ground
+    x, y = np.meshgrid((np.arange(g.cols) - g.ac) * g.dx, (g.ar - np.arange(g.rows)) * g.dy)
+    d = fld["depth"][np.hypot(x, y) <= 250.0]
+    if d.size == 0:
+        return None
+    sw = fld["sw"]
+    rn = sw.get("rain") or {}
+    return {"id": f"rain_{rp}", "kind": "rain", "label": f"Heavy rain, 1-in-{rp} (24 h storm, drains overwhelmed)", "rp": rp, "year": None, "storm_hours": sw.get("storm_hours"),
+            "depth_m": round(float(d.mean()), 2), "depth_p90_m": round(float(np.percentile(d, 90)), 2), "wet_share": round(float((d > 0.02).mean()), 3),
+            "source": "ClimRisk catchment-scale rain-on-grid run (local-inertial shallow-water), design rain from " + str(rn.get("source_used") or "gridded rain"),
+            "q": [round(float(v), 2) for v in np.percentile(d, np.linspace(0, 100, 21))],
+            "rain": {"d1_mm": rn.get("d1_mm"), "gauge_d1_mm": rn.get("gauge_d1_mm"), "gauge_km": rn.get("gauge_km"), "grid_best_d1_mm": rn.get("grid_best_d1_mm"),
+                     "largest_in_record": rn.get("largest_in_record")},
+            "pin_depth_coarse_m": sw.get("depth_m"), "cell_coarse_m": sw.get("cell_m"), "radius_km": sw.get("radius_km")}
+
+
 def _bearing(lat1, lon1, lat2, lon2) -> float:
     p1, p2, dl = math.radians(lat1), math.radians(lat2), math.radians(lon2 - lon1)
     y = math.sin(dl) * math.cos(p2)
@@ -697,6 +724,15 @@ def build_twin(lat: float, lon: float, name: str = "Asset", sector: Optional[str
         except Exception as exc:                                # noqa: BLE001
             _flood, _ = {}, gaps.append(f"Flood maps unavailable ({type(exc).__name__}).")
     floods = flood_scenarios(_flood)
+    if run_hydraulics and os.environ.get("CRI_PLUVIAL", "1") != "0":
+        try:
+            rs = rain_scenario(lat, lon, ground)
+            if rs:
+                floods.append(rs)
+            else:
+                gaps.append("Rain-driven flooding could not be modelled (design rainfall or terrain unavailable); the river and coastal maps do not include it.")
+        except Exception as exc:                                # noqa: BLE001
+            gaps.append(f"Rain-driven flooding could not be modelled ({type(exc).__name__}); the river and coastal maps do not include it.")
     if not floods:
         gaps.append("No river or coastal flood depth is mapped for this site (outside map coverage, or the site is on water).")
     try:
@@ -765,8 +801,10 @@ def build_twin(lat: float, lon: float, name: str = "Asset", sector: Optional[str
             "flood": "JRC CEMS-GloFAS river-flood maps (1 in 10–500 yr) and Deltares coastal maps (2018 and 2050); undefended, 90 m. "
                      "Water is routed over the 9 m terrain by a 2D local-inertial shallow-water solver (Bates et al. 2010) with buildings as "
                      "solid obstructions and Manning friction; the map's water-surface level is imposed at the model edge, at sea and in deep wet "
-                     "cells, rising over 2 h and held to 4 h. Arrival time, velocity and depth×velocity are computed. No rainfall, drains, pumps "
-                     "or waves; event duration is an assumption; the map level is the ceiling.",
+                     "cells, rising over 2 h and held to 4 h. Arrival time, velocity and depth×velocity are computed. For river and coastal scenarios: no rainfall, drains, "
+                     "pumps or waves; event duration is an assumption; the map level is the ceiling. RAIN scenario: a 24 h design storm (largest of ERA5, NASA POWER and the "
+                     "nearest NOAA rain gauge) is run over about 12 km around the site on ~67 m cells with the same solver, drains assumed overwhelmed, and the resulting water "
+                     "surface is compared with the site's own ground; it has no velocity or arrival time and is not validated against a recorded outline here.",
             "wind": "Tropical cyclones: IBTrACS best tracks + Holland (1980) wind profile, 1-min sustained 10 m open-terrain wind. "
                     "All-cause wind: ERA5 daily maximum gust since 1950, Gumbel return levels (0.25° grid: smooths local peaks and "
                     "under-represents cyclones, so it is a floor). Gust factor "
@@ -775,7 +813,8 @@ def build_twin(lat: float, lon: float, name: str = "Asset", sector: Optional[str
                       "is the ratio of 3-s gust at roof height to the design wind. Both are threshold bands, not damage functions. "
                       "Equipment levels and design winds not supplied by the user are assumptions by kind.",
             "limits": "Wind: tropical-cyclone model plus ERA5 all-cause gusts; tornadoes and thunderstorm downbursts are not modelled. "
-                      "No rainfall-runoff, drains, pumps or wave action. Debris impact and structural detail are not modelled.",
+                      "Rain: a screening run at catchment scale, with sewers, culverts and pumps not resolved. River and coastal scenarios: no rainfall-runoff, drains, pumps or wave action. "
+                      "Debris impact and structural detail are not modelled.",
         },
         "elapsed_s": round(time.time() - t0, 1),
     }
@@ -790,7 +829,8 @@ def _key_flood(twin, solver: bool = False) -> list:
     rivers = [s for s in fs if s["kind"] == "river"]
     coast_now = [s for s in fs if s["kind"] == "coastal" and (s["year"] or 0) <= 2020]
     coast_f = [s for s in fs if s["kind"] == "coastal" and (s["year"] or 0) > 2020]
-    for grp, rps in ((rivers, (10, 100)), (coast_now, (100,)), (coast_f, (100,))):
+    rain = [s for s in fs if s["kind"] == "rain"]
+    for grp, rps in ((rivers, (10, 100)), (rain, (100,)), (coast_now, (100,)), (coast_f, (100,))):
         for rp in rps:
             m = [s for s in grp if s["rp"] == rp]
             if m:
@@ -822,6 +862,9 @@ def simulate_flood(twin: dict, scenario_id: str, add_m: float = 0.0, barrier_m: 
     comps = [c for c in twin["components"] if not c.get("removed")]
     on = [c for c in comps if c.get("on_site", True) and (c["kind"] != "building" or not any(x["kind"] != "building" for x in comps if x.get("on_site", True)))]
     ring = max([math.hypot(c["x"], c["y"]) for c in on] or [40.0]) + 25.0
+    if sc["kind"] == "rain":
+        return H.simulate_rain(lat, lon, g, comps, sc, add_m=add_m, barrier_m=barrier_m, barrier_radius_m=ring,
+                               _field=_RAIN.get((round(lat, 4), round(lon, 4), sc["rp"])))
     dem = _dem if _dem is not None else _dem_coarse(lat, lon, half)
     return H.simulate(lat, lon, g, comps, sc, dem, add_m=add_m, barrier_m=barrier_m, barrier_radius_m=ring, n_frames=n_frames)
 
@@ -873,8 +916,9 @@ def _propose_flood(twin, sc, base, comps_by) -> list:
         if hit and need > 0:
             out.append({"type": "raise_equipment", "delta_m": round(math.ceil(need * 10) / 10, 1), "components": hit,
                         "why": "Lift the flood-critical equipment above the water level plus freeboard."})
-        out.append({"type": "flood_barrier", "height_m": round(math.ceil((depth_site + FREEBOARD_M) * 10) / 10, 1), "components": "all",
-                    "why": "Perimeter flood wall or demountable barrier to the water level plus freeboard (needs sump pumping for rain)."})
+        if sc.get("kind") != "rain":
+          out.append({"type": "flood_barrier", "height_m": round(math.ceil((depth_site + FREEBOARD_M) * 10) / 10, 1), "components": "all",
+                      "why": "Perimeter flood wall or demountable barrier to the water level plus freeboard (needs sump pumping for rain)."})
     return out
 
 
@@ -917,7 +961,13 @@ def analyse(twin: dict, extra_scenarios: Optional[list] = None) -> dict:
         base = evaluate(onsite, gref, hz, None, twin.get("linear"))
         t = base["tally"]["flood"]
         bad = [cid for cid, st in base["components"].items() if st["flood"]["state"] in ("wet_floor", "equipment_inundated", "submerged")]
-        if solver_on:
+        if solver_on and sc["kind"] == "rain":
+            v = sim.get("validation") or {}
+            rn = sc.get("rain") or {}
+            steps.append({"step": "Quantify flood", "tool": "catchment-scale rain-on-grid run, downscaled to the site ground",
+                          "result": f"{sc['label']}: design rain {rn.get('d1_mm')} mm in a day; {len(bad)} of {len(onsite)} components reached by water, "
+                                    f"{t['equipment_inundated'] + t['submerged']} with equipment inundated; deepest {v.get('max_depth_m', 0)} m on open ground. {v.get('consistency', '')}"})
+        elif solver_on:
             v = sim.get("validation") or {}
             steps.append({"step": "Quantify flood", "tool": "2D shallow-water solver (9 m, buildings as obstructions)",
                           "result": f"{sc['label']}: {len(bad)} of {len(onsite)} components reached by water, "
@@ -946,7 +996,7 @@ def analyse(twin: dict, extra_scenarios: Optional[list] = None) -> dict:
         props = _propose_flood(twin, sc, base, by)
         verified = []
         for m in props:
-            if m["type"] == "flood_barrier" and solver_on:
+            if m["type"] == "flood_barrier" and solver_on and sc["kind"] != "rain":
                 h, resid = m["height_m"], None
                 for _ in range(2):                                  # the solver decides whether the wall holds
                     sb = simulate_flood(twin, sc["id"], barrier_m=h)
@@ -1019,12 +1069,21 @@ def analyse(twin: dict, extra_scenarios: Optional[list] = None) -> dict:
                       "result": "; ".join(f"retrofit to {m['design_wind_ms']} m/s → {m['residual_beyond_design']} still beyond design" for m in verified)})
 
     steps.append({"step": "Residual risk", "tool": "limits",
-                  "result": "Events rarer than the scenarios shown, wave loading, debris impact, rainfall drainage and structural detail are not covered; "
+                  "result": "Events rarer than the scenarios shown, wave loading, debris impact, sewer and culvert capacity and structural detail are not covered; "
                             "protection measures here are sized to the modelled water level or gust and stated freeboard."})
     return {"findings": findings, "transcript": steps, "assumptions": _assumptions(twin), "notes": twin.get("agent_notes", [])}
 
 
 def _flood_cause(sc, sim, solver_on, bad, by, twin) -> str:
+    if sc["kind"] == "rain":
+        rn = sc.get("rain") or {}
+        gz = [by[c]["ground_m"] for c in bad]
+        src = (f"a rain gauge {rn['gauge_km']:.0f} km away ({rn['gauge_d1_mm']:.0f} mm in a day at 1-in-{sc['rp']})" if rn.get("gauge_d1_mm") and rn.get("d1_mm") == rn.get("gauge_d1_mm")
+               else "gridded rainfall")
+        return (f"Rain, not a river or the sea: a 1-in-{sc['rp']} design storm of {rn.get('d1_mm')} mm in a day (from {src}) is run over about {sc.get('radius_km', 6):.0f} km "
+                f"around the site with drains assumed overwhelmed, and the resulting water surface is compared with this site's own ground. The affected structures stand at "
+                f"{min(gz):.1f}–{max(gz):.1f} m above datum, in the part of the site lower than that water surface, with floors 0.15 m above ground unless edited. "
+                "A perimeter wall does not keep this water out; it can trap it, so the measures are raised equipment, drainage and pumping.")
     if solver_on:
         b = sim.get("boundary") or {}
         lv = b.get("level_m_p10_p50_p90")

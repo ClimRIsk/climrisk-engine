@@ -664,30 +664,36 @@ def build_asset_report(lat: float, lon: float, name: Optional[str] = None, secto
                       "zone": ff.get("summary") or _zone_from_finding(ff, "surface-water flooding"),
                       "facts": _ev_facts(ff), "trend": None, "_finding": ff})
 
-    # rain-on-grid model: a second opinion that can only RAISE the surface-water rating (its rank skill is modest, see docs/PLUVIAL_BENCHMARK.md)
+    # rain-on-grid model: a second opinion that can only RAISE the surface-water rating. Catchment scale (about 12 km), 24 h storm sized from the largest of ERA5, NASA POWER and
+    # the nearest rain gauge, drains-working and drains-overwhelmed bounds (finance/pluvial.site_surface_water). The earlier 600 m window gave 0.07 m at Velachery, Chennai.
     if os.environ.get("CRI_PLUVIAL", "1") != "0":
         try:
             from .finance import pluvial as _pl
-            pv = _bounded(lambda: _pl.site_pluvial(lat, lon, rp=100, radius_km=0.6, cell_cap=160))
+            pv = _bounded(lambda: _pl.site_surface_water(lat, lon, rp=100), 100.0)
         except Exception:                                   # noqa: BLE001
             pv = {"available": False}
         if pv.get("available"):
-            fact = _f("Modelled 1-in-100 rain-on-ground depth at the pin", f"{pv['depth_m']:.2f} m",
-                      f"Local-inertial shallow-water model on {pv['terrain_source'][:48]}, {pv['cell_m']:.0f} m cells; design rain {pv['storm_mm']:.0f} mm in {pv['storm_hours']:.0f} h "
-                      f"(ERA5 daily 1-in-100 {pv['daily_rp_mm']:.0f} mm x {pv['storm_share_of_daily']:.2f}); sewer allowance {pv['drainage_allowance_mm_h']:.0f} mm/h on built-up ground")
+            rn = pv.get("rain") or {}
+            lo, hi = pv.get("depth_working_m"), pv["depth_m"]
+            rng = f"{lo:.2f} to {hi:.2f} m" if lo is not None and abs(hi - lo) >= 0.005 else f"{hi:.2f} m"
+            src = (f"the rain gauge {rn['gauge_km']:.0f} km away" if rn.get("gauge_d1_mm") and rn.get("d1_mm") == rn.get("gauge_d1_mm") else (rn.get("source_used") or "gridded rain"))
+            fact = _f("Modelled 1-in-100 rain-on-ground depth at the pin", rng,
+                      f"Shallow-water model over about {2 * pv.get('radius_km', 6):.0f} km on {pv['cell_m']:.0f} m cells; 24 h design rain {rn.get('d1_mm')} mm from {src}"
+                      + (f" (gridded rain alone: {rn['grid_best_d1_mm']:.0f} mm)" if rn.get("grid_best_d1_mm") else "")
+                      + f"; the range is drains working (12 mm/h removed from built-up ground) to drains overwhelmed; the rating uses the overwhelmed end")
             sw = next((z for z in zones if z["key"] == "surface_water"), None)
-            note = ("Rain-on-ground screen: ERA5 daily rain smooths short convective bursts and sewers, culverts and buildings are not resolved, so a shallow or dry result is not a "
-                    "clean bill; rank skill against recorded English surface-water outlines is modest.")
+            note = ("Rain-on-ground screen: sewers, culverts, pumps and buildings are not resolved and 67 m cells smooth small depressions, so a shallow or dry result is not a clean bill. "
+                    "Checked on Chennai (Dec 2015), not yet scored against recorded outlines with this configuration.")
             if sw is None:
                 zones.append({"key": "surface_water", "title": "Surface-water and observed flooding", "rating": pv["rating"],
-                              "zone": f"Rain-on-ground model: about {pv['depth_m']:.2f} m of water at the pin in a 1-in-100 storm. {note}", "facts": [fact], "trend": None,
+                              "zone": f"Rain-on-ground model: about {rng} of water at the pin in a 1-in-100 storm. {note}", "facts": [fact], "trend": None,
                               "rating_basis": "rain-on-grid model"})
             else:
                 sw["facts"] = list(sw.get("facts") or []) + [fact]
                 if sw.get("rating") is None or _lv(pv["rating"]) > _lv(sw["rating"]):
                     sw["rating"] = pv["rating"]
                     sw["rating_basis"] = "rain-on-grid model"
-                    sw["zone"] = f"Rain-on-ground model: about {pv['depth_m']:.2f} m of water at the pin in a 1-in-100 storm. {note} " + (sw.get("zone") or "")
+                    sw["zone"] = f"Rain-on-ground model: about {rng} of water at the pin in a 1-in-100 storm. {note} " + (sw.get("zone") or "")
 
     # cyclone
     tcf = findings.get("tropical_cyclone")

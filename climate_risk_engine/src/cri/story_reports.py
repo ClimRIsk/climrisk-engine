@@ -325,7 +325,7 @@ def physical(p: dict, tpl: dict, brand: dict) -> dict:
         st.p(f'Cyclone wind is the risk everyone plans for. The site-specific loss figures could not be priced here (the risk analyst was unavailable or has no value basis), so only the wind scenarios below are used. 1-in-100 sustained wind: ' +
              (", ".join(f'{w["v10_ms"]:.0f} m/s ({w.get("category", "")})' for w in scen["wind"] if w.get("rp") == 100 and w["kind"] == "design") or "see scenario table") + ".")
     if scen["flood"]:
-        rv = next((s for s in scen["flood"] if s["kind"] == "river"), None); cs = next((s for s in scen["flood"] if s["kind"] != "river"), None)
+        rv = next((s for s in scen["flood"] if s["kind"] == "river"), None); cs = next((s for s in scen["flood"] if s["kind"] == "coastal"), None)
         df = (ra or {}).get("physical", {}).get("defences") if ra else None
         st.p("The flood maps are the other loud number. " + (f'River and coastal layers are undefended; the engine credits a protection standard of about 1-in-{df["river_rp"]:.0f} (river) and 1-in-{df["coastal_rp"]:.0f} (coast) from FLOPROS [[S:flopros]]. ' if df else "")
              + f'Mean mapped depth over the site reaches {max_map:.2f} m in the deepest scenario [[S:jrc]][[S:del]].')
@@ -333,7 +333,7 @@ def physical(p: dict, tpl: dict, brand: dict) -> dict:
             st.p(f'All {len(scen["flood"])} mapped flood scenarios (river 1-in-10 to 1-in-500, coastal surge today and with sea-level rise) put 0.00 m of water on the site. That is the loud number, and it is zero.')
         else:
             st.table(["Flood scenario", "Mean depth", "90th percentile", "Share of site wet", "Source"],
-                     [[s["label"], f'{s["depth_m"]:.2f} m', f'{s["depth_p90_m"]:.2f} m', f'{round(100 * s["wet_share"])}%', "JRC [[S:jrc]]" if s["kind"] == "river" else "Deltares [[S:del]]"] for s in scen["flood"][:8]])
+                     [[s["label"], f'{s["depth_m"]:.2f} m', f'{s["depth_p90_m"]:.2f} m', f'{round(100 * s["wet_share"])}%', "JRC [[S:jrc]]" if s["kind"] == "river" else "ClimRisk rain-on-grid run" if s["kind"] == "rain" else "Deltares [[S:del]]"] for s in scen["flood"][:8]])
     dw = [w for w in scen["wind"] if w["kind"] == "design"]
     if dw:
         st.table(["Wind scenario", "Sustained at 10 m", "Category"], [[w["label"], f'{w["v10_ms"]:.0f} m/s', w.get("category", "")] for w in scen["wind"][:8]], caption="Return-period winds from the cyclone model and the all-cause reanalysis fit [[S:ibt]][[S:era5]].")

@@ -22,3 +22,7 @@ Five further towns had no usable small surface-water outline in the box and were
 ## Use in the product
 
 Screening only. It raises, never lowers, the surface-water rating; every result lists terrain source, design rain, storm share and sewer allowance. It is not a substitute for a drainage study or the national surface-water maps where those exist.
+
+## Update 11 Nov 2026
+
+The 600 m configuration above is still `site_pluvial`. The product now uses `site_surface_water` (about 12 km, 24 h storm, gauge-anchored design rain, drains-working and drains-overwhelmed bounds); see `docs/SURFACE_WATER_CHENNAI.md`. It has been checked on Chennai December 2015 and on controls but **not rescored against the Environment Agency outlines**, so the AUC range above must not be quoted for it.

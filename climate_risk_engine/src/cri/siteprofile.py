@@ -118,6 +118,58 @@ def _rank_sev(r: float) -> str:
     return "MODERATE" if r >= 0.8 else "LOW" if r >= 0.6 else "NEGLIGIBLE"          # constructed evidence is capped at MODERATE
 
 
+_RIVER_CAVEAT = ("River-network inundation only. Rain falling on the site is the separate surface-water entry; floods on small and mid-size rivers are missed by this global map "
+                 "(Ahr valley at Ahrweiler, July 2021: 0 m). A terrain-position second opinion below can raise a low rating. Measured: against 23 independent satellite-observed floods "
+                 "(Global Flood Database, 250 m) the terrain model ranks flooded ground above dry ground with AUC about 0.69; those satellite maps cannot see dense-urban flooding, so the "
+                 "test says nothing about it. Event checks: 1.6 m at the Ayutthaya cluster (2011) and 2.3 m on Buffalo Bayou, Houston (Harvey 2017) are shown.")
+
+
+def _river_modelled(c: Ctx, KEY, LAB, FAM, mean, wet, riv, att) -> dict:
+    sev = _depth_sev(mean)
+    metrics = {"wet_share_rp100": round(wet, 2), "return_periods": riv.get("rps")}
+    method = "JRC river flood hazard maps (undefended, 90 m)."
+    sources = [riv.get("source") or "JRC CEMS-GloFAS v2.1"]
+    if SEV.index(sev) <= 1:                                   # NEGLIGIBLE or LOW: ask the terrain model whether the ground position says otherwise
+        s2, v2 = c.once("terrain_rank", lambda: _terrain_rank(c))
+        if s2 == "ok":
+            ts, hm = v2
+            metrics.update({"terrain_rank": ts["rank"], "terrain_hand_m_1km2": ts["hand_m_1.0"], "terrain_heldout_auc": ts["heldout_auc"]})
+            att.append({"rung": "terrain position second opinion", "ok": True})
+            if ts["rank"] >= 0.8:
+                sev = "MODERATE"
+                metrics["raised_from"] = _depth_sev(mean)
+                method += (f" Raised to MODERATE: the map reads {mean:.2f} m, but the ground sits low and close to drainage (terrain rank {ts['rank']:.2f}, "
+                           f"height above nearest drainage {ts['hand_m_1.0']:.1f} m); the global map is known to miss small rivers.")
+                sources.append("Copernicus EMS observed flood extents (terrain model training)")
+    return _entry(KEY, LAB, "modelled", value=round(mean, 2), unit="m (1-in-100-yr mean depth over the footprint)", severity=sev, metrics=metrics, method=method,
+                  sources=sources, attempts=att, family=FAM, caveat=_RIVER_CAVEAT)
+
+
+def _h_surface_water(c: Ctx) -> dict:
+    KEY, LAB, FAM = "surface_water", "Rain-driven (surface-water) flooding", "flood"
+    from .finance import pluvial as PV
+    r = PV.site_surface_water(c.lat, c.lon, rp=100)
+    att = [{"rung": "catchment-scale rain-on-grid run (24 h design storm, gauge-anchored rain)", "ok": bool(r.get("available")), **({} if r.get("available") else {"why": str(r.get("reason"))[:160]})}]
+    if not r.get("available"):
+        return _null(KEY, LAB, FAM, att, "The rain-driven flood run could not be completed for this place (" + str(r.get("reason", "unknown"))[:120] + ").")
+    rn = r.get("rain") or {}
+    lo, hi = r.get("depth_working_m"), r["depth_m"]
+    rng = f"{lo:.2f}–{hi:.2f} m" if lo is not None and abs(hi - lo) >= 0.005 else f"{hi:.2f} m"
+    src = (f"a rain gauge {rn['gauge_km']:.0f} km away" if rn.get("gauge_d1_mm") and rn.get("d1_mm") == rn.get("gauge_d1_mm") else (rn.get("source_used") or "gridded rain"))
+    return _entry(KEY, LAB, "modelled", value=hi, unit="m (1-in-100 rain, depth at the pin, drains overwhelmed)", severity=r["rating"],
+                  metrics={"depth_drains_working_m": lo, "depth_drains_overwhelmed_m": hi, "range": rng, "design_rain_1day_mm": rn.get("d1_mm"), "design_rain_source": src,
+                           "gridded_best_1day_mm": rn.get("grid_best_d1_mm"), "largest_recorded_1day": rn.get("largest_in_record"), "cell_m": r.get("cell_m"), "radius_km": r.get("radius_km"),
+                           "builtup_share": r.get("builtup_share")},
+                  method=(f"Local-inertial shallow-water solver over about {2 * r.get('radius_km', 6):.0f} km at {r.get('cell_m')} m cells; 24 h storm of {rn.get('d1_mm')} mm from {src} "
+                          f"(gridded rain alone gives {rn.get('grid_best_d1_mm')} mm); runoff by curve number with a built-up share; depth {rng} between drains working (12 mm/h removed from built-up ground) "
+                          "and drains overwhelmed. The rating uses the overwhelmed case."),
+                  sources=["AWS terrain tiles", "NOAA GHCN-Daily rain gauge" if rn.get("gauge_d1_mm") else "ERA5 / NASA POWER rainfall", "ESA WorldCover (built-up share)"], attempts=att, family=FAM,
+                  caveat=("Screening. Sewers, culverts, pumps and buildings are not resolved; the 67 m cells smooth small depressions; the solver was checked for mass conservation and on "
+                          "Chennai (Velachery 0.07 m before this change, about 1 m now, where residents stood in 1 to 2 m in December 2015), not yet scored against recorded surface-water outlines "
+                          "with this configuration (the earlier 600 m configuration scored AUC 0.64–0.71 in three English towns, below a plain height-above-low-ground score). "
+                          "A gauge is a point measurement: it can differ from rain over the site."))
+
+
 def _h_river(c: Ctx) -> dict:
     KEY, LAB, FAM = "river_flood", "River flood", "flood"
     att = []
@@ -129,11 +181,7 @@ def _h_river(c: Ctx) -> dict:
             mean = float(sum(d100) / len(d100)) if d100 else 0.0
             wet = float(sum(1 for x in d100 if x > 0.05) / len(d100)) if d100 else 0.0
             att.append({"rung": "JRC CEMS-GloFAS river flood maps", "ok": True})
-            return _entry(KEY, LAB, "modelled", value=round(mean, 2), unit="m (1-in-100-yr mean depth over the footprint)", severity=_depth_sev(mean),
-                          metrics={"wet_share_rp100": round(wet, 2), "return_periods": riv.get("rps")}, method="JRC river flood hazard maps (undefended, 90 m).",
-                          sources=[riv.get("source") or "JRC CEMS-GloFAS v2.1"], attempts=att, family=FAM,
-                          caveat=("River-network inundation only: rainfall-driven surface-water flooding and floods on small rivers are not in this map. A zero depth means no mapped river flooding, not no flooding. "
-                                  "Event check: it shows 1.6 m at the Ayutthaya cluster flooded in 2011 and 2.3 m on Buffalo Bayou, Houston (Harvey 2017), but 0 m in the Ahr valley at Ahrweiler, where the July 2021 flood killed 134 people."))
+            return _river_modelled(c, KEY, LAB, FAM, mean, wet, riv, att)
         why = "site footprint lies on the mapped water body" if riv.get("footprint_on_water") else (riv.get("reason") or riv.get("note") or "no river flood map here")
         att.append({"rung": "JRC CEMS-GloFAS river flood maps", "ok": False, "why": str(why)[:160]})
     else:
@@ -415,7 +463,7 @@ def _h_lab(c: Ctx, key: str) -> dict:
 # ── registry and runner ─────────────────────────────────────────────────────────────
 
 def registry() -> list:
-    reg = [("cyclone", "fast", _h_cyclone), ("river_flood", "fast", _h_river), ("coastal_flood", "fast", _h_coastal), ("water_stress", "fast", _h_water), ("air_local", "fast", _h_air_local), ("thermal_stress", "site", _h_thermal), ("cold_extreme", "site", _h_cold)]
+    reg = [("cyclone", "fast", _h_cyclone), ("river_flood", "fast", _h_river), ("surface_water", "site", _h_surface_water), ("coastal_flood", "fast", _h_coastal), ("water_stress", "fast", _h_water), ("air_local", "fast", _h_air_local), ("thermal_stress", "site", _h_thermal), ("cold_extreme", "site", _h_cold)]
     reg += [(_SITE_MAP[h][0], "site", (lambda c, h=h: _site_entry(c, h))) for h in _SITE_MAP]
     reg += [(f"lab:{k}", "deep", (lambda c, k=k: _h_lab(c, k))) for k in _LAB]
     return reg

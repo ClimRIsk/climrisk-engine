@@ -50,7 +50,8 @@ def rating_for(depth_m: float) -> str:
 
 def site_pluvial(lat: float, lon: float, rp: int = 100, radius_km: float = 0.6, storm_hours: float = 1.0, cell_cap: int = 240, manning: float = 0.05,
                  dem=None, daily_rain_mm: Optional[float] = None, builtup: Optional[float] = None, keep_grids: bool = False,
-                 rain_fetch: Optional[Callable] = None) -> dict:
+                 rain_fetch: Optional[Callable] = None, drainage_mm_h: Optional[float] = None, open_boundary: bool = True,
+                 storm_share: Optional[float] = None, sim_hours_after: float = 2.0) -> dict:
     """{available, depth_m (max within 15 m of the pin), rating, wet_hours, daily_rp_mm, storm_mm, runoff_mm, cell_m, terrain_source, ...}"""
     from ..modellab import flood, hydrology
     from scipy import ndimage as ndi
@@ -93,17 +94,18 @@ def site_pluvial(lat: float, lon: float, rp: int = 100, radius_km: float = 0.6, 
             rain_src = am["source"]
         else:
             rain_src = "supplied"
-        share = DURATION_SHARE.get(float(storm_hours), 0.5)
+        share = storm_share if storm_share is not None else DURATION_SHARE.get(float(storm_hours), 0.5)
+        drain = DRAINAGE_MM_H if drainage_mm_h is None else float(drainage_mm_h)
         storm_mm = daily_rain_mm * share
         step_s = 300.0
         hy = hydrology.block_hyetograph(storm_mm, storm_hours, step_s)
         # Two surfaces mixed by the built-up share: pervious ground sheds SCS-CN excess; built-up ground is impervious and sheds all rain
         # beyond what the sewers take (DRAINAGE_MM_H). The mix is applied uniformly over the window (no spatial routing of sewer capacity).
         eff_pervious = hydrology.effective_rain_series(hy, cn)
-        eff_built = np.maximum(hy - DRAINAGE_MM_H * (step_s / 3600.0), 0.0)
+        eff_built = np.maximum(hy - drain * (step_s / 3600.0), 0.0)
         eff = (1.0 - b) * eff_pervious + b * eff_built
-        duration = (storm_hours + 2.0) * 3600
-        res = flood.simulate(z, dx, duration, rain_m_s=(np.arange(len(eff)) * step_s, eff / 1000.0 / step_s), manning_n=manning, open_boundary=True,
+        duration = (storm_hours + sim_hours_after) * 3600
+        res = flood.simulate(z, dx, duration, rain_m_s=(np.arange(len(eff)) * step_s, eff / 1000.0 / step_s), manning_n=manning, open_boundary=open_boundary,
                              probe=(ai, aj), record_every_s=600.0)
         k = max(1, int(round(15.0 / dx)))
         win = res.h_max[max(0, ai - k): ai + k + 1, max(0, aj - k): aj + k + 1]
@@ -111,7 +113,7 @@ def site_pluvial(lat: float, lon: float, rp: int = 100, radius_km: float = 0.6, 
         out = {"available": True, "depth_m": round(depth, 3), "rating": rating_for(depth), "wet_hours": round(float(res.t_wet[ai, aj] / 3600.0), 2),
                "return_period": rp, "daily_rp_mm": round(daily_rain_mm, 1), "storm_hours": storm_hours, "storm_share_of_daily": share, "storm_mm": round(storm_mm, 1),
                "runoff_mm": round(float(eff.sum()), 1), "curve_number_pervious": round(cn, 1), "builtup_share": None if builtup is None else round(builtup, 3),
-               "drainage_allowance_mm_h": DRAINAGE_MM_H, "cell_m": round(dx, 1), "terrain_source": getattr(dem, "source", "unknown"), "rain_source": rain_src,
+               "drainage_allowance_mm_h": drain, "open_boundary": open_boundary, "cell_m": round(dx, 1), "terrain_source": getattr(dem, "source", "unknown"), "rain_source": rain_src,
                "mass_error": float(res.mass_error), "max_courant": float(res.max_courant)}
         if keep_grids:
             out["_h_max"], out["_z"], out["_asset"] = res.h_max, z, (ai, aj)
@@ -119,3 +121,74 @@ def site_pluvial(lat: float, lon: float, rp: int = 100, radius_km: float = 0.6, 
     except Exception as e:                                                          # noqa: BLE001
         log.warning("pluvial model failed at (%g, %g): %s", lat, lon, str(e)[:160])
         return {"available": False, "reason": f"surface-water model could not run ({type(e).__name__}: {str(e)[:100]})"}
+
+
+# ── catchment-scale surface-water screen (11 Nov 2026) ────────────────────────────────────────────────────────────────────────────────────────────
+# Why a second entry point: `site_pluvial` above runs on a 600 m window with a 1-3 h burst and a 12 mm/h sewer allowance. That cannot see a flat city whose water
+# arrives from kilometres upslope and stays for a day (Chennai, 1-2 December 2015: 0.07 m modelled at Velachery, where residents stood in 1 to 2 m). This one runs
+# the same solver on a ~12 km window, with a 24 h storm sized from the largest of ERA5, NASA POWER and the nearest rain gauge (`rain_design`), and reports a RANGE:
+# the drains-working case (12 mm/h removed from built-up ground, the national UK mapping allowance) and the drains-overwhelmed case (none removed; design storms
+# are by definition larger than the sewer standard, and in Chennai the outfalls were themselves under water). The rating uses the overwhelmed case.
+SW_RADIUS_KM = 6.0
+SW_CELL_CAP = 200
+SW_STORM_H = 24.0
+
+
+def _sw_key(lat: float, lon: float, rp: int) -> str:
+    return hashlib.md5(f"sw1|{lat:.3f}|{lon:.3f}|{rp}".encode()).hexdigest()
+
+
+def site_surface_water(lat: float, lon: float, rp: int = 100, radius_km: float = SW_RADIUS_KM, cell_cap: int = SW_CELL_CAP, storm_hours: float = SW_STORM_H,
+                       bounds: bool = True, keep_grids: bool = False, rain: Optional[dict] = None, dem=None, use_cache: bool = True) -> dict:
+    """{available, depth_m (drains overwhelmed, the rating basis), depth_working_m (drains working; None when bounds=False), rating, rain{...}, cell_m, ...}.
+
+    `rain` may be a `rain_design.design()` result (tests, or a caller that already holds one). With keep_grids the 2-D arrays `_z`, `_h_max` (and `_asset`, `_dx`) are returned.
+    The disk cache holds the summary and the arrays so a repeat call, or the 3D twin, does not rerun the solver."""
+    kp = CACHE / (_sw_key(lat, lon, rp) + ".npz")
+    if use_cache and rain is None and dem is None and kp.exists():
+        try:
+            z_ = np.load(kp, allow_pickle=False)
+            meta = json.loads(str(z_["meta"]))
+            if not (bounds and meta.get("depth_working_m") is None):
+                if keep_grids:
+                    meta["_z"], meta["_h_max"], meta["_asset"], meta["_dx"] = z_["z"], z_["h"], tuple(int(v) for v in z_["asset"]), float(meta["cell_m"])
+                return meta
+        except Exception:                                                   # noqa: BLE001
+            pass
+    if rain is None:
+        try:
+            from . import rain_design as RD
+            rain = RD.design(lat, lon, rp=rp)
+        except Exception as e:                                              # noqa: BLE001
+            rain = {"available": False, "reason": f"{type(e).__name__}: {str(e)[:100]}"}
+    if not rain.get("available"):
+        return {"available": False, "reason": "design rainfall unavailable: " + str(rain.get("reason", "unknown"))[:200]}
+    d1 = float(rain["d1_mm"])
+    base = site_pluvial(lat, lon, rp=rp, radius_km=radius_km, cell_cap=cell_cap, storm_hours=storm_hours, storm_share=1.0, daily_rain_mm=d1, drainage_mm_h=0.0,
+                        open_boundary=True, keep_grids=True, dem=dem, sim_hours_after=2.0)
+    if not base.get("available"):
+        return base
+    low = None
+    if bounds:
+        low = site_pluvial(lat, lon, rp=rp, radius_km=radius_km, cell_cap=cell_cap, storm_hours=storm_hours, storm_share=1.0, daily_rain_mm=d1, drainage_mm_h=DRAINAGE_MM_H,
+                           open_boundary=True, dem=dem, sim_hours_after=2.0)
+    by = rain.get("by_source", {})
+    g = by.get("gauge")
+    grid_best = max([s["d1_mm"] for n, s in by.items() if n != "gauge" and "d1_mm" in s] or [0.0])
+    rain_out = {"d1_mm": round(d1, 1), "d3_mm": rain.get("d3_mm"), "source_used": rain.get("source_used", {}).get("1d"), "gauge_km": None if not g else g.get("km"),
+                "gauge_d1_mm": None if not g else g.get("d1_mm"), "grid_best_d1_mm": round(grid_best, 1) if grid_best else None,
+                "largest_in_record": rain.get("largest_in_record", {}).get("1d"), "by_source": {n: {k: v for k, v in s.items() if k in ("source", "d1_mm", "max1_mm", "max1_date", "km")} for n, s in by.items()},
+                "failed_sources": rain.get("failed_sources") or {}}
+    out = {k: v for k, v in base.items() if not k.startswith("_")}
+    out.update({"depth_m": base["depth_m"], "rating": base["rating"], "depth_working_m": None if low is None or not low.get("available") else low["depth_m"],
+                "rating_working": None if low is None or not low.get("available") else low["rating"], "rain": rain_out, "radius_km": radius_km, "storm_hours": storm_hours,
+                "basis": "drains overwhelmed (none removed); the drains-working case is depth_working_m"})
+    if use_cache and dem is None:
+        try:
+            CACHE.mkdir(parents=True, exist_ok=True)
+            np.savez_compressed(kp, meta=json.dumps(out), z=base["_z"].astype(np.float32), h=base["_h_max"].astype(np.float32), asset=np.array(base["_asset"]))
+        except Exception:                                                   # noqa: BLE001
+            pass
+    if keep_grids:
+        out["_z"], out["_h_max"], out["_asset"], out["_dx"] = base["_z"], base["_h_max"], base["_asset"], float(base["cell_m"])
+    return out

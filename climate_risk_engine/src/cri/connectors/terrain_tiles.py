@@ -125,6 +125,16 @@ def _tile_pixel_size_m(lat: float, zoom: int) -> tuple[float, float]:
 # HTTP fetch with retry and in-memory cache
 # ---------------------------------------------------------------------------
 
+def _disk_path(z: int, x: int, y: int):
+    """~/.cache/climrisk/terrain/<z>/<x>/<y>.png (override with CRI_TILE_CACHE; set it to an empty string to turn the disk cache off)."""
+    import os
+    from pathlib import Path
+    base = os.environ.get("CRI_TILE_CACHE")
+    if base == "":
+        return None
+    return Path(base or (Path.home() / ".cache" / "climrisk" / "terrain")) / str(z) / str(x) / f"{y}.png"
+
+
 def _fetch_tile(z: int, x: int, y: int) -> Optional[np.ndarray]:
     """
     Fetch terrarium tile (z, x, y) and return uint8 RGB array (256, 256, 3).
@@ -133,6 +143,14 @@ def _fetch_tile(z: int, x: int, y: int) -> Optional[np.ndarray]:
     key = (z, x, y)
     if key in _TILE_CACHE:
         return _TILE_CACHE[key]
+    disk = _disk_path(z, x, y)                                   # tiles are immutable, so they are kept on disk: a second look at a site (or a demo offline) needs no network
+    if disk is not None and disk.exists():
+        try:
+            arr = np.asarray(PILImage.open(disk).convert("RGB"), dtype=np.uint8)
+            _TILE_CACHE[key] = arr
+            return arr
+        except Exception:                                        # noqa: BLE001  (a torn file: fetch again)
+            pass
 
     url = _TILE_URL.format(z=z, x=x, y=y)
     headers = {"User-Agent": "CRI-TerrainEngine/1.0 (climate-risk-engine)"}
@@ -145,6 +163,12 @@ def _fetch_tile(z: int, x: int, y: int) -> Optional[np.ndarray]:
             img  = PILImage.open(io.BytesIO(data)).convert("RGB")
             arr  = np.asarray(img, dtype=np.uint8)      # (256, 256, 3)
             _TILE_CACHE[key] = arr
+            if disk is not None:
+                try:
+                    disk.parent.mkdir(parents=True, exist_ok=True)
+                    tmp = disk.with_suffix(".tmp"); tmp.write_bytes(data); tmp.replace(disk)
+                except Exception:                                # noqa: BLE001
+                    pass
             log.debug("Fetched tile z=%d x=%d y=%d", z, x, y)
             return arr
         except Exception as exc:

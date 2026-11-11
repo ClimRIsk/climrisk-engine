@@ -343,3 +343,74 @@ def simulate(lat: float, lon: float, ground, components: list, scen: dict, dem_c
                frames=[cm(f).ravel().tolist() for f in res["frames"]], hmax_cm=cm(hm).ravel().tolist(),
                block=block.ravel().astype(np.uint8).tolist(), elapsed_s=round(time.time() - t0, 1))
     return out
+
+
+# ── rain-driven scenario (11 Nov 2026) ───────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+def rain_field(lat: float, lon: float, ground, rp: int = 100, sw: Optional[dict] = None) -> Optional[dict]:
+    """Downscale the catchment-scale surface-water run to the twin's own ground.
+
+    The coarse run (`finance.pluvial.site_surface_water`, ~67 m cells over ~12 km, 24 h design storm) gives a water-surface elevation (coarse ground + depth). Water-surface
+    elevation, not depth, is what carries to a finer grid: depth on the twin's ground = coarse water surface minus the twin's own ground height, where the coarse cell was
+    wet. That puts the catchment-scale answer (where the water collects) onto the site's relief (which part of the site is lower than the surface) without rerunning the
+    solver at 9 m over a day. Returns {depth (R x C, m), sw, wse_range} or None."""
+    from .finance import pluvial as PV
+    from scipy.ndimage import map_coordinates
+    sw = sw or PV.site_surface_water(lat, lon, rp=rp, bounds=False, keep_grids=True)
+    if not sw.get("available") or "_h_max" not in sw:
+        return None
+    zc, hc, (ai, aj), dxc = np.asarray(sw["_z"], float), np.asarray(sw["_h_max"], float), sw["_asset"], float(sw["_dx"])
+    R, C = ground.rows, ground.cols
+    x, y = _grid_xy(R, C, ground.ac, ground.ar, ground.dx, ground.dy)
+    cc, rr = aj + x / dxc, ai - y / dxc
+    cc, rr = np.clip(cc, 0, zc.shape[1] - 1.001), np.clip(rr, 0, zc.shape[0] - 1.001)
+    wet = hc > 0.02
+    wse = np.where(wet, zc + hc, np.nan)
+    wse_f = np.where(np.isfinite(wse), wse, zc + 0.0)
+    wse_s = map_coordinates(wse_f, [rr, cc], order=1, mode="nearest")
+    wet_s = map_coordinates(wet.astype(float), [rr, cc], order=1, mode="nearest") > 0.5
+    h_s = map_coordinates(hc, [rr, cc], order=1, mode="nearest")
+    zf = ground.z.astype(float)
+    depth = np.where(wet_s, np.clip(wse_s - zf, 0.0, h_s + 0.75), 0.0)
+    depth = np.where(depth < 0.02, 0.0, depth)
+    return {"depth": depth, "sw": sw, "wse_range": [round(float(np.nanmin(wse_s[wet_s])), 2), round(float(np.nanmax(wse_s[wet_s])), 2)] if wet_s.any() else None, "wet_coarse_share": float(wet_s.mean())}
+
+
+def simulate_rain(lat: float, lon: float, ground, components: list, scen: dict, add_m: float = 0.0, barrier_m: float = 0.0, barrier_radius_m: float = 90.0,
+                  _field: Optional[dict] = None, **_ignored) -> dict:
+    """Same output shape as `simulate`, for a rain-driven scenario. No time stepping: the depth map is the maximum depth of the 24 h storm (see `rain_field`), so there are no
+    frames, arrival times or velocities. `add_m` raises the water surface; `barrier_m` has no effect: rain falls inside any ring."""
+    t0 = time.time()
+    R, C = ground.rows, ground.cols
+    fld = _field if _field is not None else rain_field(lat, lon, ground, rp=scen.get("rp", 100))
+    out = {"scenario": scen["id"], "label": scen.get("label"), "dx_m": round(ground.dx, 2), "rows": R, "cols": C, "add_m": add_m, "barrier_m": barrier_m, "kind": "rain",
+           "duration_h": {"rise": None, "total": scen.get("storm_hours", 24.0)}, "frames": None,
+           "barrier_note": ("A perimeter wall does not keep out rain that falls on the site and can trap it; use drainage, pumping and raised equipment." if barrier_m else None)}
+    if fld is None:
+        out.update(dry=True, comp={c["id"]: {"depth_at_ground_m": 0.0, "velocity_ms": None, "arrival_min": None} for c in components if not c.get("removed")},
+                   failed="the catchment-scale surface-water run was not available", elapsed_s=round(time.time() - t0, 1))
+        return out
+    d = fld["depth"].copy()
+    block, per = rasterize_blocks(components, R, C, ground.ac, ground.ar, ground.dx, ground.dy)
+    if add_m:
+        d = np.where(d > 0, d + add_m, 0.0)          # a what-if rise deepens ground that is already wet; it does not spread the storm to dry ground
+    # A perimeter barrier does not keep out rain that falls on the site (it can trap it), so barrier_m changes nothing here; the note says so.
+    from scipy.ndimage import binary_dilation
+    comp = {}
+    for cid, m in per.items():
+        halo = (binary_dilation(m, iterations=1) & ~block) | (binary_dilation(m, iterations=1) & ~m)
+        sel = halo if halo.any() else m
+        dd = float(d[sel].max()) if sel.any() else 0.0
+        comp[cid] = {"depth_at_ground_m": round(dd, 2), "velocity_ms": None, "arrival_min": None, "depth_velocity_m2s": None}
+    dd_open = d[~block]
+    cm = lambda a: np.round(a * 100).astype(np.int16)
+    sw = fld["sw"]
+    out.update(dry=not bool((d > 0.05).any()), comp=comp, hmax_cm=cm(np.where(block, 0.0, d)).ravel().tolist(), block=block.ravel().astype(np.uint8).tolist(),
+               frame_t_s=None, regional={"source": "catchment-scale rain-on-grid run", "cell_m": sw.get("cell_m"), "radius_km": sw.get("radius_km"), "water_surface_m": fld["wse_range"]},
+               validation={"solver_wet_share_of_open_land": round(float((dd_open > 0.05).mean()), 3), "map_wet_share_of_open_land": None,
+                           "max_depth_m": round(float(dd_open.max()) if dd_open.size else 0.0, 2), "mass_residual_pct": round(100.0 * abs(sw.get("mass_error", 0.0)), 3),
+                           "consistency": ("Depth is the catchment-scale rain-on-grid water surface (about %s m cells over %s km) minus this site's own ground height. "
+                                           "It has no velocity or arrival time, is not validated against a recorded surface-water outline here, and drains, culverts and pumps are not resolved."
+                                           % (sw.get("cell_m"), sw.get("radius_km")))},
+               elapsed_s=round(time.time() - t0, 1))
+    return out
