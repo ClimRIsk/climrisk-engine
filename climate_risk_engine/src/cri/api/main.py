@@ -1589,6 +1589,25 @@ def ahp_weights_and_rank(request: AHPRequest) -> dict:
     return out
 
 
+class UncertaintyLedgerRequest(BaseModel):
+    lat: float = Field(..., ge=-90, le=90)
+    lon: float = Field(..., ge=-180, le=180)
+    depth_m: Optional[float] = Field(None, ge=0, le=20, description="Flood depth to evaluate the damage curve at; omit and the damage-curve entry is not assessed")
+    continent: str = "asia"
+    asset_class: str = "industrial"
+    scenario_rain: Optional[Dict[str, float]] = Field(None, description="CMIP6 change in extreme rain as ratios {p10, median, p90}")
+    ratings: Optional[Dict[str, str]] = Field(None, description="Severity per independent hazard source, e.g. {'JRC river map': 'LOW', 'rain run': 'HIGH'}")
+    fetch_rain: bool = Field(True, description="Read the design-rain products (cached after the first call)")
+
+
+@app.post("/uncertainty/ledger", dependencies=[_AUTH], tags=["Decision support"])
+def uncertainty_ledger(request: UncertaintyLedgerRequest) -> dict:
+    """Per-site uncertainty ledger: quantified, assumed and not-assessed doubts side by side. Nothing is invented and the ranges are not combined into one loss figure."""
+    from .. import uncertainty
+    return uncertainty.site_ledger(request.lat, request.lon, depth_m=request.depth_m, continent=request.continent, asset_class=request.asset_class, scenario_rain=request.scenario_rain,
+                                   ratings=request.ratings, fetch_rain=request.fetch_rain)
+
+
 class PhysicalRiskAssetIn(BaseModel):
     lat: float = Field(..., ge=-90, le=90)
     lon: float = Field(..., ge=-180, le=180)
