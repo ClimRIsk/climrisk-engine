@@ -122,60 +122,110 @@ def map_disagreement(ratings: dict) -> dict:
                  source="site profile entries", method="lowest and highest severity across sources: " + ", ".join(f"{k} {v}" for k, v in r.items()),
                  note=("The sources disagree by %d step(s): they see different mechanisms (river network, terrain position, rain on the ground), so a disagreement is information, not noise." % (hi - lo)) if hi > lo else "The sources agree.")
 
-# Which mechanism each flood entry in the site profile looks at. Different mechanisms can legitimately differ (a site can be safe from a river and flood from rain), so the
-# verdict is the WORST credible reading, never an average, and a source that could not be run is named as not assessed, never counted as dry.
-FLOOD_MECHANISMS = {
-    "river_flood": "river", "river": "river",
-    "surface_water": "rain on the ground", "flood": "rain on the ground",
-    "flood_terrain_radar": "terrain position and observed water", 
-    "coastal_flood": "coast and sea level", "surge": "coast and sea level", "sealevel": "coast and sea level",
+# Which sources in a site profile look at the same peril, and what each one actually sees. Different mechanisms can legitimately differ (a site can be safe from a river and
+# flood from rain), so a verdict is the WORST credible reading, never an average, and a source that could not be run is named as not assessed, never counted as safe.
+# `shared` says honestly what inputs the sources have in common, so agreement is not mistaken for independence.
+PERILS = {
+    "flood": {"label": "Flood", "sources": {
+        "river_flood": "river network (JRC CEMS-GloFAS map)", "river": "river flow (rainfall-runoff study)",
+        "surface_water": "rain on the ground (rain-on-grid run)", "flood": "rain-driven 2-D flood study",
+        "flood_terrain_radar": "terrain position and observed water history", "coastal_flood": "coast and sea level (Deltares maps)",
+        "surge": "storm surge study", "sealevel": "sea-level rise study"},
+        "shared": "the river map and the terrain models share elevation data; the surge and sea-level studies share the coastline"},
+    "wind": {"label": "Wind and cyclone", "sources": {"cyclone": "tropical-cyclone track record", "wind": "all-cause extreme wind (ERA5 study)"},
+             "shared": "both lean on reanalysis wind in places"},
+    "heat": {"label": "Heat", "sources": {"thermal_stress": "site heat-stress screening", "heat": "WBGT extremes study", "urban_heat_landcover": "land-cover urban heat"},
+             "shared": "the screening and the WBGT study can use the same temperature reanalysis"},
+    "cold": {"label": "Cold", "sources": {"cold_extreme": "cold-extreme screening"}, "shared": ""},
+    "fire": {"label": "Wildfire", "sources": {"fire": "fire-weather index study (Canadian FWI)", "wildfire_fuel": "fuel and land cover at the site"},
+             "shared": "weather-based and fuel-based views are different mechanisms; neither sees ignition"},
+    "water": {"label": "Water stress and drought", "sources": {"water_stress": "WRI Aqueduct basin indicators", "drought": "soil water balance study"},
+              "shared": "Aqueduct is basin scale, not site supply"},
+    "seismic": {"label": "Earthquake", "sources": {"earthquake": "earthquake shaking study"}, "shared": ""},
+    "slope": {"label": "Landslide and debris flow", "sources": {"landslide_slope": "slope and land-cover screening", "landslide": "infinite-slope physics", "debris_flow": "debris-flow screening"},
+              "shared": "all three use the same terrain model"},
+    "air": {"label": "Air quality", "sources": {"air_local": "local air-quality screening", "air": "PM2.5 study"}, "shared": "may share the same PM2.5 reanalysis"},
 }
+FLOOD_MECHANISMS = PERILS["flood"]["sources"]
 _ORDER = ["NEGLIGIBLE", "LOW", "MODERATE", "HIGH", "CRITICAL"]
 
 
-def flood_concordance(profile: Optional[dict]) -> dict:
-    """Do the independent flood sources in a site profile agree? Reads `siteprofile.profile(...)` output; nothing is re-run.
+def peril_concordance(profile: Optional[dict], peril: str = "flood") -> dict:
+    """Do the independent sources for one peril in a site profile agree? Reads `siteprofile.profile(...)` output; nothing is re-run.
 
-    Returns a ledger entry plus `sources` (one row per source: mechanism, severity, how it was obtained), `not_assessed` (sources that gave no answer and why), `observed`
-    (recorded flood events whose mapped footprint box contains the site) and `verdict`. Rules: severity is taken from the source's own rating; a `none_found` entry counts as
-    NEGLIGIBLE only because the engine established absence; a `null` entry is NOT dry. The verdict is the highest severity among assessed sources, with the agreement stated
-    separately, because a quiet source that cannot see a mechanism does not cancel a loud one that can."""
+    Returns a ledger entry plus `sources` (source, what it sees, severity), `not_assessed` (sources that gave no answer and why), `agreement`, `verdict`, and for flood `observed`
+    (recorded events whose mapped box contains the site). Rules: severity is the source's own rating; `none_found` counts as NEGLIGIBLE only because the engine established
+    absence; a `null` entry is NOT safe. The verdict is the highest severity among assessed sources, with agreement stated separately, because a quiet source that cannot see a
+    mechanism does not cancel a loud one that can. If the engine holds only one source for a peril the answer says so: that peril cannot be cross-checked here."""
+    spec = PERILS[peril]
     hz = (profile or {}).get("hazards") or {}
-    rows, na = [], []
-    for k, e in hz.items():
-        mech = FLOOD_MECHANISMS.get(k)
-        if mech is None:
+    rows, na, unrated = [], [], []
+    for k, what in spec["sources"].items():
+        e = hz.get(k)
+        if e is None:
             continue
         if e.get("status") in ("modelled", "constructed", "none_found") and e.get("severity") in _ORDER:
-            rows.append({"source": e.get("label") or k, "key": k, "mechanism": mech, "severity": e["severity"], "status": e["status"], "method": e.get("method") or ""})
+            rows.append({"source": e.get("label") or k, "key": k, "sees": what, "severity": e["severity"], "status": e["status"]})
+        elif e.get("status") in ("modelled", "constructed"):
+            unrated.append({"source": e.get("label") or k, "key": k, "sees": what, "value": e.get("value"), "unit": e.get("unit"),
+                            "why": "ran and gave a value, but no severity rating, so it cannot be compared on the severity scale"})
         else:
-            na.append({"source": e.get("label") or k, "key": k, "mechanism": mech, "why": e.get("reason") or "no answer"})
-    ev = (profile or {}).get("flood_events") or {}
-    hits = [x for x in (ev.get("events") or []) if x.get("bbox_contains_point")]
-    observed = {"available": bool(ev.get("available")), "events_with_box_over_site": len(hits), "latest": hits[0]["date"] if hits else None,
-                "note": "Recorded flood events (Copernicus EMS / Global Flood Database footprints). A box over the site is not proof it was wet: the box is the mapped area, not the water."}
+            na.append({"source": e.get("label") or k, "key": k, "sees": what, "why": e.get("reason") or "no answer"})
+    label = f"{spec['label']}: do independent sources agree"
     ent = map_disagreement({r["source"]: r["severity"] for r in rows})
+    ent["label"] = label
     n = len(rows)
     worst = max((r["severity"] for r in rows), key=_ORDER.index) if rows else None
-    mechs = sorted({r["mechanism"] for r in rows})
-    if n == 0:
-        agreement, verdict = "none", "No flood source gave an answer for this site: flood risk is NOT ASSESSED here (not zero)."
+    can_cross = len(spec["sources"]) >= 2
+    if n == 0 and unrated:
+        agreement, verdict = "unrated", f"{spec['label']}: the source(s) that ran gave values without a severity rating, so there is nothing to compare on the severity scale."
+    elif n == 0:
+        agreement, verdict = "none", f"No {spec['label'].lower()} source gave an answer for this site: it is NOT ASSESSED here (not zero)."
     elif n == 1:
         agreement = "single_source"
-        verdict = f"One source ({rows[0]['source']}) rates this {worst}. Flood has not been cross-checked at this site; the other mechanisms are not assessed."
+        verdict = (f"One source ({rows[0]['source']}) rates this {worst}. " + ("Not cross-checked at this site; the other sources gave no answer." if can_cross
+                   else "The engine holds only one source for this peril, so it cannot be cross-checked here."))
     else:
         spread = _ORDER.index(worst) - min(_ORDER.index(r["severity"]) for r in rows)
         agreement = "agree" if spread <= 1 else "disagree"
         loud = [r["source"] for r in rows if r["severity"] == worst]
-        verdict = (f"Worst credible reading {worst} ({', '.join(loud)}); {n} sources over {len(mechs)} mechanism(s) "
-                   + ("agree within one step." if agreement == "agree" else f"disagree by {spread} steps, so look at which mechanism each one can see before trusting the quiet one."))
+        verdict = (f"Worst credible reading {worst} ({', '.join(loud)}); {n} sources "
+                   + ("agree within one step." if agreement == "agree" else f"disagree by {spread} steps, so look at what each one can see before trusting the quiet one."))
+        if spec["shared"]:
+            verdict += f" They are not fully independent: {spec['shared']}."
+    if unrated:
+        verdict += " Ran but not rated (value only, so not compared): " + ", ".join(x["source"] for x in unrated) + "."
     if na:
         verdict += " Not assessed: " + ", ".join(x["source"] for x in na) + "."
-    if hits and worst in ("NEGLIGIBLE", "LOW"):
-        verdict += f" Caution: {len(hits)} recorded flood event(s) have a mapped box over this site, yet the models rate it {worst}."
-    ent.update({"key": "flood_concordance", "label": "Flood: do independent sources agree", "sources": rows, "not_assessed": na, "observed": observed,
-                "agreement": agreement, "verdict": verdict, "worst": worst, "mechanisms": mechs})
+    out = {"peril": peril, "sources": rows, "not_assessed": na, "unrated": unrated, "agreement": agreement, "verdict": verdict, "worst": worst, "n_sources_available": len(spec["sources"])}
+    if peril == "flood":
+        ev = (profile or {}).get("flood_events") or {}
+        hits = [x for x in (ev.get("events") or []) if x.get("bbox_contains_point")]
+        out["observed"] = {"available": bool(ev.get("available")), "events_with_box_over_site": len(hits), "latest": hits[0]["date"] if hits else None,
+                           "note": "Recorded flood events (Copernicus EMS / Global Flood Database footprints). A box over the site is not proof it was wet: the box is the mapped area, not the water."}
+        if hits and worst in ("NEGLIGIBLE", "LOW"):
+            out["verdict"] += f" Caution: {len(hits)} recorded flood event(s) have a mapped box over this site, yet the models rate it {worst}."
+    ent.update(out)
+    ent["key"] = f"{peril}_concordance"
     return ent
+
+
+def flood_concordance(profile: Optional[dict]) -> dict:
+    """Flood only (kept for callers that already use it)."""
+    return peril_concordance(profile, "flood")
+
+
+def hazard_concordance(profile: Optional[dict]) -> dict:
+    """All perils at once: for each, whether the sources agree, and a summary of which could and could not be cross-checked."""
+    per = {p: peril_concordance(profile, p) for p in PERILS}
+    ran = {p: e for p, e in per.items() if e["sources"] or e["not_assessed"] or e["unrated"]}
+    return {"perils": per,
+            "cross_checked": sorted(p for p, e in ran.items() if e["agreement"] in ("agree", "disagree")),
+            "disagree": sorted(p for p, e in ran.items() if e["agreement"] == "disagree"),
+            "single_source": sorted(p for p, e in ran.items() if e["agreement"] == "single_source"),
+            "unrated": sorted(p for p, e in ran.items() if e["agreement"] == "unrated" or e["unrated"]),
+            "no_answer": sorted(p for p in PERILS if p not in ran or ran[p]["agreement"] == "none"),
+            "reading": ("Perils with two or more answering sources are cross-checked; those with one are not, and the answer says why. A peril with no answer is not assessed, never safe.")}
 
 
 def parameter_sensitivity(sens: Optional[dict]) -> dict:
@@ -222,8 +272,11 @@ def site_ledger(lat: float, lon: float, depth_m: Optional[float] = None, contine
             design = RD.design(lat, lon)
         except Exception as e:                                       # noqa: BLE001
             design = {"available": False, "reason": f"{type(e).__name__}: {str(e)[:100]}"}
-    ents = [rain_sources(design), scenario_spread(scenario_rain), return_level_sampling(bootstrap, central=(design or {}).get("d1_mm") if design else None), (flood_concordance(profile) if profile else map_disagreement(ratings or {})),
+    ents = [rain_sources(design), scenario_spread(scenario_rain), return_level_sampling(bootstrap, central=(design or {}).get("d1_mm") if design else None), (None if profile else map_disagreement(ratings or {})),
             parameter_sensitivity(sens), tc_sources(tc_winds)]
+    if profile:
+        ents += [e for e in (peril_concordance(profile, p) for p in PERILS) if e["sources"] or e["not_assessed"] or e["unrated"]]
+    ents = [e for e in ents if e]
     ents.append(damage_curve_transfer(depth_m, continent, asset_class) if depth_m is not None else
                 entry("damage_curve", "Damage curve (depth to loss)", "structural", "not_assessed", reason="no flood depth supplied to evaluate the curve at"))
     return build({"lat": lat, "lon": lon, "continent": continent, "asset_class": asset_class}, ents)

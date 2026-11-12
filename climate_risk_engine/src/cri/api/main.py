@@ -1589,6 +1589,17 @@ def ahp_weights_and_rank(request: AHPRequest) -> dict:
     return out
 
 
+class ConcordanceRequest(BaseModel):
+    profile: dict = Field(..., description="Output of the site profile for one place")
+
+
+@app.post("/uncertainty/concordance", dependencies=[_AUTH], tags=["Decision support"])
+def uncertainty_concordance(request: ConcordanceRequest) -> dict:
+    """For every peril in a site profile (flood, wind, heat, cold, fire, water, earthquake, slope, air): do the independent sources agree, which could not be cross-checked, and which gave no answer."""
+    from .. import uncertainty as U
+    return U.hazard_concordance(request.profile)
+
+
 class UncertaintyLedgerRequest(BaseModel):
     lat: float = Field(..., ge=-90, le=90)
     lon: float = Field(..., ge=-180, le=180)
@@ -1598,7 +1609,7 @@ class UncertaintyLedgerRequest(BaseModel):
     scenario_rain: Optional[Dict[str, float]] = Field(None, description="CMIP6 change in extreme rain as ratios {p10, median, p90}")
     ratings: Optional[Dict[str, str]] = Field(None, description="Severity per independent hazard source, e.g. {'JRC river map': 'LOW', 'rain run': 'HIGH'}")
     fetch_rain: bool = Field(True, description="Read the design-rain products (cached after the first call)")
-    profile: Optional[dict] = Field(None, description="Output of the site profile for this place; the flood sources in it are compared automatically (replaces hand-typed ratings)")
+    profile: Optional[dict] = Field(None, description="Output of the site profile for this place; the sources for every peril in it are compared automatically (replaces hand-typed ratings)")
     tc_winds: Optional[Dict[str, Dict[int, float]]] = Field(None, description="Cyclone wind return levels per source, {source: {return_period: m/s}}; two or more sources are needed to see disagreement")
 
 

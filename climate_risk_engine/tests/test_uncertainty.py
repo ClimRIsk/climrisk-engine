@@ -102,7 +102,7 @@ def test_flood_concordance_worst_credible_not_average_and_null_is_not_dry():
 
 def test_flood_concordance_single_source_and_none():
     one = U.flood_concordance(_prof(river_flood=_he("River flood", "LOW")))
-    assert one["agreement"] == "single_source" and one["status"] == "not_assessed" and "not been cross-checked" in one["verdict"]
+    assert one["agreement"] == "single_source" and one["status"] == "not_assessed" and "Not cross-checked" in one["verdict"]
     none = U.flood_concordance(_prof(river_flood={"label": "River flood", "status": "null", "severity": None, "reason": "x"}))
     assert none["agreement"] == "none" and "NOT ASSESSED" in none["verdict"]
     assert U.flood_concordance(None)["agreement"] == "none"
@@ -120,3 +120,38 @@ def test_site_ledger_uses_profile_for_flood_concordance():
     led = U.site_ledger(12.98, 80.22, fetch_rain=False, profile=p)
     keys = [e["key"] for e in led["entries"]]
     assert "flood_concordance" in keys and "map_disagreement" not in keys
+
+
+def test_every_peril_is_checked_and_single_source_perils_say_so():
+    p = _prof(cyclone=_he("Tropical cyclone", "HIGH"), wind=_he("Extreme wind", "MODERATE"),
+              thermal_stress=_he("Heat", "HIGH"), heat=_he("WBGT", "HIGH"), earthquake=_he("Earthquake", "MODERATE"),
+              water_stress=_he("Aqueduct", "HIGH"), drought={"label": "Drought", "status": "null", "severity": None, "reason": "no data"})
+    h = U.hazard_concordance(p)
+    assert h["perils"]["wind"]["agreement"] == "agree" and h["perils"]["heat"]["agreement"] == "agree"
+    assert h["perils"]["seismic"]["agreement"] == "single_source" and "only one source" in h["perils"]["seismic"]["verdict"]
+    assert h["perils"]["water"]["agreement"] == "single_source" and h["perils"]["water"]["not_assessed"][0]["key"] == "drought"
+    assert "seismic" in h["single_source"] and "flood" in h["no_answer"] and "wind" in h["cross_checked"]
+
+
+def test_ledger_gets_one_concordance_entry_per_peril_that_ran_and_no_zero_for_missing():
+    p = _prof(river_flood=_he("River flood", "HIGH"), surface_water=_he("Rain", "LOW"), earthquake=_he("Earthquake", "LOW"))
+    led = U.site_ledger(10.0, 20.0, fetch_rain=False, profile=p)
+    keys = {e["key"] for e in led["entries"]}
+    assert {"flood_concordance", "seismic_concordance"} <= keys and "wind_concordance" not in keys
+    f = next(e for e in led["entries"] if e["key"] == "flood_concordance")
+    assert f["agreement"] == "disagree" and f["worst"] == "HIGH"
+
+
+def test_shared_inputs_are_named_when_sources_agree():
+    p = _prof(landslide_slope=_he("Slope", "HIGH"), landslide=_he("Physics", "HIGH"))
+    e = U.peril_concordance(p, "slope")
+    assert e["agreement"] == "agree" and "same terrain model" in e["verdict"]
+
+
+def test_a_study_that_ran_without_a_severity_is_unrated_not_unassessed():
+    p = _prof(thermal_stress=_he("Heat screening", "HIGH"), heat={"label": "WBGT", "status": "modelled", "severity": None, "value": 31.2, "unit": "C"})
+    e = U.peril_concordance(p, "heat")
+    assert e["agreement"] == "single_source" and e["unrated"][0]["value"] == 31.2 and e["not_assessed"] == []
+    assert "Ran but not rated" in e["verdict"]
+    only = U.peril_concordance(_prof(heat={"label": "WBGT", "status": "modelled", "severity": None, "value": 31.2, "unit": "C"}), "heat")
+    assert only["agreement"] == "unrated" and "NOT ASSESSED" not in only["verdict"]
