@@ -156,19 +156,18 @@ def _h_surface_water(c: Ctx) -> dict:
     lo, hi = r.get("depth_working_m"), r["depth_m"]
     rng = f"{lo:.2f}–{hi:.2f} m" if lo is not None and abs(hi - lo) >= 0.005 else f"{hi:.2f} m"
     src = (f"a rain gauge {rn['gauge_km']:.0f} km away" if rn.get("gauge_d1_mm") and rn.get("d1_mm") == rn.get("gauge_d1_mm") else (rn.get("source_used") or "gridded rain"))
-    return _entry(KEY, LAB, "modelled", value=hi, unit="m (1-in-100 rain, depth at the pin, drains overwhelmed)", severity=r["rating"],
-                  metrics={"depth_drains_working_m": lo, "depth_drains_overwhelmed_m": hi, "range": rng, "design_rain_1day_mm": rn.get("d1_mm"), "design_rain_source": src,
+    return _entry(KEY, LAB, "modelled", value=hi, unit="m (1-in-100 rain, mean depth within about 200 m of the pin, drains overwhelmed)", severity=r["rating"],
+                  metrics={"depth_drains_working_m": lo, "depth_drains_overwhelmed_m": hi, "range": rng, "depth_pin_cell_m": r.get("depth_pin_cell_m"), "deepest_cell_nearby_m": r.get("depth_near_max_m"), "window_m": r.get("window_m"), "design_rain_1day_mm": rn.get("d1_mm"), "design_rain_source": src,
                            "gridded_best_1day_mm": rn.get("grid_best_d1_mm"), "largest_recorded_1day": rn.get("largest_in_record"), "cell_m": r.get("cell_m"), "radius_km": r.get("radius_km"),
                            "builtup_share": r.get("builtup_share")},
                   method=(f"Local-inertial shallow-water solver over about {2 * r.get('radius_km', 6):.0f} km at {r.get('cell_m')} m cells; 24 h storm of {rn.get('d1_mm')} mm from {src} "
                           f"(gridded rain alone gives {rn.get('grid_best_d1_mm')} mm); runoff by curve number with a built-up share; depth {rng} between drains working (12 mm/h removed from built-up ground) "
                           "and drains overwhelmed. The rating uses the overwhelmed case."),
                   sources=["AWS terrain tiles", "NOAA GHCN-Daily rain gauge" if rn.get("gauge_d1_mm") else "ERA5 / NASA POWER rainfall", "ESA WorldCover (built-up share)"], attempts=att, family=FAM,
-                  caveat=("Screening. Sewers, culverts, pumps and buildings are not resolved; the 67 m cells smooth small depressions; the solver was checked for mass conservation and on "
-                          "Chennai (Velachery 0.07 m before this change, about 1 m now, where residents stood in 1 to 2 m in December 2015), not yet scored against recorded surface-water outlines "
-                          "with this configuration (the earlier 600 m configuration scored AUC 0.64–0.71 in three English towns, below a plain height-above-low-ground score). "
-                          "A gauge is a point measurement: it can differ from rain over the site."))
-
+                  caveat=("Screening. The depth is the mean over the cells within about 200 m of the pin; the pin cell and the deepest nearby cell are in the metrics (Velachery: pin cell 0.01 m, mean 0.26 m, "
+                          "deepest cell 0.97 m). Sewers, culverts, pumps and buildings are not resolved and 67 m cells smooth small depressions. Rain-on-grid cannot see flooding that arrives from a river "
+                          "or a reservoir release: Mudichur, flooded in December 2015 by the Adyar, reads dry here. Checked on Chennai 2015 and controls, not scored against recorded outlines with this "
+                          "configuration (the earlier 600 m configuration scored AUC 0.64–0.71 in three English towns, below a plain height-above-low-ground score). A gauge is a point measurement."))
 
 def _h_river(c: Ctx) -> dict:
     KEY, LAB, FAM = "river_flood", "River flood", "flood"

@@ -51,8 +51,8 @@ def rating_for(depth_m: float) -> str:
 def site_pluvial(lat: float, lon: float, rp: int = 100, radius_km: float = 0.6, storm_hours: float = 1.0, cell_cap: int = 240, manning: float = 0.05,
                  dem=None, daily_rain_mm: Optional[float] = None, builtup: Optional[float] = None, keep_grids: bool = False,
                  rain_fetch: Optional[Callable] = None, drainage_mm_h: Optional[float] = None, open_boundary: bool = True,
-                 storm_share: Optional[float] = None, sim_hours_after: float = 2.0) -> dict:
-    """{available, depth_m (max within 15 m of the pin), rating, wet_hours, daily_rp_mm, storm_mm, runoff_mm, cell_m, terrain_source, ...}"""
+                 storm_share: Optional[float] = None, sim_hours_after: float = 2.0, cn: float = 75.0) -> dict:
+    """{available, depth_m (MAX over the window around the pin: 15 m, but never less than the 3x3 cells, so about 200 m at 67 m cells; kept for the England benchmark), depth_pin_cell_m, depth_near_mean_m, depth_near_max_m, window_m, rating, wet_hours, daily_rp_mm, storm_mm, runoff_mm, cell_m, terrain_source, ...}"""
     from ..modellab import flood, hydrology
     from scipy import ndimage as ndi
     if not (math.isfinite(lat) and math.isfinite(lon)):
@@ -74,7 +74,7 @@ def site_pluvial(lat: float, lon: float, rp: int = 100, radius_km: float = 0.6, 
         if builtup is None:
             builtup = _builtup_share(lat, lon, radius_km)
         b = 0.0 if builtup is None else float(min(1.0, builtup))
-        cn = 75.0 if builtup is None else 75.0                    # pervious ground: moderate soils, mixed cover (no soil product is read)
+        # pervious ground: curve number `cn` (default 75: moderate soils, mixed cover; no soil product is read, so this is an assumption and `surface_water_sensitivity` ranges it)
         if daily_rain_mm is None:
             from ..modellab import data as D
             key = CACHE / (hashlib.md5(f"{lat:.2f}{lon:.2f}".encode()).hexdigest() + ".json")
@@ -110,7 +110,11 @@ def site_pluvial(lat: float, lon: float, rp: int = 100, radius_km: float = 0.6, 
         k = max(1, int(round(15.0 / dx)))
         win = res.h_max[max(0, ai - k): ai + k + 1, max(0, aj - k): aj + k + 1]
         depth = float(win.max())
-        out = {"available": True, "depth_m": round(depth, 3), "rating": rating_for(depth), "wet_hours": round(float(res.t_wet[ai, aj] / 3600.0), 2),
+        near_mean = float(win.mean())
+        pin_cell = float(res.h_max[ai, aj])
+        window_m = float((2 * k + 1) * dx)
+        out = {"available": True, "depth_m": round(depth, 3), "rating": rating_for(depth), "depth_pin_cell_m": round(pin_cell, 3), "depth_near_mean_m": round(near_mean, 3),
+               "depth_near_max_m": round(depth, 3), "window_m": round(window_m, 0), "wet_hours": round(float(res.t_wet[ai, aj] / 3600.0), 2),
                "return_period": rp, "daily_rp_mm": round(daily_rain_mm, 1), "storm_hours": storm_hours, "storm_share_of_daily": share, "storm_mm": round(storm_mm, 1),
                "runoff_mm": round(float(eff.sum()), 1), "curve_number_pervious": round(cn, 1), "builtup_share": None if builtup is None else round(builtup, 3),
                "drainage_allowance_mm_h": drain, "open_boundary": open_boundary, "cell_m": round(dx, 1), "terrain_source": getattr(dem, "source", "unknown"), "rain_source": rain_src,
@@ -139,12 +143,15 @@ def _sw_key(lat: float, lon: float, rp: int) -> str:
 
 
 def site_surface_water(lat: float, lon: float, rp: int = 100, radius_km: float = SW_RADIUS_KM, cell_cap: int = SW_CELL_CAP, storm_hours: float = SW_STORM_H,
-                       bounds: bool = True, keep_grids: bool = False, rain: Optional[dict] = None, dem=None, use_cache: bool = True) -> dict:
+                       bounds: bool = True, keep_grids: bool = False, rain: Optional[dict] = None, dem=None, use_cache: bool = True,
+                       cn: float = 75.0, manning: float = 0.05, rain_scale: float = 1.0, drainage_mm_h: float = DRAINAGE_MM_H) -> dict:
     """{available, depth_m (drains overwhelmed, the rating basis), depth_working_m (drains working; None when bounds=False), rating, rain{...}, cell_m, ...}.
 
     `rain` may be a `rain_design.design()` result (tests, or a caller that already holds one). With keep_grids the 2-D arrays `_z`, `_h_max` (and `_asset`, `_dx`) are returned.
     The disk cache holds the summary and the arrays so a repeat call, or the 3D twin, does not rerun the solver."""
     kp = CACHE / (_sw_key(lat, lon, rp) + ".npz")
+    tweaked = (cn != 75.0 or manning != 0.05 or rain_scale != 1.0 or drainage_mm_h != DRAINAGE_MM_H)
+    use_cache = use_cache and not tweaked                                   # a tweaked run is never read from or written to the cache
     if use_cache and rain is None and dem is None and kp.exists():
         try:
             z_ = np.load(kp, allow_pickle=False)
@@ -163,15 +170,15 @@ def site_surface_water(lat: float, lon: float, rp: int = 100, radius_km: float =
             rain = {"available": False, "reason": f"{type(e).__name__}: {str(e)[:100]}"}
     if not rain.get("available"):
         return {"available": False, "reason": "design rainfall unavailable: " + str(rain.get("reason", "unknown"))[:200]}
-    d1 = float(rain["d1_mm"])
+    d1 = float(rain["d1_mm"]) * rain_scale
     base = site_pluvial(lat, lon, rp=rp, radius_km=radius_km, cell_cap=cell_cap, storm_hours=storm_hours, storm_share=1.0, daily_rain_mm=d1, drainage_mm_h=0.0,
-                        open_boundary=True, keep_grids=True, dem=dem, sim_hours_after=2.0)
+                        open_boundary=True, keep_grids=True, dem=dem, sim_hours_after=2.0, cn=cn, manning=manning)
     if not base.get("available"):
         return base
     low = None
     if bounds:
-        low = site_pluvial(lat, lon, rp=rp, radius_km=radius_km, cell_cap=cell_cap, storm_hours=storm_hours, storm_share=1.0, daily_rain_mm=d1, drainage_mm_h=DRAINAGE_MM_H,
-                           open_boundary=True, dem=dem, sim_hours_after=2.0)
+        low = site_pluvial(lat, lon, rp=rp, radius_km=radius_km, cell_cap=cell_cap, storm_hours=storm_hours, storm_share=1.0, daily_rain_mm=d1, drainage_mm_h=drainage_mm_h,
+                           open_boundary=True, dem=dem, sim_hours_after=2.0, cn=cn, manning=manning)
     by = rain.get("by_source", {})
     g = by.get("gauge")
     grid_best = max([s["d1_mm"] for n, s in by.items() if n != "gauge" and "d1_mm" in s] or [0.0])
@@ -180,9 +187,14 @@ def site_surface_water(lat: float, lon: float, rp: int = 100, radius_km: float =
                 "largest_in_record": rain.get("largest_in_record", {}).get("1d"), "by_source": {n: {k: v for k, v in s.items() if k in ("source", "d1_mm", "max1_mm", "max1_date", "km")} for n, s in by.items()},
                 "failed_sources": rain.get("failed_sources") or {}}
     out = {k: v for k, v in base.items() if not k.startswith("_")}
-    out.update({"depth_m": base["depth_m"], "rating": base["rating"], "depth_working_m": None if low is None or not low.get("available") else low["depth_m"],
-                "rating_working": None if low is None or not low.get("available") else low["rating"], "rain": rain_out, "radius_km": radius_km, "storm_hours": storm_hours,
-                "basis": "drains overwhelmed (none removed); the drains-working case is depth_working_m"})
+    # The headline depth is the MEAN over the window around the pin (about 200 m at 67 m cells), not the deepest cell in it: one pit or channel cell next to the pin fills within
+    # hours at any storm size and would set the rating by itself (Velachery: pin cell 0.02 m, window mean 0.26 m, deepest cell 0.97 m). All three are reported.
+    wlow = None if low is None or not low.get("available") else low["depth_near_mean_m"]
+    out.update({"depth_m": base["depth_near_mean_m"], "rating": rating_for(base["depth_near_mean_m"]), "depth_working_m": wlow,
+                "rating_working": None if wlow is None else rating_for(wlow), "rain": rain_out,
+                "depth_basis": f"mean over the cells within about {base['window_m']:.0f} m of the pin; the pin cell and the deepest cell in the window are depth_pin_cell_m and depth_near_max_m", "radius_km": radius_km, "storm_hours": storm_hours,
+                "basis": "drains overwhelmed (none removed); the drains-working case is depth_working_m",
+                "tweaks": {"cn": cn, "manning": manning, "rain_scale": rain_scale, "drainage_mm_h": drainage_mm_h}})
     if use_cache and dem is None:
         try:
             CACHE.mkdir(parents=True, exist_ok=True)
@@ -191,4 +203,73 @@ def site_surface_water(lat: float, lon: float, rp: int = 100, radius_km: float =
             pass
     if keep_grids:
         out["_z"], out["_h_max"], out["_asset"], out["_dx"] = base["_z"], base["_h_max"], base["_asset"], float(base["cell_m"])
+    return out
+
+
+# ── sensitivity: which assumption moves the answer ──────────────────────────────────────────────────────────────────────────────────────────────────
+# One input at a time, the rest at their defaults. The ranges are STATED ASSUMPTIONS (typical spread for each input), not measured uncertainties; the point is to show which
+# input dominates and by how much, so a reader can see the answer is a range and what would narrow it.
+SENS_RANGES = {
+    "design_rain": ("Design rain source", "gridded rain only instead of the gauge-anchored value; gauge value +/-25 % (the gauge is a point, 4-9 km away; Gumbel fit error)"),
+    "return_period": ("Return period", "1-in-50 and 1-in-200 against the 1-in-100 base"),
+    "drainage": ("Drainage", "drains working (12 mm/h removed from built-up ground) against overwhelmed"),
+    "curve_number": ("Curve number of pervious ground", "65 (good cover, well-drained soils) to 85 (poor cover, clay): typical SCS spread"),
+    "roughness": ("Surface roughness (Manning n)", "0.03 (smooth, paved) to 0.08 (dense, cluttered urban)"),
+}
+
+
+def surface_water_sensitivity(lat: float, lon: float, rp: int = 100, rain: Optional[dict] = None, rain_for_rp: Optional[Callable] = None, dem=None, workers: int = 3) -> dict:
+    """{base_m, rows[{input, label, case, depth_m, delta_m, rating}], ranking[{input, spread_m}], range_m, dominant, text}. Each row is a full solver run (about 20 s); rows run in threads."""
+    from concurrent.futures import ThreadPoolExecutor
+    from . import rain_design as RD
+    rain = rain or RD.design(lat, lon, rp=rp)
+    if not rain.get("available"):
+        return {"available": False, "reason": "design rainfall unavailable: " + str(rain.get("reason", ""))[:160]}
+    getr = rain_for_rp or (lambda r: RD.design(lat, lon, rp=r))
+    grid = max([sv["d1_mm"] for n, sv in rain.get("by_source", {}).items() if n != "gauge" and "d1_mm" in sv] or [0.0])
+    jobs = [("base", "base", "default settings", dict(rain=rain))]
+    if grid and grid < rain["d1_mm"] * 0.98:
+        jobs.append(("design_rain", "gridded rain only", f"{grid:.0f} mm instead of {rain['d1_mm']:.0f} mm", dict(rain_scale=grid / rain["d1_mm"], rain=rain)))
+    jobs += [("design_rain", "gauge value -25 %", "x0.75", dict(rain_scale=0.75, rain=rain)), ("design_rain", "gauge value +25 %", "x1.25", dict(rain_scale=1.25, rain=rain)),
+             ("drainage", "drains working", "12 mm/h", dict(drainage_mm_h=DRAINAGE_MM_H, rain=rain, _low=True)),
+             ("curve_number", "CN 65", "well-drained", dict(cn=65.0, rain=rain)), ("curve_number", "CN 85", "poor cover / clay", dict(cn=85.0, rain=rain)),
+             ("roughness", "n 0.03", "smooth", dict(manning=0.03, rain=rain)), ("roughness", "n 0.08", "cluttered", dict(manning=0.08, rain=rain))]
+    for sc_ in (0.1, 0.25, 0.5):
+        jobs.append(("rain_response", f"{rain['d1_mm'] * sc_:.0f} mm", f"x{sc_}", dict(rain_scale=sc_, rain=rain)))
+    for r2 in (50, 200):
+        rr = getr(r2)
+        if rr.get("available"):
+            jobs.append(("return_period", f"1-in-{r2}", f"{rr['d1_mm']:.0f} mm", dict(rain=rr, rp=r2)))
+
+    def run(j):
+        key, case, note, kw = j
+        low = kw.pop("_low", False)
+        kw.setdefault("rp", rp)
+        if low:                                      # the working-drains case is the second bound of a default run
+            r = site_surface_water(lat, lon, bounds=True, dem=dem, rain=rain, use_cache=dem is None)
+            return key, case, note, (r.get("depth_working_m") if r.get("available") else None), r
+        r = site_surface_water(lat, lon, bounds=False, dem=dem, use_cache=(key == "base" and dem is None), **kw)
+        return key, case, note, (r["depth_m"] if r.get("available") else None), r
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        res = list(ex.map(run, jobs))
+    base = next((d for k, c, n, d, r in res if k == "base"), None)
+    if base is None:
+        return {"available": False, "reason": "the base run did not complete"}
+    rows = [{"input": k, "label": SENS_RANGES.get(k, ("Base", ""))[0], "case": c, "note": n, "depth_m": d, "delta_m": None if d is None else round(d - base, 3),
+             "rating": None if d is None else rating_for(d)} for k, c, n, d, r in res if k not in ("base", "rain_response") and d is not None]
+    resp = sorted(({"rain_mm": round(float(n[1:]) * rain["d1_mm"], 0), "depth_m": round(d, 3)} for k, c, n, d, r in res if k == "rain_response" and d is not None), key=lambda x: x["rain_mm"])
+    resp.append({"rain_mm": round(rain["d1_mm"], 0), "depth_m": round(base, 3)})
+    by: dict = {}
+    for r in rows:
+        by.setdefault(r["input"], []).append(r["depth_m"])
+    ranking = sorted(({"input": k, "label": SENS_RANGES[k][0], "range_assumed": SENS_RANGES[k][1], "low_m": round(min(v + [base]), 3), "high_m": round(max(v + [base]), 3),
+                       "spread_m": round(max(v + [base]) - min(v + [base]), 3)} for k, v in by.items()), key=lambda x: -x["spread_m"])
+    allv = [r["depth_m"] for r in rows] + [base]
+    sat = next((x["rain_mm"] for x in resp if base > 0 and x["depth_m"] >= 0.9 * base), None)
+    out = {"available": True, "rain_response": resp, "saturates_at_rain_mm": sat, "base_m": round(base, 3), "base_rating": rating_for(base), "rows": rows, "ranking": ranking, "range_m": [round(min(allv), 3), round(max(allv), 3)],
+           "dominant": ranking[0]["label"] if ranking else None, "rating_range": sorted({rating_for(v) for v in allv}, key=["NEGLIGIBLE", "LOW", "MODERATE", "HIGH", "CRITICAL"].index)}
+    out["text"] = (f"Base {base:.2f} m ({rating_for(base)}). Changing one input at a time moves it between {out['range_m'][0]:.2f} and {out['range_m'][1]:.2f} m "
+                   f"({' to '.join(sorted({out['rating_range'][0], out['rating_range'][-1]}, key=['NEGLIGIBLE','LOW','MODERATE','HIGH','CRITICAL'].index))}). "
+                   f"The input that moves it most is {out['dominant'].lower() if out['dominant'] else 'n/a'}. The ranges tried are stated assumptions, not measured uncertainties."
+                   + (f" Depth reaches 90 % of its design-storm value at {sat:.0f} mm of rain against a design value of {rain['d1_mm']:.0f} mm: " + ("above that the local water level is set by the terrain (low ground fills to its spill height), not by how big the storm is, so this number is a ponding flag, not a return-period depth." if sat is not None and sat < 0.7 * rain["d1_mm"] else "the depth still responds to storm size.") if sat is not None else ""))
     return out

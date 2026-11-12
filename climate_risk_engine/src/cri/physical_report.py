@@ -677,23 +677,23 @@ def build_asset_report(lat: float, lon: float, name: Optional[str] = None, secto
             lo, hi = pv.get("depth_working_m"), pv["depth_m"]
             rng = f"{lo:.2f} to {hi:.2f} m" if lo is not None and abs(hi - lo) >= 0.005 else f"{hi:.2f} m"
             src = (f"the rain gauge {rn['gauge_km']:.0f} km away" if rn.get("gauge_d1_mm") and rn.get("d1_mm") == rn.get("gauge_d1_mm") else (rn.get("source_used") or "gridded rain"))
-            fact = _f("Modelled 1-in-100 rain-on-ground depth at the pin", rng,
+            fact = _f("Modelled 1-in-100 rain-on-ground depth around the pin (mean within about 200 m)", rng,
                       f"Shallow-water model over about {2 * pv.get('radius_km', 6):.0f} km on {pv['cell_m']:.0f} m cells; 24 h design rain {rn.get('d1_mm')} mm from {src}"
                       + (f" (gridded rain alone: {rn['grid_best_d1_mm']:.0f} mm)" if rn.get("grid_best_d1_mm") else "")
-                      + f"; the range is drains working (12 mm/h removed from built-up ground) to drains overwhelmed; the rating uses the overwhelmed end")
+                      + f"; the range is drains working (12 mm/h removed from built-up ground) to drains overwhelmed; the rating uses the overwhelmed end. Pin cell {pv.get('depth_pin_cell_m', 0):.2f} m, deepest cell nearby {pv.get('depth_near_max_m', 0):.2f} m")
             sw = next((z for z in zones if z["key"] == "surface_water"), None)
             note = ("Rain-on-ground screen: sewers, culverts, pumps and buildings are not resolved and 67 m cells smooth small depressions, so a shallow or dry result is not a clean bill. "
                     "Checked on Chennai (Dec 2015), not yet scored against recorded outlines with this configuration.")
             if sw is None:
                 zones.append({"key": "surface_water", "title": "Surface-water and observed flooding", "rating": pv["rating"],
-                              "zone": f"Rain-on-ground model: about {rng} of water at the pin in a 1-in-100 storm. {note}", "facts": [fact], "trend": None,
+                              "zone": f"Rain-on-ground model: about {rng} of water on average around the pin in a 1-in-100 storm (deepest cell nearby {pv.get('depth_near_max_m', 0):.2f} m). {note}", "facts": [fact], "trend": None,
                               "rating_basis": "rain-on-grid model"})
             else:
                 sw["facts"] = list(sw.get("facts") or []) + [fact]
                 if sw.get("rating") is None or _lv(pv["rating"]) > _lv(sw["rating"]):
                     sw["rating"] = pv["rating"]
                     sw["rating_basis"] = "rain-on-grid model"
-                    sw["zone"] = f"Rain-on-ground model: about {rng} of water at the pin in a 1-in-100 storm. {note} " + (sw.get("zone") or "")
+                    sw["zone"] = f"Rain-on-ground model: about {rng} of water on average around the pin in a 1-in-100 storm (deepest cell nearby {pv.get('depth_near_max_m', 0):.2f} m). {note} " + (sw.get("zone") or "")
 
     # cyclone
     tcf = findings.get("tropical_cyclone")

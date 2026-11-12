@@ -103,6 +103,8 @@ def test_surface_water_bounds_and_floor_vs_rim():
     assert pin["available"]
     assert pin["depth_m"] >= pin["depth_working_m"] >= 0.0          # drains overwhelmed can only be as deep or deeper
     assert pin["depth_m"] > 0.05 and pin["rating"] != "NEGLIGIBLE"  # water collects on the bowl floor
+    assert pin["depth_near_max_m"] >= pin["depth_m"] >= 0.0 and pin["depth_pin_cell_m"] >= 0.0 and pin["window_m"] >= 100.0   # headline = window mean, never above the deepest cell
+    assert "mean over the cells" in pin["depth_basis"]
     assert pin["rain"]["d1_mm"] == 300.0 and pin["rain"]["gauge_d1_mm"] == 300.0 and pin["rain"]["gauge_km"] == 4.0
     assert pin["rain"]["grid_best_d1_mm"] == pytest.approx(300.0 / 1.7, abs=0.2)
     hill = SimpleNamespace(**{**vars(dem), "asset_row": 5, "asset_col": 60})
@@ -191,12 +193,12 @@ def test_twin_picks_rain_and_explains_it():
 
 
 def test_site_profile_surface_water_entry(monkeypatch):
-    fake = {"available": True, "depth_m": 0.97, "depth_working_m": 0.93, "rating": "CRITICAL", "cell_m": 66.9, "radius_km": 6.0, "builtup_share": 0.58,
+    fake = {"available": True, "depth_m": 0.26, "depth_working_m": 0.25, "rating": "MODERATE", "depth_pin_cell_m": 0.01, "depth_near_max_m": 0.97, "window_m": 201, "cell_m": 66.9, "radius_km": 6.0, "builtup_share": 0.58,
             "rain": {"d1_mm": 324.9, "gauge_d1_mm": 324.9, "gauge_km": 4.0, "grid_best_d1_mm": 202.5, "largest_in_record": {"mm": 344.9, "date": "2015-12-02"}, "source_used": "gauge"}}
     monkeypatch.setattr(PV, "site_surface_water", lambda *a, **k: fake)
     e = SP._h_surface_water(SP.Ctx(12.98, 80.22, "Velachery"))
-    assert e["status"] == "modelled" and e["severity"] == "CRITICAL" and e["metrics"]["range"] == "0.93–0.97 m"
-    assert "202" in e["method"] and "Chennai" in e["caveat"]
+    assert e["status"] == "modelled" and e["severity"] == "MODERATE" and e["metrics"]["range"] == "0.25–0.26 m" and e["metrics"]["deepest_cell_nearby_m"] == 0.97
+    assert "202" in e["method"] and "Mudichur" in e["caveat"]
     monkeypatch.setattr(PV, "site_surface_water", lambda *a, **k: {"available": False, "reason": "terrain unavailable"})
     n = SP._h_surface_water(SP.Ctx(12.98, 80.22, "Velachery"))
     assert n["status"] == "null" and n["severity"] is None and n["value"] is None
@@ -212,3 +214,20 @@ def test_river_low_rating_raised_by_terrain_second_opinion(monkeypatch):
     assert e2["severity"] == "NEGLIGIBLE" and "raised_from" not in e2["metrics"]
     e3 = SP._river_modelled(SP.Ctx(2.0, 2.0, "deep"), "river_flood", "River flood", "flood", 1.5, 0.9, {"rps": [10]}, [])
     assert e3["severity"] == "HIGH"                                        # a mapped depth is never lowered or recomputed
+
+
+def test_sensitivity_reports_rain_response_and_saturation(monkeypatch):
+    # the variants run through the public function with a patched site_surface_water, for speed; the stand-in fills to a 1 m spill height
+    calls = []
+
+    def fake(lat, lon, rp=100, rain=None, rain_scale=1.0, cn=75.0, manning=0.05, bounds=False, drainage_mm_h=12.0, **k):
+        calls.append(rain_scale)
+        d = min(1.0, 0.01 * (rain or _rain())["d1_mm"] * rain_scale)          # fills to a 1 m spill height
+        return {"available": True, "depth_m": d, "depth_working_m": d * 0.95 if bounds else None, "depth_near_max_m": d, "depth_pin_cell_m": d}
+    monkeypatch.setattr(PV, "site_surface_water", fake)
+    out = PV.surface_water_sensitivity(0.0, 0.0, rain=_rain(300.0), rain_for_rp=lambda r: _rain(300.0))
+    assert out["available"] and out["base_m"] == 1.0
+    assert out["saturates_at_rain_mm"] is not None and out["saturates_at_rain_mm"] < 0.7 * 300.0
+    assert "terrain" in out["text"] and "ponding flag" in out["text"]
+    assert [x["rain_mm"] for x in out["rain_response"]] == sorted(x["rain_mm"] for x in out["rain_response"])
+    assert any(r["input"] == "curve_number" for r in out["ranking"]) and all(r["input"] != "rain_response" for r in out["ranking"])
