@@ -95,6 +95,21 @@ def damage_curve_transfer(depth_m: float, continent: str, asset_class: str = "in
                  note="Transfer spread across continents, not the published confidence band of the curve. Asset class is a classification of the site, not a measurement.")
 
 
+def tc_sources(winds: Optional[dict], rp: int = 100) -> dict:
+    """Disagreement between independent tropical-cyclone wind sources at one site and return period: {source name: {return period: 1-min sustained wind, m/s}}.
+
+    The engine's own winds come from IBTrACS tracks with a parametric profile. A second, independent stochastic event set (IRIS, the Imperial College Storm Model, is the intended
+    one) can be passed in under its own name; nothing is read from it here, so with one source this is not_assessed."""
+    srcs = {n: float(t[rp]) for n, t in (winds or {}).items() if t and rp in t and t[rp] is not None and math.isfinite(float(t[rp])) and float(t[rp]) > 0}
+    if len(srcs) < 2:
+        return entry("tc_sources", f"Cyclone wind 1-in-{rp}: which model", "structural", "not_assessed",
+                     reason=("only one source of cyclone winds was supplied (" + ", ".join(srcs) + "); an independent second event set is needed to see the disagreement") if srcs else "no cyclone wind return level supplied")
+    lo, hi = min(srcs.values()), max(srcs.values())
+    return entry("tc_sources", f"Cyclone wind 1-in-{rp}: which model", "structural", "quantified", low=round(lo, 1), high=round(hi, 1), central=round(float(np.median(list(srcs.values()))), 1), unit="m/s, 1-min sustained",
+                 source=", ".join(sorted(srcs)), method="return level of each source at the same site",
+                 note="; ".join(f"{n} {v:.0f} m/s" for n, v in sorted(srcs.items())) + ". Wind enters damage roughly as a power law, so a modest wind gap is a larger loss gap.")
+
+
 def map_disagreement(ratings: dict) -> dict:
     """Ordinal disagreement between independent hazard sources for the same peril, from their severity labels, e.g. {'JRC river map': 'NEGLIGIBLE', 'terrain model': 'MODERATE', 'rain run': 'HIGH'}."""
     order = ["NEGLIGIBLE", "LOW", "MODERATE", "HIGH", "CRITICAL"]
@@ -122,7 +137,6 @@ NOT_ASSESSED = (
     ("internal_variability", "Internal climate variability", "needs initial-condition ensemble members of a climate model; the engine uses one realisation per model and the observed record"),
     ("scenario", "Choice of emissions pathway", "run each pathway and show them side by side; a single ledger holds one"),
     ("structural", "Hydrological and hydraulic model form (JRC river maps)", "the JRC maps are one model chain (LISFLOOD into LISFLOOD-FP); no second global flood model is held to compare"),
-    ("structural", "Tropical cyclone wind model", "tracks and a parametric wind profile only; no second, independent stochastic event set (such as IRIS) is held to compare"),
     ("parameter", "Asset values and exposure", "the user's own values are used as given; their error is not assessed"),
 )
 
@@ -144,7 +158,8 @@ def build(site: dict, entries: list) -> dict:
 
 
 def site_ledger(lat: float, lon: float, depth_m: Optional[float] = None, continent: str = "asia", asset_class: str = "industrial", design: Optional[dict] = None,
-                scenario_rain: Optional[dict] = None, bootstrap: Optional[tuple] = None, ratings: Optional[dict] = None, sens: Optional[dict] = None, fetch_rain: bool = True) -> dict:
+                scenario_rain: Optional[dict] = None, bootstrap: Optional[tuple] = None, ratings: Optional[dict] = None, sens: Optional[dict] = None, fetch_rain: bool = True,
+                tc_winds: Optional[dict] = None) -> dict:
     """Ledger for one site from whatever has been computed (pass the pieces in; the slow ones are never run silently). With fetch_rain, the design-rain products are read (cached)."""
     if design is None and fetch_rain:
         try:
@@ -153,7 +168,7 @@ def site_ledger(lat: float, lon: float, depth_m: Optional[float] = None, contine
         except Exception as e:                                       # noqa: BLE001
             design = {"available": False, "reason": f"{type(e).__name__}: {str(e)[:100]}"}
     ents = [rain_sources(design), scenario_spread(scenario_rain), return_level_sampling(bootstrap, central=(design or {}).get("d1_mm") if design else None), map_disagreement(ratings or {}),
-            parameter_sensitivity(sens)]
+            parameter_sensitivity(sens), tc_sources(tc_winds)]
     ents.append(damage_curve_transfer(depth_m, continent, asset_class) if depth_m is not None else
                 entry("damage_curve", "Damage curve (depth to loss)", "structural", "not_assessed", reason="no flood depth supplied to evaluate the curve at"))
     return build({"lat": lat, "lon": lon, "continent": continent, "asset_class": asset_class}, ents)

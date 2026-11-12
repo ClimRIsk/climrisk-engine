@@ -52,7 +52,8 @@ def test_ledger_ranks_quantified_lists_not_assessed_and_does_not_combine():
     assert "NOT combined" in led["combination"]
     kinds = {e["kind"] for e in led["entries"] if e["status"] == "not_assessed"}
     assert "internal_variability" in kinds and "scenario" in kinds
-    assert any("IRIS" in e["reason"] for e in led["entries"] if e["status"] == "not_assessed")
+    tc = next(e for e in led["entries"] if e["key"] == "tc_sources")
+    assert tc["status"] == "not_assessed" and "no cyclone wind" in tc["reason"]
 
 
 def test_nothing_supplied_is_all_not_assessed_never_a_made_up_range():
@@ -68,3 +69,14 @@ def test_endpoint():
     if r.status_code in (401, 403):
         pytest.skip("endpoint needs an API key in this environment")
     assert r.status_code == 200 and r.json()["counts"]["quantified"] >= 2
+
+
+def test_tc_sources_needs_two_independent_sources():
+    one = U.tc_sources({"IBTrACS + Holland": {100: 62.0}})
+    assert one["status"] == "not_assessed" and "independent second event set" in one["reason"]
+    two = U.tc_sources({"IBTrACS + Holland": {100: 62.0}, "IRIS": {100: 70.5}})
+    assert two["status"] == "quantified" and two["low"] == 62.0 and two["high"] == 70.5 and "IRIS" in two["source"]
+    assert U.tc_sources({"a": {100: 60.0}, "b": {50: 55.0}})["status"] == "not_assessed"        # no common return period
+    assert U.tc_sources({"a": {100: 60.0}, "b": {100: float("nan")}})["status"] == "not_assessed"
+    led = U.site_ledger(20.0, 120.0, tc_winds={"A": {100: 60.0}, "B": {100: 75.0}}, fetch_rain=False)
+    assert any(r["key"] == "tc_sources" for r in led["ranking"])
