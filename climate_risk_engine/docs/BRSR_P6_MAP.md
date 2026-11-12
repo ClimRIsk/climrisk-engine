@@ -33,3 +33,25 @@ Other Principle 6 essential questions that are not in the BRSR Core table (energ
 2. Per-unit-of-output intensity (needs the filer's sector-specific output).
 3. Water: use Aqueduct basin context to flag high-stress sites for the filer, without inventing consumption.
 4. Read Annexure II and the December 2024 industry standards and extend this map to every Principle 6 question.
+
+
+## Scope across all nine BRSR principles (added 12 Nov 2026)
+
+The map above covers Principle 6 only. That is deliberate, not an oversight: P6 is the principle whose disclosures the engine's outputs can feed. Mapping all nine would be padding, because most principles are about things a climate-risk engine does not measure. The table says what is in, what is partial and what is out, and why. Mappings here are from the principle titles and the BRSR Core attributes; I have not yet read Annexure II line by line.
+
+| Principle | Topic | Engine coverage | Why |
+|---|---|---|---|
+| P1 | Ethics, transparency, accountability | Out | Governance conduct; no climate-risk output feeds it |
+| P2 | Safe and sustainable products and services | Partial | LCA and product carbon (ISO 14067 module) can feed the environmental-impact and life-cycle questions; no per-unit-of-output intensity yet |
+| P3 | Employee and value-chain worker well-being | Partial | Heat stress and flood exposure of sites bear on worker safety; the engine rates the hazard, it does not hold injury or safety data |
+| P4 | Stakeholder responsiveness | Out | Engagement process |
+| P5 | Human rights | Out | Policy and grievance process |
+| **P6** | **Environment** | **In (see map)** | Energy, water, discharge, GHG, waste, plus climate risk and adaptation |
+| P7 | Responsible public-policy advocacy | Out | Not a hazard or emissions topic |
+| P8 | Inclusive growth and equitable development | Out | Not measured |
+| P9 | Consumer value | Out | Not measured |
+| Section A, material issues table | Risks and opportunities, approach to adapt or mitigate, financial implications | Partial | Physical-risk and transition findings are the evidence behind a climate row; the company decides materiality and writes the row |
+
+BRSR Core attributes the engine can support: GHG footprint, energy footprint and water footprint (modelled estimates only), and circularity/waste (estimates only). It does not support the Core attributes on employee well-being, gender diversity, inclusive development, fairness to customers and suppliers, or openness of business.
+
+What to say if asked "why only P6?": ClimRisk is a climate-risk and emissions engine, so its evidence lands in P6 and in the climate row of the material-issues table. It is not a BRSR preparation tool and does not claim to cover the other principles.

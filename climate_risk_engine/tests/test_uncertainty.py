@@ -80,3 +80,43 @@ def test_tc_sources_needs_two_independent_sources():
     assert U.tc_sources({"a": {100: 60.0}, "b": {100: float("nan")}})["status"] == "not_assessed"
     led = U.site_ledger(20.0, 120.0, tc_winds={"A": {100: 60.0}, "B": {100: 75.0}}, fetch_rain=False)
     assert any(r["key"] == "tc_sources" for r in led["ranking"])
+
+
+def _prof(**h):
+    return {"hazards": h, "flood_events": {"available": True, "events": []}}
+
+
+def _he(label, sev, status="modelled"):
+    return {"label": label, "status": status, "severity": sev, "method": "m"}
+
+
+def test_flood_concordance_worst_credible_not_average_and_null_is_not_dry():
+    p = _prof(river_flood=_he("River flood", "NEGLIGIBLE"), surface_water=_he("Rain-driven flooding", "HIGH"),
+              coastal_flood={"label": "Coastal", "status": "null", "severity": None, "reason": "no coastal map"})
+    e = U.flood_concordance(p)
+    assert e["worst"] == "HIGH" and e["agreement"] == "disagree" and e["status"] == "quantified"
+    assert e["low"] == 0 and e["high"] == 3
+    assert [x["key"] for x in e["not_assessed"]] == ["coastal_flood"] and "Not assessed: Coastal" in e["verdict"]
+    assert "worst credible" in e["verdict"].lower()
+
+
+def test_flood_concordance_single_source_and_none():
+    one = U.flood_concordance(_prof(river_flood=_he("River flood", "LOW")))
+    assert one["agreement"] == "single_source" and one["status"] == "not_assessed" and "not been cross-checked" in one["verdict"]
+    none = U.flood_concordance(_prof(river_flood={"label": "River flood", "status": "null", "severity": None, "reason": "x"}))
+    assert none["agreement"] == "none" and "NOT ASSESSED" in none["verdict"]
+    assert U.flood_concordance(None)["agreement"] == "none"
+
+
+def test_flood_concordance_warns_when_recorded_events_contradict_models():
+    p = _prof(river_flood=_he("River flood", "NEGLIGIBLE"), surface_water=_he("Rain-driven flooding", "LOW"))
+    p["flood_events"] = {"available": True, "events": [{"date": "2021-07-14", "bbox_contains_point": True}, {"date": "2019-01-01", "bbox_contains_point": False}]}
+    e = U.flood_concordance(p)
+    assert e["agreement"] == "agree" and e["observed"]["events_with_box_over_site"] == 1 and "Caution: 1 recorded flood event" in e["verdict"]
+
+
+def test_site_ledger_uses_profile_for_flood_concordance():
+    p = _prof(river_flood=_he("River flood", "MODERATE"), surface_water=_he("Rain-driven flooding", "HIGH"))
+    led = U.site_ledger(12.98, 80.22, fetch_rain=False, profile=p)
+    keys = [e["key"] for e in led["entries"]]
+    assert "flood_concordance" in keys and "map_disagreement" not in keys

@@ -122,6 +122,61 @@ def map_disagreement(ratings: dict) -> dict:
                  source="site profile entries", method="lowest and highest severity across sources: " + ", ".join(f"{k} {v}" for k, v in r.items()),
                  note=("The sources disagree by %d step(s): they see different mechanisms (river network, terrain position, rain on the ground), so a disagreement is information, not noise." % (hi - lo)) if hi > lo else "The sources agree.")
 
+# Which mechanism each flood entry in the site profile looks at. Different mechanisms can legitimately differ (a site can be safe from a river and flood from rain), so the
+# verdict is the WORST credible reading, never an average, and a source that could not be run is named as not assessed, never counted as dry.
+FLOOD_MECHANISMS = {
+    "river_flood": "river", "river": "river",
+    "surface_water": "rain on the ground", "flood": "rain on the ground",
+    "flood_terrain_radar": "terrain position and observed water", 
+    "coastal_flood": "coast and sea level", "surge": "coast and sea level", "sealevel": "coast and sea level",
+}
+_ORDER = ["NEGLIGIBLE", "LOW", "MODERATE", "HIGH", "CRITICAL"]
+
+
+def flood_concordance(profile: Optional[dict]) -> dict:
+    """Do the independent flood sources in a site profile agree? Reads `siteprofile.profile(...)` output; nothing is re-run.
+
+    Returns a ledger entry plus `sources` (one row per source: mechanism, severity, how it was obtained), `not_assessed` (sources that gave no answer and why), `observed`
+    (recorded flood events whose mapped footprint box contains the site) and `verdict`. Rules: severity is taken from the source's own rating; a `none_found` entry counts as
+    NEGLIGIBLE only because the engine established absence; a `null` entry is NOT dry. The verdict is the highest severity among assessed sources, with the agreement stated
+    separately, because a quiet source that cannot see a mechanism does not cancel a loud one that can."""
+    hz = (profile or {}).get("hazards") or {}
+    rows, na = [], []
+    for k, e in hz.items():
+        mech = FLOOD_MECHANISMS.get(k)
+        if mech is None:
+            continue
+        if e.get("status") in ("modelled", "constructed", "none_found") and e.get("severity") in _ORDER:
+            rows.append({"source": e.get("label") or k, "key": k, "mechanism": mech, "severity": e["severity"], "status": e["status"], "method": e.get("method") or ""})
+        else:
+            na.append({"source": e.get("label") or k, "key": k, "mechanism": mech, "why": e.get("reason") or "no answer"})
+    ev = (profile or {}).get("flood_events") or {}
+    hits = [x for x in (ev.get("events") or []) if x.get("bbox_contains_point")]
+    observed = {"available": bool(ev.get("available")), "events_with_box_over_site": len(hits), "latest": hits[0]["date"] if hits else None,
+                "note": "Recorded flood events (Copernicus EMS / Global Flood Database footprints). A box over the site is not proof it was wet: the box is the mapped area, not the water."}
+    ent = map_disagreement({r["source"]: r["severity"] for r in rows})
+    n = len(rows)
+    worst = max((r["severity"] for r in rows), key=_ORDER.index) if rows else None
+    mechs = sorted({r["mechanism"] for r in rows})
+    if n == 0:
+        agreement, verdict = "none", "No flood source gave an answer for this site: flood risk is NOT ASSESSED here (not zero)."
+    elif n == 1:
+        agreement = "single_source"
+        verdict = f"One source ({rows[0]['source']}) rates this {worst}. Flood has not been cross-checked at this site; the other mechanisms are not assessed."
+    else:
+        spread = _ORDER.index(worst) - min(_ORDER.index(r["severity"]) for r in rows)
+        agreement = "agree" if spread <= 1 else "disagree"
+        loud = [r["source"] for r in rows if r["severity"] == worst]
+        verdict = (f"Worst credible reading {worst} ({', '.join(loud)}); {n} sources over {len(mechs)} mechanism(s) "
+                   + ("agree within one step." if agreement == "agree" else f"disagree by {spread} steps, so look at which mechanism each one can see before trusting the quiet one."))
+    if na:
+        verdict += " Not assessed: " + ", ".join(x["source"] for x in na) + "."
+    if hits and worst in ("NEGLIGIBLE", "LOW"):
+        verdict += f" Caution: {len(hits)} recorded flood event(s) have a mapped box over this site, yet the models rate it {worst}."
+    ent.update({"key": "flood_concordance", "label": "Flood: do independent sources agree", "sources": rows, "not_assessed": na, "observed": observed,
+                "agreement": agreement, "verdict": verdict, "worst": worst, "mechanisms": mechs})
+    return ent
+
 
 def parameter_sensitivity(sens: Optional[dict]) -> dict:
     """From `finance.pluvial.surface_water_sensitivity`: how far the surface-water depth moves when assumed inputs are varied, and whether it saturates."""
@@ -159,7 +214,7 @@ def build(site: dict, entries: list) -> dict:
 
 def site_ledger(lat: float, lon: float, depth_m: Optional[float] = None, continent: str = "asia", asset_class: str = "industrial", design: Optional[dict] = None,
                 scenario_rain: Optional[dict] = None, bootstrap: Optional[tuple] = None, ratings: Optional[dict] = None, sens: Optional[dict] = None, fetch_rain: bool = True,
-                tc_winds: Optional[dict] = None) -> dict:
+                tc_winds: Optional[dict] = None, profile: Optional[dict] = None) -> dict:
     """Ledger for one site from whatever has been computed (pass the pieces in; the slow ones are never run silently). With fetch_rain, the design-rain products are read (cached)."""
     if design is None and fetch_rain:
         try:
@@ -167,7 +222,7 @@ def site_ledger(lat: float, lon: float, depth_m: Optional[float] = None, contine
             design = RD.design(lat, lon)
         except Exception as e:                                       # noqa: BLE001
             design = {"available": False, "reason": f"{type(e).__name__}: {str(e)[:100]}"}
-    ents = [rain_sources(design), scenario_spread(scenario_rain), return_level_sampling(bootstrap, central=(design or {}).get("d1_mm") if design else None), map_disagreement(ratings or {}),
+    ents = [rain_sources(design), scenario_spread(scenario_rain), return_level_sampling(bootstrap, central=(design or {}).get("d1_mm") if design else None), (flood_concordance(profile) if profile else map_disagreement(ratings or {})),
             parameter_sensitivity(sens), tc_sources(tc_winds)]
     ents.append(damage_curve_transfer(depth_m, continent, asset_class) if depth_m is not None else
                 entry("damage_curve", "Damage curve (depth to loss)", "structural", "not_assessed", reason="no flood depth supplied to evaluate the curve at"))
