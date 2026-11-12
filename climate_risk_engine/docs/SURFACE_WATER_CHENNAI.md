@@ -32,7 +32,17 @@ For Velachery (12.9815, 80.2180), which stood in 1 to 2 m of water on 1 to 2 Dec
 
 Mudichur was flooded in December 2015 by the Adyar river and the reservoir release upstream. Rain-on-grid cannot see water that arrives from a river or a release, and this layer does not, so it reads dry. That is a limit of the method, not a tuning problem.
 
-Control sites (earlier runs used the deepest-cell metric, so they read higher than they would now and should be rerun before being quoted): Shimla hillside, Denver, Houston downtown and Amsterdam polder were all NEGLIGIBLE or LOW; Mumbai Kurla read MODERATE.
+Control sites, rerun on 12 Nov 2026 with the window-mean metric (1-in-100, drains overwhelmed; rain from the nearest gauge, global terrain tiles):
+
+| Site | Window mean (rating) | Pin cell | Deepest cell nearby | Design rain (gauge / best grid) |
+|---|---|---|---|---|
+| Shimla (hillside) | 0.00 m NEGLIGIBLE | 0.00 m | 0.00 m | 209 / 185 mm |
+| Denver | 0.02 m NEGLIGIBLE | 0.02 m | 0.02 m | 87 / 72 mm |
+| Houston (downtown) | 0.01 m NEGLIGIBLE | 0.01 m | 0.02 m | 279 / 207 mm |
+| Amsterdam (polder, pumps not modelled) | 0.09 m LOW | 0.14 m | 0.14 m | 69 / 47 mm |
+| Mumbai Kurla | 0.08 m LOW | 0.04 m | 0.25 m | 486 / 296 mm |
+
+The controls that should be dry are dry. Mumbai Kurla reads LOW even though the 2005 floods hit that area: one pin in one 6 km window, with the Mithi river doing much of the damage (a river mechanism, the same limit as Mudichur). Houston's own record is mostly bayou and reservoir water too. These are screening results, not a skill score: five negatives and mixed positives do not make an AUC.
 
 ## Sensitivity at Velachery (one input at a time, window-mean depth)
 
