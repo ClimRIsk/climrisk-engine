@@ -38,6 +38,16 @@
   .vbar .grp button, .vbar select { background:transparent !important; border:1px solid transparent; color:var(--text) !important; font:inherit; font-size:11px; font-weight:500; width:auto !important; margin:0 !important; padding:4px 8px; border-radius:6px; cursor:pointer; }
   .vbar .grp button:hover { background:rgba(255,255,255,.08) !important; } .vbar .grp button.on { background:var(--primary) !important; color:#04121e !important; font-weight:700; }
   .vbar select { background:#0d1524; border:1px solid var(--border); max-width:210px; }
+  .chip, .legend, .vbar .grp, .vbar select { backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); box-shadow: 0 6px 22px rgba(0,0,0,.35); }
+  .chip { border-radius:10px; }
+  .pills { position:absolute; left:50%; top:10px; transform:translateX(-50%); display:flex; gap:6px; pointer-events:auto; max-width:46%; flex-wrap:wrap; justify-content:center; }
+  .pills:empty { display:none; }
+  .pill { background:rgba(13,21,36,.82); border:1px solid var(--border); color:var(--text); border-radius:999px; padding:5px 12px 5px 9px; font:inherit; font-size:11px; cursor:pointer; backdrop-filter:blur(10px); display:flex; align-items:center; gap:7px; }
+  .pill i { width:9px; height:9px; border-radius:50%; display:inline-block; } .pill b { font-weight:700; } .pill .d { color:var(--muted); font-variant-numeric:tabular-nums; }
+  .pill:hover { border-color:var(--primary); } .pill.on { background:var(--primary); color:#04121e; border-color:var(--primary); } .pill.on .d { color:#0b3a52; }
+  .dbar { margin-top:8px; padding-top:7px; border-top:1px solid var(--border); }
+  .dbar .ramp { height:8px; border-radius:4px; background:linear-gradient(90deg,#8fd9ee 0%,#3ba3e6 28%,#1d6fc0 55%,#173f9a 80%,#10205f 100%); margin:3px 0 2px; }
+  .dbar .tk { display:flex; justify-content:space-between; font-size:9.5px; color:var(--muted); }
   .compass { position:absolute; right:12px; bottom:12px; width:56px; height:56px; pointer-events:none; }
   .compass .dial { width:56px; height:56px; border-radius:50%; background:rgba(13,21,36,.78); border:1px solid var(--border); position:relative; }
   .compass .needle { position:absolute; left:26px; top:6px; width:4px; height:22px; background:linear-gradient(#ef4444 0 50%, #cbd5e1 50% 100%); border-radius:2px; transform-origin:2px 22px; }
@@ -136,6 +146,7 @@
   <main class="main">
     <canvas id="view"></canvas>
     <div class="hud" id="hud"></div>
+    <div class="pills" id="pills"></div>
     <div class="legend" id="legend"></div>
     <div class="tip" id="tip"></div>
     <div class="vbar">
@@ -200,15 +211,16 @@ function initGL() {
   renderer = new THREE.WebGLRenderer({ canvas: $('view'), antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  scene = new THREE.Scene(); scene.background = new THREE.Color(0xbcd0e6); scene.fog = new THREE.Fog(0xbcd0e6, 1400, 4200);
+  renderer.outputEncoding = THREE.sRGBEncoding; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.08;
+  scene = new THREE.Scene(); scene.background = new THREE.Color(0x182a44); scene.fog = new THREE.Fog(0x182a44, 900, 3400);
   camera = new THREE.PerspectiveCamera(48, 1, 1, 9000);
   const sky = new THREE.Mesh(new THREE.SphereGeometry(7000, 24, 16), new THREE.ShaderMaterial({ side: THREE.BackSide, depthWrite: false, fog: false,
-    uniforms: { top: { value: new THREE.Color(0x3b6ea5) }, hor: { value: new THREE.Color(0xbcd0e6) } },
+    uniforms: { top: { value: new THREE.Color(0x070d1b) }, hor: { value: new THREE.Color(0x2a4a72) } },
     vertexShader: 'varying float h; void main(){ h = normalize(position).y; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
     fragmentShader: 'uniform vec3 top; uniform vec3 hor; varying float h; void main(){ gl_FragColor = vec4(mix(hor, top, pow(clamp(h,0.0,1.0), 0.55)), 1.0); }' }));
   sky.renderOrder = -1; scene.add(sky); S.sky = sky;
-  scene.add(new THREE.HemisphereLight(0xdbe8ff, 0x4b5563, 0.62));
-  const sun = new THREE.DirectionalLight(0xfff4e0, 0.95); sun.position.set(-380, 520, 260); sun.castShadow = true;
+  scene.add(new THREE.HemisphereLight(0xcfe0ff, 0x2a3446, 0.72));
+  const sun = new THREE.DirectionalLight(0xffe9c8, 1.05); sun.position.set(-380, 520, 260); sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0006; Object.assign(sun.shadow.camera, { left: -420, right: 420, top: 420, bottom: -420, near: 10, far: 1800 });
   scene.add(sun); scene.add(sun.target); S.sun = sun;
   compGroup = new THREE.Group(); miscGroup = new THREE.Group(); scene.add(compGroup, miscGroup);
@@ -266,11 +278,35 @@ function buildTerrain() {
   S.terrMatPlain = new THREE.MeshLambertMaterial({ vertexColors: true });
   terrainMesh = new THREE.Mesh(g, S.terrMatPlain); terrainMesh.receiveShadow = true; scene.add(terrainMesh);
   S.imgTex = null; loadImagery();
-  const wg = new THREE.BufferGeometry(); wg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(R * C * 3), 3)); wg.setIndex(idx);
-  waterMesh = new THREE.Mesh(wg, new THREE.MeshPhongMaterial({ color: 0x2a8ad8, transparent: true, opacity: 0.62, shininess: 80, depthWrite: false, side: THREE.DoubleSide }));
+  const wg = new THREE.BufferGeometry(); wg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(R * C * 3), 3)); wg.setAttribute('color', new THREE.BufferAttribute(new Float32Array(R * C * 3), 3)); wg.setIndex(idx);
+  waterMesh = new THREE.Mesh(wg, new THREE.MeshPhongMaterial({ color: 0xffffff, vertexColors: true, transparent: true, opacity: 0.80, shininess: 120, specular: 0x9fd8ff, depthWrite: false, side: THREE.DoubleSide }));
   waterMesh.renderOrder = 2; scene.add(waterMesh);
   cam.ty = yv(S.twin.site.ground_ref_m); cam.r = Math.max(260, S.twin.site.radius_m * 1.8);
   S.zrange = [zmin, zmax];
+  buildDiorama(T, R, C, zmin);
+}
+// A floating tile instead of a hard slab on a flat colour: earth-toned side walls, a dark plinth, a soft pool of light and a faint ground grid.
+function buildDiorama(T, R, C, zmin) {
+  (S.dio || []).forEach(o => { scene.remove(o); if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); }); S.dio = [];
+  const baseY = yv(zmin) - 16, edges = [];
+  const pt = (r, c) => [sx(T.x0_m + c * T.dx_m), yv(T.z[r][c]), sz(T.y0_m - r * T.dy_m)];
+  for (let c = 0; c < C; c++) edges.push([pt(0, c), c]);
+  for (let r = 1; r < R; r++) edges.push([pt(r, C - 1), 0]);
+  for (let c = C - 2; c >= 0; c--) edges.push([pt(R - 1, c), 0]);
+  for (let r = R - 2; r >= 1; r--) edges.push([pt(r, 0), 0]);
+  edges.push(edges[0]);
+  const pos = [], col = [], ix = [], top = new THREE.Color(0x6a5a44), bot = new THREE.Color(0x141b29);
+  edges.forEach(([p3]) => { pos.push(p3[0], p3[1], p3[2], p3[0], baseY, p3[2]); col.push(top.r, top.g, top.b, bot.r, bot.g, bot.b); });
+  for (let i = 0; i < edges.length - 1; i++) { const a = i * 2; ix.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.setIndex(ix); g.computeVertexNormals();
+  const skirt = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide })); skirt.receiveShadow = true; scene.add(skirt); S.dio.push(skirt);
+  const half = Math.max(R * T.dy_m, C * T.dx_m) / 2, cx = T.x0_m + (C - 1) * T.dx_m / 2, cz = -(T.y0_m - (R - 1) * T.dy_m / 2);
+  const tab = new THREE.Mesh(new THREE.CircleGeometry(half * 5, 72), new THREE.ShaderMaterial({ transparent: true, depthWrite: false, fog: false,
+    uniforms: { c0: { value: new THREE.Color(0x24406a) }, c1: { value: new THREE.Color(0x0b1424) } },
+    vertexShader: 'varying vec2 v; void main(){ v = position.xy; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
+    fragmentShader: 'uniform vec3 c0; uniform vec3 c1; varying vec2 v; void main(){ float d = length(v) / ' + (half * 5).toFixed(1) + '; float a = smoothstep(1.0, 0.18, d); gl_FragColor = vec4(mix(c0, c1, smoothstep(0.0, 0.7, d)), a); }' }));
+  tab.rotation.x = -Math.PI / 2; tab.position.set(cx, baseY - 0.4, cz); scene.add(tab); S.dio.push(tab);
+  const grid = new THREE.GridHelper(half * 6, 60, 0x2d4a73, 0x1c3050); grid.position.set(cx, baseY - 0.2, cz); grid.material.transparent = true; grid.material.opacity = 0.35; grid.material.depthWrite = false; scene.add(grid); S.dio.push(grid);
 }
 
 // ── ground imagery: open sources by default; tiles pass straight through the local engine (/asset-twin/tile), nothing is stored ──
@@ -371,10 +407,17 @@ function protectedRing() { return S.measures.some(m => m.type === 'flood_barrier
 function ringRadius() { const cs = onsite(); let r = 40; cs.forEach(c => { r = Math.max(r, Math.hypot(c.x, c.y) + 25); }); return r; }
 function barrierH() { return Math.max(0, ...S.measures.filter(m => m.type === 'flood_barrier').map(m => m.height_m)); }
 function simDepth(i) {
-  const sm = S.sim; if (!sm || !sm.frames) return 0;
+  const sm = S.sim; if (sm && !sm.frames && sm.hmax_cm) return sm.hmax_cm[i] / 100;          // rain scenario: the maximum depth of the storm, not a time series
+  if (!sm || !sm.frames) return 0;
   const ft = sm.frame_t_s, T = ft[ft.length - 1] * S.t; let k = 0; while (k < ft.length - 1 && ft[k] < T) k++;
   const f1 = sm.frames[k], f0 = k > 0 ? sm.frames[k - 1] : null, t1 = ft[k], t0 = k > 0 ? ft[k - 1] : 0, a = t1 > t0 ? Math.min(1, Math.max(0, (T - t0) / (t1 - t0))) : 1;
   return ((f0 ? f0[i] : 0) * (1 - a) + f1[i] * a) / 100;
+}
+const WSTOPS = [[0, 0.56, 0.85, 0.93], [0.5, 0.23, 0.64, 0.90], [1.5, 0.11, 0.44, 0.75], [3, 0.09, 0.25, 0.60], [6, 0.06, 0.12, 0.38]];
+function waterColor(d) {
+  if (d <= WSTOPS[0][0]) return [WSTOPS[0][1], WSTOPS[0][2], WSTOPS[0][3]];
+  for (let k = 1; k < WSTOPS.length; k++) if (d <= WSTOPS[k][0]) { const a = WSTOPS[k - 1], b = WSTOPS[k], f = (d - a[0]) / (b[0] - a[0]); return [a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f, a[3] + (b[3] - a[3]) * f]; }
+  const e = WSTOPS[WSTOPS.length - 1]; return [e[1], e[2], e[3]];
 }
 function updateWater() {
   if (!S.twin || !waterMesh) return;
@@ -387,12 +430,14 @@ function updateWater() {
     if (d > 0.02) { wetN++; if (d > dmax) dmax = d; }
     p.array[i * 3] = sx(x); p.array[i * 3 + 2] = sz(y);
     p.array[i * 3 + 1] = d > 0.02 ? yv(z) + d * S.VE + 0.05 : yv(z) - 3;
+    const wc = waterColor(d), co = waterMesh.geometry.attributes.color.array; co[i * 3] = wc[0]; co[i * 3 + 1] = wc[1]; co[i * 3 + 2] = wc[2];
   }
-  p.needsUpdate = true; waterMesh.geometry.computeVertexNormals();
+  p.needsUpdate = true; waterMesh.geometry.attributes.color.needsUpdate = true; waterMesh.geometry.computeVertexNormals();
   const el = $('hudDepth'); if (!el) return;
   if (!show) { el.innerHTML = ''; return; }
   if (solver && S.sim.frames) { const v = S.sim.validation || {};
     el.innerHTML = `Solver · t = <b>${(t * S.sim.frame_t_s[S.sim.frame_t_s.length - 1] / 3600).toFixed(1)} h</b> · deepest <b>${dmax.toFixed(1)} m</b> · wet now ${(100 * wetN / (R * C)).toFixed(0)}% · map wet ${(100 * (v.map_wet_share_of_open_land || 0)).toFixed(0)}% / solver ${(100 * (v.solver_wet_share_of_open_land || 0)).toFixed(0)}% of open land` + (S.sim.barrier_m ? ` · wall ${S.sim.barrier_m} m in model` : ''); }
+  else if (solver && S.sim.kind === 'rain') { const v = S.sim.validation || {}; el.innerHTML = `Rain-driven · <b>maximum depth</b> of a ${S.sim.duration_h.total} h design storm · deepest <b>${dmax.toFixed(1)} m</b> · wet ${(100 * wetN / (R * C)).toFixed(0)}% of the site · no time stepping, no velocity` + (S.sim.barrier_note ? ' · ' + esc(S.sim.barrier_note) : ''); }
   else if (solver) el.innerHTML = `Solver: ${esc(S.sim.note || 'no water reaches the site in this scenario')}`;
   else if (S.simFailed) el.innerHTML = `Solver unavailable: showing mapped depth spread over the ground (approximation)`;
   else el.innerHTML = 'Running solver…';
@@ -405,13 +450,23 @@ function onsite() {
 // natural colours by kind: [roof, wall]. Hazard states override them; dry structures keep these so the scene reads as a real site.
 const KIND_COL = { tank: [0xe8ebef, 0xd5d9df], silo: [0xdfe3e8, 0xc9ced6], stack: [0xd9dde3, 0xc2c8d0], process: [0x8e9aab, 0xaab4c3], tower: [0x9aa6b6, 0xb4bdca], substation: [0x7c8794, 0x98a2ae],
                    warehouse: [0xa9afb8, 0xcfd3d9], office: [0xb7beca, 0xe2e5ea], building: [0xb4bac4, 0xd6dae0], jetty: [0x8b8f94, 0x9a9ea3] };
+let WIN_TEX = null;
+function winTex() {
+  if (WIN_TEX) return WIN_TEX;
+  const cv = document.createElement('canvas'); cv.width = 64; cv.height = 64; const g = cv.getContext('2d');
+  g.fillStyle = '#ffffff'; g.fillRect(0, 0, 64, 64); g.fillStyle = '#8c98ab';
+  for (let r = 0; r < 2; r++) for (let c = 0; c < 2; c++) g.fillRect(6 + c * 32, 9 + r * 32, 20, 15);
+  WIN_TEX = new THREE.CanvasTexture(cv); WIN_TEX.wrapS = WIN_TEX.wrapT = THREE.RepeatWrapping; WIN_TEX.repeat.set(1 / 7, 1 / 6.4); WIN_TEX.anisotropy = 4; WIN_TEX.encoding = THREE.sRGBEncoding;
+  return WIN_TEX;
+}
 function compMesh(c) {
   let g, mats; const kc = KIND_COL[c.kind] || KIND_COL.building, mk = col => new THREE.MeshStandardMaterial({ color: col, roughness: 0.82, metalness: c.kind === 'tank' || c.kind === 'silo' ? 0.25 : 0.05 });
   const round = ['tank', 'silo', 'stack'].includes(c.kind);
   if (round) { const rad = Math.max(2, Math.sqrt(c.area_m2 / Math.PI)); g = new THREE.CylinderGeometry(rad * (c.kind === 'stack' ? 0.62 : 1), rad, c.height_m, 28); g.translate(0, c.height_m / 2, 0); mats = [mk(kc[1]), mk(kc[0]), mk(kc[1])]; }
   else {
     const sh = new THREE.Shape(c.footprint.map(p => new THREE.Vector2(p[0], p[1]))); g = new THREE.ExtrudeGeometry(sh, { depth: c.height_m, bevelEnabled: false });
-    g.rotateX(-Math.PI / 2); mats = [mk(kc[0]), mk(kc[1])];                                           // groups: 0 = caps (roof), 1 = sides (walls)
+    g.rotateX(-Math.PI / 2); mats = [mk(kc[0]), mk(kc[1])];
+    if (['building', 'office', 'warehouse', 'process', 'tower'].includes(c.kind) && c.height_m >= 5) mats[1].map = winTex();                                           // groups: 0 = caps (roof), 1 = sides (walls)
   }
   const m = new THREE.Mesh(g, mats); m.userData.id = c.id; m.userData.round = round; m.castShadow = true; m.receiveShadow = true;
   const assumed = /assumed/i.test(c.height_source || '');                                              // amber edge = height is a default for this kind, not measured
@@ -561,7 +616,7 @@ async function runEval() {
   const body = { components: S.twin.components, site: S.twin.site, linear: S.twin.linear };
   try {
     const [b, a] = await Promise.all([api('/asset-twin/evaluate', Object.assign({ measures: [], hazard: hzB }, body)), api('/asset-twin/evaluate', Object.assign({ measures: S.measures, hazard: hzN }, body))]);
-    S.evalBase = b; S.evalNow = a; colorize(); updateWater(); renderHud(); renderCompare(); showTip(); renderLegend();
+    S.evalBase = b; S.evalNow = a; colorize(); renderHud(); updateWater(); renderCompare(); showTip(); renderLegend();
   } catch (e) { status('Evaluation failed: ' + e.message, true); }
 }
 function counts(ev) {
@@ -575,7 +630,8 @@ function renderCompare() {
   $('cmpB').textContent = badCount(S.evalBase) + ' / ' + b.n; $('cmpA').textContent = badCount(S.evalNow) + ' / ' + a.n;
   $('cmpBt').textContent = what; $('cmpAt').textContent = S.measures.length ? what : 'no protection applied';
 }
-function renderLegend() { $('legend').innerHTML = LEG[S.mode].map(([k, t]) => `<div><i style="background:#${COL[S.mode][k].toString(16).padStart(6, '0')}"></i>${t}</div>`).join('') + '<div class="note">Grey, faded: surrounding structures, not judged.</div>'; }
+function renderLegend() { $('legend').innerHTML = LEG[S.mode].map(([k, t]) => `<div><i style="background:#${COL[S.mode][k].toString(16).padStart(6, '0')}"></i>${t}</div>`).join('') + '<div class="note">Grey, faded: surrounding structures, not judged.</div>'
+  + (S.mode === 'flood' ? '<div class="dbar"><div>Water depth</div><div class="ramp"></div><div class="tk"><span>0</span><span>0.5 m</span><span>1.5 m</span><span>3 m</span><span>6 m+</span></div></div>' : ''); }
 function renderHud() {
   const sc = S.mode === 'flood' ? floodSc() : (S.twin.scenarios.wind.find(s => s.id === $('scen').value) || allStorms().find(s => s.id === $('scen').value));
   const lbl = sc ? (sc.label || (sc.name + ' ' + (sc.date || sc.year))) : 'No scenario';
@@ -598,10 +654,19 @@ function fillScen() {
     if (tw.history.storms.length) opts += '<optgroup label="Storms on record at this site">' + [...tw.history.storms].sort((a, b) => b.peak_wind_ms - a.peak_wind_ms).map(s => `<option value="${esc(s.id)}">${s.year} ${esc(s.name)} — ${s.peak_wind_ms} m/s</option>`).join('') + '</optgroup>';
   }
   sel.innerHTML = opts || '<option value="">No scenario available</option>';
-  const pre = S.mode === 'flood' ? (tw.scenarios.flood.find(s => s.id === 'river_100') || tw.scenarios.flood.find(s => s.depth_m > 0) || tw.scenarios.flood[0]) : (tw.scenarios.wind.find(s => s.rp === 100) || tw.scenarios.wind[0]);
+  const pre = S.mode === 'flood' ? ([tw.scenarios.flood.find(s => s.id === 'river_100'), tw.scenarios.flood.find(s => s.id === 'rain_100')].filter(Boolean).sort((a, b) => (b.depth_p90_m || 0) - (a.depth_p90_m || 0))[0] || tw.scenarios.flood.find(s => s.depth_m > 0) || tw.scenarios.flood[0]) : (tw.scenarios.wind.find(s => s.rp === 100) || tw.scenarios.wind[0]);
   if (pre) sel.value = pre.id;
   $('windDir').style.display = S.mode === 'wind' ? 'block' : 'none';
-  setDirFromScenario();
+  setDirFromScenario(); renderPills();
+}
+const PILL_COL = { river: '#38bdf8', rain: '#a78bfa', coastal: '#2dd4bf' };
+function renderPills() {
+  const el = $('pills'); if (!el || !S.twin) return;
+  if (S.mode !== 'flood') { el.innerHTML = ''; return; }
+  const fs = S.twin.scenarios.flood.filter(s => (s.kind === 'river' && s.rp === 100) || (s.kind === 'rain' && s.rp === 100) || (s.kind === 'coastal' && s.rp === 100 && (s.year || 0) <= 2020));
+  const nm = { river: 'River', rain: 'Heavy rain', coastal: 'Coastal surge' };
+  el.innerHTML = fs.map(s => `<button class="pill${$('scen').value === s.id ? ' on' : ''}" data-id="${esc(s.id)}"><i style="background:${PILL_COL[s.kind] || '#94a3b8'}"></i><b>${nm[s.kind] || s.kind}</b> 1-in-${s.rp}<span class="d">${s.depth_p90_m} m</span></button>`).join('');
+  el.querySelectorAll('.pill').forEach(b => { b.onclick = () => { $('scen').value = b.dataset.id; $('scen').onchange(); }; });
 }
 function setDirFromScenario() {
   const st = S.twin && allStorms().find(s => s.id === $('scen').value);
@@ -612,7 +677,7 @@ function setMode(m) {
   S.mode = m; document.querySelectorAll('#modeSeg button').forEach(b => b.classList.toggle('on', b.dataset.m === m));
   if (!S.twin) return; fillScen(); if (windLines) windLines.visible = m === 'wind'; replay(); schedule();
 }
-function replay() { S.t = S.mode === 'flood' ? 0 : 1; S.playing = S.mode === 'flood'; S.windPaused = false; updateWater(); }
+function replay() { const rainOnly = S.mode === 'flood' && floodSc() && floodSc().kind === 'rain'; S.t = S.mode === 'flood' && !rainOnly ? 0 : 1; S.playing = S.mode === 'flood' && !rainOnly; S.windPaused = false; updateWater(); }
 
 // ── release plume overlay: numbers come from /asset-twin/plume (engine plume code); the viewer only draws them ──
 const PL_COL = [0x7dd3fc, 0xfde047, 0xfb923c, 0xef4444, 0x7f1d1d];
@@ -834,7 +899,7 @@ $('tShadow').onclick = e => { const on = !renderer.shadowMap.enabled; renderer.s
 $('tImg').onclick = e => { S.imgOff = !S.imgOff; e.target.classList.toggle('on', !S.imgOff); if (S.twin) loadImagery(); };
 $('build').onclick = build;
 $('rad').oninput = () => $('radv').textContent = $('rad').value;
-$('scen').onchange = () => { S.sim = S.simBase = null; setDirFromScenario(); replay(); schedule(); };
+$('scen').onchange = () => { S.sim = S.simBase = null; setDirFromScenario(); renderPills(); replay(); schedule(); };
 $('dir').oninput = () => { $('dirv').textContent = $('dir').value; };
 $('fadd').oninput = () => { $('fav').textContent = (+$('fadd').value).toFixed(1); }; $('fadd').onchange = () => schedule();
 $('wsc').oninput = () => { $('wsv').textContent = (+$('wsc').value).toFixed(2); schedule(); };
