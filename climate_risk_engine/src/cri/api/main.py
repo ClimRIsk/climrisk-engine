@@ -1571,6 +1571,24 @@ def generate_brsr_report(request: BRSRRequest) -> DisclosureResponse:
     return DisclosureResponse(**report.to_dict())
 
 
+class AHPRequest(BaseModel):
+    criteria: list[str] = Field(..., min_length=2, max_length=10, description="Criteria to weight, e.g. ['flood', 'heat', 'wind']")
+    judgments: Optional[Dict[str, float]] = Field(None, description="Pairwise judgments {'flood|heat': 3} = flood is 3 times as important as heat (1/9 to 9). Every pair once. Omit and the answer is not_assessed: the engine supplies no default weights.")
+    alternatives: Optional[Dict[str, Dict[str, Optional[float]]]] = Field(None, description="Optional {name: {criterion: score}} to rank with the weights")
+    lower_is_better: list[str] = Field(default_factory=list, description="Criteria where a lower score is better (cost, loss)")
+
+
+@app.post("/ahp", dependencies=[_AUTH], tags=["Decision support"])
+def ahp_weights_and_rank(request: AHPRequest) -> dict:
+    """Analytic Hierarchy Process: weights from the expert's pairwise judgments with the consistency ratio, and an optional ranking with a rank-stability figure. No default judgments are supplied."""
+    from .. import ahp
+    w = ahp.criteria_weights(request.criteria, request.judgments)
+    out: dict = {"weights": w}
+    if request.alternatives and w.get("status") in ("ok", "inconsistent"):
+        out["ranking"] = ahp.rank(request.alternatives, w["weights"], benefit={c: False for c in request.lower_is_better})
+    return out
+
+
 class PhysicalRiskAssetIn(BaseModel):
     lat: float = Field(..., ge=-90, le=90)
     lon: float = Field(..., ge=-180, le=180)

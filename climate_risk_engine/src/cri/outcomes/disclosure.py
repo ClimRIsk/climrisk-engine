@@ -899,8 +899,8 @@ class BRSRReport(DisclosureReport):
     """
     SEBI Business Responsibility & Sustainability Reporting (BRSR / BRSR Core).
 
-    Mandatory for top-1000 listed companies in India (by market cap) from FY2023-24.
-    BRSR Core (assurance-ready subset) required from FY2023-24 per SEBI Circular
+    Disclosure mandatory for the top-1000 listed companies in India (by market cap) from FY2023-24; assurance of BRSR Core phased FY2023-24 (top 150) to FY2026-27 (top 1000).
+    BRSR Core (assurance-ready subset): reasonable assurance phased FY2023-24 (top 150) to FY2026-27 (top 1000) per SEBI Circular
     SEBI/HO/CFD/CMD-2/P/CIR/2023/122 (12 July 2023).
 
     Key climate-related sections:
@@ -1025,7 +1025,7 @@ def generate_brsr(
     section_c_p6 = {
         "sebi_ref": "BRSR Section C, Principle 6",
         "P6_E1_energy_consumption": {
-            "brsr_indicator": "P6-E1",
+            "brsr_indicator": "P6-E1 (this module's label) = Principle 6 Essential Q1, energy (BRSR Core)",
             "description": "Total energy consumed and energy intensity",
             "total_energy_consumed_gj": None,    # requires company metering / ERP data
             "energy_from_renewables_pct": None,
@@ -1036,7 +1036,7 @@ def generate_brsr(
             ),
         },
         "P6_E2_water_consumption": {
-            "brsr_indicator": "P6-E2",
+            "brsr_indicator": "P6-E2 (this module's label) = Principle 6 Essential Q3 water consumption and Q4 discharge (BRSR Core)",
             "description": "Water withdrawal and consumption",
             "total_water_withdrawal_kl": None,   # requires company water records
             "water_intensity_kl_per_tonne": None,
@@ -1048,9 +1048,12 @@ def generate_brsr(
             ),
         },
         "P6_E3_ghg_emissions": {
-            "brsr_indicator": "P6-E3",
+            "brsr_indicator": "P6-E3 (this module's label) = Principle 6 Essential Q7, GHG Scope 1, 2 and intensity (BRSR Core)",
             "description": "Scope 1, 2, 3 GHG emissions (tCO2e)",
             "base_year": reporting_year,
+            "data_basis": ("MODELLED ESTIMATE from the engine's current-policies projection for 2026, not measured data. The BRSR Core measurement approach is bottom-up (fuel burned x emission factor, "
+                           "minus carbon captured, plus process and fugitive emissions for Scope 1; purchased energy x emission factor for Scope 2), so these figures are a screening "
+                           "starting point and cannot be assured as they stand."),
             "scope_1_tco2e": scope_val("scope_1"),
             "scope_2_tco2e": scope_val("scope_2"),
             "scope_3_tco2e": scope_val("scope_3"),
@@ -1069,13 +1072,13 @@ def generate_brsr(
             ),
         },
         "P6_E4_waste_management": {
-            "brsr_indicator": "P6-E4",
+            "brsr_indicator": "P6-E4 (this module's label) = Principle 6 Essential Q9, waste (BRSR Core)",
             "waste_generated_tonnes": None,     # requires operational data
             "hazardous_waste_disposed_safely_pct": None,
             "note": "Waste data requires site-level operational records.",
         },
         "P6_E5_environmental_compliance": {
-            "brsr_indicator": "P6-E5",
+            "brsr_indicator": "P6-E5 (this module's label; not checked against the BRSR format, not part of the BRSR Core table in the 12 July 2023 circular)",
             "environmental_incidents": None,
             "regulatory_penalties_inr": None,
             "note": "Regulatory compliance data requires company legal/EHS records.",
@@ -1111,8 +1114,8 @@ def generate_brsr(
         "section_c_principle6_environment": section_c_p6,
         "filing_guidance": {
             "mandatory_assurance": (
-                "BRSR Core KPIs (P6-E1 through P6-E5) require Reasonable Assurance from "
-                "a SEBI-registered provider (CA/CMA firm) for top-1000 companies from FY2024-25."
+                "BRSR Core KPIs (energy, water, GHG and waste under Principle 6, plus the other attributes) need reasonable assurance on a glide path: top 150 listed entities in FY2023-24, "
+                "top 250 in FY2024-25, top 500 in FY2025-26, top 1000 in FY2026-27 (SEBI circular of 12 July 2023, para 3.4). The assurance provider must have no conflict of interest (para 5)."
             ),
             "filing_deadline": "60 days after financial year end (alongside Annual Report)",
             "applicable_standard": "SEBI BRSR format (Annexure I, SEBI LODR Regulations 2015)",
@@ -1125,7 +1128,7 @@ def generate_brsr(
     }
 
     caveats = [
-        "BRSR Core is mandatory for India's top-1000 listed companies (by market cap, BSE+NSE) from FY2023-24.",
+        "BRSR disclosure in the updated format is mandatory for the top 1000 listed entities (by market cap) from FY2023-24; reasonable assurance of BRSR Core is phased: top 150 (FY2023-24), top 250 (FY2024-25), top 500 (FY2025-26), top 1000 (FY2026-27), per SEBI's 12 July 2023 circular.",
         "Energy, water, and waste data points (P6-E1, E2, E4) require company operational records — not modelled by CRI.",
         "Scope 1-2 intensity per INR crore uses company-reported turnover when supplied, else engine revenue "
         "converted at the INR/USD rate passed in; the PPP-adjusted BRSR Core KPI needs the PPP conversion factor.",
