@@ -5,10 +5,13 @@ Queries the Open-Meteo Climate Change API for CMIP6-based future projections
 at asset coordinates.
 
 API: https://climate-api.open-meteo.com/v1/climate
-Model: MRI_AGCM3_2_S (MRI AGCM3.2-S, JMA/MRI Japan)
-       Primary: SSP5-8.5 (high emissions)
-       Fallback: EC_Earth3P_HR (European high-res CMIP6)
-Resolution: ~0.25° (~25km native, consistent with NASA NEX-GDDP-CMIP6)
+Model: MRI_AGCM3_2_S (MRI AGCM3.2-S, JMA/MRI Japan), one of seven HighResMIP models
+       Primary: HighResMIP high-emission forcing, close to SSP5-8.5 (NOT a ScenarioMIP SSP run)
+       Fallback: CMCC_CM2_VHR4
+Resolution: 20 to 51 km native depending on model, bias-corrected (linear, monthly) to ERA5-Land
+       and interpolated to ~10 km by Open-Meteo. This is a different model set and a different
+       downscaling from NASA NEX-GDDP-CMIP6; see modellab/projection_check.py for the comparison.
+Licence: Open-Meteo free tier is non-commercial.
 
 SSP scaling rationale:
   Open-Meteo provides primarily SSP5-8.5 (worst-case) projections. We compute

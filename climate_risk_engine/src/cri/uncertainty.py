@@ -228,6 +228,19 @@ def hazard_concordance(profile: Optional[dict]) -> dict:
             "reading": ("Perils with two or more answering sources are cross-checked; those with one are not, and the answer says why. A peril with no answer is not assessed, never safe.")}
 
 
+def projection_sources(proj: Optional[dict]) -> dict:
+    """From `modellab.projection_check.rain_projection_sources`: do two different climate-model pipelines agree on how much heavier extreme rain gets?"""
+    if not proj or not proj.get("available"):
+        return entry("projection_sources", "Future extreme rain: second model pipeline", "structural", "not_assessed",
+                     reason=(proj or {}).get("reason") or "the HighResMIP cross-check was not run for this site (about 20 s of network calls, rate-limited by the provider)")
+    c = proj.get("cckp_ssp585_interpolated") or {}
+    note = (f"CMIP6 ensemble (CCKP/NEX-GDDP) p10 {c.get('p10', float('nan')):.2f} / median {c.get('median', float('nan')):.2f} / p90 {c.get('p90', float('nan')):.2f}. "
+            + ("The HighResMIP median sits inside that band. " if proj.get("highres_median_inside_cckp_p10_p90") else "The HighResMIP median is OUTSIDE that band: the projection depends on the model pipeline. ")
+            + f"{len(proj['per_model'])} of 7 models returned usable years. " + proj.get("note", ""))
+    return entry("projection_sources", "Future extreme rain: second model pipeline", "structural", "quantified", low=proj["low"], high=proj["high"], central=proj["median"], unit="ratio of 20-yr mean Rx1day, 2031-2050 over 1995-2014",
+                 source=proj.get("source", ""), method="per-model ratio of mean annual-maximum daily rain; range is across the HighResMIP models", note=note)
+
+
 def parameter_sensitivity(sens: Optional[dict]) -> dict:
     """From `finance.pluvial.surface_water_sensitivity`: how far the surface-water depth moves when assumed inputs are varied, and whether it saturates."""
     if not sens or not sens.get("available"):
@@ -264,7 +277,7 @@ def build(site: dict, entries: list) -> dict:
 
 def site_ledger(lat: float, lon: float, depth_m: Optional[float] = None, continent: str = "asia", asset_class: str = "industrial", design: Optional[dict] = None,
                 scenario_rain: Optional[dict] = None, bootstrap: Optional[tuple] = None, ratings: Optional[dict] = None, sens: Optional[dict] = None, fetch_rain: bool = True,
-                tc_winds: Optional[dict] = None, profile: Optional[dict] = None) -> dict:
+                tc_winds: Optional[dict] = None, profile: Optional[dict] = None, projection: Optional[dict] = None) -> dict:
     """Ledger for one site from whatever has been computed (pass the pieces in; the slow ones are never run silently). With fetch_rain, the design-rain products are read (cached)."""
     if design is None and fetch_rain:
         try:
@@ -273,7 +286,7 @@ def site_ledger(lat: float, lon: float, depth_m: Optional[float] = None, contine
         except Exception as e:                                       # noqa: BLE001
             design = {"available": False, "reason": f"{type(e).__name__}: {str(e)[:100]}"}
     ents = [rain_sources(design), scenario_spread(scenario_rain), return_level_sampling(bootstrap, central=(design or {}).get("d1_mm") if design else None), (None if profile else map_disagreement(ratings or {})),
-            parameter_sensitivity(sens), tc_sources(tc_winds)]
+            parameter_sensitivity(sens), tc_sources(tc_winds), projection_sources(projection)]
     if profile:
         ents += [e for e in (peril_concordance(profile, p) for p in PERILS) if e["sources"] or e["not_assessed"] or e["unrated"]]
     ents = [e for e in ents if e]

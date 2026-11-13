@@ -155,3 +155,33 @@ def test_a_study_that_ran_without_a_severity_is_unrated_not_unassessed():
     assert "Ran but not rated" in e["verdict"]
     only = U.peril_concordance(_prof(heat={"label": "WBGT", "status": "modelled", "severity": None, "value": 31.2, "unit": "C"}), "heat")
     assert only["agreement"] == "unrated" and "NOT ASSESSED" not in only["verdict"]
+
+
+def test_projection_check_ratio_and_ledger_entry_with_fake_fetch():
+    from cri.modellab import projection_check as P
+
+    def fake(url):
+        yrs = (1995, 2014) if "start_date=1995" in url else (2031, 2050)
+        k = 1.2 if "start_date=2031" in url else 1.0
+        t, v = [], []
+        for y in range(yrs[0], yrs[1] + 1):
+            for d in range(365):
+                t.append(f"{y}-{1 + d // 31:02d}-01" if False else f"{y}-{(d // 30) % 12 + 1:02d}-{d % 28 + 1:02d}"); v.append(50.0 * k if d == 10 else 1.0)
+        return {"daily": {"time": t, "precipitation_sum": v}}
+    fac = {"ssp": {"ssp585": {"2020-2039": {"p10": 0.9, "median": 1.0, "p90": 1.1}, "2040-2059": {"p10": 1.0, "median": 1.2, "p90": 1.4}}}}
+    r = P.rain_projection_sources(10.0, 20.0, factors=fac, fetch=fake, models=("a", "b", "c"))
+    assert r["available"] and r["per_model"] == {"a": 1.2, "b": 1.2, "c": 1.2}
+    assert r["cckp_ssp585_interpolated"]["median"] == pytest.approx(1.0 + 0.55 * 0.2)
+    assert r["highres_median_inside_cckp_p10_p90"] is True
+    e = U.projection_sources(r)
+    assert e["status"] == "quantified" and e["low"] == e["high"] == 1.2 and "inside" in e["note"]
+    assert U.projection_sources(None)["status"] == "not_assessed"
+    bad = P.rain_projection_sources(10.0, 20.0, factors=fac, fetch=lambda u: (_ for _ in ()).throw(RuntimeError("down")), models=("a", "b", "c"))
+    assert not bad["available"] and set(bad["failed"]) == {"a", "b", "c"} and U.projection_sources(bad)["status"] == "not_assessed"
+
+
+def test_annual_maxima_drops_incomplete_years_never_fills():
+    from cri.modellab import projection_check as P
+    t = [f"2000-01-{d:02d}" for d in range(1, 29)] * 14
+    assert P.annual_maxima({"time": t, "precipitation_sum": [1.0] * len(t)}) == {2000: 1.0}
+    assert P.annual_maxima({"time": t, "precipitation_sum": [None] + [1.0] * (len(t) - 1)}) == {}

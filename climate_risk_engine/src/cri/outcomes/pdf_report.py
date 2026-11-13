@@ -529,9 +529,11 @@ def _methodology_section() -> list:
         ("Physical Hazard Scoring",
          "Asset-level hazard scores integrate WRI Aqueduct 4.0 regional baselines, ERA5 climatological "
          "normals, and CMIP6 SSP warming trajectories. Where asset GPS coordinates are provided, "
-         "NASA POWER observed temperature/precipitation baselines are fetched via live API and delta-"
-         "downscaled from the 25km global model to the asset location. Effective hazard intensity is "
-         "D_eff = max(0, W_downscaled − E_asset) where E_asset is the DEM-resolved elevation."),
+         "NASA POWER observed temperature/precipitation baselines are fetched via live API. Climate change "
+         "is applied as a change factor (delta-change) from the 25 km CMIP6 model output to the baseline; the engine does not "
+         "run its own downscaling model. Elevation, coastal-distance and similar adjustments in this report path are "
+         "engineering heuristics that are not calibrated or validated. Site-level flood work (rain-on-grid, terrain "
+         "position) is in the site profile and the asset twin, not here."),
         ("VaR Decomposition",
          "Physical loss cost is decomposed into CAPEX shock (direct structural damage) and OPEX shock "
          "(business interruption / lost revenue). The split is hazard-weighted: acute structural hazards "

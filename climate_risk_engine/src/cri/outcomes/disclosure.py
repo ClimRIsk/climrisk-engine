@@ -437,7 +437,7 @@ def generate_tcfd(
             f"{ctx['risk_focus']}"
         ),
         "assessment_methodology": {
-            "physical_risk": "WRI Aqueduct 4.0 regional baseline statistics + NASA NEX-GDDP-CMIP6 regional proxies; sub-grid elevation & coastal downscaling; joint hazard aggregation (independent-events)",
+            "physical_risk": "WRI Aqueduct 4.0 regional baseline statistics + NASA NEX-GDDP-CMIP6 regional proxies; elevation and coastal-distance adjustments (heuristic factors, not calibrated); joint hazard aggregation (independent-events)",
             "transition_risk": "NGFS Phase 4 carbon price paths + IEA WEO demand scenarios",
             "financial_risk": "Climate-adjusted DCF with scenario risk premium on WACC",
             "horizon": "2026–2050 (annual)",

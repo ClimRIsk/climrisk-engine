@@ -681,8 +681,17 @@ def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
 
 def _subgrid_elevation_correction(asset_elev_m: float, region_mean_elev_m: float) -> dict:
     """
-    Sub-grid correction factors derived from asset elevation relative to the
-    regional (25km grid cell) mean elevation.
+    Sub-grid correction factors from asset elevation relative to the regional
+    (25km grid cell) mean elevation.
+
+    HONESTY NOTE (13 Nov 2026): the piecewise numbers below are ENGINEERING
+    HEURISTICS chosen by the developer. They are not fitted to, or taken from,
+    LISFLOOD, WRI Aqueduct or FAO AQUASTAT output, and they have not been
+    validated. Only the lapse rate itself (about 6.5 K per km, standard
+    atmosphere) is established physics; how it is turned into a heat-severity
+    factor is a heuristic. Where the engine has real terrain (HAND, the site's own
+    DEM, the rain-on-grid run) the asset twin and the site profile use that
+    instead; this function is the older, coarse fallback. See docs/DOWNSCALING.md.
 
     The WRI Aqueduct 4.0 and NASA NEX-GDDP-CMIP6 baselines represent 0.25°
     (~25km) grid cell averages. Within a cell, hazard exposure varies sharply
@@ -694,7 +703,7 @@ def _subgrid_elevation_correction(asset_elev_m: float, region_mean_elev_m: float
     FLOOD (riverine):
       The 25km grid value integrates floodplain and hillslope. Assets above the
       regional mean sit on higher terrain and have lower flood exposure.
-      Source: LISFLOOD sub-grid DEM analysis; WRI Aqueduct 4.0 validation report.
+      Heuristic (not derived from LISFLOOD or WRI data):
         elev_delta < -50m  (below regional mean — floodplain): 1.25×
         elev_delta 0–100m : 1.00× (at or near regional mean)
         elev_delta 100–300m: linear decay 1.00 → 0.65
@@ -712,7 +721,7 @@ def _subgrid_elevation_correction(asset_elev_m: float, region_mean_elev_m: float
       High-elevation assets are often above river catchment stress zones and
       may have access to fresher highland water. Reduction of 15% per 500m above
       regional mean (capped at 40% reduction).
-      Source: FAO AQUASTAT; WRI Aqueduct 4.0 sub-basin analysis.
+      Heuristic (not derived from FAO AQUASTAT or WRI data).
 
     Returns:
         dict with keys: flood_factor, heat_factor, water_stress_factor
@@ -879,9 +888,9 @@ def _resolve_spatial_context(
             "SSP5-8.5) with latitude-band warming amplification (0.80x equatorial to 2.20x Arctic, "
             "IPCC AR6 WG1 Fig 4.19). "
             "Step 3 — Sub-grid elevation correction: asset elevation relative to regional mean "
-            "applies terrain-based adjustments: flood factor {:.2f}x (LISFLOOD DEM methodology), "
-            "heat factor {:.2f}x (WMO lapse rate 0.65 deg C per 100m), "
-            "water stress factor {:.2f}x (FAO AQUASTAT upstream catchment). "
+            "applies terrain-based adjustments that are engineering heuristics, not calibrated or validated: flood factor {:.2f}x, "
+            "heat factor {:.2f}x (built on the standard lapse rate of about 0.65 deg C per 100m), "
+            "water stress factor {:.2f}x. "
             "Step 4 — Coastal proximity: Haversine distance-decay to Natural Earth coastline "
             "reference points replaces binary coastal classification; factor {:.2f} at this asset."
         ).format(
@@ -1061,7 +1070,7 @@ def _flood_riverine(region: str, ssp: SSPScenario, year: int, lulc: str,
     flood_factor ~0.50 — the 25km grid cell average is halved to reflect the
     asset sitting above the regional floodplain. Assets below the regional mean
     (in floodplain position) get flood_factor 1.25.
-    Source: LISFLOOD sub-grid DEM analysis; WRI Aqueduct 4.0 validation.
+    Heuristic factor, not derived from LISFLOOD or WRI data (see _subgrid_elevation_correction).
 
     Live downscaling path (when coordinates provided):
       live_precip_delta_pct: actual projected precipitation change (%) from Open-Meteo
@@ -1466,7 +1475,7 @@ def _water_stress(region: str, ssp: SSPScenario, year: int,
     Downscaling: water_stress_factor reduces the grid-cell average for assets
     at higher elevation, which are typically upstream of water stress zones and
     have access to fresher highland catchments. −15% per 500m above regional mean,
-    capped at 40% reduction. Source: FAO AQUASTAT; WRI Aqueduct 4.0 sub-basin.
+    capped at 40% reduction. Heuristic, not derived from FAO AQUASTAT or WRI data.
     """
     baseline = (wri_water_stress_override if wri_water_stress_override is not None
                 else WRI_BASELINE.get(region, WRI_BASELINE["global"])["water_stress"])
