@@ -37,6 +37,40 @@ def test_gauge_annual_maxima_and_three_day_total(monkeypatch):
     assert am3[2015][0] >= 345.0
 
 
+def _flagged_csv(flagged):
+    """NCEI shape with attributes (STATION,NAME,DATE,PRCP,PRCP_ATTRIBUTES); `flagged` = {date: (mm, quality flag)}."""
+    base = _gauge_csv().split("\n")
+    out = [base[0] + ",PRCP_ATTRIBUTES"]
+    for r in base[1:]:
+        date = r.split(",")[2]
+        if date in flagged:
+            mm, q = flagged[date]
+            out.append(f"X,TEST,{date},{mm},\",{q},S\"")
+        else:
+            out.append(r + ",\"B,,S\"")
+    return "\n".join(out)
+
+
+def test_values_noaa_flagged_as_failing_quality_checks_are_dropped_and_reported(monkeypatch):
+    """Heathrow's GHCN-Daily series carries days of 255-258 mm flagged 'O' (climatological outlier). Taken at face value they set England's 1-in-50 design rain near 195 mm."""
+    from cri.modellab import stationcheck as SC
+    monkeypatch.setattr(SC, "nearest", lambda *a, **k: [{"id": "X", "name": "Test Gauge", "km": 3.0, "first": 1980, "last": 2020}])
+    ser = RD.daily_gauge(51.5, -0.5, fetch=lambda u: _flagged_csv({"1990-07-14": (258.1, "O"), "2000-08-19": (257.0, "O")}))
+    assert ser["qc_dropped"]["n"] == 2 and ser["qc_dropped"]["largest"][0][:2] == ("1990-07-14", 258.1)
+    assert max(v for v in ser["mm"] if v is not None) < 150.0                       # the flagged values are gone from the series
+    assert ser["mm"][ser["t"].index("1990-07-14")] is None                          # and left as a gap, which `annual_maxima` never counts as zero
+    keep = RD.daily_gauge(12.9, 80.2, fetch=lambda u: _flagged_csv({"2015-12-02": (344.9, "")}))   # the 2015 Chennai value carries a blank flag and must stay
+    assert max(v for v in keep["mm"] if v is not None) == pytest.approx(344.9) and keep["qc_dropped"]["n"] == 0
+
+
+def test_clean_rows_reads_files_with_and_without_attribute_columns():
+    from cri.modellab import stationcheck as SC
+    rows, dropped = SC.clean_rows('"STATION","NAME","DATE","PRCP","PRCP_ATTRIBUTES"\n"A","T","2000-01-01","5.0",",,S"\n"A","T","2000-01-02","99.0",",O,S"\n"A","T","2000-01-03","",""\n')
+    assert [r[1:] for r in rows] == [("2000-01-01", 5.0)] and dropped == [("2000-01-02", 99.0, "O")]
+    rows2, d2 = SC.clean_rows("STATION,NAME,DATE,PRCP\nA,T,2000-01-01,5.0\n")
+    assert len(rows2) == 1 and d2 == []
+
+
 def test_gauge_gap_is_not_undercounted(monkeypatch):
     from cri.modellab import stationcheck as SC
     monkeypatch.setattr(SC, "nearest", lambda *a, **k: [{"id": "X", "name": "Test Gauge", "km": 3.0, "first": 1980, "last": 2020}])

@@ -85,27 +85,22 @@ def daily_gauge(lat: float, lon: float, y0: int = 1950, y1: int = 2025, fetch: O
         raise RuntimeError(f"no long-record rain gauge within {max_km:.0f} km")
     last = None
     for st in cands:
-        url = f"{SC.NCEI}?dataset=daily-summaries&stations={st['id']}&startDate={y0}-01-01&endDate={y1}-12-31&dataTypes=PRCP&format=csv&units=metric&includeStationName=true"
+        url = SC.daily_url(st["id"], "PRCP", y0, y1)
         try:
             txt = SC._text(url, fetch)
         except Exception as e:                                       # noqa: BLE001
             last = e
             continue
-        day: dict = {}
-        for r in list(csv.reader(io.StringIO(txt)))[1:]:
-            if len(r) < 4:
-                continue
-            try:
-                day[r[2]] = float(r[3])
-            except ValueError:
-                continue
+        rows, dropped = SC.clean_rows(txt)                           # values NOAA flagged as failing a quality check are removed, and reported below
+        day: dict = {d: v for _, d, v in rows}
         if len(day) < 25 * 300:
             last = RuntimeError(f"{st['name']}: only {len(day)} daily values")
             continue
         import datetime as dt
         a, b = dt.date.fromisoformat(min(day)), dt.date.fromisoformat(max(day))
         t = [(a + dt.timedelta(days=i)).isoformat() for i in range((b - a).days + 1)]
-        return {"source": f"rain gauge {st['name']} (GHCN-Daily {st['id']}, {st['km']:.0f} km away)", "t": t, "mm": [day.get(d) for d in t], "km": st["km"], "station": st["name"], "id": st["id"], "url": url}
+        return {"source": f"rain gauge {st['name']} (GHCN-Daily {st['id']}, {st['km']:.0f} km away)", "t": t, "mm": [day.get(d) for d in t], "km": st["km"], "station": st["name"], "id": st["id"], "url": url,
+                "qc_dropped": {"n": len(dropped), "largest": sorted(dropped, key=lambda x: -x[1])[:3], "rule": "NOAA GHCN-Daily quality flag non-blank"}}
     raise RuntimeError(f"gauge records unavailable ({last})")
 
 
@@ -142,6 +137,8 @@ def design(lat: float, lon: float, rp: int = 100, fetch: Optional[Callable] = No
             by[name] = {"source": ser["source"]}
             if "km" in ser:
                 by[name]["km"] = round(ser["km"], 1)
+            if ser.get("qc_dropped"):
+                by[name]["qc_dropped"] = ser["qc_dropped"]
             for days in (1, 3):
                 am = annual_maxima(ser, days)
                 if len(am) < (25 if name == "gauge" else 15):

@@ -25,4 +25,35 @@ Screening only. It raises, never lowers, the surface-water rating; every result 
 
 ## Update 11 Nov 2026
 
-The 600 m configuration above is still `site_pluvial`. The product now uses `site_surface_water` (about 12 km, 24 h storm, gauge-anchored design rain, drains-working and drains-overwhelmed bounds); see `docs/SURFACE_WATER_CHENNAI.md`. It has been checked on Chennai December 2015 and on controls but **not rescored against the Environment Agency outlines**, so the AUC range above must not be quoted for it.
+The 600 m configuration above is still `site_pluvial`. The product now uses `site_surface_water` (about 12 km, 24 h storm, gauge-anchored design rain, drains-working and drains-overwhelmed bounds); see `docs/SURFACE_WATER_CHENNAI.md`. The AUC range above must not be quoted for it; it is re-scored below.
+
+## Re-score of the product model, 17 Nov 2026
+
+`scripts/surface_water_benchmark.py` runs `site_surface_water` (drains overwhelmed, the rating basis; 1-in-50; 24 h storm; EA 1 m LiDAR on a 60 m grid; gauge-anchored design rain) on **the same 150 + 150 points per town** as the table above (same seeds and zones), and scores the plain terrain indices on the same 60 m grid. AUC with a 95 % bootstrap interval; POD and FAR are the share of mapped-outline points and of nearby non-outline points where the model gives at least 5 cm. Nothing was fitted. Raw points are in `data/backtest/surface_water_benchmark.json`.
+
+| Town | Old 600 m model | **Product model** (95 % interval) | POD / FAR at 5 cm | Pit depth | Height above local low |
+|---|---|---|---|---|---|
+| Oxford | 0.66 | **0.84** (0.80–0.89) | 0.67 / 0.05 | 0.76 | 0.96 |
+| Reading | 0.64 | **0.85** (0.80–0.89) | 0.72 / 0.15 | 0.79 | 0.96 |
+| Bristol | 0.71 | **0.74** (0.69–0.80) | 0.37 / 0.22 | 0.80 | 0.74 |
+| Mean of three | 0.67 | **0.81** | | 0.78 | 0.89 |
+| Newcastle (added later) | | 0.88 (0.84–0.92) | 0.44 / 0.09 | 0.68 | 0.97 |
+
+Newcastle has only two mapped outlines (0.006 km2), so its points are tightly clustered; it is shown but left out of the mean. Nine further towns (five from the first set, Gloucester, Exeter, Nottingham, Leicester, Northampton) had no usable small surface-water outline and were skipped. The Oxford and Reading terrain scores are both 0.961 by coincidence; the point arrays differ.
+
+**Read it straight.**
+- The product model ranks surface-water outline points clearly better than the old 600 m setup (mean 0.81 against 0.67), in all three towns.
+- It is still **not better than a plain terrain index**. Height above the nearest low ground scores 0.96 at Oxford and Reading and equals it at Bristol; blue-spot depth beats it at Bristol. The same caveat as before applies: at Oxford and Reading the mapped "surface-water" outlines sit on low ground next to the river, so the terrain score partly picks up floodplain. What the physical model adds is a depth and a storm, and **depth is not validated here** (no observed depths were used).
+- It misses a lot: at 5 cm it wets 37–72 % of the mapped points, and 5–22 % of nearby unmapped points. Unmapped does not mean dry.
+- The intervals are too narrow. Points inside one outline are spatially correlated, three towns is a very small sample, and towns are not resampled. Do not quote the intervals as the uncertainty of the model.
+- Terrain is modern and floods are historic; sewers are not in the terrain; 60 m cells cannot resolve a street.
+
+## A data bug this benchmark found (fixed 17 Nov 2026)
+
+The first Reading run gave a 1-in-50 daily design rain of **194.8 mm**, against 47.7 mm (ERA5) and 40.2 mm (NASA POWER) for the same place. The cause was the Heathrow gauge series from NOAA GHCN-Daily: four "days" of 255–258 mm (14 Jul 1975, 24 Oct 1977, 19 Aug 1993, 10 Aug 1979), each carrying NOAA's quality flag O (climatological outlier). The engine took the largest of the three sources, so the gauge set the design rain, and an unflagged read would also have been used by every other consumer of the station service.
+
+- Fix: `modellab/stationcheck.py` now asks NCEI for the attribute flags and drops any value whose quality flag is non-blank (`clean_rows`); `rain_design.daily_gauge` reports how many values were dropped and the largest three (`qc_dropped`). A dropped day is left as a gap, which the annual-maximum code never counts as zero. `annual_max` (used for the station-versus-grid checks, including temperature) uses the same filter.
+- Effect at Reading: design rain 194.8 mm becomes 58.8 mm. In the unsaved first run the model had AUC 0.85 but POD 0.81 / FAR 0.37 and wet 23 % of cells; with the fix POD 0.72 / FAR 0.15 and 9 % of cells. Rank skill barely moved; depth and false alarms did.
+- Check: the Chennai 2 Dec 2015 value (344.9 mm) carries a blank flag and stays; Chennai design rain is unchanged at about 338 mm (1-in-100). One Chennai day (14 Jun 1996, 268.5 mm, flag O) is dropped.
+- Limit: a genuine extreme can be flagged by NOAA's outlier check, so the filter can remove a real record. The dropped values are listed in the result so a reader can see them.
+- **Not re-run:** any earlier station-versus-grid result that read these stations without the filter (`modellab/studies_evt.py`, `analysis/offshore_wind.py` consumers) should be treated as unchecked until re-run.

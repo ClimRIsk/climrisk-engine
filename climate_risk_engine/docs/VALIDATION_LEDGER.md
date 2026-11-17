@@ -49,7 +49,7 @@ One row per hazard or model. "Tested against" means independent observations the
 
 
 ## Surface-water (rain-on-grid) model
-- Evidence: `docs/PLUVIAL_BENCHMARK.md` — AUC 0.64–0.71 on LiDAR in 3 English towns (0.46–0.63 on global tiles); a plain height-above-local-low score beat it at 2 of 3 towns. Grade: **screening, modest skill; can only raise a rating**.
+- Evidence: `docs/PLUVIAL_BENCHMARK.md` — old 600 m setup AUC 0.64–0.71 on LiDAR in 3 English towns (0.46–0.63 on global tiles). **Product model (catchment-scale, gauge-anchored) re-scored 17 Nov 2026 on the same points: AUC 0.84, 0.85, 0.74 (mean 0.81)**; a plain height-above-local-low score still beats it at 2 of 3 towns (0.96, 0.96, 0.74). At 5 cm it wets 37–72 % of mapped points, 5–22 % of nearby unmapped ones. Depth is not validated against any observed depth. Grade: **screening, moderate rank skill, depth unvalidated; can only raise a rating**. The re-score also found and fixed a gauge-data quality bug that had inflated one site's design rain 3.3 times (see the doc).
 
 ## Small/mid river depth (HAND + rating curve)
 - Evidence: `docs/RIVER_DEPTH_BENCHMARK.md` — pooled CSI 0.37 vs 0.76 for the plain HAND<5 m band on 11 English towns. Grade: **not validated as an improvement; not shipped in the report**. GloFAS point flows misassign river size.

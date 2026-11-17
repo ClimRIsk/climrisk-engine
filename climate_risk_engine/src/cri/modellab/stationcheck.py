@@ -63,22 +63,50 @@ def _text(url: str, fetch=None) -> str:
     raise RuntimeError(f"weather-station service unavailable ({last})")
 
 
-def annual_max(station: str, element: str, y0: int = 1950, y1: int = 2025, fetch=None, min_days: int = 270) -> tuple:
-    """(years, annual maxima, name) for years with at least min_days daily values. PRCP in mm, TMAX in °C."""
-    url = f"{NCEI}?dataset=daily-summaries&stations={station}&startDate={y0}-01-01&endDate={y1}-12-31&dataTypes={element}&format=csv&units=metric&includeStationName=true"
-    txt = _text(url, fetch)
-    by: dict = {}
-    n: dict = {}
-    nm = ""
+QC_PARAM = "&includeAttributes=true"        # asks NCEI for the measurement/quality/source flags next to each value
+
+
+def daily_url(station: str, element: str, y0: int, y1: int) -> str:
+    return f"{NCEI}?dataset=daily-summaries&stations={station}&startDate={y0}-01-01&endDate={y1}-12-31&dataTypes={element}&format=csv&units=metric&includeStationName=true{QC_PARAM}"
+
+
+def clean_rows(txt: str) -> tuple:
+    """([(name, date, value)], dropped) from an NCEI daily-summaries CSV (STATION,NAME,DATE,VALUE[,VALUE_ATTRIBUTES]).
+
+    A value is dropped when NOAA's own quality flag (the second attribute: M,Q,S) is non-blank, i.e. it failed one of GHCN-Daily's checks (outlier, duplicate, spatial,
+    streak ...). Without this the Heathrow series carries four 'days' of 255-258 mm (flag O, climatological outlier) that set a 1-in-50 design rain of 195 mm for England.
+    Files with no attribute column (older caches, test fixtures) are taken as unflagged. `dropped` lists (date, value, flag) so the caller can say what was removed."""
     import csv
+    rows, dropped = [], []
     for p in list(csv.reader(io.StringIO(txt)))[1:]:
         if len(p) < 4:
             continue
         try:
-            y = int(p[2][:4]); v = float(p[3])
+            v = float(p[3])
         except ValueError:
             continue
-        nm = nm or p[1]
+        flags = p[4].split(",") if len(p) > 4 else []
+        q = flags[1].strip() if len(flags) > 1 else ""
+        if q:
+            dropped.append((p[2], v, q))
+            continue
+        rows.append((p[1], p[2], v))
+    return rows, dropped
+
+
+def annual_max(station: str, element: str, y0: int = 1950, y1: int = 2025, fetch=None, min_days: int = 270) -> tuple:
+    """(years, annual maxima, name) for years with at least min_days daily values, after dropping values NOAA flagged as failing quality checks. PRCP in mm, TMAX in °C."""
+    txt = _text(daily_url(station, element, y0, y1), fetch)
+    by: dict = {}
+    n: dict = {}
+    nm = ""
+    rows, _ = clean_rows(txt)
+    for name, d, v in rows:
+        try:
+            y = int(d[:4])
+        except ValueError:
+            continue
+        nm = nm or name
         by[y] = max(by.get(y, -1e9), v); n[y] = n.get(y, 0) + 1
     ys = [y for y in sorted(by) if n[y] >= min_days]
     return ys, [by[y] for y in ys], nm
