@@ -217,6 +217,21 @@ def peril_concordance(profile: Optional[dict], peril: str = "flood") -> dict:
                     out["verdict"] += f" NRSC atlas: {at['district']} district mapped {at['atlas_ha']:,} ha flooded 1998-2022 (above {round(100 * at['national_percentile'])} % of districts); a low rank does not clear a site."
             else:
                 out["verdict"] += " NRSC atlas: no usable district statistic here (" + (at.get("reason") or "not listed") + ")."
+    if peril == "slope":
+        hist = (profile or {}).get("history") or {}
+        ls = (profile or {}).get("landslide_exposure") or hist.get("landslide_exposure")
+        if ls and ls.get("in_india"):
+            out["observed"] = {"available": True, "note": "NRSC Landslide Atlas of India (2023), Table 3: district exposure rank. Exposure, not hazard.",
+                               **{k: ls.get(k) for k in ("district", "state", "status", "rank", "of", "reading", "reason", "source")}}
+            if ls.get("status") == "ranked":
+                top = ls["rank"] <= 50
+                if top and worst in (None, "NEGLIGIBLE", "LOW"):
+                    out["verdict"] += (f" Caution: NRSC ranks {ls['district']} district {ls['rank']} of {ls['of']} for landslide exposure (top third), yet the slope screening here gives "
+                                       f"{worst or 'no rating'}. The rank is district scale and about exposure; check this site's own slope.")
+                else:
+                    out["verdict"] += f" NRSC atlas: {ls['district']} district ranks {ls['rank']} of {ls['of']} for landslide exposure; a lower rank does not clear a site."
+            else:
+                out["verdict"] += " NRSC atlas: this district was not ranked, which is not assessed and not safe."
     ent.update(out)
     ent["key"] = f"{peril}_concordance"
     return ent

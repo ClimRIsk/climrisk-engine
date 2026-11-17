@@ -106,10 +106,15 @@ REGISTRY: dict[str, dict[str, Any]] = {
         publisher="Copernicus EMS Rapid Mapping and other catalogued flood extents 2023-2026 (see file)", licence="per source", vintage="2023-2026", status="derived",
         use="Bounding boxes of observed flood events near a site", review_days=LIVE, note="Bounding boxes only. Not a complete flood history of any place."),
     "india_flood_atlas.json": dict(
-        publisher="NRSC/ISRO for NDMA, Flood Affected Area Atlas of India (satellite based), v1, 1998-2022, March 2023", licence="NOT CHECKED (government publication; district statistics only)",
+        publisher="NRSC/ISRO for NDMA, Flood Affected Area Atlas of India (satellite based), v1, 1998-2022, March 2023", licence="UNRESOLVED (checked 17 Nov 2026: NRSC's published licence covers IRS images, not the atlas PDFs; district numbers only, with credit; ask data@nrsc.gov.in before commercial reliance)",
         vintage="1998-2022", built="2026-11-17", status="derived", use="Observed cumulative flood-affected area per district, as a check on modelled flood", review_days=STATIC,
         build="scripts/build_india_flood_atlas.py", url="https://ndem.nrsc.gov.in/documents/downloads/allindia_flood_techdoc.pdf",
         note="Parsed from the PDF tables; per-state sums match the atlas totals within rounding. 401 of 439 districts matched to 2021 boundaries by name; splits left unmatched. Cumulative extent, no depth or frequency."),
+    "india_landslide_exposure.json": dict(
+        publisher="NRSC/ISRO, Landslide Atlas of India, Feb 2023 (NRSC-RSA-GSG-GMED-FEB 2023-TR-0002167-V1.0), Table 3", licence="UNRESOLVED (checked 17 Nov 2026: NRSC's published licence covers IRS images, not the atlas PDFs; district ranks only, with credit; ask data@nrsc.gov.in before commercial reliance)",
+        vintage="1998-2022", built="2026-11-17", status="derived", use="District landslide-exposure rank (147 mountain districts) as a check on slope screening", review_days=STATIC,
+        build="scripts/build_india_landslide_exposure.py", url="https://www.isro.gov.in/media_isro/pdf/LandslideAtlas_2023.pdf",
+        note="Parsed from the PDF; all 147 ranks present, 145 matched to 2021 districts (Karbi Anglong and Jaintia Hills were split and stay unmatched). Exposure rank, not hazard; unranked means not assessed."),
     "india_districts_adm2.json.gz": dict(
         publisher="geoBoundaries gbOpen IND ADM2, 2021 (Pathways Data Pvt. Ltd., lgdirectory.gov.in)", licence="ODbL 1.0 (attribution and share-alike for the database)", vintage="2021",
         built="2026-11-17", status="derived", use="Point to Indian district lookup for the flood atlas", review_days=STATIC, build="scripts/build_india_flood_atlas.py",
@@ -240,7 +245,7 @@ def _grade(e: dict) -> str:
     """complete: publisher, vintage and licence known and not flagged unchecked. partial: something missing. undocumented: no registry entry."""
     if not e:
         return "undocumented"
-    ok = e.get("publisher") and e.get("vintage") and e.get("licence") and "NOT CHECKED" not in str(e.get("licence"))
+    ok = e.get("publisher") and e.get("vintage") and e.get("licence") and "NOT CHECKED" not in str(e.get("licence")) and "UNRESOLVED" not in str(e.get("licence"))
     return "complete" if ok and e.get("status") != "third_party" else "partial"
 
 

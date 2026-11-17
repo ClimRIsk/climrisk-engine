@@ -492,6 +492,12 @@ def _history(c: Ctx) -> dict:
         out["flood_atlas"] = at if at.get("in_india") else None      # only for places inside India
     except Exception:                                        # noqa: BLE001
         out["flood_atlas"] = None
+    try:
+        from .analysis import india_landslide_exposure
+        ls = india_landslide_exposure.lookup(c.lat, c.lon)
+        out["landslide_exposure"] = ls if ls.get("in_india") else None
+    except Exception:                                        # noqa: BLE001
+        out["landslide_exposure"] = None
     return out
 
 

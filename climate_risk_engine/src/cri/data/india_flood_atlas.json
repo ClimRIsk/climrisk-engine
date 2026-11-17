@@ -1,7 +1,7 @@
 {
 "source": "NRSC/ISRO for NDMA, Flood Affected Area Atlas of India - Satellite based study, Version 1 (1998-2022), March 2023, Document NRSC-RSA-DMSG-FMHAD-MAR,2023-TR-2171-V1.0",
 "url": "https://ndem.nrsc.gov.in/documents/downloads/Flood%20Affected%20Area%20%20Atlas%20of%20India%20-Satellite%20based%20study.pdf",
-"licence": "NOT CHECKED: government publication; reuse terms not confirmed. District statistics only (no maps or imagery are reproduced).",
+"licence": "UNRESOLVED: NRSC's published licence (nrsc.gov.in/EOS_dissemination_Licensing) covers IRS images, not atlas PDFs; reuse terms for the atlas are not confirmed. District statistics only, with credit \"NRSC, ISRO\" (no maps or imagery are reproduced). Ask data@nrsc.gov.in before commercial reliance.",
 "what": "Cumulative flood-affected area per district (ha) from multi-date optical and SAR satellite flood maps 1998-2022 plus CWC gauge levels. Includes rain-water accumulation in low land.",
 "limits": [
 "Atlas districts are older than the 2021 boundaries; a district that was split since may match its parent by name only.",

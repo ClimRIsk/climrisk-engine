@@ -62,6 +62,13 @@ def _in_poly(x: float, y: float, poly) -> bool:
     return _in_ring(x, y, poly[0]) and not any(_in_ring(x, y, h) for h in poly[1:])
 
 
+def district_at(lat: float, lon: float) -> Optional[dict]:
+    """The 2021 geoBoundaries district polygon record (`name`, `state`) containing the point, or None if outside India. Shared with the landslide table."""
+    _, geo, _, _, _ = _load()
+    hit = next((g for g in geo if g["_bbox"][0] <= lon <= g["_bbox"][2] and g["_bbox"][1] <= lat <= g["_bbox"][3] and any(_in_poly(lon, lat, p) for p in g["_polys"])), None)
+    return {"name": hit["name"], "state": hit["state"]} if hit else None
+
+
 def lookup(lat: float, lon: float) -> dict:
     """Atlas record for the district containing the point, or an explicit reason it has none. Never returns zero for 'no record'."""
     try:

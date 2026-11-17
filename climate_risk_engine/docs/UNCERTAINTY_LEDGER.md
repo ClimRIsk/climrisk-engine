@@ -36,7 +36,7 @@ A single source is not enough to trust a hazard number. `uncertainty.hazard_conc
 | Heat | site screening (`thermal_stress`), WBGT study (`heat`), land-cover urban heat | Yes, if they return ratings |
 | Wildfire | fire-weather index (`fire`), fuel and land cover (`wildfire_fuel`) | Yes, two mechanisms |
 | Water stress, drought | WRI Aqueduct (`water_stress`), soil water balance (`drought`) | Yes, but Aqueduct is basin scale |
-| Landslide, debris flow | slope screening, infinite-slope physics, debris-flow screening | Yes, but all share one terrain model |
+| Landslide, debris flow | slope screening, infinite-slope physics, debris-flow screening | Yes, but all share one terrain model. For Indian sites the NRSC Landslide Atlas district exposure rank (147 mountain districts) is added as an independent caution, not as a severity source |
 | Air quality | local screening (`air_local`), PM2.5 study (`air`) | Yes, may share a reanalysis |
 | Cold | `cold_extreme` | **No: one source** |
 | Earthquake | earthquake shaking study | **No: one source** |
