@@ -199,12 +199,24 @@ def peril_concordance(profile: Optional[dict], peril: str = "flood") -> dict:
         verdict += " Not assessed: " + ", ".join(x["source"] for x in na) + "."
     out = {"peril": peril, "sources": rows, "not_assessed": na, "unrated": unrated, "agreement": agreement, "verdict": verdict, "worst": worst, "n_sources_available": len(spec["sources"])}
     if peril == "flood":
-        ev = (profile or {}).get("flood_events") or {}
+        hist = (profile or {}).get("history") or {}
+        ev = (profile or {}).get("flood_events") or hist.get("flood_events") or {}
         hits = [x for x in (ev.get("events") or []) if x.get("bbox_contains_point")]
         out["observed"] = {"available": bool(ev.get("available")), "events_with_box_over_site": len(hits), "latest": hits[0]["date"] if hits else None,
                            "note": "Recorded flood events (Copernicus EMS / Global Flood Database footprints). A box over the site is not proof it was wet: the box is the mapped area, not the water."}
         if hits and worst in ("NEGLIGIBLE", "LOW"):
             out["verdict"] += f" Caution: {len(hits)} recorded flood event(s) have a mapped box over this site, yet the models rate it {worst}."
+        at = (profile or {}).get("flood_atlas") or hist.get("flood_atlas")
+        if at and at.get("in_india"):
+            out["observed"]["atlas"] = {k: at.get(k) for k in ("district", "state", "status", "atlas_ha", "national_percentile", "state_rank", "state_districts_listed", "reading", "reason", "source")}
+            if at.get("status") == "listed":
+                if at["national_percentile"] >= 0.75 and worst in ("NEGLIGIBLE", "LOW"):
+                    out["verdict"] += (f" Caution: {at['district']} district is in the top quarter of the NRSC atlas for observed flood area ({at['atlas_ha']:,} ha, above "
+                                       f"{round(100 * at['national_percentile'])} % of districts), yet the models rate this site {worst}. The atlas is district scale; check the site's own terrain.")
+                else:
+                    out["verdict"] += f" NRSC atlas: {at['district']} district mapped {at['atlas_ha']:,} ha flooded 1998-2022 (above {round(100 * at['national_percentile'])} % of districts); a low rank does not clear a site."
+            else:
+                out["verdict"] += " NRSC atlas: no usable district statistic here (" + (at.get("reason") or "not listed") + ")."
     ent.update(out)
     ent["key"] = f"{peril}_concordance"
     return ent
@@ -239,6 +251,17 @@ def projection_sources(proj: Optional[dict]) -> dict:
             + f"{len(proj['per_model'])} of 7 models returned usable years. " + proj.get("note", ""))
     return entry("projection_sources", "Future extreme rain: second model pipeline", "structural", "quantified", low=proj["low"], high=proj["high"], central=proj["median"], unit="ratio of 20-yr mean Rx1day, 2031-2050 over 1995-2014",
                  source=proj.get("source", ""), method="per-model ratio of mean annual-maximum daily rain; range is across the HighResMIP models", note=note)
+
+
+def rain_event_check(chk: Optional[dict]) -> dict:
+    """From `finance.rain_design.event_cross_check`: does a satellite-plus-gauge blend (CHIRPS) agree with the record's largest storm day?"""
+    if not chk or not chk.get("available"):
+        return entry("rain_event_check", "Largest storm day: third rain source (CHIRPS)", "structural", "not_assessed",
+                     reason=(chk or {}).get("reason") or "the CHIRPS check was not run for this site (about 10 s of network reads)")
+    rec = chk["record"]["mm"]
+    lo, hi = sorted((chk["best_day_mm"], rec))
+    return entry("rain_event_check", "Largest storm day: third rain source (CHIRPS)", "structural", "quantified", low=lo, high=hi, central=chk["two_day_mm"], unit="mm, one storm",
+                 source=chk.get("source", ""), method="record's largest day versus CHIRPS best single day (low or high) and CHIRPS two-day sum (central), because a gauge day straddles two UTC days", note=chk["reading"])
 
 
 def parameter_sensitivity(sens: Optional[dict]) -> dict:
@@ -277,7 +300,7 @@ def build(site: dict, entries: list) -> dict:
 
 def site_ledger(lat: float, lon: float, depth_m: Optional[float] = None, continent: str = "asia", asset_class: str = "industrial", design: Optional[dict] = None,
                 scenario_rain: Optional[dict] = None, bootstrap: Optional[tuple] = None, ratings: Optional[dict] = None, sens: Optional[dict] = None, fetch_rain: bool = True,
-                tc_winds: Optional[dict] = None, profile: Optional[dict] = None, projection: Optional[dict] = None) -> dict:
+                tc_winds: Optional[dict] = None, profile: Optional[dict] = None, projection: Optional[dict] = None, event_check: Optional[dict] = None) -> dict:
     """Ledger for one site from whatever has been computed (pass the pieces in; the slow ones are never run silently). With fetch_rain, the design-rain products are read (cached)."""
     if design is None and fetch_rain:
         try:
@@ -286,7 +309,7 @@ def site_ledger(lat: float, lon: float, depth_m: Optional[float] = None, contine
         except Exception as e:                                       # noqa: BLE001
             design = {"available": False, "reason": f"{type(e).__name__}: {str(e)[:100]}"}
     ents = [rain_sources(design), scenario_spread(scenario_rain), return_level_sampling(bootstrap, central=(design or {}).get("d1_mm") if design else None), (None if profile else map_disagreement(ratings or {})),
-            parameter_sensitivity(sens), tc_sources(tc_winds), projection_sources(projection)]
+            parameter_sensitivity(sens), tc_sources(tc_winds), projection_sources(projection), rain_event_check(event_check)]
     if profile:
         ents += [e for e in (peril_concordance(profile, p) for p in PERILS) if e["sources"] or e["not_assessed"] or e["unrated"]]
     ents = [e for e in ents if e]

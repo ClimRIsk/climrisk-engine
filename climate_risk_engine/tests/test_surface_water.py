@@ -231,3 +231,21 @@ def test_sensitivity_reports_rain_response_and_saturation(monkeypatch):
     assert "terrain" in out["text"] and "ponding flag" in out["text"]
     assert [x["rain_mm"] for x in out["rain_response"]] == sorted(x["rain_mm"] for x in out["rain_response"])
     assert any(r["input"] == "curve_number" for r in out["ranking"]) and all(r["input"] != "rain_response" for r in out["ranking"])
+
+
+def test_chirps_day_total_and_event_cross_check_with_fake_reader_and_failure_is_not_zero():
+    from cri.connectors import chirps
+    from cri.finance import rain_design as RD
+    ok = chirps.day_total(12.98, 80.22, "2015-12-01", reader=lambda u, la, lo, h: {"cell_mm": 234.7, "max_within_mm": 240.0})
+    assert ok["available"] and ok["cell_mm"] == 234.7 and "chirps-v3.0.sat.2015.12.01.tif" in ok["url"]
+    bad = chirps.day_total(12.98, 80.22, "2015-12-01", reader=lambda *a: (_ for _ in ()).throw(RuntimeError("net")))
+    assert bad["available"] is False and "cell_mm" not in bad and "net" in bad["reason"]
+    nodata = chirps.day_total(0.0, 0.0, "2015-12-01", reader=lambda *a: {"cell_mm": -9999.0, "max_within_mm": -9999.0})
+    assert nodata["available"] is False
+    d = {"largest_in_record": {"1d": {"mm": 344.9, "date": "2015-12-02", "source": "gauge"}}, "by_source": {}}
+    e = RD.event_cross_check(d, 12.98, 80.22, reader=lambda u, la, lo, h: {"cell_mm": 234.7, "max_within_mm": 240.0})
+    assert e["available"] and e["best_day_mm"] == 234.7 and e["two_day_mm"] == 469.4 and e["agree_within_25pct_two_day"] is False   # fake reader returns the same value both days
+    seq = {"2015-12-01": 234.7, "2015-12-02": 36.5}
+    e2 = RD.event_cross_check(d, 12.98, 80.22, reader=lambda u, la, lo, h: {"cell_mm": next(v for k, v in seq.items() if k.replace("-", ".") in u), "max_within_mm": 240.0})
+    assert e2["best_day_mm"] == 234.7 and e2["two_day_mm"] == 271.2 and e2["ratio_two_day"] == pytest.approx(0.79, abs=0.01) and e2["agree_within_25pct_two_day"] is True
+    assert RD.event_cross_check({}, 1, 1)["available"] is False

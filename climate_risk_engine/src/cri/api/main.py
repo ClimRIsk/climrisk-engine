@@ -1589,6 +1589,13 @@ def ahp_weights_and_rank(request: AHPRequest) -> dict:
     return out
 
 
+@app.get("/india/flood-atlas", dependencies=[_AUTH], tags=["Decision support"])
+def india_flood_atlas_lookup(lat: float, lon: float) -> dict:
+    """Observed flood history for the Indian district containing the point, from the NRSC/NDMA Flood Affected Area Atlas (1998-2022). A missing record is never reported as zero."""
+    from ..analysis import india_flood_atlas
+    return india_flood_atlas.lookup(lat, lon)
+
+
 class ConcordanceRequest(BaseModel):
     profile: dict = Field(..., description="Output of the site profile for one place")
 
@@ -1610,6 +1617,7 @@ class UncertaintyLedgerRequest(BaseModel):
     ratings: Optional[Dict[str, str]] = Field(None, description="Severity per independent hazard source, e.g. {'JRC river map': 'LOW', 'rain run': 'HIGH'}")
     fetch_rain: bool = Field(True, description="Read the design-rain products (cached after the first call)")
     profile: Optional[dict] = Field(None, description="Output of the site profile for this place; the sources for every peril in it are compared automatically (replaces hand-typed ratings)")
+    event_check: Optional[dict] = Field(None, description="Output of finance.rain_design.event_cross_check (CHIRPS check of the largest storm day)")
     projection: Optional[dict] = Field(None, description="Output of modellab.projection_check.rain_projection_sources for this site (second model pipeline for future extreme rain)")
     tc_winds: Optional[Dict[str, Dict[int, float]]] = Field(None, description="Cyclone wind return levels per source, {source: {return_period: m/s}}; two or more sources are needed to see disagreement")
 
@@ -1619,7 +1627,7 @@ def uncertainty_ledger(request: UncertaintyLedgerRequest) -> dict:
     """Per-site uncertainty ledger: quantified, assumed and not-assessed doubts side by side. Nothing is invented and the ranges are not combined into one loss figure."""
     from .. import uncertainty
     return uncertainty.site_ledger(request.lat, request.lon, depth_m=request.depth_m, continent=request.continent, asset_class=request.asset_class, scenario_rain=request.scenario_rain,
-                                   ratings=request.ratings, fetch_rain=request.fetch_rain, tc_winds=request.tc_winds, profile=request.profile, projection=request.projection)
+                                   ratings=request.ratings, fetch_rain=request.fetch_rain, tc_winds=request.tc_winds, profile=request.profile, projection=request.projection, event_check=request.event_check)
 
 
 class PhysicalRiskAssetIn(BaseModel):

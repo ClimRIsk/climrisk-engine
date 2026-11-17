@@ -170,3 +170,26 @@ def design(lat: float, lon: float, rp: int = 100, fetch: Optional[Callable] = No
                     "A rain gauge is a point measurement; it is within %.0f km of the site, so it can differ from rain over the site itself." % by["gauge"].get("km", 0),
                     "The design value is the larger of the sources; the others are in by_source."]
     return out
+
+
+def event_cross_check(d: dict, lat: float, lon: float, reader: Optional[Callable] = None) -> dict:
+    """Check the largest 1-day total in the records against CHIRPS (satellite plus gauge blend) around the same date. Returns {available, record, chirps_days, best_day_mm,
+    two_day_mm, ratio_best_day, ratio_two_day, reading}. A gauge's observation day (for India, 08:30 local to 08:30 the next morning) straddles two UTC days, which CHIRPS uses, so
+    the record is compared with the best single CHIRPS day AND the sum of that date and the day before. One storm is a check on plausibility, not a design rainfall."""
+    import datetime as dt
+    from ..connectors import chirps
+    big = (((d or {}).get("largest_in_record") or {}).get("1d"))
+    if not big:
+        return {"available": False, "reason": "no largest-day record to check (design rain not available)"}
+    d1 = dt.date.fromisoformat(big["date"][:10])
+    days = [chirps.day_total(lat, lon, (d1 - dt.timedelta(days=k)).isoformat(), reader=reader) for k in (1, 0)]
+    if not all(x.get("available") for x in days):
+        return {"available": False, "record": big, "reason": next(x.get("reason") for x in days if not x.get("available"))}
+    best, two = max(x["cell_mm"] for x in days), round(sum(x["cell_mm"] for x in days), 1)
+    rb, r2 = (round(best / big["mm"], 2), round(two / big["mm"], 2)) if big["mm"] else (None, None)
+    agree = bool(r2 and 0.75 <= r2 <= 1.33)
+    return {"available": True, "record": big, "chirps_days": [{"date": x["date"], "cell_mm": x["cell_mm"], "max_within_mm": x["max_within_mm"]} for x in days], "best_day_mm": best, "two_day_mm": two,
+            "ratio_best_day": rb, "ratio_two_day": r2, "agree_within_25pct_two_day": agree, "source": chirps.ATTRIBUTION,
+            "reading": (f"The largest day in the records is {big['mm']:.0f} mm on {big['date']} ({big['source']}). CHIRPS (satellite plus gauge blend, 5 km cell) reads "
+                        + ", ".join(f"{x['cell_mm']:.0f} mm on {x['date']}" for x in days) + f": best single day {best:.0f} mm, two days {two:.0f} mm. "
+                        + ("The two-day total is within about 25 % of the record." if agree else "They differ by more than 25 %, so the sources do not agree on this storm; treat the larger as a floor, not a settled value."))}

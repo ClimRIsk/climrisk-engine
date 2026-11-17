@@ -185,3 +185,12 @@ def test_annual_maxima_drops_incomplete_years_never_fills():
     t = [f"2000-01-{d:02d}" for d in range(1, 29)] * 14
     assert P.annual_maxima({"time": t, "precipitation_sum": [1.0] * len(t)}) == {2000: 1.0}
     assert P.annual_maxima({"time": t, "precipitation_sum": [None] + [1.0] * (len(t) - 1)}) == {}
+
+
+def test_rain_event_check_entry_and_not_assessed():
+    chk = {"available": True, "record": {"mm": 344.9}, "best_day_mm": 234.7, "two_day_mm": 271.2, "reading": "x", "source": "CHIRPS"}
+    e = U.rain_event_check(chk)
+    assert e["status"] == "quantified" and e["low"] == 234.7 and e["high"] == 344.9 and e["central"] == 271.2
+    assert U.rain_event_check(None)["status"] == "not_assessed" and U.rain_event_check({"available": False, "reason": "net"})["reason"] == "net"
+    led = U.site_ledger(12.98, 80.22, fetch_rain=False, event_check=chk)
+    assert "rain_event_check" in [x["key"] for x in led["entries"]]

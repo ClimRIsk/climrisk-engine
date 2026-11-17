@@ -1,0 +1,3238 @@
+{
+"source": "NRSC/ISRO for NDMA, Flood Affected Area Atlas of India - Satellite based study, Version 1 (1998-2022), March 2023, Document NRSC-RSA-DMSG-FMHAD-MAR,2023-TR-2171-V1.0",
+"url": "https://ndem.nrsc.gov.in/documents/downloads/Flood%20Affected%20Area%20%20Atlas%20of%20India%20-Satellite%20based%20study.pdf",
+"licence": "NOT CHECKED: government publication; reuse terms not confirmed. District statistics only (no maps or imagery are reproduced).",
+"what": "Cumulative flood-affected area per district (ha) from multi-date optical and SAR satellite flood maps 1998-2022 plus CWC gauge levels. Includes rain-water accumulation in low land.",
+"limits": [
+"Atlas districts are older than the 2021 boundaries; a district that was split since may match its parent by name only.",
+"A district missing from a covered state has no mapped flood in the record; it is NOT shown as zero.",
+"Cumulative extent over 25 years: no frequency, depth or return period."
+],
+"parse_check": {
+"Andhra Pradesh": {
+"n": 24,
+"sum": 738201,
+"atlas_total": 738200,
+"ok": true
+},
+"Arunachal Pradesh": {
+"n": 5,
+"sum": 3373,
+"atlas_total": 3373,
+"ok": true
+},
+"Assam": {
+"n": 35,
+"sum": 2464958,
+"atlas_total": 2464958,
+"ok": true
+},
+"Bihar": {
+"n": 38,
+"sum": 3976858,
+"atlas_total": 3976861,
+"ok": true
+},
+"Chhattisgarh": {
+"n": 12,
+"sum": 12028,
+"atlas_total": 12029,
+"ok": true
+},
+"Delhi": {
+"n": 7,
+"sum": 5847,
+"atlas_total": 5848,
+"ok": true
+},
+"Gujarat": {
+"n": 16,
+"sum": 517772,
+"atlas_total": 517770,
+"ok": true
+},
+"Haryana": {
+"n": 9,
+"sum": 67852,
+"atlas_total": 67852,
+"ok": true
+},
+"Jammu & Kashmir": {
+"n": 10,
+"sum": 43022,
+"atlas_total": 43022,
+"ok": true
+},
+"Jharkhand": {
+"n": 2,
+"sum": 2966,
+"atlas_total": 2966,
+"ok": true
+},
+"Karnataka": {
+"n": 26,
+"sum": 280157,
+"atlas_total": 280156,
+"ok": true
+},
+"Kerala": {
+"n": 10,
+"sum": 79377,
+"atlas_total": 79377,
+"ok": true
+},
+"Madhya Pradesh": {
+"n": 30,
+"sum": 210809,
+"atlas_total": 210809,
+"ok": true
+},
+"Maharashtra": {
+"n": 20,
+"sum": 233590,
+"atlas_total": 233590,
+"ok": true
+},
+"Manipur": {
+"n": 9,
+"sum": 88351,
+"atlas_total": 88352,
+"ok": true
+},
+"Meghalaya": {
+"n": 2,
+"sum": 8788,
+"atlas_total": 8787,
+"ok": true
+},
+"Odisha": {
+"n": 23,
+"sum": 1424313,
+"atlas_total": 1424313,
+"ok": true
+},
+"Punjab": {
+"n": 15,
+"sum": 142691,
+"atlas_total": 142692,
+"ok": true
+},
+"Rajasthan": {
+"n": 10,
+"sum": 155144,
+"atlas_total": 155144,
+"ok": true
+},
+"Tamil Nadu": {
+"n": 24,
+"sum": 552013,
+"atlas_total": 552010,
+"ok": true
+},
+"Telangana": {
+"n": 14,
+"sum": 102315,
+"atlas_total": 102318,
+"ok": true
+},
+"Tripura": {
+"n": 4,
+"sum": 3928,
+"atlas_total": 3928,
+"ok": true
+},
+"Uttar Pradesh": {
+"n": 72,
+"sum": 2662943,
+"atlas_total": 2662942,
+"ok": true
+},
+"Uttarakhand": {
+"n": 2,
+"sum": 7603,
+"atlas_total": 7604,
+"ok": true
+},
+"West Bengal": {
+"n": 20,
+"sum": 1969749,
+"atlas_total": 1969750,
+"ok": true
+}
+},
+"districts": [
+{
+"state": "Andhra Pradesh",
+"district": "Sri Potti Sriramulu Nellore",
+"ha": 144317,
+"matched": "Sri Potti Sriramulu Nellore",
+"match_ratio": 1.0
+},
+{
+"state": "Andhra Pradesh",
+"district": "Bapatla",
+"ha": 111637,
+"matched": null,
+"match_ratio": 0.5
+},
+{
+"state": "Andhra Pradesh",
+"district": "Tirupati",
+"ha": 83151,
+"matched": null,
+"match_ratio": 0.38
+},
+{
+"state": "Andhra Pradesh",
+"district": "Prakasam",
+"ha": 60207,
+"matched": "Prakasam",
+"match_ratio": 1.0
+},
+{
+"state": "Andhra Pradesh",
+"district": "Guntur",
+"ha": 48973,
+"matched": "Guntur",
+"match_ratio": 1.0
+},
+{
+"state": "Andhra Pradesh",
+"district": "Srikakulam",
+"ha": 39114,
+"matched": "Srikakulam",
+"match_ratio": 1.0
+},
+{
+"state": "Andhra Pradesh",
+"district": "Nandyal",
+"ha": 33035,
+"matched": null,
+"match_ratio": 0.5
+},
+{
+"state": "Andhra Pradesh",
+"district": "Eluru",
+"ha": 29809,
+"matched": null,
+"match_ratio": 0.36
+},
+{
+"state": "Andhra Pradesh",
+"district": "Krishna",
+"ha": 29582,
+"matched": "Krishna",
+"match_ratio": 1.0
+},
+{
+"state": "Andhra Pradesh",
+"district": "West godavari",
+"ha": 27397,
+"matched": "West Godavari",
+"match_ratio": 1.0
+},
+{
+"state": "Andhra Pradesh",
+"district": "East godavari",
+"ha": 21322,
+"matched": "East Godavari",
+"match_ratio": 1.0
+},
+{
+"state": "Andhra Pradesh",
+"district": "Kakinada",
+"ha": 18983,
+"matched": null,
+"match_ratio": 0.57
+},
+{
+"state": "Andhra Pradesh",
+"district": "Anakapalli",
+"ha": 17631,
+"matched": null,
+"match_ratio": 0.53
+},
+{
+"state": "Andhra Pradesh",
+"district": "Alluri sitharama raju",
+"ha": 16661,
+"matched": null,
+"match_ratio": 0.38
+},
+{
+"state": "Andhra Pradesh",
+"district": "Palnadu",
+"ha": 12630,
+"matched": null,
+"match_ratio": 0.5
+},
+{
+"state": "Andhra Pradesh",
+"district": "NTR",
+"ha": 11021,
+"matched": null,
+"match_ratio": 0.67
+},
+{
+"state": "Andhra Pradesh",
+"district": "Konaseema",
+"ha": 9844,
+"matched": null,
+"match_ratio": 0.47
+},
+{
+"state": "Andhra Pradesh",
+"district": "YSR",
+"ha": 6792,
+"matched": null,
+"match_ratio": 0.31
+},
+{
+"state": "Andhra Pradesh",
+"district": "Parvathipuram manyam",
+"ha": 6153,
+"matched": null,
+"match_ratio": 0.44
+},
+{
+"state": "Andhra Pradesh",
+"district": "Vizianagaram",
+"ha": 4453,
+"matched": "Vizianagaram",
+"match_ratio": 1.0
+},
+{
+"state": "Andhra Pradesh",
+"district": "Anantapuram",
+"ha": 3127,
+"matched": "Anantapur",
+"match_ratio": 0.9
+},
+{
+"state": "Andhra Pradesh",
+"district": "Kurnool",
+"ha": 1673,
+"matched": "Kurnool",
+"match_ratio": 1.0
+},
+{
+"state": "Andhra Pradesh",
+"district": "Visakhapatnam",
+"ha": 396,
+"matched": "Visakhapatnam",
+"match_ratio": 1.0
+},
+{
+"state": "Andhra Pradesh",
+"district": "Annamayya",
+"ha": 293,
+"matched": null,
+"match_ratio": 0.57
+},
+{
+"state": "Arunachal Pradesh",
+"district": "Namsai",
+"ha": 1106,
+"matched": "Namsai",
+"match_ratio": 1.0
+},
+{
+"state": "Arunachal Pradesh",
+"district": "Lower Dibang Valley",
+"ha": 924,
+"matched": "Lower Dibang Valley",
+"match_ratio": 1.0
+},
+{
+"state": "Arunachal Pradesh",
+"district": "East Siang",
+"ha": 807,
+"matched": "East Siang",
+"match_ratio": 1.0
+},
+{
+"state": "Arunachal Pradesh",
+"district": "Changlang",
+"ha": 294,
+"matched": "Changlang",
+"match_ratio": 1.0
+},
+{
+"state": "Arunachal Pradesh",
+"district": "Lohit",
+"ha": 242,
+"matched": "Lohit",
+"match_ratio": 1.0
+},
+{
+"state": "Assam",
+"district": "Lakhimpur",
+"ha": 164329,
+"matched": "Lakhimpur",
+"match_ratio": 1.0
+},
+{
+"state": "Assam",
+"district": "Nagaon",
+"ha": 151385,
+"matched": "Nagaon",
+"match_ratio": 1.0
+},
+{
+"state": "Assam",
+"district": "Kamrup Rural",
+"ha": 132885,
+"matched": null,
+"match_ratio": 0.71
+},
+{
+"state": "Assam",
+"district": "Dibrugarh",
+"ha": 132438,
+"matched": "Dibrugarh",
+"match_ratio": 1.0
+},
+{
+"state": "Assam",
+"district": "Dhemaji",
+"ha": 130247,
+"matched": "Dhemaji",
+"match_ratio": 1.0
+},
+{
+"state": "Assam",
+"district": "Golaghat",
+"ha": 112050,
+"matched": "Golaghat",
+"match_ratio": 1.0
+},
+{
+"state": "Assam",
+"district": "Cachar",
+"ha": 111810,
+"matched": "Cachar",
+"match_ratio": 1.0
+},
+{
+"state": "Assam",
+"district": "Morigaon",
+"ha": 104622,
+"matched": "Morigaon",
+"match_ratio": 1.0
+},
+{
+"state": "Assam",
+"district": "Barpeta",
+"ha": 99737,
+"matched": "Barpeta",
+"match_ratio": 1.0
+},
+{
+"state": "Assam",
+"district": "Sivasagar",
+"ha": 98032,
+"matched": "Sivasagar",
+"match_ratio": 1.0
+},
+{
+"state": "Assam",
+"district": "Sonitpur",
+"ha": 97195,
+"matched": "Sonitpur",
+"match_ratio": 1.0
+},
+{
+"state": "Assam",
+"district": "Biswanath",
+"ha": 88810,
+"matched": "Biswanath",
+"match_ratio": 1.0
+},
+{
+"state": "Assam",
+"district": "Jorhat",
+"ha": 85492,
+"matched": "Jorhat",
+"match_ratio": 1.0
+},
+{
+"state": "Assam",
+"district": "Goalpara",
+"ha": 76700,
+"matched": "Goalpara",
+"match_ratio": 1.0
+},
+{
+"state": "Assam",
+"district": "Tinsukia",
+"ha": 74530,
+"matched": "Tinsukia",
+"match_ratio": 1.0
+},
+{
+"state": "Assam",
+"district": "Dhubri",
+"ha": 72487,
+"matched": "Dhubri",
+"match_ratio": 1.0
+},
+{
+"state": "Assam",
+"district": "Darrang",
+"ha": 72391,
+"matched": "Darrang",
+"match_ratio": 1.0
+},
+{
+"state": "Assam",
+"district": "Hojai",
+"ha": 68168,
+"matched": "Hojai",
+"match_ratio": 1.0
+},
+{
+"state": "Assam",
+"district": "Karimganj",
+"ha": 65140,
+"matched": "Karimganj",
+"match_ratio": 1.0
+},
+{
+"state": "Assam",
+"district": "Nalbari",
+"ha": 64099,
+"matched": "Nalbari",
+"match_ratio": 1.0
+},
+{
+"state": "Assam",
+"district": "Udalguri",
+"ha": 57250,
+"matched": "Udalguri",
+"match_ratio": 1.0
+},
+{
+"state": "Assam",
+"district": "Majuli",
+"ha": 50978,
+"matched": "Majuli",
+"match_ratio": 1.0
+},
+{
+"state": "Assam",
+"district": "Charaideo",
+"ha": 40724,
+"matched": "Charaideo",
+"match_ratio": 1.0
+},
+{
+"state": "Assam",
+"district": "Karbi Anglong",
+"ha": 39034,
+"matched": null,
+"match_ratio": 0.86
+},
+{
+"state": "Assam",
+"district": "Kokrajhar",
+"ha": 37438,
+"matched": "Kokrajhar",
+"match_ratio": 1.0
+},
+{
+"state": "Assam",
+"district": "Hailakandi",
+"ha": 37412,
+"matched": "Hailakandi",
+"match_ratio": 1.0
+},
+{
+"state": "Assam",
+"district": "Baksa",
+"ha": 35158,
+"matched": "Baksa",
+"match_ratio": 1.0
+},
+{
+"state": "Assam",
+"district": "Bongaigaon",
+"ha": 34928,
+"matched": "Bongaigaon",
+"match_ratio": 1.0
+},
+{
+"state": "Assam",
+"district": "Bajali",
+"ha": 29447,
+"matched": null,
+"match_ratio": 0.67
+},
+{
+"state": "Assam",
+"district": "Tamulpur",
+"ha": 26168,
+"matched": null,
+"match_ratio": 0.59
+},
+{
+"state": "Assam",
+"district": "South Salmara",
+"ha": 22888,
+"matched": null,
+"match_ratio": 0.73
+},
+{
+"state": "Assam",
+"district": "Kamrup Metro",
+"ha": 22564,
+"matched": "Kamrup Metropolitan",
+"match_ratio": 1.0
+},
+{
+"state": "Assam",
+"district": "West Karbi Anglong",
+"ha": 16216,
+"matched": null,
+"match_ratio": 0.75
+},
+{
+"state": "Assam",
+"district": "Chirang",
+"ha": 11700,
+"matched": "Chirang",
+"match_ratio": 1.0
+},
+{
+"state": "Assam",
+"district": "Dima Hasao",
+"ha": 506,
+"matched": "Dima Hasao",
+"match_ratio": 1.0
+},
+{
+"state": "Bihar",
+"district": "Purba Champaran",
+"ha": 251928,
+"matched": "Purba Champaran",
+"match_ratio": 1.0
+},
+{
+"state": "Bihar",
+"district": "Madhubani",
+"ha": 233550,
+"matched": "Madhubani",
+"match_ratio": 1.0
+},
+{
+"state": "Bihar",
+"district": "Darbhanga",
+"ha": 211066,
+"matched": "Darbhanga",
+"match_ratio": 1.0
+},
+{
+"state": "Bihar",
+"district": "Muzaffarpur",
+"ha": 206533,
+"matched": "Muzaffarpur",
+"match_ratio": 1.0
+},
+{
+"state": "Bihar",
+"district": "Katihar",
+"ha": 171660,
+"matched": "Katihar",
+"match_ratio": 1.0
+},
+{
+"state": "Bihar",
+"district": "Patna",
+"ha": 170333,
+"matched": "Patna",
+"match_ratio": 1.0
+},
+{
+"state": "Bihar",
+"district": "Chhapra",
+"ha": 160072,
+"matched": "Saran",
+"match_ratio": 1.0
+},
+{
+"state": "Bihar",
+"district": "Sitamarhi",
+"ha": 154439,
+"matched": "Sitamarhi",
+"match_ratio": 1.0
+},
+{
+"state": "Bihar",
+"district": "Samastipur",
+"ha": 151926,
+"matched": "Samastipur",
+"match_ratio": 1.0
+},
+{
+"state": "Bihar",
+"district": "Araria",
+"ha": 149427,
+"matched": "Araria",
+"match_ratio": 1.0
+},
+{
+"state": "Bihar",
+"district": "Purnia",
+"ha": 138824,
+"matched": "Purnia",
+"match_ratio": 1.0
+},
+{
+"state": "Bihar",
+"district": "Siwan",
+"ha": 137378,
+"matched": "Siwan",
+"match_ratio": 1.0
+},
+{
+"state": "Bihar",
+"district": "Nalanda",
+"ha": 135506,
+"matched": "Nalanda",
+"match_ratio": 1.0
+},
+{
+"state": "Bihar",
+"district": "Bhagalpur",
+"ha": 126622,
+"matched": "Bhagalpur",
+"match_ratio": 1.0
+},
+{
+"state": "Bihar",
+"district": "Gopalganj",
+"ha": 116800,
+"matched": "Gopalganj",
+"match_ratio": 1.0
+},
+{
+"state": "Bihar",
+"district": "Kishanganj",
+"ha": 115421,
+"matched": "Kishanganj",
+"match_ratio": 1.0
+},
+{
+"state": "Bihar",
+"district": "Bhojpur",
+"ha": 114590,
+"matched": "Bhojpur",
+"match_ratio": 1.0
+},
+{
+"state": "Bihar",
+"district": "Khagaria",
+"ha": 110283,
+"matched": "Khagaria",
+"match_ratio": 1.0
+},
+{
+"state": "Bihar",
+"district": "Pashchim Champaran",
+"ha": 109814,
+"matched": "Pashchim Champaran",
+"match_ratio": 1.0
+},
+{
+"state": "Bihar",
+"district": "Madhepura",
+"ha": 109158,
+"matched": "Madhepura",
+"match_ratio": 1.0
+},
+{
+"state": "Bihar",
+"district": "Supaul",
+"ha": 102093,
+"matched": "Supaul",
+"match_ratio": 1.0
+},
+{
+"state": "Bihar",
+"district": "Aurangabad",
+"ha": 94064,
+"matched": "Aurangabad",
+"match_ratio": 1.0
+},
+{
+"state": "Bihar",
+"district": "Saharsa",
+"ha": 93975,
+"matched": "Saharsa",
+"match_ratio": 1.0
+},
+{
+"state": "Bihar",
+"district": "Begusarai",
+"ha": 90265,
+"matched": "Begusarai",
+"match_ratio": 1.0
+},
+{
+"state": "Bihar",
+"district": "Vaishali",
+"ha": 81099,
+"matched": "Vaishali",
+"match_ratio": 1.0
+},
+{
+"state": "Bihar",
+"district": "Gaya",
+"ha": 62341,
+"matched": "Gaya",
+"match_ratio": 1.0
+},
+{
+"state": "Bihar",
+"district": "Buxar",
+"ha": 51315,
+"matched": "Buxar",
+"match_ratio": 1.0
+},
+{
+"state": "Bihar",
+"district": "Lakhisarai",
+"ha": 45731,
+"matched": "Lakhisarai",
+"match_ratio": 1.0
+},
+{
+"state": "Bihar",
+"district": "Jhanabad",
+"ha": 42336,
+"matched": "Jehanabad",
+"match_ratio": 0.94
+},
+{
+"state": "Bihar",
+"district": "Rohtas",
+"ha": 36623,
+"matched": "Rohtas",
+"match_ratio": 1.0
+},
+{
+"state": "Bihar",
+"district": "Sheikhpura",
+"ha": 33578,
+"matched": "Sheikhpura",
+"match_ratio": 1.0
+},
+{
+"state": "Bihar",
+"district": "Munger",
+"ha": 31883,
+"matched": "Munger",
+"match_ratio": 1.0
+},
+{
+"state": "Bihar",
+"district": "Arwal",
+"ha": 31821,
+"matched": "Arwal",
+"match_ratio": 1.0
+},
+{
+"state": "Bihar",
+"district": "Sheohar",
+"ha": 25657,
+"matched": "Sheohar",
+"match_ratio": 1.0
+},
+{
+"state": "Bihar",
+"district": "Jamui",
+"ha": 24911,
+"matched": "Jamui",
+"match_ratio": 1.0
+},
+{
+"state": "Bihar",
+"district": "Bhabhua",
+"ha": 21245,
+"matched": "Kaimur (Bhabua)",
+"match_ratio": 1.0
+},
+{
+"state": "Bihar",
+"district": "Nawada",
+"ha": 20790,
+"matched": "Nawada",
+"match_ratio": 1.0
+},
+{
+"state": "Bihar",
+"district": "Banka",
+"ha": 11801,
+"matched": "Banka",
+"match_ratio": 1.0
+},
+{
+"state": "Chhattisgarh",
+"district": "Bemetra",
+"ha": 7328,
+"matched": "Bemetra",
+"match_ratio": 1.0
+},
+{
+"state": "Chhattisgarh",
+"district": "Mungeli",
+"ha": 930,
+"matched": "Mungeli",
+"match_ratio": 1.0
+},
+{
+"state": "Chhattisgarh",
+"district": "Raj nandgaon",
+"ha": 605,
+"matched": "Rajnandgaon",
+"match_ratio": 1.0
+},
+{
+"state": "Chhattisgarh",
+"district": "Kawardha",
+"ha": 555,
+"matched": null,
+"match_ratio": 0.67
+},
+{
+"state": "Chhattisgarh",
+"district": "Bilaspur",
+"ha": 527,
+"matched": "Bilaspur",
+"match_ratio": 1.0
+},
+{
+"state": "Chhattisgarh",
+"district": "Bastar",
+"ha": 490,
+"matched": "Bastar",
+"match_ratio": 1.0
+},
+{
+"state": "Chhattisgarh",
+"district": "Raipur",
+"ha": 414,
+"matched": "Raipur",
+"match_ratio": 1.0
+},
+{
+"state": "Chhattisgarh",
+"district": "Balodabazar",
+"ha": 368,
+"matched": "Baloda Bazar",
+"match_ratio": 1.0
+},
+{
+"state": "Chhattisgarh",
+"district": "Durg",
+"ha": 296,
+"matched": "Durg",
+"match_ratio": 1.0
+},
+{
+"state": "Chhattisgarh",
+"district": "Kondagaon",
+"ha": 213,
+"matched": "Kondagaon",
+"match_ratio": 1.0
+},
+{
+"state": "Chhattisgarh",
+"district": "Janjgir champa",
+"ha": 199,
+"matched": "Janjgir-Champa",
+"match_ratio": 1.0
+},
+{
+"state": "Chhattisgarh",
+"district": "Balod",
+"ha": 103,
+"matched": "Balod",
+"match_ratio": 1.0
+},
+{
+"state": "Delhi",
+"district": "North Delhi",
+"ha": 2387,
+"matched": null,
+"match_ratio": 0.67
+},
+{
+"state": "Delhi",
+"district": "South East Delhi",
+"ha": 1362,
+"matched": null,
+"match_ratio": 0.78
+},
+{
+"state": "Delhi",
+"district": "East Delhi",
+"ha": 808,
+"matched": null,
+"match_ratio": 0.71
+},
+{
+"state": "Delhi",
+"district": "Central Delhi",
+"ha": 523,
+"matched": null,
+"match_ratio": 0.74
+},
+{
+"state": "Delhi",
+"district": "North East Delhi",
+"ha": 335,
+"matched": null,
+"match_ratio": 0.78
+},
+{
+"state": "Delhi",
+"district": "Shahdara",
+"ha": 273,
+"matched": "Shahdara",
+"match_ratio": 1.0
+},
+{
+"state": "Delhi",
+"district": "North West Delhi",
+"ha": 159,
+"matched": null,
+"match_ratio": 0.78
+},
+{
+"state": "Gujarat",
+"district": "Ahmadabad",
+"ha": 233388,
+"matched": "Ahmadabad",
+"match_ratio": 1.0
+},
+{
+"state": "Gujarat",
+"district": "Patan",
+"ha": 73062,
+"matched": "Patan",
+"match_ratio": 1.0
+},
+{
+"state": "Gujarat",
+"district": "Surendranagar",
+"ha": 54671,
+"matched": "Surendranagar",
+"match_ratio": 1.0
+},
+{
+"state": "Gujarat",
+"district": "Anand",
+"ha": 36385,
+"matched": "Anand",
+"match_ratio": 1.0
+},
+{
+"state": "Gujarat",
+"district": "Bharuch",
+"ha": 29173,
+"matched": "Bharuch",
+"match_ratio": 1.0
+},
+{
+"state": "Gujarat",
+"district": "Bhavnagar",
+"ha": 28264,
+"matched": "Bhavnagar",
+"match_ratio": 1.0
+},
+{
+"state": "Gujarat",
+"district": "Amreli",
+"ha": 21910,
+"matched": "Amreli",
+"match_ratio": 1.0
+},
+{
+"state": "Gujarat",
+"district": "Botad",
+"ha": 17254,
+"matched": null,
+"match_ratio": 0.6
+},
+{
+"state": "Gujarat",
+"district": "Kheda",
+"ha": 17161,
+"matched": "Kheda",
+"match_ratio": 1.0
+},
+{
+"state": "Gujarat",
+"district": "Mahesana",
+"ha": 2544,
+"matched": "Mahesana",
+"match_ratio": 1.0
+},
+{
+"state": "Gujarat",
+"district": "Banas Kantha",
+"ha": 1242,
+"matched": "Banas Kantha",
+"match_ratio": 1.0
+},
+{
+"state": "Gujarat",
+"district": "Kachchh",
+"ha": 1029,
+"matched": "Kachchh",
+"match_ratio": 1.0
+},
+{
+"state": "Gujarat",
+"district": "Gir Somnath",
+"ha": 1027,
+"matched": "Gir Somnath",
+"match_ratio": 1.0
+},
+{
+"state": "Gujarat",
+"district": "Junagadh",
+"ha": 311,
+"matched": "Junagadh",
+"match_ratio": 1.0
+},
+{
+"state": "Gujarat",
+"district": "Surat",
+"ha": 212,
+"matched": "Surat",
+"match_ratio": 1.0
+},
+{
+"state": "Gujarat",
+"district": "Gandhinagar",
+"ha": 139,
+"matched": "Gandhinagar",
+"match_ratio": 1.0
+},
+{
+"state": "Haryana",
+"district": "Kaithal",
+"ha": 27185,
+"matched": "Kaithal",
+"match_ratio": 1.0
+},
+{
+"state": "Haryana",
+"district": "Palwal",
+"ha": 10474,
+"matched": "Palwal",
+"match_ratio": 1.0
+},
+{
+"state": "Haryana",
+"district": "Kurukshetra",
+"ha": 10271,
+"matched": "Kurukshetra",
+"match_ratio": 1.0
+},
+{
+"state": "Haryana",
+"district": "Sonipat",
+"ha": 8885,
+"matched": "Sonipat",
+"match_ratio": 1.0
+},
+{
+"state": "Haryana",
+"district": "Faridabad",
+"ha": 7085,
+"matched": "Faridabad",
+"match_ratio": 1.0
+},
+{
+"state": "Haryana",
+"district": "Ambala",
+"ha": 2271,
+"matched": "Ambala",
+"match_ratio": 1.0
+},
+{
+"state": "Haryana",
+"district": "Panipat",
+"ha": 901,
+"matched": "Panipat",
+"match_ratio": 1.0
+},
+{
+"state": "Haryana",
+"district": "Karnal",
+"ha": 575,
+"matched": "Karnal",
+"match_ratio": 1.0
+},
+{
+"state": "Haryana",
+"district": "Yamunanagar",
+"ha": 205,
+"matched": "Yamunanagar",
+"match_ratio": 1.0
+},
+{
+"state": "Jammu & Kashmir",
+"district": "Badgam",
+"ha": 9989,
+"matched": "Badgam",
+"match_ratio": 1.0
+},
+{
+"state": "Jammu & Kashmir",
+"district": "Bandipore",
+"ha": 9475,
+"matched": "Bandipore",
+"match_ratio": 1.0
+},
+{
+"state": "Jammu & Kashmir",
+"district": "Baramula",
+"ha": 8058,
+"matched": "Baramula",
+"match_ratio": 1.0
+},
+{
+"state": "Jammu & Kashmir",
+"district": "Pulwama",
+"ha": 6791,
+"matched": "Pulwama",
+"match_ratio": 1.0
+},
+{
+"state": "Jammu & Kashmir",
+"district": "Srinagar",
+"ha": 3415,
+"matched": "Srinagar",
+"match_ratio": 1.0
+},
+{
+"state": "Jammu & Kashmir",
+"district": "Anantnag",
+"ha": 2146,
+"matched": "Anantnag",
+"match_ratio": 1.0
+},
+{
+"state": "Jammu & Kashmir",
+"district": "Ganderbal",
+"ha": 1833,
+"matched": "Ganderbal",
+"match_ratio": 1.0
+},
+{
+"state": "Jammu & Kashmir",
+"district": "Kupwara",
+"ha": 801,
+"matched": "Kupwara",
+"match_ratio": 1.0
+},
+{
+"state": "Jammu & Kashmir",
+"district": "Kulgam",
+"ha": 395,
+"matched": "Kulgam",
+"match_ratio": 1.0
+},
+{
+"state": "Jammu & Kashmir",
+"district": "Shupiyan",
+"ha": 119,
+"matched": "Shupiyan",
+"match_ratio": 1.0
+},
+{
+"state": "Jharkhand",
+"district": "Sahibganj",
+"ha": 2625,
+"matched": "Sahibganj",
+"match_ratio": 1.0
+},
+{
+"state": "Jharkhand",
+"district": "Pakur",
+"ha": 341,
+"matched": "Pakur",
+"match_ratio": 1.0
+},
+{
+"state": "Karnataka",
+"district": "Belgaum",
+"ha": 67033,
+"matched": "Belgaum",
+"match_ratio": 1.0
+},
+{
+"state": "Karnataka",
+"district": "Shimoga",
+"ha": 37524,
+"matched": "Shimoga",
+"match_ratio": 1.0
+},
+{
+"state": "Karnataka",
+"district": "Bagalkot",
+"ha": 33330,
+"matched": "Bagalkot",
+"match_ratio": 1.0
+},
+{
+"state": "Karnataka",
+"district": "Davangere",
+"ha": 20359,
+"matched": "Davanagere",
+"match_ratio": 0.95
+},
+{
+"state": "Karnataka",
+"district": "Haveri",
+"ha": 18715,
+"matched": "Haveri",
+"match_ratio": 1.0
+},
+{
+"state": "Karnataka",
+"district": "Mysore",
+"ha": 17290,
+"matched": "Mysore",
+"match_ratio": 1.0
+},
+{
+"state": "Karnataka",
+"district": "Bijapur / Vijayapura",
+"ha": 13565,
+"matched": null,
+"match_ratio": 0.58
+},
+{
+"state": "Karnataka",
+"district": "Bellary",
+"ha": 11585,
+"matched": "Bellary",
+"match_ratio": 1.0
+},
+{
+"state": "Karnataka",
+"district": "Yadgir",
+"ha": 9224,
+"matched": "Yadgir",
+"match_ratio": 1.0
+},
+{
+"state": "Karnataka",
+"district": "Raichur",
+"ha": 9174,
+"matched": "Raichur",
+"match_ratio": 1.0
+},
+{
+"state": "Karnataka",
+"district": "Uttar Kannad",
+"ha": 7236,
+"matched": "Uttara Kannada",
+"match_ratio": 0.92
+},
+{
+"state": "Karnataka",
+"district": "Gulbarga",
+"ha": 5609,
+"matched": "Gulbarga",
+"match_ratio": 1.0
+},
+{
+"state": "Karnataka",
+"district": "Hassan",
+"ha": 4303,
+"matched": "Hassan",
+"match_ratio": 1.0
+},
+{
+"state": "Karnataka",
+"district": "Mandya",
+"ha": 3900,
+"matched": "Mandya",
+"match_ratio": 1.0
+},
+{
+"state": "Karnataka",
+"district": "Udupi",
+"ha": 3674,
+"matched": "Udupi",
+"match_ratio": 1.0
+},
+{
+"state": "Karnataka",
+"district": "Dharwad",
+"ha": 3576,
+"matched": "Dharwad",
+"match_ratio": 1.0
+},
+{
+"state": "Karnataka",
+"district": "Gadag",
+"ha": 3281,
+"matched": "Gadag",
+"match_ratio": 1.0
+},
+{
+"state": "Karnataka",
+"district": "Chikmagalur",
+"ha": 3150,
+"matched": "Chikmagalur",
+"match_ratio": 1.0
+},
+{
+"state": "Karnataka",
+"district": "Chamrajnagar",
+"ha": 2020,
+"matched": "Chamarajanagar",
+"match_ratio": 0.92
+},
+{
+"state": "Karnataka",
+"district": "Koppal",
+"ha": 1926,
+"matched": "Koppal",
+"match_ratio": 1.0
+},
+{
+"state": "Karnataka",
+"district": "Chitradurga",
+"ha": 1248,
+"matched": "Chitradurga",
+"match_ratio": 1.0
+},
+{
+"state": "Karnataka",
+"district": "Dakshin Kannad",
+"ha": 920,
+"matched": "Dakshina Kannada",
+"match_ratio": 0.93
+},
+{
+"state": "Karnataka",
+"district": "Kodagu",
+"ha": 695,
+"matched": "Kodagu",
+"match_ratio": 1.0
+},
+{
+"state": "Karnataka",
+"district": "Tumkur",
+"ha": 301,
+"matched": "Tumkur",
+"match_ratio": 1.0
+},
+{
+"state": "Karnataka",
+"district": "Bidar",
+"ha": 262,
+"matched": "Bidar",
+"match_ratio": 1.0
+},
+{
+"state": "Karnataka",
+"district": "Bangalore Rural",
+"ha": 257,
+"matched": "Bangalore Rural",
+"match_ratio": 1.0
+},
+{
+"state": "Kerala",
+"district": "Kottayam",
+"ha": 21379,
+"matched": "Kottayam",
+"match_ratio": 1.0
+},
+{
+"state": "Kerala",
+"district": "Thrissur",
+"ha": 19562,
+"matched": "Thrissur",
+"match_ratio": 1.0
+},
+{
+"state": "Kerala",
+"district": "Alappuzha",
+"ha": 12187,
+"matched": "Alappuzha",
+"match_ratio": 1.0
+},
+{
+"state": "Kerala",
+"district": "Ernakulam",
+"ha": 7663,
+"matched": "Ernakulam",
+"match_ratio": 1.0
+},
+{
+"state": "Kerala",
+"district": "Pattanamtitta",
+"ha": 6052,
+"matched": "Pathanamthitta",
+"match_ratio": 0.89
+},
+{
+"state": "Kerala",
+"district": "Malappuram",
+"ha": 5989,
+"matched": "Malappuram",
+"match_ratio": 1.0
+},
+{
+"state": "Kerala",
+"district": "Palakkad",
+"ha": 4137,
+"matched": "Palakkad",
+"match_ratio": 1.0
+},
+{
+"state": "Kerala",
+"district": "Kollam",
+"ha": 1829,
+"matched": "Kollam",
+"match_ratio": 1.0
+},
+{
+"state": "Kerala",
+"district": "Wayanad",
+"ha": 469,
+"matched": "Wayanad",
+"match_ratio": 1.0
+},
+{
+"state": "Kerala",
+"district": "Kozhikode",
+"ha": 110,
+"matched": "Kozhikode",
+"match_ratio": 1.0
+},
+{
+"state": "Madhya Pradesh",
+"district": "Jabalpur",
+"ha": 35696,
+"matched": "Jabalpur",
+"match_ratio": 1.0
+},
+{
+"state": "Madhya Pradesh",
+"district": "Vidisha",
+"ha": 23052,
+"matched": "Vidisha",
+"match_ratio": 1.0
+},
+{
+"state": "Madhya Pradesh",
+"district": "Raisen",
+"ha": 18252,
+"matched": "Raisen",
+"match_ratio": 1.0
+},
+{
+"state": "Madhya Pradesh",
+"district": "Hoshangabad",
+"ha": 15132,
+"matched": "Hoshangabad",
+"match_ratio": 1.0
+},
+{
+"state": "Madhya Pradesh",
+"district": "Panna",
+"ha": 12393,
+"matched": "Panna",
+"match_ratio": 1.0
+},
+{
+"state": "Madhya Pradesh",
+"district": "Ashoknagar",
+"ha": 10773,
+"matched": "Ashoknagar",
+"match_ratio": 1.0
+},
+{
+"state": "Madhya Pradesh",
+"district": "Rewa",
+"ha": 9864,
+"matched": "Rewa",
+"match_ratio": 1.0
+},
+{
+"state": "Madhya Pradesh",
+"district": "Morena",
+"ha": 9649,
+"matched": "Morena",
+"match_ratio": 1.0
+},
+{
+"state": "Madhya Pradesh",
+"district": "Sehore",
+"ha": 6995,
+"matched": "Sehore",
+"match_ratio": 1.0
+},
+{
+"state": "Madhya Pradesh",
+"district": "Bhind",
+"ha": 6916,
+"matched": "Bhind",
+"match_ratio": 1.0
+},
+{
+"state": "Madhya Pradesh",
+"district": "Narsimhapur",
+"ha": 6597,
+"matched": "Narsimhapur",
+"match_ratio": 1.0
+},
+{
+"state": "Madhya Pradesh",
+"district": "Damoh",
+"ha": 6474,
+"matched": "Damoh",
+"match_ratio": 1.0
+},
+{
+"state": "Madhya Pradesh",
+"district": "East Nimar",
+"ha": 6341,
+"matched": "Khandwa (East Nimar)",
+"match_ratio": 1.0
+},
+{
+"state": "Madhya Pradesh",
+"district": "Shivpuri",
+"ha": 5713,
+"matched": "Shivpuri",
+"match_ratio": 1.0
+},
+{
+"state": "Madhya Pradesh",
+"district": "Satna",
+"ha": 4538,
+"matched": "Satna",
+"match_ratio": 1.0
+},
+{
+"state": "Madhya Pradesh",
+"district": "Katni",
+"ha": 4287,
+"matched": "Katni",
+"match_ratio": 1.0
+},
+{
+"state": "Madhya Pradesh",
+"district": "Guna",
+"ha": 3842,
+"matched": "Guna",
+"match_ratio": 1.0
+},
+{
+"state": "Madhya Pradesh",
+"district": "Sagar",
+"ha": 3644,
+"matched": "Sagar",
+"match_ratio": 1.0
+},
+{
+"state": "Madhya Pradesh",
+"district": "Dhar",
+"ha": 3374,
+"matched": "Dhar",
+"match_ratio": 1.0
+},
+{
+"state": "Madhya Pradesh",
+"district": "Dewas",
+"ha": 2850,
+"matched": "Dewas",
+"match_ratio": 1.0
+},
+{
+"state": "Madhya Pradesh",
+"district": "Mandla",
+"ha": 2524,
+"matched": "Mandla",
+"match_ratio": 1.0
+},
+{
+"state": "Madhya Pradesh",
+"district": "Chhatarpur",
+"ha": 2466,
+"matched": "Chhatarpur",
+"match_ratio": 1.0
+},
+{
+"state": "Madhya Pradesh",
+"district": "Barwani",
+"ha": 2354,
+"matched": "Barwani",
+"match_ratio": 1.0
+},
+{
+"state": "Madhya Pradesh",
+"district": "Seoni",
+"ha": 2268,
+"matched": "Seoni",
+"match_ratio": 1.0
+},
+{
+"state": "Madhya Pradesh",
+"district": "Harda",
+"ha": 1893,
+"matched": "Harda",
+"match_ratio": 1.0
+},
+{
+"state": "Madhya Pradesh",
+"district": "Balaghat",
+"ha": 1374,
+"matched": "Balaghat",
+"match_ratio": 1.0
+},
+{
+"state": "Madhya Pradesh",
+"district": "Bhopal",
+"ha": 714,
+"matched": "Bhopal",
+"match_ratio": 1.0
+},
+{
+"state": "Madhya Pradesh",
+"district": "Rajgarh",
+"ha": 491,
+"matched": "Rajgarh",
+"match_ratio": 1.0
+},
+{
+"state": "Madhya Pradesh",
+"district": "Umaria",
+"ha": 221,
+"matched": "Umaria",
+"match_ratio": 1.0
+},
+{
+"state": "Madhya Pradesh",
+"district": "Alirajpur",
+"ha": 122,
+"matched": "Alirajpur",
+"match_ratio": 1.0
+},
+{
+"state": "Maharashtra",
+"district": "Chandrapur",
+"ha": 54009,
+"matched": "Chandrapur",
+"match_ratio": 1.0
+},
+{
+"state": "Maharashtra",
+"district": "Kolhapur",
+"ha": 46304,
+"matched": "Kolhapur",
+"match_ratio": 1.0
+},
+{
+"state": "Maharashtra",
+"district": "Garhchiroli",
+"ha": 38847,
+"matched": "Gadchiroli",
+"match_ratio": 1.0
+},
+{
+"state": "Maharashtra",
+"district": "Bhandara",
+"ha": 16915,
+"matched": "Bhandara",
+"match_ratio": 1.0
+},
+{
+"state": "Maharashtra",
+"district": "Yavatmal",
+"ha": 13930,
+"matched": "Yavatmal",
+"match_ratio": 1.0
+},
+{
+"state": "Maharashtra",
+"district": "Sangli",
+"ha": 13925,
+"matched": "Sangli",
+"match_ratio": 1.0
+},
+{
+"state": "Maharashtra",
+"district": "Bid",
+"ha": 11065,
+"matched": "Bid",
+"match_ratio": 1.0
+},
+{
+"state": "Maharashtra",
+"district": "Jalna",
+"ha": 9676,
+"matched": "Jalna",
+"match_ratio": 1.0
+},
+{
+"state": "Maharashtra",
+"district": "Wardha",
+"ha": 6172,
+"matched": "Wardha",
+"match_ratio": 1.0
+},
+{
+"state": "Maharashtra",
+"district": "Nanded",
+"ha": 5819,
+"matched": "Nanded",
+"match_ratio": 1.0
+},
+{
+"state": "Maharashtra",
+"district": "Solapur",
+"ha": 3873,
+"matched": "Solapur",
+"match_ratio": 1.0
+},
+{
+"state": "Maharashtra",
+"district": "Akola",
+"ha": 3184,
+"matched": "Akola",
+"match_ratio": 1.0
+},
+{
+"state": "Maharashtra",
+"district": "Nashik",
+"ha": 3075,
+"matched": "Nashik",
+"match_ratio": 1.0
+},
+{
+"state": "Maharashtra",
+"district": "Parbhani",
+"ha": 1876,
+"matched": "Parbhani",
+"match_ratio": 1.0
+},
+{
+"state": "Maharashtra",
+"district": "Ahmadnagar",
+"ha": 1785,
+"matched": "Ahmadnagar",
+"match_ratio": 1.0
+},
+{
+"state": "Maharashtra",
+"district": "Raygad",
+"ha": 1300,
+"matched": "Raigarh",
+"match_ratio": 1.0
+},
+{
+"state": "Maharashtra",
+"district": "Gondiya",
+"ha": 819,
+"matched": "Gondiya",
+"match_ratio": 1.0
+},
+{
+"state": "Maharashtra",
+"district": "Hingoli",
+"ha": 462,
+"matched": "Hingoli",
+"match_ratio": 1.0
+},
+{
+"state": "Maharashtra",
+"district": "Amravati",
+"ha": 399,
+"matched": "Amravati",
+"match_ratio": 1.0
+},
+{
+"state": "Maharashtra",
+"district": "Nagpur",
+"ha": 155,
+"matched": "Nagpur",
+"match_ratio": 1.0
+},
+{
+"state": "Manipur",
+"district": "Imphal West",
+"ha": 20043,
+"matched": "Imphal West",
+"match_ratio": 1.0
+},
+{
+"state": "Manipur",
+"district": "Thoubal",
+"ha": 19579,
+"matched": "Thoubal",
+"match_ratio": 1.0
+},
+{
+"state": "Manipur",
+"district": "Bishnupur",
+"ha": 17253,
+"matched": "Bishnupur",
+"match_ratio": 1.0
+},
+{
+"state": "Manipur",
+"district": "Imphal East",
+"ha": 17000,
+"matched": "Imphal East",
+"match_ratio": 1.0
+},
+{
+"state": "Manipur",
+"district": "Kakching",
+"ha": 8777,
+"matched": "Kakching",
+"match_ratio": 1.0
+},
+{
+"state": "Manipur",
+"district": "Kangpokpi",
+"ha": 4893,
+"matched": "Kangpokpi",
+"match_ratio": 1.0
+},
+{
+"state": "Manipur",
+"district": "Tengnoupal",
+"ha": 439,
+"matched": "Tengnoupal",
+"match_ratio": 1.0
+},
+{
+"state": "Manipur",
+"district": "Jiribam",
+"ha": 221,
+"matched": "Jiribam",
+"match_ratio": 1.0
+},
+{
+"state": "Manipur",
+"district": "Senapati",
+"ha": 146,
+"matched": "Senapati",
+"match_ratio": 1.0
+},
+{
+"state": "Meghalaya",
+"district": "West Garo Hills",
+"ha": 7513,
+"matched": "West Garo Hills",
+"match_ratio": 1.0
+},
+{
+"state": "Meghalaya",
+"district": "South West Garo Hills",
+"ha": 1275,
+"matched": "South West Garo Hills",
+"match_ratio": 1.0
+},
+{
+"state": "Odisha",
+"district": "Baleshwar",
+"ha": 229691,
+"matched": "Baleshwar",
+"match_ratio": 1.0
+},
+{
+"state": "Odisha",
+"district": "Bhadrak",
+"ha": 203525,
+"matched": "Bhadrak",
+"match_ratio": 1.0
+},
+{
+"state": "Odisha",
+"district": "Kendraparha",
+"ha": 189195,
+"matched": "Kendrapara",
+"match_ratio": 0.95
+},
+{
+"state": "Odisha",
+"district": "Puri",
+"ha": 168662,
+"matched": "Puri",
+"match_ratio": 1.0
+},
+{
+"state": "Odisha",
+"district": "Jajapur",
+"ha": 143973,
+"matched": "Jajapur",
+"match_ratio": 1.0
+},
+{
+"state": "Odisha",
+"district": "Cuttack",
+"ha": 120270,
+"matched": "Cuttack",
+"match_ratio": 1.0
+},
+{
+"state": "Odisha",
+"district": "Jagatsinghapur",
+"ha": 118994,
+"matched": "Jagatsinghapur",
+"match_ratio": 1.0
+},
+{
+"state": "Odisha",
+"district": "Khordha",
+"ha": 73503,
+"matched": "Khordha",
+"match_ratio": 1.0
+},
+{
+"state": "Odisha",
+"district": "Ganjam",
+"ha": 56136,
+"matched": "Ganjam",
+"match_ratio": 1.0
+},
+{
+"state": "Odisha",
+"district": "Mayurbhanj",
+"ha": 30976,
+"matched": "Mayurbhanj",
+"match_ratio": 1.0
+},
+{
+"state": "Odisha",
+"district": "Kendujhar",
+"ha": 29508,
+"matched": "Kendujhar",
+"match_ratio": 1.0
+},
+{
+"state": "Odisha",
+"district": "Dhenkanal",
+"ha": 24483,
+"matched": "Dhenkanal",
+"match_ratio": 1.0
+},
+{
+"state": "Odisha",
+"district": "Nayagarh",
+"ha": 20766,
+"matched": "Nayagarh",
+"match_ratio": 1.0
+},
+{
+"state": "Odisha",
+"district": "Anugul",
+"ha": 6587,
+"matched": "Anugul",
+"match_ratio": 1.0
+},
+{
+"state": "Odisha",
+"district": "Bauda",
+"ha": 4171,
+"matched": null,
+"match_ratio": 0.8
+},
+{
+"state": "Odisha",
+"district": "Koraput",
+"ha": 1901,
+"matched": "Koraput",
+"match_ratio": 1.0
+},
+{
+"state": "Odisha",
+"district": "Sundargarh",
+"ha": 453,
+"matched": "Sundargarh",
+"match_ratio": 1.0
+},
+{
+"state": "Odisha",
+"district": "Jharsuguda",
+"ha": 448,
+"matched": "Jharsuguda",
+"match_ratio": 1.0
+},
+{
+"state": "Odisha",
+"district": "Deogarh",
+"ha": 354,
+"matched": "Debagarh",
+"match_ratio": 1.0
+},
+{
+"state": "Odisha",
+"district": "Sonapur",
+"ha": 294,
+"matched": "Subarnapur",
+"match_ratio": 1.0
+},
+{
+"state": "Odisha",
+"district": "Baragarh",
+"ha": 152,
+"matched": "Bargarh",
+"match_ratio": 0.93
+},
+{
+"state": "Odisha",
+"district": "Sambalpur",
+"ha": 138,
+"matched": "Sambalpur",
+"match_ratio": 1.0
+},
+{
+"state": "Odisha",
+"district": "Nabarangapur",
+"ha": 133,
+"matched": "Nabarangapur",
+"match_ratio": 1.0
+},
+{
+"state": "Punjab",
+"district": "Patiala",
+"ha": 77358,
+"matched": "Patiala",
+"match_ratio": 1.0
+},
+{
+"state": "Punjab",
+"district": "Sangrur",
+"ha": 14651,
+"matched": "Sangrur",
+"match_ratio": 1.0
+},
+{
+"state": "Punjab",
+"district": "Fatehgarh Sahib",
+"ha": 9995,
+"matched": "Fatehgarh Sahib",
+"match_ratio": 1.0
+},
+{
+"state": "Punjab",
+"district": "Jalandhar",
+"ha": 8314,
+"matched": "Jalandhar",
+"match_ratio": 1.0
+},
+{
+"state": "Punjab",
+"district": "Ludhiana",
+"ha": 6654,
+"matched": "Ludhiana",
+"match_ratio": 1.0
+},
+{
+"state": "Punjab",
+"district": "Kapurthala",
+"ha": 5095,
+"matched": "Kapurthala",
+"match_ratio": 1.0
+},
+{
+"state": "Punjab",
+"district": "Firozpur",
+"ha": 3996,
+"matched": "Firozpur",
+"match_ratio": 1.0
+},
+{
+"state": "Punjab",
+"district": "Tam Taran",
+"ha": 3762,
+"matched": "Tarn Taran",
+"match_ratio": 1.0
+},
+{
+"state": "Punjab",
+"district": "Rupnagar",
+"ha": 3292,
+"matched": "Rupnagar",
+"match_ratio": 1.0
+},
+{
+"state": "Punjab",
+"district": "Nawan Shahr",
+"ha": 2803,
+"matched": "Shahid Bhagat Singh Nagar",
+"match_ratio": 1.0
+},
+{
+"state": "Punjab",
+"district": "Sas Nagar",
+"ha": 2074,
+"matched": "Sahibzada Ajit Singh Nagar",
+"match_ratio": 1.0
+},
+{
+"state": "Punjab",
+"district": "Moga",
+"ha": 2045,
+"matched": "Moga",
+"match_ratio": 1.0
+},
+{
+"state": "Punjab",
+"district": "Amritsar",
+"ha": 1362,
+"matched": "Amritsar",
+"match_ratio": 1.0
+},
+{
+"state": "Punjab",
+"district": "Mansa",
+"ha": 754,
+"matched": "Mansa",
+"match_ratio": 1.0
+},
+{
+"state": "Punjab",
+"district": "Fazilka",
+"ha": 536,
+"matched": "Fazilka",
+"match_ratio": 1.0
+},
+{
+"state": "Rajasthan",
+"district": "Barmer",
+"ha": 129206,
+"matched": "Barmer",
+"match_ratio": 1.0
+},
+{
+"state": "Rajasthan",
+"district": "Dhaulpur",
+"ha": 8935,
+"matched": "Dhaulpur",
+"match_ratio": 1.0
+},
+{
+"state": "Rajasthan",
+"district": "Kota",
+"ha": 6602,
+"matched": "Kota",
+"match_ratio": 1.0
+},
+{
+"state": "Rajasthan",
+"district": "Jalor",
+"ha": 2723,
+"matched": "Jalor",
+"match_ratio": 1.0
+},
+{
+"state": "Rajasthan",
+"district": "Karauli",
+"ha": 1577,
+"matched": "Karauli",
+"match_ratio": 1.0
+},
+{
+"state": "Rajasthan",
+"district": "Baran",
+"ha": 1510,
+"matched": "Baran",
+"match_ratio": 1.0
+},
+{
+"state": "Rajasthan",
+"district": "Jodhpur",
+"ha": 1316,
+"matched": "Jodhpur",
+"match_ratio": 1.0
+},
+{
+"state": "Rajasthan",
+"district": "Jaisalmer",
+"ha": 1188,
+"matched": "Jaisalmer",
+"match_ratio": 1.0
+},
+{
+"state": "Rajasthan",
+"district": "Sawai Madhopur",
+"ha": 1132,
+"matched": "Sawai Madhopur",
+"match_ratio": 1.0
+},
+{
+"state": "Rajasthan",
+"district": "Pali",
+"ha": 955,
+"matched": "Pali",
+"match_ratio": 1.0
+},
+{
+"state": "Tamil Nadu",
+"district": "Kanchipuram",
+"ha": 89794,
+"matched": "Kancheepuram",
+"match_ratio": 1.0
+},
+{
+"state": "Tamil Nadu",
+"district": "Tiruvarur",
+"ha": 81215,
+"matched": "Thiruvarur",
+"match_ratio": 0.95
+},
+{
+"state": "Tamil Nadu",
+"district": "Cuddalore",
+"ha": 47191,
+"matched": "Cuddalore",
+"match_ratio": 1.0
+},
+{
+"state": "Tamil Nadu",
+"district": "Thanjavur",
+"ha": 44251,
+"matched": "Thanjavur",
+"match_ratio": 1.0
+},
+{
+"state": "Tamil Nadu",
+"district": "Nagappattinam",
+"ha": 41708,
+"matched": "Nagapattinam",
+"match_ratio": 1.0
+},
+{
+"state": "Tamil Nadu",
+"district": "Tirunelveli",
+"ha": 36894,
+"matched": "Tirunelveli",
+"match_ratio": 1.0
+},
+{
+"state": "Tamil Nadu",
+"district": "Tiruvallur",
+"ha": 36537,
+"matched": "Thiruvallur",
+"match_ratio": 0.95
+},
+{
+"state": "Tamil Nadu",
+"district": "Ramanathapuram",
+"ha": 35732,
+"matched": "Ramanathapuram",
+"match_ratio": 1.0
+},
+{
+"state": "Tamil Nadu",
+"district": "Tuticorin (Tuttukudi)",
+"ha": 27640,
+"matched": "Thoothukkudi",
+"match_ratio": 1.0
+},
+{
+"state": "Tamil Nadu",
+"district": "Sivaganga",
+"ha": 23307,
+"matched": "Sivaganga",
+"match_ratio": 1.0
+},
+{
+"state": "Tamil Nadu",
+"district": "Tiruchchirappalli",
+"ha": 17449,
+"matched": "Tiruchirappalli",
+"match_ratio": 0.94
+},
+{
+"state": "Tamil Nadu",
+"district": "Villupuram",
+"ha": 15656,
+"matched": "Viluppuram",
+"match_ratio": 0.9
+},
+{
+"state": "Tamil Nadu",
+"district": "Madurai",
+"ha": 12388,
+"matched": "Madurai",
+"match_ratio": 1.0
+},
+{
+"state": "Tamil Nadu",
+"district": "Pudukkottai",
+"ha": 9884,
+"matched": "Pudukkottai",
+"match_ratio": 1.0
+},
+{
+"state": "Tamil Nadu",
+"district": "Ariyalur",
+"ha": 9647,
+"matched": "Ariyalur",
+"match_ratio": 1.0
+},
+{
+"state": "Tamil Nadu",
+"district": "Virudunagar",
+"ha": 9526,
+"matched": "Virudhunagar",
+"match_ratio": 0.96
+},
+{
+"state": "Tamil Nadu",
+"district": "Tiruvannamalai",
+"ha": 5010,
+"matched": "Tiruvannamalai",
+"match_ratio": 1.0
+},
+{
+"state": "Tamil Nadu",
+"district": "Chennai",
+"ha": 4892,
+"matched": "Chennai",
+"match_ratio": 1.0
+},
+{
+"state": "Tamil Nadu",
+"district": "Tiruppur",
+"ha": 1079,
+"matched": "Tiruppur",
+"match_ratio": 1.0
+},
+{
+"state": "Tamil Nadu",
+"district": "Perambalur",
+"ha": 763,
+"matched": "Perambalur",
+"match_ratio": 1.0
+},
+{
+"state": "Tamil Nadu",
+"district": "Krishnagiri",
+"ha": 603,
+"matched": "Krishnagiri",
+"match_ratio": 1.0
+},
+{
+"state": "Tamil Nadu",
+"district": "Karur",
+"ha": 521,
+"matched": "Karur",
+"match_ratio": 1.0
+},
+{
+"state": "Tamil Nadu",
+"district": "Kanniyakumari",
+"ha": 215,
+"matched": "Kanniyakumari",
+"match_ratio": 1.0
+},
+{
+"state": "Tamil Nadu",
+"district": "Dharmapuri",
+"ha": 111,
+"matched": "Dharmapuri",
+"match_ratio": 1.0
+},
+{
+"state": "Telangana",
+"district": "Bhadradri Kothagudem",
+"ha": 20100,
+"matched": "Bhadradri",
+"match_ratio": 1.0
+},
+{
+"state": "Telangana",
+"district": "Mulugu",
+"ha": 14806,
+"matched": "Mulugu",
+"match_ratio": 1.0
+},
+{
+"state": "Telangana",
+"district": "Macherial",
+"ha": 13469,
+"matched": "Mancherial",
+"match_ratio": 0.95
+},
+{
+"state": "Telangana",
+"district": "Jayashankar",
+"ha": 13084,
+"matched": "Jayashankar",
+"match_ratio": 1.0
+},
+{
+"state": "Telangana",
+"district": "Jogulamba Gadwal",
+"ha": 12920,
+"matched": null,
+"match_ratio": 0.75
+},
+{
+"state": "Telangana",
+"district": "Komaram Bheem",
+"ha": 9456,
+"matched": "Komaram Bheem",
+"match_ratio": 1.0
+},
+{
+"state": "Telangana",
+"district": "Wanaparthy",
+"ha": 6929,
+"matched": "Wanaparthy",
+"match_ratio": 1.0
+},
+{
+"state": "Telangana",
+"district": "Peddapalle",
+"ha": 6430,
+"matched": "Peddapalli",
+"match_ratio": 0.9
+},
+{
+"state": "Telangana",
+"district": "Nalgonda",
+"ha": 1317,
+"matched": "Nalgonda",
+"match_ratio": 1.0
+},
+{
+"state": "Telangana",
+"district": "Suryapet",
+"ha": 1220,
+"matched": "Suryapet",
+"match_ratio": 1.0
+},
+{
+"state": "Telangana",
+"district": "Nagarkurnool",
+"ha": 969,
+"matched": "Nagarkurnool",
+"match_ratio": 1.0
+},
+{
+"state": "Telangana",
+"district": "Khammam",
+"ha": 863,
+"matched": "Khammam",
+"match_ratio": 1.0
+},
+{
+"state": "Telangana",
+"district": "Adilabad",
+"ha": 589,
+"matched": "Adilabad",
+"match_ratio": 1.0
+},
+{
+"state": "Telangana",
+"district": "Mahabubabad",
+"ha": 163,
+"matched": "Mahabubabad",
+"match_ratio": 1.0
+},
+{
+"state": "Tripura",
+"district": "Gomati",
+"ha": 2097,
+"matched": "Gomati",
+"match_ratio": 1.0
+},
+{
+"state": "Tripura",
+"district": "Sipahijala",
+"ha": 1238,
+"matched": "Sipahijula",
+"match_ratio": 0.9
+},
+{
+"state": "Tripura",
+"district": "West Tripura",
+"ha": 461,
+"matched": "West Tripura",
+"match_ratio": 1.0
+},
+{
+"state": "Tripura",
+"district": "North Tripura",
+"ha": 132,
+"matched": "North Tripura",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Siddharth Nagar",
+"ha": 180929,
+"matched": "Siddharthnagar",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Gorakhpur",
+"ha": 158713,
+"matched": "Gorakhpur",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Maharajganj",
+"ha": 127378,
+"matched": "Mahrajganj",
+"match_ratio": 0.95
+},
+{
+"state": "Uttar Pradesh",
+"district": "Azamgarh",
+"ha": 121019,
+"matched": "Azamgarh",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Ghazipur",
+"ha": 112660,
+"matched": "Ghazipur",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Ballia",
+"ha": 111199,
+"matched": "Ballia",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Bahraich",
+"ha": 94900,
+"matched": "Bahraich",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Balrampur",
+"ha": 89762,
+"matched": "Balrampur",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Hardoi",
+"ha": 81419,
+"matched": "Hardoi",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Badaun",
+"ha": 79188,
+"matched": "Budaun",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Kheri",
+"ha": 75768,
+"matched": "Kheri",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Deoria",
+"ha": 73652,
+"matched": "Deoria",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Unnao",
+"ha": 73342,
+"matched": "Unnao",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Shahjahanpur",
+"ha": 71177,
+"matched": "Shahjahanpur",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Farrukhabad",
+"ha": 70712,
+"matched": "Farrukhabad",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Sant Kabir Nagar",
+"ha": 64406,
+"matched": "Sant Kabir Nagar",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Jalaun",
+"ha": 63190,
+"matched": "Jalaun",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Banda",
+"ha": 58830,
+"matched": "Banda",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Basti",
+"ha": 58566,
+"matched": "Basti",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Allahabad",
+"ha": 52678,
+"matched": "Allahabad",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Sitapur",
+"ha": 50393,
+"matched": "Sitapur",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Shrawasti",
+"ha": 47771,
+"matched": "Shrawasti",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Bareilly",
+"ha": 44203,
+"matched": "Bareilly",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Mau",
+"ha": 43507,
+"matched": "Mau",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Etawah",
+"ha": 38821,
+"matched": "Etawah",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Bara Banki",
+"ha": 36042,
+"matched": "Bara Banki",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Gonda",
+"ha": 34914,
+"matched": "Gonda",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Mirzapur",
+"ha": 33609,
+"matched": "Mirzapur",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Mainpuri",
+"ha": 32503,
+"matched": "Mainpuri",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Chandauli",
+"ha": 32162,
+"matched": "Chandauli",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Kansiramnagar",
+"ha": 28213,
+"matched": "Kanshiram Nagar",
+"match_ratio": 0.96
+},
+{
+"state": "Uttar Pradesh",
+"district": "Ambedkarnagar",
+"ha": 27040,
+"matched": "Ambedkar Nagar",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Kushinagar",
+"ha": 26976,
+"matched": "Kushinagar",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Auraiya",
+"ha": 24827,
+"matched": "Auraiya",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Rampur",
+"ha": 24548,
+"matched": "Rampur",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Jaunpur",
+"ha": 18796,
+"matched": "Jaunpur",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Fatehpur",
+"ha": 17443,
+"matched": "Fatehpur",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Bhimnagar",
+"ha": 16805,
+"matched": null,
+"match_ratio": 0.74
+},
+{
+"state": "Uttar Pradesh",
+"district": "Hamirpur",
+"ha": 16404,
+"matched": "Hamirpur",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Agra",
+"ha": 14570,
+"matched": "Agra",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Kanpur Dehat",
+"ha": 14192,
+"matched": "Kanpur Dehat",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Rae Bareli",
+"ha": 14114,
+"matched": "Rae Bareli",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Pilibhit",
+"ha": 13785,
+"matched": "Pilibhit",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Meerut",
+"ha": 12861,
+"matched": "Meerut",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Kannauj",
+"ha": 12703,
+"matched": "Kannauj",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Aligarh",
+"ha": 12541,
+"matched": "Aligarh",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Mathura",
+"ha": 12415,
+"matched": "Mathura",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Kaushambi",
+"ha": 12354,
+"matched": "Kaushambi",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Moradabad",
+"ha": 12234,
+"matched": "Moradabad",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Sultanpur",
+"ha": 11898,
+"matched": "Sultanpur",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Faizabad",
+"ha": 11676,
+"matched": "Faizabad",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Muzaffarnagar",
+"ha": 10197,
+"matched": "Muzaffarnagar",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Chitrakoot",
+"ha": 9270,
+"matched": "Chitrakoot",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Firozabad",
+"ha": 9141,
+"matched": "Firozabad",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Bijnor",
+"ha": 9037,
+"matched": "Bijnor",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Kanpur Nagar",
+"ha": 8241,
+"matched": "Kanpur Nagar",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Jyotiba Phule Nagar",
+"ha": 8181,
+"matched": "Jyotiba Phule Nagar",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Varanasi",
+"ha": 8160,
+"matched": "Varanasi",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Etah",
+"ha": 6208,
+"matched": "Etah",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Hathras",
+"ha": 5462,
+"matched": null,
+"match_ratio": 0.71
+},
+{
+"state": "Uttar Pradesh",
+"district": "Bulandshahr",
+"ha": 4131,
+"matched": "Bulandshahr",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Lucknow",
+"ha": 3783,
+"matched": "Lucknow",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Pratapgarh",
+"ha": 2501,
+"matched": "Pratapgarh",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Jhansi",
+"ha": 2159,
+"matched": "Jhansi",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Gautambudh Nagar",
+"ha": 1621,
+"matched": "Gautam Buddha Nagar",
+"match_ratio": 0.94
+},
+{
+"state": "Uttar Pradesh",
+"district": "Sant Ravi Das Nagar(bhadohi)",
+"ha": 1551,
+"matched": "Sant Ravidas Nagar (Bhadohi)",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Saharanpur",
+"ha": 1420,
+"matched": "Saharanpur",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Prabudhnagar",
+"ha": 765,
+"matched": null,
+"match_ratio": 0.69
+},
+{
+"state": "Uttar Pradesh",
+"district": "Baghpat",
+"ha": 580,
+"matched": "Baghpat",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Amethi",
+"ha": 303,
+"matched": "Amethi",
+"match_ratio": 1.0
+},
+{
+"state": "Uttar Pradesh",
+"district": "Panchshil Nagar",
+"ha": 233,
+"matched": null,
+"match_ratio": 0.71
+},
+{
+"state": "Uttar Pradesh",
+"district": "Ghaziabad",
+"ha": 191,
+"matched": "Ghaziabad",
+"match_ratio": 1.0
+},
+{
+"state": "Uttarakhand",
+"district": "Haridwar",
+"ha": 7170,
+"matched": "Hardwar",
+"match_ratio": 0.93
+},
+{
+"state": "Uttarakhand",
+"district": "Udham Singh Nagar",
+"ha": 433,
+"matched": "Udham Singh Nagar",
+"match_ratio": 1.0
+},
+{
+"state": "West Bengal",
+"district": "Pashchim Medinipur",
+"ha": 258732,
+"matched": "Paschim Medinipur",
+"match_ratio": 0.97
+},
+{
+"state": "West Bengal",
+"district": "Nadia",
+"ha": 251576,
+"matched": "Nadia",
+"match_ratio": 1.0
+},
+{
+"state": "West Bengal",
+"district": "Purba Barddhaman",
+"ha": 225130,
+"matched": null,
+"match_ratio": 0.8
+},
+{
+"state": "West Bengal",
+"district": "Murshidabad",
+"ha": 221909,
+"matched": "Murshidabad",
+"match_ratio": 1.0
+},
+{
+"state": "West Bengal",
+"district": "Purba Medinipur",
+"ha": 215739,
+"matched": "Purba Medinipur",
+"match_ratio": 1.0
+},
+{
+"state": "West Bengal",
+"district": "Hugli",
+"ha": 141768,
+"matched": "Hugli",
+"match_ratio": 1.0
+},
+{
+"state": "West Bengal",
+"district": "Maldah",
+"ha": 115093,
+"matched": "Maldah",
+"match_ratio": 1.0
+},
+{
+"state": "West Bengal",
+"district": "North 24 Parganas",
+"ha": 101374,
+"matched": null,
+"match_ratio": 0.72
+},
+{
+"state": "West Bengal",
+"district": "South 24 Parganas",
+"ha": 98416,
+"matched": null,
+"match_ratio": 0.72
+},
+{
+"state": "West Bengal",
+"district": "West Dinajpur",
+"ha": 79783,
+"matched": null,
+"match_ratio": 0.72
+},
+{
+"state": "West Bengal",
+"district": "Dakshin Dinajpur",
+"ha": 66424,
+"matched": "Dakshin Dinajpur",
+"match_ratio": 1.0
+},
+{
+"state": "West Bengal",
+"district": "Haora",
+"ha": 61059,
+"matched": "Haora",
+"match_ratio": 1.0
+},
+{
+"state": "West Bengal",
+"district": "Birbhum",
+"ha": 58453,
+"matched": "Birbhum",
+"match_ratio": 1.0
+},
+{
+"state": "West Bengal",
+"district": "Jhargram",
+"ha": 39989,
+"matched": "Jhargram",
+"match_ratio": 1.0
+},
+{
+"state": "West Bengal",
+"district": "Bankura",
+"ha": 19102,
+"matched": "Bankura",
+"match_ratio": 1.0
+},
+{
+"state": "West Bengal",
+"district": "Kochbihar",
+"ha": 9169,
+"matched": "Koch Bihar",
+"match_ratio": 1.0
+},
+{
+"state": "West Bengal",
+"district": "Alipurduar",
+"ha": 1969,
+"matched": "Alipurduar",
+"match_ratio": 1.0
+},
+{
+"state": "West Bengal",
+"district": "Kolkata",
+"ha": 1941,
+"matched": "Kolkata",
+"match_ratio": 1.0
+},
+{
+"state": "West Bengal",
+"district": "Jalpaiguri",
+"ha": 1484,
+"matched": "Jalpaiguri",
+"match_ratio": 1.0
+},
+{
+"state": "West Bengal",
+"district": "Paschim Bardhaman",
+"ha": 639,
+"matched": "Paschim Barddhaman",
+"match_ratio": 0.97
+}
+]
+}

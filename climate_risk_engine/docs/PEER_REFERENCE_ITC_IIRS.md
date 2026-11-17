@@ -24,7 +24,7 @@
 
 | # | Gap | What they do | What we have | Honest status |
 |---|---|---|---|---|
-| 1 | **India-specific observed flood layer** | NRSC atlas 1998-2022 plus CWC gauge levels | CEMS events (72, 2023-2026), JRC surface water, a Sentinel-1 water-history entry | No Indian cumulative inundation or gauge data. For BRSR and Indian clients this is the biggest gap. Access and licence of the NDEM atlas data are unchecked. |
+| 1 | **India-specific observed flood layer** | NRSC atlas 1998-2022 plus CWC gauge levels | CEMS events (72, 2023-2026), JRC surface water, a Sentinel-1 water-history entry | **Partly closed 17 Nov 2026:** district-level NRSC atlas ingested (401 of 439 districts matched) and wired into the flood concordance; see `INDIA_FLOOD_ATLAS_CHECK.md`. Still no CWC gauge levels or map layers; atlas licence unchecked. |
 | 2 | **Validation against a reference hydraulic model** | FastFlood checked against full Saint-Venant (and HEC-RAS) | Own local-inertial solver; new rain-on-grid setup not scored against any outline | Needs a benchmark: our solver vs a reference model and vs FastFlood (free web tool) on the same sites, as a cross-source check. |
 | 3 | **Bare-earth terrain** | Compares forest-and-building-removed elevation models | SRTM / Copernicus / Terrarium tiles (surface models, built-up areas read as raised) | Not done. FABDEM-type data is licensed non-commercial; check before use. |
 | 4 | **Compound and cascading hazards** | Integrated multi-hazard physics (rain to landslide to debris flow, cyclone rain plus surge) | Peril-by-peril; the concordance compares sources per peril; disclosure text assumes independent events | Not modelled. Cyclone rain, river and surge are not combined at a site. |

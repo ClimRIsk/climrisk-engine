@@ -105,6 +105,15 @@ REGISTRY: dict[str, dict[str, Any]] = {
     "flood_event_index.json": dict(
         publisher="Copernicus EMS Rapid Mapping and other catalogued flood extents 2023-2026 (see file)", licence="per source", vintage="2023-2026", status="derived",
         use="Bounding boxes of observed flood events near a site", review_days=LIVE, note="Bounding boxes only. Not a complete flood history of any place."),
+    "india_flood_atlas.json": dict(
+        publisher="NRSC/ISRO for NDMA, Flood Affected Area Atlas of India (satellite based), v1, 1998-2022, March 2023", licence="NOT CHECKED (government publication; district statistics only)",
+        vintage="1998-2022", built="2026-11-17", status="derived", use="Observed cumulative flood-affected area per district, as a check on modelled flood", review_days=STATIC,
+        build="scripts/build_india_flood_atlas.py", url="https://ndem.nrsc.gov.in/documents/downloads/allindia_flood_techdoc.pdf",
+        note="Parsed from the PDF tables; per-state sums match the atlas totals within rounding. 401 of 439 districts matched to 2021 boundaries by name; splits left unmatched. Cumulative extent, no depth or frequency."),
+    "india_districts_adm2.json.gz": dict(
+        publisher="geoBoundaries gbOpen IND ADM2, 2021 (Pathways Data Pvt. Ltd., lgdirectory.gov.in)", licence="ODbL 1.0 (attribution and share-alike for the database)", vintage="2021",
+        built="2026-11-17", status="derived", use="Point to Indian district lookup for the flood atlas", review_days=STATIC, build="scripts/build_india_flood_atlas.py",
+        note="Simplified to about 400 m; not for boundary disputes or area statistics."),
     "flood_event_model.json": dict(
         publisher="Our logistic model fitted on Copernicus EMS flood polygons (72 events)", licence="n/a", vintage="2023-2026", status="fitted",
         use="Within-landscape flood ranking from HAND and relative elevation", review_days=ANNUAL, build="scripts/flood_event_benchmark.py --stage fit",
