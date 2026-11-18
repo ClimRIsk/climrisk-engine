@@ -96,5 +96,7 @@ exclude = ["cri.maintainer", "cri.maintainer.*"]
 "cri.api" = ["*.html", "*.json"]
 # carbontlens/ndgain lookups and the emissions calibration + observed-emissions
 # files were silently missing from installed builds before this line
-"cri.data" = ["*.json", "*.npz", "*.csv.gz"]
+# *.json.gz (India district boundaries for the NRSC atlas lookups), *.pem (licence public key) and *.txt (real out-of-scope queries) were also missing from
+# installed builds; tests/test_packaging.py now fails if a data file is not matched by these patterns
+"cri.data" = ["*.json", "*.npz", "*.csv.gz", "*.json.gz", "*.pem", "*.txt"]
 "cri.resident" = ["*.js", "data/*.jsonl"]
