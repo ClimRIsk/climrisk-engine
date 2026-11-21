@@ -24,3 +24,13 @@ climate_risk_engine/data/cache/forecast_*.json
 climate_risk_engine/data/cache/nhc_current_storms.json
 # Carbon factor build caches (rebuildable with scripts/build_carbon_factors.py)
 climate_risk_engine/data/carbon/raw/
+
+# Build output (rebuilt by `pip install` / `pip wheel`; a stale copy was once committed)
+build/
+dist/
+.pytest_cache/
+.hypothesis/
+
+# Runtime state written by the watchlist agent into the working directory
+climate_risk_engine/watchlist.json
+climate_risk_engine/watchlist_scores.json
